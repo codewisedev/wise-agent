@@ -608,21 +608,27 @@ type AccountTestResult struct {
 
 // AgentDetail defines model for AgentDetail.
 type AgentDetail struct {
-	CloudAllowed bool                   `json:"cloudAllowed"`
-	ContentHash  string                 `json:"contentHash"`
-	CreatedAt    time.Time              `json:"createdAt"`
-	Definition   map[string]interface{} `json:"definition"`
-	Description  string                 `json:"description"`
-	Enabled      bool                   `json:"enabled"`
-	Id           openapi_types.UUID     `json:"id"`
-	LastRunAt    *time.Time             `json:"lastRunAt,omitempty"`
-	ModelAlias   string                 `json:"modelAlias"`
-	Name         string                 `json:"name"`
-	Phase        *int                   `json:"phase,omitempty"`
-	Prompt       string                 `json:"prompt"`
-	RunCount     int64                  `json:"runCount"`
-	Tools        []string               `json:"tools"`
-	Version      string                 `json:"version"`
+	CloudAllowed bool `json:"cloudAllowed"`
+
+	// Consumes Input property → artifact kind it is filled from.
+	Consumes    *map[string]string     `json:"consumes,omitempty"`
+	ContentHash string                 `json:"contentHash"`
+	CreatedAt   time.Time              `json:"createdAt"`
+	Definition  map[string]interface{} `json:"definition"`
+	Description string                 `json:"description"`
+	Enabled     bool                   `json:"enabled"`
+	Id          openapi_types.UUID     `json:"id"`
+	LastRunAt   *time.Time             `json:"lastRunAt,omitempty"`
+	ModelAlias  string                 `json:"modelAlias"`
+	Name        string                 `json:"name"`
+	Phase       *int                   `json:"phase,omitempty"`
+
+	// Produces Artifact kind of the agent's output in workflows.
+	Produces *string  `json:"produces,omitempty"`
+	Prompt   string   `json:"prompt"`
+	RunCount int64    `json:"runCount"`
+	Tools    []string `json:"tools"`
+	Version  string   `json:"version"`
 }
 
 // AgentEvent defines model for AgentEvent.
@@ -676,6 +682,8 @@ type AgentRunStatus string
 
 // AgentSummary defines model for AgentSummary.
 type AgentSummary struct {
+	// Consumes Input property → artifact kind it is filled from.
+	Consumes    *map[string]string `json:"consumes,omitempty"`
 	Description string             `json:"description"`
 	Enabled     bool               `json:"enabled"`
 	Id          openapi_types.UUID `json:"id"`
@@ -683,9 +691,12 @@ type AgentSummary struct {
 	ModelAlias  string             `json:"modelAlias"`
 	Name        string             `json:"name"`
 	Phase       *int               `json:"phase,omitempty"`
-	RunCount    int64              `json:"runCount"`
-	Tools       []string           `json:"tools"`
-	Version     string             `json:"version"`
+
+	// Produces Artifact kind of the agent's output in workflows.
+	Produces *string  `json:"produces,omitempty"`
+	RunCount int64    `json:"runCount"`
+	Tools    []string `json:"tools"`
+	Version  string   `json:"version"`
 }
 
 // ApiToken defines model for ApiToken.

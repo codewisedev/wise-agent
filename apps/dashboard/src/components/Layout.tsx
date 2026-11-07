@@ -1,5 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { Bot, Cpu, FolderGit2, Inbox, ListChecks, LogOut, Monitor, Moon, Settings, Sun } from "lucide-react";
+import { Bot, Cpu, FolderGit2, Inbox, ListChecks, LogOut, Monitor, Moon, Settings, Sun, Workflow } from "lucide-react";
 import { useMemo } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router";
 import { useEventSocket, type WorkflowEvent } from "../api/events";
@@ -37,6 +37,7 @@ export function Layout() {
       "g p": () => navigate("/projects"),
       "g t": () => navigate("/tasks"),
       "g i": () => navigate("/approvals"),
+      "g w": () => navigate("/workflows"),
       "g a": () => navigate("/agents"),
       "g m": () => navigate("/models"),
       "g s": () => navigate("/settings"),
@@ -72,6 +73,9 @@ export function Layout() {
               </span>
             )}
             <Kbd keys={["g", "i"]} />
+          </NavLink>
+          <NavLink to="/workflows">
+            <Workflow size={16} aria-hidden /> Workflows <Kbd keys={["g", "w"]} />
           </NavLink>
           <NavLink to="/agents">
             <Bot size={16} aria-hidden /> Agents <Kbd keys={["g", "a"]} />

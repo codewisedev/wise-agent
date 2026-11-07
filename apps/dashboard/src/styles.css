@@ -495,3 +495,62 @@ details[open] > summary { margin-bottom: 6px; }
 @media (prefers-reduced-motion: reduce) { .spin { animation: none; } }
 .status-map > .btn { justify-self: start; }
 .status-map .form-grid > .btn { margin-top: 0; }
+
+/* ---------- workflow flowchart ---------- */
+.workflows { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: var(--space-4); align-items: start; }
+.workflow-list { display: grid; gap: 4px; }
+.workflow-item {
+  display: grid; gap: 2px; text-align: left; padding: 9px 12px; font: inherit; color: var(--text);
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); cursor: pointer;
+}
+.workflow-item:hover { border-color: var(--border-strong); }
+.workflow-item.active { border-color: var(--accent); box-shadow: inset 3px 0 0 var(--accent); }
+.workflow-item-name { display: flex; align-items: center; gap: 6px; font-weight: 500; font-size: 13.5px; }
+@media (max-width: 900px) { .workflows { grid-template-columns: minmax(0, 1fr); } }
+
+.flow-editor { display: grid; grid-template-columns: minmax(0, 1fr) 300px; border-top: 1px solid var(--border); }
+@media (max-width: 1100px) { .flow-editor { grid-template-columns: minmax(0, 1fr); } }
+.flow { height: 230px; background: var(--bg); }
+.flow .react-flow__pane { cursor: grab; }
+.flow .react-flow { --xy-background-color: var(--bg); --xy-edge-stroke: var(--border-strong); --xy-edge-stroke-width: 1.5; }
+.flow .react-flow__handle { opacity: 0; pointer-events: none; }
+.flow-step {
+  display: grid; gap: 3px; width: 190px; padding: 9px 11px; text-align: left; font: inherit; cursor: pointer;
+  color: var(--text); background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius);
+}
+.flow-step:hover { border-color: var(--text-faint); }
+.flow-step:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+.flow-step.selected { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent); }
+.flow-step.disabled { opacity: 0.55; border-style: dashed; }
+.flow-step.invalid { border-color: var(--danger); box-shadow: 0 0 0 3px var(--danger-bg); }
+.flow-step-name { display: flex; align-items: center; gap: 5px; font-weight: 600; font-size: 13px; }
+.flow-step-name svg { color: var(--danger); }
+.flow-step-agent, .flow-step-acct { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--text-muted); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.flow-step-kind { font-size: 11px; color: var(--text-faint); }
+.flow-step-off { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--warn); }
+.flow-gate { display: grid; justify-items: center; gap: 1px; color: var(--warn); font-size: 10.5px; width: 52px; }
+.flow-end {
+  display: grid; justify-items: center; gap: 2px; min-width: 110px; padding: 8px 10px; font-size: 12px;
+  color: var(--text-muted); background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px;
+}
+.flow-end-title { font-weight: 600; color: var(--text); }
+.flow-end-sub { font-size: 10.5px; color: var(--text-faint); }
+.flow-insert {
+  position: absolute; pointer-events: all; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center;
+  color: var(--text-muted); background: var(--surface); border: 1px solid var(--border-strong); cursor: pointer;
+}
+.flow-insert:hover, .flow-insert:focus-visible { color: var(--on-accent); background: var(--accent); border-color: var(--accent); outline: none; }
+.flow-list { list-style: none; margin: 0; padding: var(--space-3); display: grid; gap: 8px; }
+.flow-list li { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.flow-list .flow-step { width: 100%; }
+.flow-list-end { color: var(--text-muted); font-size: 12.5px; }
+.flow-list-gate { display: inline-flex; align-items: center; gap: 4px; color: var(--warn); font-size: 12px; }
+.inspector { display: grid; gap: 10px; align-content: start; padding: var(--space-3) var(--space-4); border-left: 1px solid var(--border); }
+@media (max-width: 1100px) { .inspector { border-left: none; border-top: 1px solid var(--border); } }
+.inspector header { display: flex; align-items: center; justify-content: space-between; }
+.inspector h3 { margin: 0; font-size: 14px; }
+.inspector-tools { display: flex; gap: 2px; }
+.inspector-set { margin: 0; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius); display: grid; gap: 4px; }
+.inspector .field { min-width: 0; }
+.inspector-hint { align-content: center; }
+.flow-issues { margin: 0; padding: 10px 16px 12px 32px; color: var(--danger); border-top: 1px solid var(--border); }

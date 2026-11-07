@@ -1671,6 +1671,11 @@ components:
         tools: { type: array, items: { type: string } }
         runCount: { type: integer, format: int64 }
         lastRunAt: { type: string, format: date-time, nullable: true }
+        produces: { type: string, description: Artifact kind of the agent's output in workflows. }
+        consumes:
+          type: object
+          description: Input property → artifact kind it is filled from.
+          additionalProperties: { type: string }
     AgentList:
       type: object
       required: [items]

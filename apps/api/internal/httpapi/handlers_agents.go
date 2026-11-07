@@ -20,11 +20,20 @@ func toAgentSummary(a agents.Summary) apigen.AgentSummary {
 	if tools == nil {
 		tools = []string{}
 	}
-	return apigen.AgentSummary{
+	out := apigen.AgentSummary{
 		Id: a.Row.ID, Name: a.Def.Name, Version: a.Def.Version, Description: a.Def.Description,
 		Enabled: a.Row.Enabled, Phase: a.Def.Phase, ModelAlias: a.Def.ModelConfig.Alias, Tools: tools,
 		RunCount: a.RunCount, LastRunAt: a.LastRunAt,
 	}
+	if a.Def.Produces != "" {
+		p := a.Def.Produces
+		out.Produces = &p
+	}
+	if len(a.Def.Consumes) > 0 {
+		c := a.Def.Consumes
+		out.Consumes = &c
+	}
+	return out
 }
 
 func toAgentRun(r dbgen.AgentRun) apigen.AgentRun {

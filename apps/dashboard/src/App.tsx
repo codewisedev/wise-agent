@@ -13,6 +13,7 @@ import { ProjectDetailPage } from "./pages/ProjectDetailPage";
 import { ProjectsPage } from "./pages/ProjectsPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { TaskPage } from "./pages/TaskPage";
+import { WorkflowsPage } from "./pages/WorkflowsPage";
 import { TasksPage } from "./pages/TasksPage";
 
 export const router = createBrowserRouter([
@@ -32,6 +33,7 @@ export const router = createBrowserRouter([
       { path: "/tasks", element: <TasksPage /> },
       { path: "/tasks/:taskId", element: <TaskPage /> },
       { path: "/approvals", element: <ApprovalsPage /> },
+      { path: "/workflows", element: <WorkflowsPage /> },
       { path: "/agents", element: <AgentsPage /> },
       { path: "/agents/:agentName", element: <AgentDetailPage /> },
       { path: "/runs/:runId", element: <RunPage /> },

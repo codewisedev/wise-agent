@@ -1,8 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Eye, Play, Save, StepForward } from "lucide-react";
+import { Play, Save, StepForward } from "lucide-react";
 import { useEffect, useState } from "react";
 import { api, unwrap, type Schemas } from "../api/client";
-import { AccountSelect } from "../components/AccountSelect";
+import { StepInspector, WorkflowFlow, viewOf, type StepView } from "../components/WorkflowFlow";
 import { ErrorNote, Panel } from "../components/ui";
 
 type Override = Schemas["StepOverride"];
@@ -12,8 +12,10 @@ type Override = Schemas["StepOverride"];
  * account runs it and whether it pauses for review. Run starts it as configured;
  * "Run step by step" pauses after every step.
  */
-export function TaskWorkflowPanel({ taskId, canRun }: { taskId: string; canRun: boolean }) {
+export function TaskWorkflowPanel({ taskId, canRun, task }: { taskId: string; canRun: boolean; task: Schemas["Task"] }) {
   const qc = useQueryClient();
+  const agents = useQuery({ queryKey: ["agents"], queryFn: () => unwrap(api.GET("/agents")) });
+  const [selected, setSelected] = useState<string | undefined>();
   const setup = useQuery({
     queryKey: ["task", taskId, "workflow"],
     queryFn: () => unwrap(api.GET("/tasks/{taskId}/workflow", { params: { path: { taskId } } })),
@@ -54,10 +56,16 @@ export function TaskWorkflowPanel({ taskId, canRun }: { taskId: string; canRun: 
   // Show the selected template's steps; switching template drops overrides.
   const tmpl = templates.data?.items.find((t) => t.id === templateId) ?? setup.data.template;
   const issuesFor = (id?: string) => setup.data.issues.filter((i) => (i.stepId ?? undefined) === id);
-  const change = (id: string, patch: Override) => {
-    setSteps((s) => ({ ...s, [id]: { ...s[id], ...patch } }));
-    setDirty(true);
-  };
+  const views: Record<string, StepView> = {};
+  for (const st of tmpl.definition.steps) {
+    const o = steps[st.id] ?? {};
+    const base = viewOf(st);
+    views[st.id] = {
+      enabled: o.enabled ?? base.enabled, review: o.review ?? base.review,
+      account: (o.account ?? base.account) || undefined, model: (o.model ?? base.model) || undefined,
+    };
+  }
+  const selIdx = tmpl.definition.steps.findIndex((s) => s.id === selected);
 
   return (
     <Panel
@@ -78,32 +86,34 @@ export function TaskWorkflowPanel({ taskId, canRun }: { taskId: string; canRun: 
         </select>
       }
     >
-      <ol className="wf-steps">
-        {tmpl.definition.steps.map((st, i) => {
-          const o = steps[st.id] ?? {};
-          const enabled = o.enabled ?? st.enabled ?? true;
-          const review = o.review ?? st.review ?? false;
-          const account = o.account ?? st.account ?? "";
-          const problems = issuesFor(st.id);
-          return (
-            <li key={st.id} className={`${enabled ? "" : "is-dim"} ${problems.length ? "has-issue" : ""}`}>
-              <span className="wf-num mono">{i + 1}</span>
-              <label className="checkbox">
-                <input type="checkbox" checked={enabled} onChange={(e) => change(st.id, { enabled: e.target.checked })} />
-                <span>{st.name || st.id}</span>
-              </label>
-              <span className="mono small faint">{st.agent}</span>
-              <span className="spacer" />
-              <label className="checkbox small" title="Pause after this step for your review">
-                <input type="checkbox" checked={review} disabled={!enabled} onChange={(e) => change(st.id, { review: e.target.checked })} />
-                <Eye size={13} aria-hidden /> review
-              </label>
-              <AccountSelect value={account} onChange={(v) => change(st.id, { account: v })} defaultLabel="default routing" />
-              {problems.map((p) => <p key={p.message} className="wf-issue small">{p.message}</p>)}
-            </li>
-          );
-        })}
-      </ol>
+      <div className="flow-editor">
+        <WorkflowFlow
+          def={tmpl.definition} views={views} issues={setup.data.issues} agents={agents.data?.items ?? []}
+          selected={selected} onSelect={setSelected}
+          sourceLabel={task.source && task.source !== "manual" ? `imported from ${task.source}` : "this task"}
+        />
+        {selIdx >= 0 ? (
+          <StepInspector
+            def={tmpl.definition} index={selIdx} agents={agents.data?.items ?? []} mode="task"
+            view={views[selected!]}
+            onViewChange={(v) => {
+              const st = tmpl.definition.steps[selIdx]!;
+              const base = viewOf(st);
+              const o: Override = {};
+              if (v.enabled !== base.enabled) o.enabled = v.enabled;
+              if ((v.account ?? "") !== (base.account ?? "")) o.account = v.account ?? "";
+              if ((v.model ?? "") !== (base.model ?? "")) o.model = v.model ?? "";
+              if (v.review !== base.review) o.review = v.review;
+              setSteps((cur) => ({ ...cur, [st.id]: o }));
+              setDirty(true);
+            }}
+          />
+        ) : (
+          <aside className="inspector inspector-hint">
+            <p className="small faint">Select a step to switch it off, pick its account or add a review — for this task only.</p>
+          </aside>
+        )}
+      </div>
       {issuesFor(undefined).map((p) => <p key={p.message} className="wf-issue small panel-body">{p.message}</p>)}
       {canRun && (
         <div className="actions panel-body">

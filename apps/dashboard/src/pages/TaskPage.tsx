@@ -227,7 +227,7 @@ export function TaskPage() {
       )}
       {pending && <ApprovalCard key={pending.id} approval={pending} stepLabel={stepName(plan, pending.gate)} onShowArtifact={setKind} />}
 
-      {(!wf || !isActiveWorkflow(wf)) && <TaskWorkflowPanel taskId={taskId} canRun={task.status !== "cancelled"} />}
+      {(!wf || !isActiveWorkflow(wf)) && <TaskWorkflowPanel taskId={taskId} task={task} canRun={task.status !== "cancelled"} />}
 
       <ArtifactsPanel taskId={taskId} plan={plan} latest={artifacts} kind={kind} onKind={setKind} />
 

@@ -1345,6 +1345,12 @@ export interface components {
             runCount: number;
             /** Format: date-time */
             lastRunAt?: string | null;
+            /** @description Artifact kind of the agent's output in workflows. */
+            produces?: string;
+            /** @description Input property → artifact kind it is filled from. */
+            consumes?: {
+                [key: string]: string;
+            };
         };
         AgentList: {
             items: components["schemas"]["AgentSummary"][];
