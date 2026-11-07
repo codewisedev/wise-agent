@@ -16,13 +16,16 @@ type Config struct {
 }
 
 type ProviderConfig struct {
-	Type      string        `json:"type"` // "openai-compatible" | "claude-code"
-	BaseURL   string        `json:"base_url,omitempty"`
-	APIKeyEnv string        `json:"api_key_env,omitempty"`
-	Binary    string        `json:"binary,omitempty"`
-	Cloud     bool          `json:"cloud"`
-	Timeout   time.Duration `json:"-"`
-	TimeoutS  int           `json:"timeout_s,omitempty"`
+	Type      string `json:"type"` // "openai-compatible" | "claude-code" | "codex-cli"
+	BaseURL   string `json:"base_url,omitempty"`
+	APIKeyEnv string `json:"api_key_env,omitempty"`
+	// Secret is an account credential (API key, Claude OAuth token, Codex
+	// auth.json). Set only for stored accounts; never serialized.
+	Secret   string        `json:"-"`
+	Binary   string        `json:"binary,omitempty"`
+	Cloud    bool          `json:"cloud"`
+	Timeout  time.Duration `json:"-"`
+	TimeoutS int           `json:"timeout_s,omitempty"`
 	// Pricing per million tokens (optional; claude-code reports its own cost).
 	InputPerMTok  float64 `json:"input_per_mtok,omitempty"`
 	OutputPerMTok float64 `json:"output_per_mtok,omitempty"`
@@ -89,6 +92,8 @@ func LoadConfig(modelsPath, policyPath string) (Config, Policy, error) {
 			if p.Binary == "" {
 				p.Binary = "claude"
 			}
+		case "codex-cli":
+			return cfg, pol, fmt.Errorf("provider %q: codex-cli needs an auth.json; add a Codex account in Settings → Accounts instead", name)
 		default:
 			return cfg, pol, fmt.Errorf("provider %q: unknown type %q", name, p.Type)
 		}

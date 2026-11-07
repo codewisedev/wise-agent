@@ -120,7 +120,14 @@ func (s *Server) CreateAgentRun(ctx context.Context, req apigen.CreateAgentRunRe
 		return nil, err
 	}
 	userID := p.User.ID
-	run, err := s.Agents.CreateRun(ctx, req.AgentName, req.Body.Input, req.Body.ProjectId, &userID)
+	opts := agents.RunOptions{ProjectID: req.Body.ProjectId, UserID: &userID}
+	if req.Body.Account != nil && *req.Body.Account != "" {
+		if err := s.Accounts.ValidateModelChoice(ctx, *req.Body.Account); err != nil {
+			return nil, err
+		}
+		opts.Model = &agents.ModelOverride{Account: *req.Body.Account, Model: deref(req.Body.Model)}
+	}
+	run, err := s.Agents.Enqueue(ctx, req.AgentName, req.Body.Input, opts)
 	if err != nil {
 		return nil, err
 	}

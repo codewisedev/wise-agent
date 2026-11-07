@@ -146,7 +146,9 @@ func (p *OpenAICompat) do(ctx context.Context, method, path string, body, out an
 		return err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	if p.cfg.APIKeyEnv != "" {
+	if p.cfg.Secret != "" {
+		req.Header.Set("Authorization", "Bearer "+p.cfg.Secret)
+	} else if p.cfg.APIKeyEnv != "" {
 		if key := os.Getenv(p.cfg.APIKeyEnv); key != "" {
 			req.Header.Set("Authorization", "Bearer "+key)
 		}

@@ -16,6 +16,7 @@ import (
 	"testing"
 	"time"
 
+	"wise/apps/api/internal/accounts"
 	"wise/apps/api/internal/agents"
 	"wise/apps/api/internal/auth"
 	"wise/apps/api/internal/db"
@@ -26,6 +27,7 @@ import (
 	"wise/apps/api/internal/projects"
 	"wise/apps/api/internal/repositories"
 	"wise/apps/api/internal/runqueue"
+	"wise/apps/api/internal/secrets"
 	"wise/apps/api/internal/tasks"
 	"wise/apps/api/internal/testutil"
 )
@@ -48,6 +50,8 @@ type env struct {
 	tasks    *tasks.Service
 	agents   *agents.Service
 	hub      *events.Hub
+	accounts *accounts.Service
+	gw       *modelgateway.Gateway
 }
 
 func setup(t *testing.T) *env {
@@ -79,10 +83,16 @@ func setup(t *testing.T) *env {
 	agentSvc := agents.NewService(d, hub)
 	taskSvc := tasks.NewService(d, tasks.DefaultWorkflowConfig())
 	taskSvc.Runs = agentSvc
+	box, err := secrets.New("MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=") // test-only key
+	if err != nil {
+		t.Fatal(err)
+	}
+	accountSvc := accounts.NewService(d, box, gw, log)
+	gw.WithSecretSaver(accountSvc.SaveSecret)
 	server := &httpapi.Server{
 		DB: d, Auth: authSvc, Projects: projects.NewService(d),
 		Repositories: repositories.NewService(d, gitinspect.New([]string{root})),
-		Agents:       agentSvc, RunQueue: queue, Gateway: gw, Hub: hub, Tasks: taskSvc,
+		Agents:       agentSvc, RunQueue: queue, Gateway: gw, Hub: hub, Tasks: taskSvc, Accounts: accountSvc,
 		Cookie:       httpapi.CookieConfig{TTL: time.Hour},
 		RuntimeToken: runtimeToken,
 	}
@@ -94,7 +104,7 @@ func setup(t *testing.T) *env {
 	t.Cleanup(ts.Close)
 	jar, _ := cookiejar.New(nil)
 	return &env{t: t, db: d, srv: ts, client: &http.Client{Jar: jar}, repoRoot: root, queue: queue, model: model,
-		tasks: taskSvc, agents: agentSvc, hub: hub}
+		tasks: taskSvc, agents: agentSvc, hub: hub, accounts: accountSvc, gw: gw}
 }
 
 type resp struct {

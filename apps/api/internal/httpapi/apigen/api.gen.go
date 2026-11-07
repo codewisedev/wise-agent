@@ -17,6 +17,36 @@ import (
 	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
+// Defines values for AccountKind.
+const (
+	ClaudeCode       AccountKind = "claude_code"
+	Clickup          AccountKind = "clickup"
+	CodexCli         AccountKind = "codex_cli"
+	Jira             AccountKind = "jira"
+	OpenaiCompatible AccountKind = "openai_compatible"
+	Trello           AccountKind = "trello"
+)
+
+// Valid indicates whether the value is a known member of the AccountKind enum.
+func (e AccountKind) Valid() bool {
+	switch e {
+	case ClaudeCode:
+		return true
+	case Clickup:
+		return true
+	case CodexCli:
+		return true
+	case Jira:
+		return true
+	case OpenaiCompatible:
+		return true
+	case Trello:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for AgentRunStatus.
 const (
 	AgentRunStatusCancelled AgentRunStatus = "cancelled"
@@ -482,6 +512,45 @@ func (e WorkflowStepStatus) Valid() bool {
 	}
 }
 
+// Account defines model for Account.
+type Account struct {
+	BaseUrl string `json:"baseUrl"`
+
+	// Cloud Requests leave this machine (subject to the cloud policy).
+	Cloud        bool                   `json:"cloud"`
+	CreatedAt    time.Time              `json:"createdAt"`
+	DefaultModel string                 `json:"defaultModel"`
+	Enabled      bool                   `json:"enabled"`
+	HasSecret    bool                   `json:"hasSecret"`
+	Id           openapi_types.UUID     `json:"id"`
+	Kind         AccountKind            `json:"kind"`
+	Metadata     map[string]interface{} `json:"metadata"`
+	Name         string                 `json:"name"`
+
+	// SecretHint e.g. "…abcd"; the secret itself is never returned.
+	SecretHint string    `json:"secretHint"`
+	UpdatedAt  time.Time `json:"updatedAt"`
+}
+
+// AccountKind defines model for AccountKind.
+type AccountKind string
+
+// AccountList defines model for AccountList.
+type AccountList struct {
+	// BuiltinProviders Providers from configs/models/models.yaml, also selectable per step.
+	BuiltinProviders []string  `json:"builtinProviders"`
+	Items            []Account `json:"items"`
+
+	// SecretsEnabled False when WISE_SECRETS_KEY is not configured.
+	SecretsEnabled bool `json:"secretsEnabled"`
+}
+
+// AccountTestResult defines model for AccountTestResult.
+type AccountTestResult struct {
+	Error *string `json:"error,omitempty"`
+	Ok    bool    `json:"ok"`
+}
+
 // AgentDetail defines model for AgentDetail.
 type AgentDetail struct {
 	CloudAllowed bool                   `json:"cloudAllowed"`
@@ -658,10 +727,27 @@ type ArtifactRef struct {
 	Version    int                `json:"version"`
 }
 
+// CreateAccountRequest defines model for CreateAccountRequest.
+type CreateAccountRequest struct {
+	BaseUrl      *string                 `json:"baseUrl,omitempty"`
+	Cloud        *bool                   `json:"cloud,omitempty"`
+	DefaultModel *string                 `json:"defaultModel,omitempty"`
+	Enabled      *bool                   `json:"enabled,omitempty"`
+	Kind         AccountKind             `json:"kind"`
+	Metadata     *map[string]interface{} `json:"metadata,omitempty"`
+	Name         string                  `json:"name"`
+	Secret       *string                 `json:"secret,omitempty"`
+}
+
 // CreateAgentRunRequest defines model for CreateAgentRunRequest.
 type CreateAgentRunRequest struct {
-	Input     map[string]interface{} `json:"input"`
-	ProjectId *openapi_types.UUID    `json:"projectId,omitempty"`
+	// Account Account (or built-in provider) name to use for every model call; skips alias routing.
+	Account *string                `json:"account,omitempty"`
+	Input   map[string]interface{} `json:"input"`
+
+	// Model Model for `account` (default = the account's default model).
+	Model     *string             `json:"model,omitempty"`
+	ProjectId *openapi_types.UUID `json:"projectId,omitempty"`
 }
 
 // CreateApiTokenRequest defines model for CreateApiTokenRequest.
@@ -1107,6 +1193,17 @@ type TurnToolCall struct {
 	Tool      string                 `json:"tool"`
 }
 
+// UpdateAccountRequest defines model for UpdateAccountRequest.
+type UpdateAccountRequest struct {
+	BaseUrl      *string                 `json:"baseUrl,omitempty"`
+	Cloud        *bool                   `json:"cloud,omitempty"`
+	DefaultModel *string                 `json:"defaultModel,omitempty"`
+	Enabled      *bool                   `json:"enabled,omitempty"`
+	Metadata     *map[string]interface{} `json:"metadata,omitempty"`
+	Name         *string                 `json:"name,omitempty"`
+	Secret       *string                 `json:"secret,omitempty"`
+}
+
 // UpdateProjectRequest defines model for UpdateProjectRequest.
 type UpdateProjectRequest struct {
 	Description *string                 `json:"description,omitempty"`
@@ -1188,6 +1285,9 @@ type WorkflowStep struct {
 // WorkflowStepStatus defines model for WorkflowStepStatus.
 type WorkflowStepStatus string
 
+// AccountId defines model for AccountId.
+type AccountId = openapi_types.UUID
+
 // AgentName defines model for AgentName.
 type AgentName = string
 
@@ -1262,6 +1362,12 @@ type ListWorkflowEventsParams struct {
 	AfterSeq *int `form:"afterSeq,omitempty" json:"afterSeq,omitempty"`
 }
 
+// CreateAccountJSONRequestBody defines body for CreateAccount for application/json ContentType.
+type CreateAccountJSONRequestBody = CreateAccountRequest
+
+// UpdateAccountJSONRequestBody defines body for UpdateAccount for application/json ContentType.
+type UpdateAccountJSONRequestBody = UpdateAccountRequest
+
 // CreateAgentRunJSONRequestBody defines body for CreateAgentRun for application/json ContentType.
 type CreateAgentRunJSONRequestBody = CreateAgentRunRequest
 
@@ -1315,6 +1421,21 @@ type RuntimeModelTurnJSONRequestBody = ModelTurnRequest
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+
+	// (GET /accounts)
+	ListAccounts(w http.ResponseWriter, r *http.Request)
+
+	// (POST /accounts)
+	CreateAccount(w http.ResponseWriter, r *http.Request)
+
+	// (DELETE /accounts/{accountId})
+	DeleteAccount(w http.ResponseWriter, r *http.Request, accountId AccountId)
+
+	// (PATCH /accounts/{accountId})
+	UpdateAccount(w http.ResponseWriter, r *http.Request, accountId AccountId)
+
+	// (POST /accounts/{accountId}/test)
+	TestAccount(w http.ResponseWriter, r *http.Request, accountId AccountId)
 
 	// (GET /agent-runs)
 	ListAgentRuns(w http.ResponseWriter, r *http.Request, params ListAgentRunsParams)
@@ -1491,6 +1612,31 @@ type ServerInterface interface {
 // Unimplemented server implementation that returns http.StatusNotImplemented for each endpoint.
 
 type Unimplemented struct{}
+
+// (GET /accounts)
+func (_ Unimplemented) ListAccounts(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (POST /accounts)
+func (_ Unimplemented) CreateAccount(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (DELETE /accounts/{accountId})
+func (_ Unimplemented) DeleteAccount(w http.ResponseWriter, r *http.Request, accountId AccountId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (PATCH /accounts/{accountId})
+func (_ Unimplemented) UpdateAccount(w http.ResponseWriter, r *http.Request, accountId AccountId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (POST /accounts/{accountId}/test)
+func (_ Unimplemented) TestAccount(w http.ResponseWriter, r *http.Request, accountId AccountId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
 
 // (GET /agent-runs)
 func (_ Unimplemented) ListAgentRuns(w http.ResponseWriter, r *http.Request, params ListAgentRunsParams) {
@@ -1785,6 +1931,112 @@ type ServerInterfaceWrapper struct {
 }
 
 type MiddlewareFunc func(http.Handler) http.Handler
+
+// ListAccounts operation middleware
+func (siw *ServerInterfaceWrapper) ListAccounts(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListAccounts(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateAccount operation middleware
+func (siw *ServerInterfaceWrapper) CreateAccount(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateAccount(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteAccount operation middleware
+func (siw *ServerInterfaceWrapper) DeleteAccount(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "accountId" -------------
+	var accountId AccountId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "accountId", chi.URLParam(r, "accountId"), &accountId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "accountId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteAccount(w, r, accountId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateAccount operation middleware
+func (siw *ServerInterfaceWrapper) UpdateAccount(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "accountId" -------------
+	var accountId AccountId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "accountId", chi.URLParam(r, "accountId"), &accountId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "accountId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateAccount(w, r, accountId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// TestAccount operation middleware
+func (siw *ServerInterfaceWrapper) TestAccount(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "accountId" -------------
+	var accountId AccountId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "accountId", chi.URLParam(r, "accountId"), &accountId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "accountId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.TestAccount(w, r, accountId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
 
 // ListAgentRuns operation middleware
 func (siw *ServerInterfaceWrapper) ListAgentRuns(w http.ResponseWriter, r *http.Request) {
@@ -3511,6 +3763,21 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 		r.Post(options.BaseURL+"/approvals/{approvalId}/reject", wrapper.RejectApproval)
 	})
 	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/accounts", wrapper.ListAccounts)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/accounts", wrapper.CreateAccount)
+	})
+	r.Group(func(r chi.Router) {
+		r.Delete(options.BaseURL+"/accounts/{accountId}", wrapper.DeleteAccount)
+	})
+	r.Group(func(r chi.Router) {
+		r.Patch(options.BaseURL+"/accounts/{accountId}", wrapper.UpdateAccount)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/accounts/{accountId}/test", wrapper.TestAccount)
+	})
+	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/runtime/v1/runs/claim", wrapper.RuntimeClaimRun)
 	})
 	r.Group(func(r chi.Router) {
@@ -3533,6 +3800,358 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 }
 
 type ProblemApplicationProblemPlusJSONResponse Problem
+
+type ListAccountsRequestObject struct {
+}
+
+type ListAccountsResponseObject interface {
+	VisitListAccountsResponse(w http.ResponseWriter) error
+}
+
+type ListAccounts200JSONResponse AccountList
+
+func (response ListAccounts200JSONResponse) VisitListAccountsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListAccounts401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response ListAccounts401ApplicationProblemPlusJSONResponse) VisitListAccountsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateAccountRequestObject struct {
+	Body *CreateAccountJSONRequestBody
+}
+
+type CreateAccountResponseObject interface {
+	VisitCreateAccountResponse(w http.ResponseWriter) error
+}
+
+type CreateAccount201JSONResponse Account
+
+func (response CreateAccount201JSONResponse) VisitCreateAccountResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateAccount400ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response CreateAccount400ApplicationProblemPlusJSONResponse) VisitCreateAccountResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateAccount401ApplicationProblemPlusJSONResponse Problem
+
+func (response CreateAccount401ApplicationProblemPlusJSONResponse) VisitCreateAccountResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateAccount403ApplicationProblemPlusJSONResponse Problem
+
+func (response CreateAccount403ApplicationProblemPlusJSONResponse) VisitCreateAccountResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateAccount409ApplicationProblemPlusJSONResponse Problem
+
+func (response CreateAccount409ApplicationProblemPlusJSONResponse) VisitCreateAccountResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateAccount503ApplicationProblemPlusJSONResponse Problem
+
+func (response CreateAccount503ApplicationProblemPlusJSONResponse) VisitCreateAccountResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(503)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteAccountRequestObject struct {
+	AccountId AccountId `json:"accountId"`
+}
+
+type DeleteAccountResponseObject interface {
+	VisitDeleteAccountResponse(w http.ResponseWriter) error
+}
+
+type DeleteAccount204Response struct {
+}
+
+func (response DeleteAccount204Response) VisitDeleteAccountResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type DeleteAccount401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response DeleteAccount401ApplicationProblemPlusJSONResponse) VisitDeleteAccountResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteAccount403ApplicationProblemPlusJSONResponse Problem
+
+func (response DeleteAccount403ApplicationProblemPlusJSONResponse) VisitDeleteAccountResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteAccount404ApplicationProblemPlusJSONResponse Problem
+
+func (response DeleteAccount404ApplicationProblemPlusJSONResponse) VisitDeleteAccountResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateAccountRequestObject struct {
+	AccountId AccountId `json:"accountId"`
+	Body      *UpdateAccountJSONRequestBody
+}
+
+type UpdateAccountResponseObject interface {
+	VisitUpdateAccountResponse(w http.ResponseWriter) error
+}
+
+type UpdateAccount200JSONResponse Account
+
+func (response UpdateAccount200JSONResponse) VisitUpdateAccountResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateAccount400ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response UpdateAccount400ApplicationProblemPlusJSONResponse) VisitUpdateAccountResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateAccount401ApplicationProblemPlusJSONResponse Problem
+
+func (response UpdateAccount401ApplicationProblemPlusJSONResponse) VisitUpdateAccountResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateAccount403ApplicationProblemPlusJSONResponse Problem
+
+func (response UpdateAccount403ApplicationProblemPlusJSONResponse) VisitUpdateAccountResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateAccount404ApplicationProblemPlusJSONResponse Problem
+
+func (response UpdateAccount404ApplicationProblemPlusJSONResponse) VisitUpdateAccountResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateAccount409ApplicationProblemPlusJSONResponse Problem
+
+func (response UpdateAccount409ApplicationProblemPlusJSONResponse) VisitUpdateAccountResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateAccount503ApplicationProblemPlusJSONResponse Problem
+
+func (response UpdateAccount503ApplicationProblemPlusJSONResponse) VisitUpdateAccountResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(503)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type TestAccountRequestObject struct {
+	AccountId AccountId `json:"accountId"`
+}
+
+type TestAccountResponseObject interface {
+	VisitTestAccountResponse(w http.ResponseWriter) error
+}
+
+type TestAccount200JSONResponse AccountTestResult
+
+func (response TestAccount200JSONResponse) VisitTestAccountResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type TestAccount401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response TestAccount401ApplicationProblemPlusJSONResponse) VisitTestAccountResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type TestAccount404ApplicationProblemPlusJSONResponse Problem
+
+func (response TestAccount404ApplicationProblemPlusJSONResponse) VisitTestAccountResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
 
 type ListAgentRunsRequestObject struct {
 	Params ListAgentRunsParams
@@ -6729,6 +7348,21 @@ func (response RetryWorkflow409ApplicationProblemPlusJSONResponse) VisitRetryWor
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
 
+	// (GET /accounts)
+	ListAccounts(ctx context.Context, request ListAccountsRequestObject) (ListAccountsResponseObject, error)
+
+	// (POST /accounts)
+	CreateAccount(ctx context.Context, request CreateAccountRequestObject) (CreateAccountResponseObject, error)
+
+	// (DELETE /accounts/{accountId})
+	DeleteAccount(ctx context.Context, request DeleteAccountRequestObject) (DeleteAccountResponseObject, error)
+
+	// (PATCH /accounts/{accountId})
+	UpdateAccount(ctx context.Context, request UpdateAccountRequestObject) (UpdateAccountResponseObject, error)
+
+	// (POST /accounts/{accountId}/test)
+	TestAccount(ctx context.Context, request TestAccountRequestObject) (TestAccountResponseObject, error)
+
 	// (GET /agent-runs)
 	ListAgentRuns(ctx context.Context, request ListAgentRunsRequestObject) (ListAgentRunsResponseObject, error)
 
@@ -6938,6 +7572,146 @@ type strictHandler struct {
 	ssi         StrictServerInterface
 	middlewares []StrictMiddlewareFunc
 	options     StrictHTTPServerOptions
+}
+
+// ListAccounts operation middleware
+func (sh *strictHandler) ListAccounts(w http.ResponseWriter, r *http.Request) {
+	var request ListAccountsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListAccounts(ctx, request.(ListAccountsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListAccounts")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListAccountsResponseObject); ok {
+		if err := validResponse.VisitListAccountsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CreateAccount operation middleware
+func (sh *strictHandler) CreateAccount(w http.ResponseWriter, r *http.Request) {
+	var request CreateAccountRequestObject
+
+	var body CreateAccountJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateAccount(ctx, request.(CreateAccountRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateAccount")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CreateAccountResponseObject); ok {
+		if err := validResponse.VisitCreateAccountResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DeleteAccount operation middleware
+func (sh *strictHandler) DeleteAccount(w http.ResponseWriter, r *http.Request, accountId AccountId) {
+	var request DeleteAccountRequestObject
+
+	request.AccountId = accountId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteAccount(ctx, request.(DeleteAccountRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteAccount")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DeleteAccountResponseObject); ok {
+		if err := validResponse.VisitDeleteAccountResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UpdateAccount operation middleware
+func (sh *strictHandler) UpdateAccount(w http.ResponseWriter, r *http.Request, accountId AccountId) {
+	var request UpdateAccountRequestObject
+
+	request.AccountId = accountId
+
+	var body UpdateAccountJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.UpdateAccount(ctx, request.(UpdateAccountRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UpdateAccount")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(UpdateAccountResponseObject); ok {
+		if err := validResponse.VisitUpdateAccountResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// TestAccount operation middleware
+func (sh *strictHandler) TestAccount(w http.ResponseWriter, r *http.Request, accountId AccountId) {
+	var request TestAccountRequestObject
+
+	request.AccountId = accountId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.TestAccount(ctx, request.(TestAccountRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "TestAccount")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(TestAccountResponseObject); ok {
+		if err := validResponse.VisitTestAccountResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
 }
 
 // ListAgentRuns operation middleware

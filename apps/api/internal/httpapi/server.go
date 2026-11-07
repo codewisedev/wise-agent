@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	"wise/apps/api/internal/accounts"
 	"wise/apps/api/internal/agents"
 	"wise/apps/api/internal/apperr"
 	"wise/apps/api/internal/auth"
@@ -30,6 +31,7 @@ type Server struct {
 	Gateway      *modelgateway.Gateway
 	Hub          *events.Hub
 	Tasks        *tasks.Service
+	Accounts     *accounts.Service
 	Cookie       CookieConfig
 	// RuntimeToken authenticates agent runtimes claiming runs (empty disables the runtime API).
 	RuntimeToken string

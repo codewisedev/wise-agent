@@ -74,6 +74,26 @@ type RunOptions struct {
 	// IdempotencyKey makes creation idempotent: a second call with the same key
 	// returns the existing run instead of queueing another.
 	IdempotencyKey string
+	// Model pins the account (and optionally model) every turn of the run uses.
+	Model *ModelOverride
+}
+
+// ModelOverride is stored on the run as agent_runs.model_override.
+type ModelOverride struct {
+	Account string `json:"account"`
+	Model   string `json:"model,omitempty"`
+}
+
+// ParseModelOverride decodes agent_runs.model_override (nil when unset).
+func ParseModelOverride(raw []byte) *ModelOverride {
+	if len(raw) == 0 || string(raw) == "null" {
+		return nil
+	}
+	var m ModelOverride
+	if json.Unmarshal(raw, &m) != nil || m.Account == "" {
+		return nil
+	}
+	return &m
 }
 
 // CreateRun validates input against the agent's input schema and queues a run.
@@ -135,10 +155,16 @@ func (s *Service) Enqueue(ctx context.Context, name string, input map[string]any
 		if opts.IdempotencyKey != "" {
 			key = &opts.IdempotencyKey
 		}
+		var override []byte
+		if opts.Model != nil && opts.Model.Account != "" {
+			if override, err = json.Marshal(opts.Model); err != nil {
+				return err
+			}
+		}
 		run, err = q.CreateWorkflowAgentRun(ctx, dbgen.CreateWorkflowAgentRunParams{
 			ID: id, AgentDefinitionID: row.ID, AgentName: name, ProjectID: projectID,
 			Input: raw, MaxAttempts: int32(max(def.ErrorHandling.MaxAttempts, 1)), CreatedBy: userID,
-			WorkflowRunID: opts.WorkflowRunID, IdempotencyKey: key,
+			WorkflowRunID: opts.WorkflowRunID, IdempotencyKey: key, ModelOverride: override,
 		})
 		if db.IsNotFound(err) && key != nil { // lost a race with the same key
 			run, err = q.GetAgentRunByIdempotencyKey(ctx, key)
@@ -147,9 +173,11 @@ func (s *Service) Enqueue(ctx context.Context, name string, input map[string]any
 		if err != nil || id == uuid.Nil {
 			return err
 		}
-		if ev, err = events.Record(ctx, q, id, "run.queued", map[string]any{
-			"agent": name, "version": def.Version, "definitionId": row.ID,
-		}); err != nil {
+		queued := map[string]any{"agent": name, "version": def.Version, "definitionId": row.ID}
+		if opts.Model != nil && opts.Model.Account != "" {
+			queued["account"], queued["model"] = opts.Model.Account, opts.Model.Model
+		}
+		if ev, err = events.Record(ctx, q, id, "run.queued", queued); err != nil {
 			return err
 		}
 		return audit.Record(ctx, q, audit.Entry{

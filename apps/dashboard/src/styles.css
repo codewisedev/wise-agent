@@ -425,3 +425,9 @@ details[open] > summary { margin-bottom: 6px; }
   .art-fields { grid-template-columns: minmax(0, 1fr); }
   .art-fields dd { margin-bottom: 4px; }
 }
+
+/* ---------- accounts ---------- */
+.list.accounts li { gap: 8px; }
+.list.accounts .error { flex-basis: 100%; margin: 4px 0 0; }
+.rotate { flex-basis: 100%; display: flex; gap: var(--space-2); align-items: flex-start; padding-top: 6px; }
+.rotate input, .rotate textarea { flex: 1; }

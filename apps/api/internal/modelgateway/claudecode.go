@@ -136,7 +136,7 @@ func (p *ClaudeCode) Complete(ctx context.Context, req ProviderRequest) (Provide
 
 	cmd := exec.CommandContext(ctx, p.cfg.Binary, p.Args(req)...)
 	cmd.Dir = workdir
-	cmd.Env = p.env()
+	cmd.Env = p.env(workdir)
 	cmd.Stdin = strings.NewReader(Transcript(req.Messages))
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
@@ -164,7 +164,7 @@ func (p *ClaudeCode) Complete(ctx context.Context, req ProviderRequest) (Provide
 // Env builds the CLI environment from an allow-list, so control-plane secrets
 // (database URL, runtime token, bootstrap password, ...) never reach the CLI.
 // Exported for tests.
-func (p *ClaudeCode) Env() []string { return p.env() }
+func (p *ClaudeCode) Env() []string { return p.env(os.TempDir()) }
 
 func allowedEnv(key string) bool {
 	switch key {
@@ -186,14 +186,25 @@ func isAuthError(lower string) bool {
 	return false
 }
 
-func (p *ClaudeCode) env() []string {
+func (p *ClaudeCode) env(workdir string) []string {
 	var env []string
 	for _, kv := range os.Environ() {
-		if k, _, _ := strings.Cut(kv, "="); allowedEnv(k) {
+		k, _, _ := strings.Cut(kv, "=")
+		if p.cfg.Secret != "" && (k == "CLAUDE_CODE_OAUTH_TOKEN" || k == "CLAUDE_CONFIG_DIR" || strings.HasPrefix(k, "ANTHROPIC_")) {
+			continue // a stored account brings its own credentials
+		}
+		if allowedEnv(k) {
 			env = append(env, kv)
 		}
 	}
-	if os.Getenv("CLAUDE_CODE_OAUTH_TOKEN") != "" {
+	if p.cfg.Secret != "" {
+		// Per-call config directory: accounts never share CLI state.
+		dir := filepath.Join(workdir, ".claude-config")
+		if err := os.MkdirAll(dir, 0o700); err == nil {
+			env = append(env, "CLAUDE_CONFIG_DIR="+dir)
+		}
+		env = append(env, "CLAUDE_CODE_OAUTH_TOKEN="+p.cfg.Secret)
+	} else if os.Getenv("CLAUDE_CODE_OAUTH_TOKEN") != "" {
 		dir := filepath.Join(os.TempDir(), "wise-claude-config")
 		if err := os.MkdirAll(dir, 0o700); err == nil {
 			env = append(env, "CLAUDE_CONFIG_DIR="+dir)

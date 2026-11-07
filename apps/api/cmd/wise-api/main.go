@@ -18,6 +18,7 @@ import (
 
 	"golang.org/x/term"
 
+	"wise/apps/api/internal/accounts"
 	"wise/apps/api/internal/agents"
 	"wise/apps/api/internal/auth"
 	"wise/apps/api/internal/config"
@@ -29,6 +30,7 @@ import (
 	"wise/apps/api/internal/projects"
 	"wise/apps/api/internal/repositories"
 	"wise/apps/api/internal/runqueue"
+	"wise/apps/api/internal/secrets"
 	"wise/apps/api/internal/tasks"
 	"wise/apps/api/internal/workflow"
 )
@@ -38,6 +40,7 @@ const usage = `Usage: wise-api <command> [args]
 Commands:
   serve                                  Run the HTTP API (default)
   orchestrator                           Run the Temporal worker and workflow command dispatcher
+  cli-runner                             Run Claude Code / Codex calls for the API (isolated container)
   migrate [up|down|reset|status]         Manage database migrations
   user create -username NAME [-role R]   Create a user (password read from stdin/prompt)
   user set-password -username NAME      Replace a user's password
@@ -59,6 +62,8 @@ func main() {
 		err = serve(ctx)
 	case "orchestrator":
 		err = orchestrator(ctx)
+	case "cli-runner":
+		err = cliRunner(ctx)
 	case "migrate":
 		err = migrate(ctx, args)
 	case "user":
@@ -140,6 +145,20 @@ func serve(ctx context.Context) error {
 	}
 	hub := events.NewHub(d)
 	gateway := modelgateway.New(d, modelCfg, modelPolicy, hub, log)
+	if cfg.CLIRunnerURL != "" {
+		gateway.UseCLIRunner(cfg.CLIRunnerURL, cfg.CLIRunnerToken)
+		log.Info("CLI providers run in the CLI runner", "url", cfg.CLIRunnerURL)
+	}
+	box, err := secrets.New(cfg.SecretsKey)
+	if err != nil {
+		return err
+	}
+	if !box.Enabled() {
+		log.Warn("WISE_SECRETS_KEY is empty; accounts cannot be added")
+	}
+	accountSvc := accounts.NewService(d, box, gateway, log)
+	gateway.WithSecretSaver(accountSvc.SaveSecret)
+	accountSvc.Reload(ctx)
 	runQueue := runqueue.NewService(d, hub, gateway, catalog.Tools, log)
 	if cfg.RuntimeToken == "" {
 		log.Warn("WISE_RUNTIME_TOKEN is empty; agent runtimes cannot claim runs")
@@ -165,6 +184,7 @@ func serve(ctx context.Context) error {
 		Gateway:          gateway,
 		Hub:              hub,
 		Tasks:            taskSvc,
+		Accounts:         accountSvc,
 		Cookie:           httpapi.CookieConfig{Secure: cfg.CookieSecure, TTL: cfg.SessionTTL},
 		RuntimeToken:     cfg.RuntimeToken,
 		WSOriginPatterns: wsOriginPatterns(cfg.CORSOrigins),
@@ -239,6 +259,38 @@ func orchestrator(ctx context.Context) error {
 	return workflow.RunOrchestrator(ctx, workflow.OrchestratorConfig{
 		TemporalAddress: cfg.TemporalAddress, Namespace: cfg.TemporalNamespace,
 	}, d, tasks.NewService(d, wfCfg), agents.NewService(d, events.NewHub(d)), log)
+}
+
+// cliRunner executes CLI model providers on behalf of the API. Its container has
+// no database, repositories or control-plane secrets: each request carries the
+// one account credential it needs.
+func cliRunner(ctx context.Context) error {
+	log := newLogger(os.Getenv("WISE_LOG_LEVEL")).With("service", "cli-runner")
+	token := os.Getenv("WISE_CLI_RUNNER_TOKEN")
+	if len(token) < 32 {
+		return errors.New("WISE_CLI_RUNNER_TOKEN must be at least 32 characters")
+	}
+	addr := os.Getenv("WISE_CLI_RUNNER_ADDR")
+	if addr == "" {
+		addr = ":8090"
+	}
+	hs := &http.Server{
+		Addr: addr, Handler: modelgateway.RunnerHandler(token, log),
+		ReadHeaderTimeout: 10 * time.Second, IdleTimeout: 120 * time.Second, MaxHeaderBytes: 1 << 16,
+	}
+	errCh := make(chan error, 1)
+	go func() {
+		log.Info("cli runner listening", "addr", addr)
+		errCh <- hs.ListenAndServe()
+	}()
+	select {
+	case err := <-errCh:
+		return err
+	case <-ctx.Done():
+		shutCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		return hs.Shutdown(shutCtx)
+	}
 }
 
 func pruneSessions(ctx context.Context, a *auth.Service, log *slog.Logger) {

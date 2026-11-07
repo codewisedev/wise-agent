@@ -55,6 +55,9 @@ type ProviderResponse struct {
 	Usage   Usage
 	CostUSD float64
 	Model   string
+	// NewSecret is a credential the provider refreshed during the call (Codex
+	// rotates its OAuth tokens); the gateway persists it for the account.
+	NewSecret string `json:"newSecret,omitempty"`
 }
 
 // Provider adapts one model backend.

@@ -28,6 +28,9 @@ type Config struct {
 	WorkflowsConfig   string
 	TemporalAddress   string
 	TemporalNamespace string
+	SecretsKey        string
+	CLIRunnerURL      string
+	CLIRunnerToken    string
 }
 
 // Load reads configuration from WISE_* environment variables.
@@ -44,6 +47,9 @@ func Load() (Config, error) {
 		WorkflowsConfig:   getenv("WISE_WORKFLOWS_CONFIG", "configs/workflows/engineering.yaml"),
 		TemporalAddress:   getenv("WISE_TEMPORAL_ADDRESS", "127.0.0.1:7233"),
 		TemporalNamespace: getenv("WISE_TEMPORAL_NAMESPACE", "wise"),
+		SecretsKey:        os.Getenv("WISE_SECRETS_KEY"),
+		CLIRunnerURL:      os.Getenv("WISE_CLI_RUNNER_URL"),
+		CLIRunnerToken:    os.Getenv("WISE_CLI_RUNNER_TOKEN"),
 	}
 	var errs []error
 
@@ -79,6 +85,9 @@ func Load() (Config, error) {
 	}
 	if c.RuntimeToken != "" && len(c.RuntimeToken) < 32 {
 		errs = append(errs, errors.New("WISE_RUNTIME_TOKEN must be at least 32 characters"))
+	}
+	if c.CLIRunnerURL != "" && len(c.CLIRunnerToken) < 32 {
+		errs = append(errs, errors.New("WISE_CLI_RUNNER_TOKEN must be at least 32 characters when WISE_CLI_RUNNER_URL is set"))
 	}
 	if (c.BootstrapUser == "") != (c.BootstrapPassword == "") {
 		errs = append(errs, errors.New("WISE_BOOTSTRAP_ADMIN_USER and WISE_BOOTSTRAP_ADMIN_PASSWORD must be set together"))

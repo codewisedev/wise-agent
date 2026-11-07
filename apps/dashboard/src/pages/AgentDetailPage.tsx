@@ -3,6 +3,7 @@ import { ChevronRight, Play } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { api, unwrap } from "../api/client";
+import { AccountSelect } from "../components/AccountSelect";
 import { Json } from "../components/Json";
 import { Badge, ErrorNote, Field, Panel } from "../components/ui";
 import { RunsTable } from "./RunsTable";
@@ -38,13 +39,15 @@ export function AgentDetailPage() {
     | undefined;
   const [input, setInput] = useState("");
   const [projectId, setProjectId] = useState("");
+  const [account, setAccount] = useState("");
+  const [model, setModel] = useState("");
   const [parseError, setParseError] = useState<string | null>(null);
   useEffect(() => {
     if (def && !input) setInput(templateFor(def.input_schema));
   }, [def, input]);
 
   const run = useMutation({
-    mutationFn: (body: { input: Record<string, unknown>; projectId?: string }) =>
+    mutationFn: (body: { input: Record<string, unknown>; projectId?: string; account?: string; model?: string }) =>
       unwrap(api.POST("/agents/{agentName}/runs", { params: { path: { agentName } }, body })),
     onSuccess: (r) => navigate(`/runs/${r.id}`),
   });
@@ -53,7 +56,11 @@ export function AgentDetailPage() {
     try {
       const parsed = JSON.parse(input) as Record<string, unknown>;
       setParseError(null);
-      run.mutate({ input: parsed, ...(projectId ? { projectId } : {}) });
+      run.mutate({
+        input: parsed,
+        ...(projectId ? { projectId } : {}),
+        ...(account ? { account, ...(model.trim() ? { model: model.trim() } : {}) } : {}),
+      });
     } catch (err) {
       setParseError(`Input is not valid JSON: ${(err as Error).message}`);
     }
@@ -113,6 +120,14 @@ export function AgentDetailPage() {
                   ))}
                 </select>
               </Field>
+              <Field label="Account" hint="Pin one account for every model call">
+                <AccountSelect value={account} onChange={setAccount} />
+              </Field>
+              {account && (
+                <Field label="Model" hint="Empty = the account's default">
+                  <input value={model} onChange={(e) => setModel(e.target.value)} />
+                </Field>
+              )}
               <button type="submit" className="btn btn-primary" disabled={run.isPending}>
                 <Play size={15} aria-hidden /> Start run
               </button>

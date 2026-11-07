@@ -28,6 +28,7 @@ tags:
   - name: tasks
   - name: workflows
   - name: approvals
+  - name: accounts
 
 paths:
   /healthz:
@@ -827,6 +828,85 @@ paths:
         "404": { $ref: "#/components/responses/Problem" }
         "409": { $ref: "#/components/responses/Problem" }
 
+  /accounts:
+    get:
+      tags: [accounts]
+      operationId: listAccounts
+      responses:
+        "200":
+          description: Stored accounts (secrets are never returned).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AccountList" }
+        "401": { $ref: "#/components/responses/Problem" }
+    post:
+      tags: [accounts]
+      operationId: createAccount
+      description: Signed-in session only. The secret is encrypted at rest and can never be read back.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateAccountRequest" }
+      responses:
+        "201":
+          description: Account created.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Account" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+        "503": { $ref: "#/components/responses/Problem" }
+  /accounts/{accountId}:
+    parameters:
+      - $ref: "#/components/parameters/AccountId"
+    patch:
+      tags: [accounts]
+      operationId: updateAccount
+      description: Signed-in session only. Omitted fields are kept; `secret` replaces the stored secret.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateAccountRequest" }
+      responses:
+        "200":
+          description: Account updated.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Account" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+        "503": { $ref: "#/components/responses/Problem" }
+    delete:
+      tags: [accounts]
+      operationId: deleteAccount
+      responses:
+        "204": { description: Account deleted. }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+  /accounts/{accountId}/test:
+    parameters:
+      - $ref: "#/components/parameters/AccountId"
+    post:
+      tags: [accounts]
+      operationId: testAccount
+      description: Checks the account works without sending any task data.
+      responses:
+        "200":
+          description: Test result.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AccountTestResult" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+
   /runtime/v1/runs/claim:
     post:
       tags: [runtime]
@@ -1004,6 +1084,11 @@ components:
       schema: { type: string, format: uuid }
     ApprovalId:
       name: approvalId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    AccountId:
+      name: accountId
       in: path
       required: true
       schema: { type: string, format: uuid }
@@ -1327,6 +1412,10 @@ components:
       properties:
         input: { type: object, additionalProperties: true }
         projectId: { type: string, format: uuid }
+        account:
+          type: string
+          description: Account (or built-in provider) name to use for every model call; skips alias routing.
+        model: { type: string, description: Model for `account` (default = the account's default model). }
     AgentRun:
       type: object
       required: [id, agentName, agentDefinitionId, status, input, attempt, maxAttempts, cancelRequested,
@@ -1609,6 +1698,63 @@ components:
       properties:
         combinedHash: { type: string, minLength: 64, maxLength: 64 }
         comment: { type: string, maxLength: 10000 }
+    AccountKind:
+      type: string
+      enum: [claude_code, codex_cli, openai_compatible, jira, clickup, trello]
+    Account:
+      type: object
+      required: [id, name, kind, baseUrl, defaultModel, cloud, enabled, hasSecret, secretHint, metadata, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        kind: { $ref: "#/components/schemas/AccountKind" }
+        baseUrl: { type: string }
+        defaultModel: { type: string }
+        cloud: { type: boolean, description: Requests leave this machine (subject to the cloud policy). }
+        enabled: { type: boolean }
+        hasSecret: { type: boolean }
+        secretHint: { type: string, description: e.g. "…abcd"; the secret itself is never returned. }
+        metadata: { type: object, additionalProperties: true }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    AccountList:
+      type: object
+      required: [items, secretsEnabled, builtinProviders]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/Account" } }
+        secretsEnabled: { type: boolean, description: False when WISE_SECRETS_KEY is not configured. }
+        builtinProviders:
+          description: Providers from configs/models/models.yaml, also selectable per step.
+          type: array
+          items: { type: string }
+    CreateAccountRequest:
+      type: object
+      required: [name, kind]
+      properties:
+        name: { type: string, pattern: "^[a-z0-9][a-z0-9-]{0,62}$" }
+        kind: { $ref: "#/components/schemas/AccountKind" }
+        baseUrl: { type: string, maxLength: 500 }
+        defaultModel: { type: string, maxLength: 200 }
+        cloud: { type: boolean }
+        enabled: { type: boolean }
+        metadata: { type: object, additionalProperties: true }
+        secret: { type: string, maxLength: 65536, writeOnly: true }
+    UpdateAccountRequest:
+      type: object
+      properties:
+        name: { type: string, pattern: "^[a-z0-9][a-z0-9-]{0,62}$" }
+        baseUrl: { type: string, maxLength: 500 }
+        defaultModel: { type: string, maxLength: 200 }
+        cloud: { type: boolean }
+        enabled: { type: boolean }
+        metadata: { type: object, additionalProperties: true }
+        secret: { type: string, maxLength: 65536, writeOnly: true }
+    AccountTestResult:
+      type: object
+      required: [ok]
+      properties:
+        ok: { type: boolean }
+        error: { type: string }
     RuntimeClaimRequest:
       type: object
       required: [runtimeId]

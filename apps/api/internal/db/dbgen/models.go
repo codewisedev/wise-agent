@@ -349,6 +349,22 @@ func (e RepositorySourceType) Valid() bool {
 	return false
 }
 
+type Account struct {
+	ID               uuid.UUID
+	Name             string
+	Kind             string
+	BaseUrl          string
+	DefaultModel     string
+	Cloud            bool
+	Enabled          bool
+	SecretCiphertext *string
+	SecretHint       string
+	Metadata         json.RawMessage
+	CreatedBy        *uuid.UUID
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
+}
+
 type AgentDefinition struct {
 	ID          uuid.UUID
 	Name        string
@@ -395,6 +411,7 @@ type AgentRun struct {
 	UpdatedAt         time.Time
 	WorkflowRunID     *uuid.UUID
 	IdempotencyKey    *string
+	ModelOverride     []byte
 }
 
 type ApiToken struct {

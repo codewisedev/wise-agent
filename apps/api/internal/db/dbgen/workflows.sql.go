@@ -212,10 +212,10 @@ func (q *Queries) CreateTask(ctx context.Context, arg CreateTaskParams) (Task, e
 
 const createWorkflowAgentRun = `-- name: CreateWorkflowAgentRun :one
 INSERT INTO agent_runs (id, agent_definition_id, agent_name, project_id, input, max_attempts, created_by,
-                        workflow_run_id, idempotency_key)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                        workflow_run_id, idempotency_key, model_override)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 ON CONFLICT (idempotency_key) WHERE idempotency_key IS NOT NULL DO NOTHING
-RETURNING id, agent_definition_id, agent_name, project_id, status, input, output, error, attempt, max_attempts, runtime_id, run_token_hash, lease_expires_at, cancel_requested, total_input_tokens, total_output_tokens, total_cost_usd, created_by, created_at, started_at, finished_at, updated_at, workflow_run_id, idempotency_key
+RETURNING id, agent_definition_id, agent_name, project_id, status, input, output, error, attempt, max_attempts, runtime_id, run_token_hash, lease_expires_at, cancel_requested, total_input_tokens, total_output_tokens, total_cost_usd, created_by, created_at, started_at, finished_at, updated_at, workflow_run_id, idempotency_key, model_override
 `
 
 type CreateWorkflowAgentRunParams struct {
@@ -228,6 +228,7 @@ type CreateWorkflowAgentRunParams struct {
 	CreatedBy         *uuid.UUID
 	WorkflowRunID     *uuid.UUID
 	IdempotencyKey    *string
+	ModelOverride     []byte
 }
 
 func (q *Queries) CreateWorkflowAgentRun(ctx context.Context, arg CreateWorkflowAgentRunParams) (AgentRun, error) {
@@ -241,6 +242,7 @@ func (q *Queries) CreateWorkflowAgentRun(ctx context.Context, arg CreateWorkflow
 		arg.CreatedBy,
 		arg.WorkflowRunID,
 		arg.IdempotencyKey,
+		arg.ModelOverride,
 	)
 	var i AgentRun
 	err := row.Scan(
@@ -268,6 +270,7 @@ func (q *Queries) CreateWorkflowAgentRun(ctx context.Context, arg CreateWorkflow
 		&i.UpdatedAt,
 		&i.WorkflowRunID,
 		&i.IdempotencyKey,
+		&i.ModelOverride,
 	)
 	return i, err
 }
@@ -357,7 +360,7 @@ func (q *Queries) DecideApproval(ctx context.Context, arg DecideApprovalParams) 
 
 const getAgentRunByIdempotencyKey = `-- name: GetAgentRunByIdempotencyKey :one
 
-SELECT id, agent_definition_id, agent_name, project_id, status, input, output, error, attempt, max_attempts, runtime_id, run_token_hash, lease_expires_at, cancel_requested, total_input_tokens, total_output_tokens, total_cost_usd, created_by, created_at, started_at, finished_at, updated_at, workflow_run_id, idempotency_key FROM agent_runs WHERE idempotency_key = $1
+SELECT id, agent_definition_id, agent_name, project_id, status, input, output, error, attempt, max_attempts, runtime_id, run_token_hash, lease_expires_at, cancel_requested, total_input_tokens, total_output_tokens, total_cost_usd, created_by, created_at, started_at, finished_at, updated_at, workflow_run_id, idempotency_key, model_override FROM agent_runs WHERE idempotency_key = $1
 `
 
 // ---------------------------------------------------------------- agent runs for workflows
@@ -389,6 +392,7 @@ func (q *Queries) GetAgentRunByIdempotencyKey(ctx context.Context, idempotencyKe
 		&i.UpdatedAt,
 		&i.WorkflowRunID,
 		&i.IdempotencyKey,
+		&i.ModelOverride,
 	)
 	return i, err
 }

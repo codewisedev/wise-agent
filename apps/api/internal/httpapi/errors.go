@@ -105,3 +105,9 @@ func joinPointer(p []string) string {
 	}
 	return out
 }
+
+// asNotFound reports whether err is a 404 application error.
+func asNotFound(err error) (*apperr.Error, bool) {
+	e, ok := apperr.As(err)
+	return e, ok && e.Status == 404
+}

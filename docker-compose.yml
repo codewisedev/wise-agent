@@ -22,6 +22,11 @@ x-api-env: &api-env
   # Long-lived subscription token from `claude setup-token` (enables the claude-code provider).
   CLAUDE_CODE_OAUTH_TOKEN: ${CLAUDE_CODE_OAUTH_TOKEN:-}
   HOME: /tmp
+  # Encrypts stored account credentials (32 random bytes, base64).
+  WISE_SECRETS_KEY: ${WISE_SECRETS_KEY:-}
+  # Claude Code / Codex calls run in the isolated CLI runner.
+  WISE_CLI_RUNNER_URL: http://wise-cli-runner:8090
+  WISE_CLI_RUNNER_TOKEN: ${WISE_CLI_RUNNER_TOKEN:?set WISE_CLI_RUNNER_TOKEN in .env}
 
 x-hardened: &hardened
   read_only: true
@@ -79,7 +84,7 @@ services:
       - "host.docker.internal:host-gateway"
     ports:
       - "127.0.0.1:8080:8080"
-    networks: [data, edge, runtime]
+    networks: [data, edge, runtime, cli]
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/api/v1/readyz"]
       interval: 10s
@@ -205,6 +210,37 @@ services:
       resources:
         limits: { cpus: "0.5", memory: 256M }
 
+  # Runs Claude Code / Codex for the API. No database, repositories or control-plane
+  # secrets: each request carries the one account credential it needs. Internet
+  # egress only (the CLIs talk to their vendors).
+  wise-cli-runner:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+      network: host
+      args:
+        GOPROXY: ${GOPROXY:-https://proxy.golang.org,direct}
+        INSTALL_CLAUDE_CODE: ${INSTALL_CLAUDE_CODE:-true}
+        APK_MIRROR: ${APK_MIRROR:-}
+    command: ["cli-runner"]
+    restart: unless-stopped
+    environment:
+      WISE_CLI_RUNNER_TOKEN: ${WISE_CLI_RUNNER_TOKEN:?set WISE_CLI_RUNNER_TOKEN in .env}
+      WISE_LOG_LEVEL: ${WISE_LOG_LEVEL:-info}
+      HOME: /tmp
+    user: "${WISE_UID:-1000}:${WISE_GID:-1000}"
+    <<: *hardened
+    tmpfs: [/tmp]
+    networks: [cli, cli-egress]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8090/healthz"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    deploy:
+      resources:
+        limits: { cpus: "1.0", memory: 1G }
+
   wise-agent-runtime:
     build:
       context: .
@@ -261,6 +297,11 @@ networks:
   # Orchestrator <-> Postgres/Temporal, no egress.
   workflow:
     internal: true
+  # API <-> CLI runner.
+  cli:
+    internal: true
+  # CLI runner -> internet (Anthropic, OpenAI).
+  cli-egress: {}
 
 volumes:
   postgres-data: {}

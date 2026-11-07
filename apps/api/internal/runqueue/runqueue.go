@@ -223,13 +223,17 @@ func (s *Service) ModelTurn(ctx context.Context, run dbgen.AgentRun, msgs []mode
 			tools = append(tools, modelgateway.ToolSpec{Name: t.Name, Description: t.Description, InputSchema: t.InputSchema})
 		}
 	}
-	resp, err := s.gw.Complete(ctx, modelgateway.TurnRequest{
+	treq := modelgateway.TurnRequest{
 		RunID: &run.ID, AgentName: def.Name,
 		Alias: def.ModelConfig.Alias, Fallbacks: def.ModelConfig.Fallbacks,
 		System: defRow.Prompt, Messages: msgs, Tools: tools, OutputSchema: def.OutputSchema,
 		Temperature: def.ModelConfig.Temperature, MaxOutputTokens: def.ModelConfig.MaxOutputTokens,
 		MaxRunTokens: def.ExecutionLimits.MaxTokens, MaxRunCostUSD: def.ExecutionLimits.MaxCostUSD,
-	})
+	}
+	if o := agents.ParseModelOverride(run.ModelOverride); o != nil {
+		treq.Account, treq.Model = o.Account, o.Model
+	}
+	resp, err := s.gw.Complete(ctx, treq)
 	switch {
 	case errors.Is(err, modelgateway.ErrBudgetExceeded):
 		return resp, apperr.TooManyRequests(err.Error())

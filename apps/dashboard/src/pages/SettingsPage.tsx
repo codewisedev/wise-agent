@@ -3,6 +3,7 @@ import { KeyRound, Monitor, Moon, Plus, ShieldAlert, Sun } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { api, unwrap } from "../api/client";
 import { useSession } from "../auth";
+import { AccountsPanel } from "./AccountsPanel";
 import { Badge, CopyText, Empty, ErrorNote, Field, Panel, formatDate, relativeTime } from "../components/ui";
 import { useTheme, type ThemePreference } from "../theme";
 
@@ -154,6 +155,8 @@ export function SettingsPage() {
           </div>
         )}
       </Panel>
+
+      <AccountsPanel />
 
       <Panel title="Workflow engine" flush={false}>
         <p className="small muted">

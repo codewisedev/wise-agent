@@ -17,9 +17,11 @@ RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache
     go build -trimpath -ldflags="-s -w" -o /out/wise-api ./apps/api/cmd/wise-api
 
 FROM alpine:${ALPINE_VERSION}
-# Claude Code CLI powers the claude-code model provider (set INSTALL_CLAUDE_CODE=false to skip).
+# Claude Code and Codex CLIs power the CLI model providers; they run in the
+# wise-cli-runner container (set INSTALL_CLAUDE_CODE=false to skip both).
 ARG INSTALL_CLAUDE_CODE=true
 ARG CLAUDE_CODE_VERSION=2.1.319
+ARG CODEX_VERSION=0.163.0
 # Optional Alpine mirror (e.g. https://mirror.arvancloud.ir/alpine) when dl-cdn is unreachable.
 ARG APK_MIRROR=
 # git is required to inspect registered repositories.
@@ -28,7 +30,7 @@ RUN if [ -n "$APK_MIRROR" ]; then sed -i "s#https\?://dl-cdn.alpinelinux.org/alp
  && adduser -D -H -u 10001 wise \
  && if [ "$INSTALL_CLAUDE_CODE" = "true" ]; then \
       apk add --no-cache nodejs npm libstdc++ ripgrep \
-      && npm install -g --omit=dev "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}" \
+      && npm install -g --omit=dev "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}" "@openai/codex@${CODEX_VERSION}" \
       && npm cache clean --force; \
     fi
 WORKDIR /app

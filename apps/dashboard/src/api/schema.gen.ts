@@ -753,6 +753,61 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/accounts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listAccounts"];
+        put?: never;
+        /** @description Signed-in session only. The secret is encrypted at rest and can never be read back. */
+        post: operations["createAccount"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/accounts/{accountId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                accountId: components["parameters"]["AccountId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["deleteAccount"];
+        options?: never;
+        head?: never;
+        /** @description Signed-in session only. Omitted fields are kept; `secret` replaces the stored secret. */
+        patch: operations["updateAccount"];
+        trace?: never;
+    };
+    "/accounts/{accountId}/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                accountId: components["parameters"]["AccountId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Checks the account works without sending any task data. */
+        post: operations["testAccount"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/runtime/v1/runs/claim": {
         parameters: {
             query?: never;
@@ -1135,6 +1190,10 @@ export interface components {
             };
             /** Format: uuid */
             projectId?: string;
+            /** @description Account (or built-in provider) name to use for every model call; skips alias routing. */
+            account?: string;
+            /** @description Model for `account` (default = the account's default model). */
+            model?: string;
         };
         AgentRun: {
             /** Format: uuid */
@@ -1412,6 +1471,63 @@ export interface components {
             combinedHash: string;
             comment?: string;
         };
+        /** @enum {string} */
+        AccountKind: "claude_code" | "codex_cli" | "openai_compatible" | "jira" | "clickup" | "trello";
+        Account: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            kind: components["schemas"]["AccountKind"];
+            baseUrl: string;
+            defaultModel: string;
+            /** @description Requests leave this machine (subject to the cloud policy). */
+            cloud: boolean;
+            enabled: boolean;
+            hasSecret: boolean;
+            /** @description e.g. "…abcd"; the secret itself is never returned. */
+            secretHint: string;
+            metadata: {
+                [key: string]: unknown;
+            };
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        AccountList: {
+            items: components["schemas"]["Account"][];
+            /** @description False when WISE_SECRETS_KEY is not configured. */
+            secretsEnabled: boolean;
+            /** @description Providers from configs/models/models.yaml, also selectable per step. */
+            builtinProviders: string[];
+        };
+        CreateAccountRequest: {
+            name: string;
+            kind: components["schemas"]["AccountKind"];
+            baseUrl?: string;
+            defaultModel?: string;
+            cloud?: boolean;
+            enabled?: boolean;
+            metadata?: {
+                [key: string]: unknown;
+            };
+            secret?: string;
+        };
+        UpdateAccountRequest: {
+            name?: string;
+            baseUrl?: string;
+            defaultModel?: string;
+            cloud?: boolean;
+            enabled?: boolean;
+            metadata?: {
+                [key: string]: unknown;
+            };
+            secret?: string;
+        };
+        AccountTestResult: {
+            ok: boolean;
+            error?: string;
+        };
         RuntimeClaimRequest: {
             runtimeId: string;
         };
@@ -1546,6 +1662,7 @@ export interface components {
         TaskId: string;
         WorkflowId: string;
         ApprovalId: string;
+        AccountId: string;
         ArtifactId: string;
     };
     requestBodies: never;
@@ -2816,6 +2933,135 @@ export interface operations {
             403: components["responses"]["Problem"];
             404: components["responses"]["Problem"];
             409: components["responses"]["Problem"];
+        };
+    };
+    listAccounts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Stored accounts (secrets are never returned). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountList"];
+                };
+            };
+            401: components["responses"]["Problem"];
+        };
+    };
+    createAccount: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateAccountRequest"];
+            };
+        };
+        responses: {
+            /** @description Account created. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Account"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    deleteAccount: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                accountId: components["parameters"]["AccountId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Account deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    updateAccount: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                accountId: components["parameters"]["AccountId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateAccountRequest"];
+            };
+        };
+        responses: {
+            /** @description Account updated. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Account"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    testAccount: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                accountId: components["parameters"]["AccountId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Test result. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountTestResult"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
         };
     };
     runtimeClaimRun: {

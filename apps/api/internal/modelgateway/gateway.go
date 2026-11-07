@@ -7,7 +7,9 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"os"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -37,6 +39,11 @@ type TurnRequest struct {
 	// Run budget from the agent's execution_limits (0 = unlimited).
 	MaxRunTokens  int64
 	MaxRunCostUSD float64
+	// Account pins one provider account (a workflow step's choice). When set,
+	// alias and fallbacks are ignored: the chosen account is used or the turn fails.
+	Account string
+	// Model overrides the account's default model (with Account only).
+	Model string
 }
 
 // TurnResponse is the parsed model turn plus accounting.
@@ -54,14 +61,22 @@ type TurnResponse struct {
 }
 
 type Gateway struct {
-	db        *db.DB
-	cfg       Config
-	policy    Policy
-	providers map[string]Provider
-	events    EventSink
-	log       *slog.Logger
-	now       func() time.Time
-	sleep     func(context.Context, time.Duration) error
+	db     *db.DB
+	cfg    Config
+	policy Policy
+	events EventSink
+
+	// providers holds the models.yaml providers; accounts the stored ones.
+	mu          sync.RWMutex
+	providers   map[string]Provider
+	accounts    map[string]accountEntry
+	saveSecret  SecretSaver
+	runnerURL   string
+	runnerToken string
+
+	log   *slog.Logger
+	now   func() time.Time
+	sleep func(context.Context, time.Duration) error
 
 	// cooldown skips a provider briefly after it failed for good (e.g. not
 	// logged in), so every turn of every run does not pay for the same error.
@@ -83,15 +98,183 @@ func New(d *db.DB, cfg Config, pol Policy, events EventSink, log *slog.Logger) *
 			g.providers[name] = NewOpenAICompat(name, pc)
 		case "claude-code":
 			g.providers[name] = NewClaudeCode(name, pc)
+		case "codex-cli":
+			g.providers[name] = NewCodexCLI(name, pc)
 		}
 	}
+	g.accounts = map[string]accountEntry{}
 	return g
 }
 
 // WithProvider replaces or adds a provider (tests, custom adapters).
 func (g *Gateway) WithProvider(p Provider) *Gateway {
+	g.mu.Lock()
 	g.providers[p.Name()] = p
+	g.mu.Unlock()
 	return g
+}
+
+// AccountSpec is a stored account the gateway can route to.
+type AccountSpec struct {
+	ID           uuid.UUID
+	Name         string
+	Kind         string // claude_code | codex_cli | openai_compatible
+	BaseURL      string
+	DefaultModel string
+	Cloud        bool
+	Secret       string
+}
+
+// SecretSaver persists a credential a provider refreshed (Codex OAuth tokens).
+type SecretSaver func(ctx context.Context, accountID uuid.UUID, secret string) error
+
+type accountEntry struct {
+	spec AccountSpec
+	prov Provider
+}
+
+// WithSecretSaver sets where refreshed account credentials are stored.
+func (g *Gateway) WithSecretSaver(fn SecretSaver) *Gateway {
+	g.saveSecret = fn
+	return g
+}
+
+// UseCLIRunner routes every CLI provider (Claude Code, Codex) through the
+// secret-free wise-cli-runner container instead of executing it in-process.
+func (g *Gateway) UseCLIRunner(url, token string) *Gateway {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	g.runnerURL, g.runnerToken = url, token
+	for name, pc := range g.cfg.Providers {
+		if pc.Type == "claude-code" || pc.Type == "codex-cli" {
+			if pc.Secret == "" && pc.Type == "claude-code" {
+				pc.Secret = os.Getenv("CLAUDE_CODE_OAUTH_TOKEN")
+			}
+			g.providers[name] = NewRemoteCLI(name, pc.Type, url, token, pc)
+		}
+	}
+	return g
+}
+
+// SetAccounts replaces the stored-account providers (called on start and after
+// every account change). Accounts whose kind is not a model provider are ignored.
+func (g *Gateway) SetAccounts(specs []AccountSpec) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	next := map[string]accountEntry{}
+	for _, sp := range specs {
+		if prov := g.buildAccountProvider(sp); prov != nil {
+			next[sp.Name] = accountEntry{spec: sp, prov: prov}
+		}
+	}
+	g.accounts = next
+}
+
+// buildAccountProvider must be called with g.mu held.
+func (g *Gateway) buildAccountProvider(sp AccountSpec) Provider {
+	pc := ProviderConfig{BaseURL: sp.BaseURL, Cloud: sp.Cloud, Secret: sp.Secret, Timeout: 10 * time.Minute}
+	switch sp.Kind {
+	case "openai_compatible":
+		pc.Type = "openai-compatible"
+		return NewOpenAICompat(sp.Name, pc)
+	case "claude_code", "codex_cli":
+		pc.Type = strings.ReplaceAll(sp.Kind, "_", "-")
+		pc.Cloud = true
+		if g.runnerURL != "" {
+			return NewRemoteCLI(sp.Name, pc.Type, g.runnerURL, g.runnerToken, pc)
+		}
+		if sp.Kind == "claude_code" {
+			pc.Binary = "claude"
+			return NewClaudeCode(sp.Name, pc)
+		}
+		return NewCodexCLI(sp.Name, pc)
+	}
+	return nil
+}
+
+func (g *Gateway) provider(name string) (Provider, bool) {
+	g.mu.RLock()
+	defer g.mu.RUnlock()
+	if p, ok := g.providers[name]; ok {
+		return p, true
+	}
+	a, ok := g.accounts[name]
+	return a.prov, ok
+}
+
+func (g *Gateway) persistSecret(ctx context.Context, provider, secret string) {
+	if secret == "" || g.saveSecret == nil {
+		return
+	}
+	g.mu.RLock()
+	a, ok := g.accounts[provider]
+	g.mu.RUnlock()
+	if !ok || a.spec.Secret == secret {
+		return
+	}
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	if err := g.saveSecret(ctx, a.spec.ID, secret); err != nil {
+		g.log.WarnContext(ctx, "persist refreshed account credential", "account", provider, "err", err)
+		return
+	}
+	a.spec.Secret = secret
+	g.reloadAccount(a.spec)
+}
+
+// reloadAccount swaps in a refreshed credential for one account, unless the
+// account was deleted, disabled or replaced meanwhile.
+func (g *Gateway) reloadAccount(spec AccountSpec) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	cur, ok := g.accounts[spec.Name]
+	if !ok || cur.spec.ID != spec.ID {
+		return
+	}
+	cur.spec.Secret = spec.Secret
+	if prov := g.buildAccountProvider(cur.spec); prov != nil {
+		g.accounts[spec.Name] = accountEntry{spec: cur.spec, prov: prov}
+	}
+}
+
+type candidate struct {
+	alias string
+	t     Target
+}
+
+// candidates lists the targets to try: the pinned account, or alias + fallbacks.
+func (g *Gateway) candidates(req TurnRequest) ([]candidate, error) {
+	if req.Account != "" {
+		g.mu.RLock()
+		a, ok := g.accounts[req.Account]
+		_, builtin := g.providers[req.Account]
+		g.mu.RUnlock()
+		model := req.Model
+		switch {
+		case ok:
+			if model == "" {
+				model = a.spec.DefaultModel
+			}
+		case builtin:
+		default:
+			return nil, fmt.Errorf("%w: account %q is not available (deleted, disabled or not a model account)", ErrNoTarget, req.Account)
+		}
+		return []candidate{{alias: "account:" + req.Account, t: Target{Provider: req.Account, Model: model}}}, nil
+	}
+	var out []candidate
+	for _, alias := range append([]string{req.Alias}, req.Fallbacks...) {
+		acfg, ok := g.cfg.Aliases[alias]
+		if !ok {
+			continue
+		}
+		for _, t := range acfg.Targets {
+			out = append(out, candidate{alias: alias, t: t})
+		}
+	}
+	if len(out) == 0 {
+		return nil, fmt.Errorf("%w: %q", ErrUnknownAlias, req.Alias)
+	}
+	return out, nil
 }
 
 // Complete routes one turn: alias → fallbacks → targets, honouring policy and budgets.
@@ -107,17 +290,16 @@ func (g *Gateway) Complete(ctx context.Context, req TurnRequest) (TurnResponse, 
 		return TurnResponse{}, err
 	}
 
-	aliases := append([]string{req.Alias}, req.Fallbacks...)
+	cands, err := g.candidates(req)
+	if err != nil {
+		return TurnResponse{}, err
+	}
 	var lastErr error
 	tried, blockedByBudget := 0, 0
-	for _, alias := range aliases {
-		acfg, ok := g.cfg.Aliases[alias]
-		if !ok {
-			lastErr = fmt.Errorf("%w: %q", ErrUnknownAlias, alias)
-			continue
-		}
-		for _, t := range acfg.Targets {
-			prov, ok := g.providers[t.Provider]
+	for _, c := range cands {
+		alias, t := c.alias, c.t
+		{
+			prov, ok := g.provider(t.Provider)
 			if !ok {
 				continue
 			}
@@ -193,6 +375,14 @@ func (g *Gateway) callTarget(ctx context.Context, req TurnRequest, alias string,
 		start := g.now()
 		pr, err := prov.Complete(ctx, preq)
 		latency := g.now().Sub(start).Milliseconds()
+		// A rotated credential must be stored even if this run is being cancelled.
+		g.persistSecret(context.WithoutCancel(ctx), prov.Name(), pr.NewSecret)
+		if pr.NewSecret != "" {
+			// Later attempts must use the refreshed credential.
+			if p, ok := g.provider(t.Provider); ok {
+				prov = p
+			}
+		}
 		if err != nil {
 			lastErr = err
 			g.record(ctx, req, alias, prov.Name(), t.Model, "error", err.Error(), Usage{}, 0, latency, false)
@@ -406,12 +596,26 @@ func (g *Gateway) Aliases() []AliasInfo {
 }
 
 func (g *Gateway) Health(ctx context.Context) []ProviderStatus {
-	out := make([]ProviderStatus, 0, len(g.providers))
+	g.mu.RLock()
+	type item struct {
+		name, typ string
+		p         Provider
+	}
+	items := make([]item, 0, len(g.providers)+len(g.accounts))
 	for name, p := range g.providers {
+		items = append(items, item{name, g.cfg.Providers[name].Type, p})
+	}
+	for name, a := range g.accounts {
+		items = append(items, item{name, "account:" + a.spec.Kind, a.prov})
+	}
+	g.mu.RUnlock()
+	out := make([]ProviderStatus, 0, len(items))
+	for _, it := range items {
+		name, p := it.name, it.p
 		ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 		err := p.Health(ctx)
 		cancel()
-		st := ProviderStatus{Name: name, Type: g.cfg.Providers[name].Type, Cloud: p.Cloud(), Healthy: err == nil}
+		st := ProviderStatus{Name: name, Type: it.typ, Cloud: p.Cloud(), Healthy: err == nil}
 		if err != nil {
 			st.Error = err.Error()
 		} else if recent := g.recentFailure(name); recent != "" {
@@ -426,3 +630,25 @@ func (g *Gateway) Health(ctx context.Context) []ProviderStatus {
 
 // CloudAllowed reports the policy for an agent.
 func (g *Gateway) CloudAllowed(agent string) bool { return g.policy.cloudAllowed(agent) }
+
+// HealthOf checks one provider or account by name.
+func (g *Gateway) HealthOf(ctx context.Context, name string) error {
+	p, ok := g.provider(name)
+	if !ok {
+		return fmt.Errorf("unknown provider or account %q", name)
+	}
+	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+	return p.Health(ctx)
+}
+
+// ProviderNames lists the built-in (models.yaml) provider names, which stored
+// accounts may not reuse.
+func (g *Gateway) ProviderNames() []string {
+	out := make([]string, 0, len(g.cfg.Providers))
+	for name := range g.cfg.Providers {
+		out = append(out, name)
+	}
+	sort.Strings(out)
+	return out
+}
