@@ -576,6 +576,16 @@ type Task struct {
 	UpdatedAt         time.Time
 	TemplateID        *uuid.UUID
 	WorkflowOverrides json.RawMessage
+	BoardColumn       string
+	Position          float64
+	Priority          string
+	Labels            []string
+	Source            string
+	IntegrationID     *uuid.UUID
+	ExternalID        *string
+	ExternalUrl       *string
+	ExternalStatus    *string
+	SyncedAt          *time.Time
 }
 
 type ToolCall struct {

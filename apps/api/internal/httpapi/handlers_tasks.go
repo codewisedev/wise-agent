@@ -17,10 +17,12 @@ import (
 // ---- converters ----
 
 func toTask(t dbgen.Task, projectName *string) apigen.Task {
-	return apigen.Task{
+	out := apigen.Task{
 		Id: t.ID, ProjectId: t.ProjectID, ProjectName: projectName, Title: t.Title, Description: t.Description,
 		Status: apigen.TaskStatus(t.Status), CreatedAt: t.CreatedAt, UpdatedAt: t.UpdatedAt,
 	}
+	taskFields(&out, t)
+	return out
 }
 
 func toWorkflowRun(r dbgen.WorkflowRun) apigen.WorkflowRun {
@@ -106,6 +108,15 @@ func (s *Server) CreateTask(ctx context.Context, req apigen.CreateTaskRequestObj
 	opts := tasks.CreateOptions{
 		Start: req.Body.Start == nil || *req.Body.Start, StepByStep: deref(req.Body.StepByStep), TemplateID: req.Body.TemplateId,
 	}
+	if req.Body.Column != nil {
+		opts.Column = string(*req.Body.Column)
+	}
+	if req.Body.Priority != nil {
+		opts.Priority = string(*req.Body.Priority)
+	}
+	if req.Body.Labels != nil {
+		opts.Labels = *req.Body.Labels
+	}
 	userID := p.User.ID
 	task, _, err := s.Tasks.CreateTask(ctx, req.ProjectId, req.Body.Title, deref(req.Body.Description), opts, &userID)
 	if err != nil {
@@ -133,7 +144,9 @@ func (s *Server) ListTasks(ctx context.Context, req apigen.ListTasksRequestObjec
 		name := r.ProjectName
 		items[i] = toTask(dbgen.Task{
 			ID: r.ID, ProjectID: r.ProjectID, Title: r.Title, Description: r.Description, Status: r.Status,
-			CreatedBy: r.CreatedBy, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt,
+			CreatedBy: r.CreatedBy, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt, TemplateID: r.TemplateID,
+			BoardColumn: r.BoardColumn, Position: r.Position, Priority: r.Priority, Labels: r.Labels, Source: r.Source,
+			ExternalID: r.ExternalID, ExternalUrl: r.ExternalUrl, ExternalStatus: r.ExternalStatus,
 		}, &name)
 	}
 	return apigen.ListTasks200JSONResponse{Items: items}, nil
@@ -278,4 +291,80 @@ func (s *Server) RejectApproval(ctx context.Context, req apigen.RejectApprovalRe
 		return nil, err
 	}
 	return apigen.RejectApproval200JSONResponse(toApproval(ap)), nil
+}
+
+// ---- board ----
+
+func taskFields(out *apigen.Task, t dbgen.Task) {
+	col := apigen.BoardColumn(t.BoardColumn)
+	pri := apigen.TaskPriority(t.Priority)
+	src := apigen.TaskSource(t.Source)
+	labels := t.Labels
+	if labels == nil {
+		labels = []string{}
+	}
+	pos := t.Position
+	out.Column, out.Priority, out.Source, out.Labels, out.Position = &col, &pri, &src, &labels, &pos
+	out.ExternalId, out.ExternalUrl, out.ExternalStatus, out.TemplateId = t.ExternalID, t.ExternalUrl, t.ExternalStatus, t.TemplateID
+}
+
+func (s *Server) GetBoard(ctx context.Context, req apigen.GetBoardRequestObject) (apigen.GetBoardResponseObject, error) {
+	rows, err := s.Tasks.Board(ctx, req.ProjectId)
+	if err != nil {
+		return nil, err
+	}
+	byCol := map[string][]apigen.BoardCard{}
+	for _, r := range rows {
+		card := apigen.BoardCard{PendingApproval: r.PendingApproval, Task: toTask(dbgen.Task{
+			ID: r.ID, ProjectID: r.ProjectID, Title: r.Title, Description: r.Description, Status: r.Status,
+			CreatedBy: r.CreatedBy, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt, TemplateID: r.TemplateID,
+			BoardColumn: r.BoardColumn, Position: r.Position, Priority: r.Priority, Labels: r.Labels, Source: r.Source,
+			IntegrationID: r.IntegrationID, ExternalID: r.ExternalID, ExternalUrl: r.ExternalUrl, ExternalStatus: r.ExternalStatus,
+		}, nil)}
+		if r.WorkflowID != uuid.Nil {
+			id, st := r.WorkflowID, apigen.WorkflowRunStatus(r.WorkflowStatus)
+			card.WorkflowId, card.WorkflowStatus, card.WorkflowStage = &id, &st, r.WorkflowStage
+			if r.TemplateName != "" {
+				name := r.TemplateName
+				card.TemplateName = &name
+			}
+		}
+		byCol[r.BoardColumn] = append(byCol[r.BoardColumn], card)
+	}
+	out := apigen.GetBoard200JSONResponse{}
+	for _, c := range tasks.Columns {
+		cards := byCol[c]
+		if cards == nil {
+			cards = []apigen.BoardCard{}
+		}
+		out.Columns = append(out.Columns, struct {
+			Cards []apigen.BoardCard `json:"cards"`
+			Id    apigen.BoardColumn `json:"id"`
+		}{Cards: cards, Id: apigen.BoardColumn(c)})
+	}
+	return out, nil
+}
+
+func (s *Server) UpdateTask(ctx context.Context, req apigen.UpdateTaskRequestObject) (apigen.UpdateTaskResponseObject, error) {
+	b := req.Body
+	p := tasks.CardPatch{Title: b.Title, Description: b.Description, Position: b.Position}
+	if b.Priority != nil {
+		v := string(*b.Priority)
+		p.Priority = &v
+	}
+	if b.Column != nil {
+		v := string(*b.Column)
+		p.Column = &v
+	}
+	if b.Labels != nil {
+		p.Labels = *b.Labels
+		if p.Labels == nil {
+			p.Labels = []string{}
+		}
+	}
+	t, err := s.Tasks.UpdateCard(ctx, req.TaskId, p)
+	if err != nil {
+		return nil, err
+	}
+	return apigen.UpdateTask200JSONResponse(toTask(t, nil)), nil
 }

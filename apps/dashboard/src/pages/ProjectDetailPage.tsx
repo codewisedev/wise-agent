@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Archive, ArrowRight, ChevronRight, FileText, GitBranch, Link2, Plus, RefreshCw, ScanSearch, Trash2 } from "lucide-react";
+import { Archive, ArrowRight, ChevronRight, FileText, GitBranch, KanbanSquare, Link2, Plus, RefreshCw, ScanSearch, Trash2 } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { api, unwrap, type Repository, type Schemas } from "../api/client";
@@ -74,6 +74,9 @@ export function ProjectDetailPage() {
           </div>
           {p.description && <p className="desc">{p.description}</p>}
         </div>
+        <Link to={`/projects/${p.id}/board`} className="btn btn-primary">
+          <KanbanSquare size={15} aria-hidden /> Board
+        </Link>
         {!readOnly && (
           <button
             className="btn btn-danger"

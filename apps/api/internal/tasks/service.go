@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/google/uuid"
@@ -52,6 +53,9 @@ type CreateOptions struct {
 	TemplateID *uuid.UUID
 	Start      bool
 	StepByStep bool
+	Column     string // board column; default backlog (in_progress when started)
+	Priority   string
+	Labels     []string
 }
 
 func (s *Service) CreateTask(ctx context.Context, projectID uuid.UUID, title, description string, opts CreateOptions, userID *uuid.UUID) (dbgen.Task, *dbgen.WorkflowRun, error) {
@@ -73,6 +77,19 @@ func (s *Service) CreateTask(ctx context.Context, projectID uuid.UUID, title, de
 		if task, err = q.CreateTask(ctx, dbgen.CreateTaskParams{
 			ID: id, ProjectID: projectID, Title: title, Description: strings.TrimSpace(description), CreatedBy: userID,
 		}); err != nil {
+			return err
+		}
+		column := opts.Column
+		if column == "" {
+			column = "backlog"
+		}
+		// Every new card goes to the bottom of its column (the column default
+		// alone would leave all new backlog cards at position 0).
+		pos, err := q.NextBoardPosition(ctx, dbgen.NextBoardPositionParams{ProjectID: projectID, BoardColumn: column})
+		if err != nil {
+			return err
+		}
+		if err := s.placeCard(ctx, q, &task, CardPatch{Column: &column, Position: &pos, Priority: strPtrOrNil(opts.Priority), Labels: opts.Labels}); err != nil {
 			return err
 		}
 		if opts.TemplateID != nil {
@@ -152,6 +169,9 @@ func (s *Service) startInTx(ctx context.Context, q *dbgen.Queries, task dbgen.Ta
 		return dbgen.WorkflowRun{}, err
 	}
 	if err := q.SetTaskStatus(ctx, dbgen.SetTaskStatusParams{ID: task.ID, Status: "in_progress"}); err != nil {
+		return dbgen.WorkflowRun{}, err
+	}
+	if err := moveWithWorkflow(ctx, q, run); err != nil { // card → In progress
 		return dbgen.WorkflowRun{}, err
 	}
 	if err := recordEvent(ctx, q, id, "workflow.created", map[string]any{
@@ -481,4 +501,142 @@ func enqueueCommand(ctx context.Context, q *dbgen.Queries, runID uuid.UUID, kind
 func isConflict(err error) bool {
 	e, ok := apperr.As(err)
 	return ok && e.Status == 409
+}
+
+// ---- board ----
+
+// CardPatch edits a task card; nil fields are kept.
+type CardPatch struct {
+	Title       *string
+	Description *string
+	Priority    *string
+	Labels      []string
+	Column      *string
+	Position    *float64
+}
+
+var priorities = []string{"none", "low", "medium", "high", "urgent"}
+
+func strPtrOrNil(s string) *string {
+	if s == "" {
+		return nil
+	}
+	return &s
+}
+
+// placeCard validates and applies a card patch; a column change without a
+// position puts the card at the bottom of its new column.
+func (s *Service) placeCard(ctx context.Context, q *dbgen.Queries, task *dbgen.Task, p CardPatch) error {
+	var errs []apperr.FieldError
+	if p.Title != nil {
+		t := strings.TrimSpace(*p.Title)
+		if len([]rune(t)) < 3 || len(t) > 200 {
+			errs = append(errs, apperr.FieldError{Field: "title", Message: "must be 3-200 characters"})
+		}
+		p.Title = &t
+	}
+	if p.Description != nil && len(*p.Description) > 20000 {
+		errs = append(errs, apperr.FieldError{Field: "description", Message: "must be at most 20000 characters"})
+	}
+	if p.Priority != nil && !slices.Contains(priorities, *p.Priority) {
+		errs = append(errs, apperr.FieldError{Field: "priority", Message: "none, low, medium, high or urgent"})
+	}
+	if p.Column != nil && !slices.Contains(Columns, *p.Column) {
+		errs = append(errs, apperr.FieldError{Field: "column", Message: "unknown board column"})
+	}
+	var labels []string
+	for _, l := range p.Labels {
+		l = strings.TrimSpace(l)
+		switch {
+		case l == "" || slices.Contains(labels, l):
+		case len([]rune(l)) > 40:
+			errs = append(errs, apperr.FieldError{Field: "labels", Message: fmt.Sprintf("label %q is longer than 40 characters", l)})
+		default:
+			labels = append(labels, l)
+		}
+	}
+	if len(labels) > 20 {
+		errs = append(errs, apperr.FieldError{Field: "labels", Message: "at most 20 labels"})
+	}
+	if len(errs) > 0 {
+		return apperr.Validation(errs...)
+	}
+	if p.Column != nil && *p.Column != task.BoardColumn && p.Position == nil {
+		pos, err := q.NextBoardPosition(ctx, dbgen.NextBoardPositionParams{ProjectID: task.ProjectID, BoardColumn: *p.Column})
+		if err != nil {
+			return err
+		}
+		p.Position = &pos
+	}
+	params := dbgen.UpdateTaskCardParams{ID: task.ID, Title: p.Title, Description: p.Description, Priority: p.Priority,
+		BoardColumn: p.Column, Position: p.Position}
+	if p.Labels != nil {
+		if labels == nil {
+			labels = []string{}
+		}
+		params.Labels = labels
+	}
+	updated, err := q.UpdateTaskCard(ctx, params)
+	if err != nil {
+		return err
+	}
+	*task = updated
+	return nil
+}
+
+// UpdateCard edits or moves a task card.
+func (s *Service) UpdateCard(ctx context.Context, id uuid.UUID, p CardPatch) (dbgen.Task, error) {
+	var task dbgen.Task
+	err := s.db.InTx(ctx, func(q *dbgen.Queries) error {
+		var err error
+		task, err = q.LockTask(ctx, id)
+		if db.IsNotFound(err) {
+			return apperr.NotFound("task not found")
+		}
+		if err != nil {
+			return err
+		}
+		from := task.BoardColumn
+		if err := s.placeCard(ctx, q, &task, p); err != nil {
+			return err
+		}
+		payload := map[string]any{}
+		if p.Column != nil && *p.Column != from {
+			payload["from"], payload["to"] = from, *p.Column
+		}
+		if p.Title != nil || p.Description != nil || p.Priority != nil || p.Labels != nil {
+			payload["edited"] = true
+		}
+		if len(payload) == 0 {
+			return nil // reorder within a column: not audit-worthy
+		}
+		return audit.Record(ctx, q, audit.Entry{Action: "task.update", EntityType: "task", EntityID: audit.Ptr(id), Payload: payload})
+	})
+	return task, err
+}
+
+// Board lists a project's cards with their latest workflow state.
+func (s *Service) Board(ctx context.Context, projectID uuid.UUID) ([]dbgen.ListBoardTasksRow, error) {
+	if _, err := s.db.GetProject(ctx, projectID); db.IsNotFound(err) {
+		return nil, apperr.NotFound("project not found")
+	} else if err != nil {
+		return nil, err
+	}
+	return s.db.ListBoardTasks(ctx, projectID)
+}
+
+// columnFor is where a workflow state moves its card ("" = leave it).
+func columnFor(status, destination string) string {
+	switch status {
+	case RunPending, RunRunning:
+		return "in_progress"
+	case RunAwaitingApproval:
+		return "review"
+	case RunCompleted:
+		if destination == "" {
+			return "done"
+		}
+		return destination
+	}
+	return "" // awaiting retry, failed, cancelled: the card stays where it is
 }

@@ -593,6 +593,21 @@ paths:
         "401": { $ref: "#/components/responses/Problem" }
         "404": { $ref: "#/components/responses/Problem" }
         "409": { $ref: "#/components/responses/Problem" }
+  /projects/{projectId}/board:
+    parameters:
+      - $ref: "#/components/parameters/ProjectId"
+    get:
+      tags: [tasks]
+      operationId: getBoard
+      description: The project's task board, one entry per column with ordered cards.
+      responses:
+        "200":
+          description: Board.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Board" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
   /tasks:
     get:
       tags: [tasks]
@@ -616,6 +631,24 @@ paths:
   /tasks/{taskId}:
     parameters:
       - $ref: "#/components/parameters/TaskId"
+    patch:
+      tags: [tasks]
+      operationId: updateTask
+      description: Edits a card or moves it (column and/or position) on the board.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateTaskRequest" }
+      responses:
+        "200":
+          description: Updated task.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Task" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
     get:
       tags: [tasks]
       operationId: getTask
@@ -1698,8 +1731,51 @@ components:
         title: { type: string }
         description: { type: string }
         status: { $ref: "#/components/schemas/TaskStatus" }
+        column: { $ref: "#/components/schemas/BoardColumn" }
+        position: { type: number, format: double }
+        priority: { $ref: "#/components/schemas/TaskPriority" }
+        labels: { type: array, items: { type: string } }
+        source: { type: string, enum: [manual, jira, clickup, trello] }
+        externalId: { type: string, nullable: true }
+        externalUrl: { type: string, nullable: true }
+        externalStatus: { type: string, nullable: true }
+        templateId: { type: string, format: uuid, nullable: true }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
+    TaskPriority:
+      type: string
+      enum: [none, low, medium, high, urgent]
+    UpdateTaskRequest:
+      type: object
+      properties:
+        title: { type: string, minLength: 3, maxLength: 200 }
+        description: { type: string, maxLength: 20000 }
+        priority: { $ref: "#/components/schemas/TaskPriority" }
+        labels: { type: array, maxItems: 20, items: { type: string, maxLength: 40 } }
+        column: { $ref: "#/components/schemas/BoardColumn" }
+        position: { type: number, format: double, description: "Order within the column (cards sort ascending); omit to append." }
+    BoardCard:
+      type: object
+      required: [task, pendingApproval]
+      properties:
+        task: { $ref: "#/components/schemas/Task" }
+        workflowId: { type: string, format: uuid, nullable: true }
+        workflowStatus: { $ref: "#/components/schemas/WorkflowRunStatus" }
+        workflowStage: { type: string, nullable: true }
+        templateName: { type: string, nullable: true }
+        pendingApproval: { type: boolean }
+    Board:
+      type: object
+      required: [columns]
+      properties:
+        columns:
+          type: array
+          items:
+            type: object
+            required: [id, cards]
+            properties:
+              id: { $ref: "#/components/schemas/BoardColumn" }
+              cards: { type: array, items: { $ref: "#/components/schemas/BoardCard" } }
     TaskList:
       type: object
       required: [items]
@@ -1713,6 +1789,9 @@ components:
         description: { type: string, maxLength: 20000 }
         start: { type: boolean, default: true }
         stepByStep: { type: boolean, description: "With start, pause after every step." }
+        column: { $ref: "#/components/schemas/BoardColumn" }
+        priority: { $ref: "#/components/schemas/TaskPriority" }
+        labels: { type: array, maxItems: 20, items: { type: string, maxLength: 40 } }
         templateId: { type: string, format: uuid, description: Workflow template (default template when omitted). }
     TaskDetail:
       type: object

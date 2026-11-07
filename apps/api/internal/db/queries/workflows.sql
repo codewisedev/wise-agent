@@ -209,3 +209,37 @@ RETURNING *;
 
 -- name: ListActiveWorkflowAgentRuns :many
 SELECT id FROM agent_runs WHERE workflow_run_id = $1 AND status IN ('queued', 'running');
+
+-- ---------------------------------------------------------------- board
+
+-- name: ListBoardTasks :many
+SELECT t.*,
+       coalesce(w.id, '00000000-0000-0000-0000-000000000000'::uuid) AS workflow_id, -- nil UUID: never ran
+       coalesce(w.status, '')::text AS workflow_status,
+       w.current_stage AS workflow_stage,
+       coalesce(w.config->>'templateName', '')::text AS template_name,
+       EXISTS (SELECT 1 FROM approvals a WHERE a.workflow_run_id = w.id AND a.status = 'pending') AS pending_approval
+FROM tasks t
+LEFT JOIN LATERAL (
+    SELECT * FROM workflow_runs r WHERE r.task_id = t.id ORDER BY r.created_at DESC LIMIT 1
+) w ON true
+WHERE t.project_id = $1
+ORDER BY t.board_column, t.position, t.created_at;
+
+-- name: NextBoardPosition :one
+SELECT (coalesce(max(position), 0) + 1)::double precision FROM tasks WHERE project_id = $1 AND board_column = $2;
+
+-- name: UpdateTaskCard :one
+UPDATE tasks SET
+    title        = coalesce(sqlc.narg(title), title),
+    description  = coalesce(sqlc.narg(description), description),
+    priority     = coalesce(sqlc.narg(priority), priority),
+    labels       = coalesce(sqlc.narg(labels)::text[], labels),
+    board_column = coalesce(sqlc.narg(board_column), board_column),
+    position     = coalesce(sqlc.narg(position), position),
+    updated_at   = now()
+WHERE id = sqlc.arg(id)
+RETURNING *;
+
+-- name: MoveTaskCard :exec
+UPDATE tasks SET board_column = $2, position = $3, updated_at = now() WHERE id = $1;

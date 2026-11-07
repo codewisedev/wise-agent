@@ -89,6 +89,11 @@ func (s *Service) SetState(ctx context.Context, runID uuid.UUID, status, stage s
 		if err := q.SetTaskStatus(ctx, dbgen.SetTaskStatusParams{ID: run.TaskID, Status: taskStatusFor(status)}); err != nil {
 			return err
 		}
+		if cur.Status != run.Status {
+			if err := moveWithWorkflow(ctx, q, run); err != nil {
+				return err
+			}
+		}
 		if cur.Status == run.Status && ptrEq(cur.CurrentStage, run.CurrentStage) && ptrEq(cur.Error, run.Error) {
 			return nil
 		}
@@ -335,4 +340,23 @@ func ptrEq[T comparable](a, b *T) bool {
 		return a == b
 	}
 	return *a == *b
+}
+
+// moveWithWorkflow moves a task's card to follow its workflow (in progress,
+// review, destination column when completed).
+func moveWithWorkflow(ctx context.Context, q *dbgen.Queries, run dbgen.WorkflowRun) error {
+	plan, _ := ParsePlan(run.Config)
+	col := columnFor(run.Status, plan.Destination)
+	if col == "" {
+		return nil
+	}
+	task, err := q.GetTask(ctx, run.TaskID)
+	if err != nil || task.BoardColumn == col {
+		return err
+	}
+	pos, err := q.NextBoardPosition(ctx, dbgen.NextBoardPositionParams{ProjectID: task.ProjectID, BoardColumn: col})
+	if err != nil {
+		return err
+	}
+	return q.MoveTaskCard(ctx, dbgen.MoveTaskCardParams{ID: task.ID, BoardColumn: col, Position: pos})
 }

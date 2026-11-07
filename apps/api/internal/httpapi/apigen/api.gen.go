@@ -20,28 +20,28 @@ import (
 
 // Defines values for AccountKind.
 const (
-	ClaudeCode       AccountKind = "claude_code"
-	Clickup          AccountKind = "clickup"
-	CodexCli         AccountKind = "codex_cli"
-	Jira             AccountKind = "jira"
-	OpenaiCompatible AccountKind = "openai_compatible"
-	Trello           AccountKind = "trello"
+	AccountKindClaudeCode       AccountKind = "claude_code"
+	AccountKindClickup          AccountKind = "clickup"
+	AccountKindCodexCli         AccountKind = "codex_cli"
+	AccountKindJira             AccountKind = "jira"
+	AccountKindOpenaiCompatible AccountKind = "openai_compatible"
+	AccountKindTrello           AccountKind = "trello"
 )
 
 // Valid indicates whether the value is a known member of the AccountKind enum.
 func (e AccountKind) Valid() bool {
 	switch e {
-	case ClaudeCode:
+	case AccountKindClaudeCode:
 		return true
-	case Clickup:
+	case AccountKindClickup:
 		return true
-	case CodexCli:
+	case AccountKindCodexCli:
 		return true
-	case Jira:
+	case AccountKindJira:
 		return true
-	case OpenaiCompatible:
+	case AccountKindOpenaiCompatible:
 		return true
-	case Trello:
+	case AccountKindTrello:
 		return true
 	default:
 		return false
@@ -342,6 +342,57 @@ func (e SessionInfoAuthMethod) Valid() bool {
 	}
 }
 
+// Defines values for TaskSource.
+const (
+	TaskSourceClickup TaskSource = "clickup"
+	TaskSourceJira    TaskSource = "jira"
+	TaskSourceManual  TaskSource = "manual"
+	TaskSourceTrello  TaskSource = "trello"
+)
+
+// Valid indicates whether the value is a known member of the TaskSource enum.
+func (e TaskSource) Valid() bool {
+	switch e {
+	case TaskSourceClickup:
+		return true
+	case TaskSourceJira:
+		return true
+	case TaskSourceManual:
+		return true
+	case TaskSourceTrello:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for TaskPriority.
+const (
+	TaskPriorityHigh   TaskPriority = "high"
+	TaskPriorityLow    TaskPriority = "low"
+	TaskPriorityMedium TaskPriority = "medium"
+	TaskPriorityNone   TaskPriority = "none"
+	TaskPriorityUrgent TaskPriority = "urgent"
+)
+
+// Valid indicates whether the value is a known member of the TaskPriority enum.
+func (e TaskPriority) Valid() bool {
+	switch e {
+	case TaskPriorityHigh:
+		return true
+	case TaskPriorityLow:
+		return true
+	case TaskPriorityMedium:
+		return true
+	case TaskPriorityNone:
+		return true
+	case TaskPriorityUrgent:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for TaskStatus.
 const (
 	TaskStatusAwaitingApproval TaskStatus = "awaiting_approval"
@@ -374,19 +425,19 @@ func (e TaskStatus) Valid() bool {
 
 // Defines values for ToolDefinitionSideEffects.
 const (
-	None  ToolDefinitionSideEffects = "none"
-	Read  ToolDefinitionSideEffects = "read"
-	Write ToolDefinitionSideEffects = "write"
+	ToolDefinitionSideEffectsNone  ToolDefinitionSideEffects = "none"
+	ToolDefinitionSideEffectsRead  ToolDefinitionSideEffects = "read"
+	ToolDefinitionSideEffectsWrite ToolDefinitionSideEffects = "write"
 )
 
 // Valid indicates whether the value is a known member of the ToolDefinitionSideEffects enum.
 func (e ToolDefinitionSideEffects) Valid() bool {
 	switch e {
-	case None:
+	case ToolDefinitionSideEffectsNone:
 		return true
-	case Read:
+	case ToolDefinitionSideEffectsRead:
 		return true
-	case Write:
+	case ToolDefinitionSideEffectsWrite:
 		return true
 	default:
 		return false
@@ -716,6 +767,24 @@ type ArtifactRef struct {
 	Version int          `json:"version"`
 }
 
+// Board defines model for Board.
+type Board struct {
+	Columns []struct {
+		Cards []BoardCard `json:"cards"`
+		Id    BoardColumn `json:"id"`
+	} `json:"columns"`
+}
+
+// BoardCard defines model for BoardCard.
+type BoardCard struct {
+	PendingApproval bool                `json:"pendingApproval"`
+	Task            Task                `json:"task"`
+	TemplateName    *string             `json:"templateName,omitempty"`
+	WorkflowId      *openapi_types.UUID `json:"workflowId,omitempty"`
+	WorkflowStage   *string             `json:"workflowStage,omitempty"`
+	WorkflowStatus  *WorkflowRunStatus  `json:"workflowStatus,omitempty"`
+}
+
 // BoardColumn defines model for BoardColumn.
 type BoardColumn string
 
@@ -798,8 +867,11 @@ type CreateRepositoryRequest struct {
 
 // CreateTaskRequest defines model for CreateTaskRequest.
 type CreateTaskRequest struct {
-	Description *string `json:"description,omitempty"`
-	Start       *bool   `json:"start,omitempty"`
+	Column      *BoardColumn  `json:"column,omitempty"`
+	Description *string       `json:"description,omitempty"`
+	Labels      *[]string     `json:"labels,omitempty"`
+	Priority    *TaskPriority `json:"priority,omitempty"`
+	Start       *bool         `json:"start,omitempty"`
 
 	// StepByStep With start, pause after every step.
 	StepByStep *bool `json:"stepByStep,omitempty"`
@@ -1182,15 +1254,27 @@ type StepOverride struct {
 
 // Task defines model for Task.
 type Task struct {
-	CreatedAt   time.Time          `json:"createdAt"`
-	Description string             `json:"description"`
-	Id          openapi_types.UUID `json:"id"`
-	ProjectId   openapi_types.UUID `json:"projectId"`
-	ProjectName *string            `json:"projectName,omitempty"`
-	Status      TaskStatus         `json:"status"`
-	Title       string             `json:"title"`
-	UpdatedAt   time.Time          `json:"updatedAt"`
+	Column         *BoardColumn        `json:"column,omitempty"`
+	CreatedAt      time.Time           `json:"createdAt"`
+	Description    string              `json:"description"`
+	ExternalId     *string             `json:"externalId,omitempty"`
+	ExternalStatus *string             `json:"externalStatus,omitempty"`
+	ExternalUrl    *string             `json:"externalUrl,omitempty"`
+	Id             openapi_types.UUID  `json:"id"`
+	Labels         *[]string           `json:"labels,omitempty"`
+	Position       *float64            `json:"position,omitempty"`
+	Priority       *TaskPriority       `json:"priority,omitempty"`
+	ProjectId      openapi_types.UUID  `json:"projectId"`
+	ProjectName    *string             `json:"projectName,omitempty"`
+	Source         *TaskSource         `json:"source,omitempty"`
+	Status         TaskStatus          `json:"status"`
+	TemplateId     *openapi_types.UUID `json:"templateId,omitempty"`
+	Title          string              `json:"title"`
+	UpdatedAt      time.Time           `json:"updatedAt"`
 }
+
+// TaskSource defines model for Task.Source.
+type TaskSource string
 
 // TaskDetail defines model for TaskDetail.
 type TaskDetail struct {
@@ -1211,6 +1295,9 @@ type TaskDetail struct {
 type TaskList struct {
 	Items []Task `json:"items"`
 }
+
+// TaskPriority defines model for TaskPriority.
+type TaskPriority string
 
 // TaskStatus defines model for TaskStatus.
 type TaskStatus string
@@ -1316,6 +1403,18 @@ type UpdateRepositoryRequest struct {
 	RemoteUrl     *string                 `json:"remoteUrl,omitempty"`
 	Role          *RepositoryRole         `json:"role,omitempty"`
 	Settings      *map[string]interface{} `json:"settings,omitempty"`
+}
+
+// UpdateTaskRequest defines model for UpdateTaskRequest.
+type UpdateTaskRequest struct {
+	Column      *BoardColumn `json:"column,omitempty"`
+	Description *string      `json:"description,omitempty"`
+	Labels      *[]string    `json:"labels,omitempty"`
+
+	// Position Order within the column (cards sort ascending); omit to append.
+	Position *float64      `json:"position,omitempty"`
+	Priority *TaskPriority `json:"priority,omitempty"`
+	Title    *string       `json:"title,omitempty"`
 }
 
 // User defines model for User.
@@ -1558,6 +1657,9 @@ type RuntimeFailRunJSONRequestBody = RuntimeFailRequest
 // RuntimeModelTurnJSONRequestBody defines body for RuntimeModelTurn for application/json ContentType.
 type RuntimeModelTurnJSONRequestBody = ModelTurnRequest
 
+// UpdateTaskJSONRequestBody defines body for UpdateTask for application/json ContentType.
+type UpdateTaskJSONRequestBody = UpdateTaskRequest
+
 // RunTaskJSONRequestBody defines body for RunTask for application/json ContentType.
 type RunTaskJSONRequestBody = RunTaskRequest
 
@@ -1678,6 +1780,9 @@ type ServerInterface interface {
 	// (PATCH /projects/{projectId})
 	UpdateProject(w http.ResponseWriter, r *http.Request, projectId ProjectId)
 
+	// (GET /projects/{projectId}/board)
+	GetBoard(w http.ResponseWriter, r *http.Request, projectId ProjectId)
+
 	// (GET /projects/{projectId}/repositories)
 	ListRepositories(w http.ResponseWriter, r *http.Request, projectId ProjectId)
 
@@ -1746,6 +1851,9 @@ type ServerInterface interface {
 
 	// (GET /tasks/{taskId})
 	GetTask(w http.ResponseWriter, r *http.Request, taskId TaskId)
+
+	// (PATCH /tasks/{taskId})
+	UpdateTask(w http.ResponseWriter, r *http.Request, taskId TaskId)
 
 	// (GET /tasks/{taskId}/artifacts)
 	ListTaskArtifacts(w http.ResponseWriter, r *http.Request, taskId TaskId, params ListTaskArtifactsParams)
@@ -1962,6 +2070,11 @@ func (_ Unimplemented) UpdateProject(w http.ResponseWriter, r *http.Request, pro
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
+// (GET /projects/{projectId}/board)
+func (_ Unimplemented) GetBoard(w http.ResponseWriter, r *http.Request, projectId ProjectId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
 // (GET /projects/{projectId}/repositories)
 func (_ Unimplemented) ListRepositories(w http.ResponseWriter, r *http.Request, projectId ProjectId) {
 	w.WriteHeader(http.StatusNotImplemented)
@@ -2074,6 +2187,11 @@ func (_ Unimplemented) ListTasks(w http.ResponseWriter, r *http.Request, params 
 
 // (GET /tasks/{taskId})
 func (_ Unimplemented) GetTask(w http.ResponseWriter, r *http.Request, taskId TaskId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (PATCH /tasks/{taskId})
+func (_ Unimplemented) UpdateTask(w http.ResponseWriter, r *http.Request, taskId TaskId) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -2943,6 +3061,32 @@ func (siw *ServerInterfaceWrapper) UpdateProject(w http.ResponseWriter, r *http.
 	handler.ServeHTTP(w, r)
 }
 
+// GetBoard operation middleware
+func (siw *ServerInterfaceWrapper) GetBoard(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "projectId" -------------
+	var projectId ProjectId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "projectId", chi.URLParam(r, "projectId"), &projectId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "projectId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetBoard(w, r, projectId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListRepositories operation middleware
 func (siw *ServerInterfaceWrapper) ListRepositories(w http.ResponseWriter, r *http.Request) {
 
@@ -3528,6 +3672,32 @@ func (siw *ServerInterfaceWrapper) GetTask(w http.ResponseWriter, r *http.Reques
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetTask(w, r, taskId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateTask operation middleware
+func (siw *ServerInterfaceWrapper) UpdateTask(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "taskId" -------------
+	var taskId TaskId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "taskId", chi.URLParam(r, "taskId"), &taskId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "taskId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateTask(w, r, taskId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -4160,10 +4330,16 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 		r.Post(options.BaseURL+"/projects/{projectId}/tasks", wrapper.CreateTask)
 	})
 	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/projects/{projectId}/board", wrapper.GetBoard)
+	})
+	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/tasks", wrapper.ListTasks)
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/tasks/{taskId}", wrapper.GetTask)
+	})
+	r.Group(func(r chi.Router) {
+		r.Patch(options.BaseURL+"/tasks/{taskId}", wrapper.UpdateTask)
 	})
 	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/tasks/{taskId}/cancel", wrapper.CancelTask)
@@ -6074,6 +6250,58 @@ func (response UpdateProject404ApplicationProblemPlusJSONResponse) VisitUpdatePr
 	return err
 }
 
+type GetBoardRequestObject struct {
+	ProjectId ProjectId `json:"projectId"`
+}
+
+type GetBoardResponseObject interface {
+	VisitGetBoardResponse(w http.ResponseWriter) error
+}
+
+type GetBoard200JSONResponse Board
+
+func (response GetBoard200JSONResponse) VisitGetBoardResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetBoard401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response GetBoard401ApplicationProblemPlusJSONResponse) VisitGetBoardResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetBoard404ApplicationProblemPlusJSONResponse Problem
+
+func (response GetBoard404ApplicationProblemPlusJSONResponse) VisitGetBoardResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type ListRepositoriesRequestObject struct {
 	ProjectId ProjectId `json:"projectId"`
 }
@@ -7424,6 +7652,73 @@ func (response GetTask404ApplicationProblemPlusJSONResponse) VisitGetTaskRespons
 	return err
 }
 
+type UpdateTaskRequestObject struct {
+	TaskId TaskId `json:"taskId"`
+	Body   *UpdateTaskJSONRequestBody
+}
+
+type UpdateTaskResponseObject interface {
+	VisitUpdateTaskResponse(w http.ResponseWriter) error
+}
+
+type UpdateTask200JSONResponse Task
+
+func (response UpdateTask200JSONResponse) VisitUpdateTaskResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateTask400ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response UpdateTask400ApplicationProblemPlusJSONResponse) VisitUpdateTaskResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateTask401ApplicationProblemPlusJSONResponse Problem
+
+func (response UpdateTask401ApplicationProblemPlusJSONResponse) VisitUpdateTaskResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateTask404ApplicationProblemPlusJSONResponse Problem
+
+func (response UpdateTask404ApplicationProblemPlusJSONResponse) VisitUpdateTaskResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type ListTaskArtifactsRequestObject struct {
 	TaskId TaskId `json:"taskId"`
 	Params ListTaskArtifactsParams
@@ -8460,6 +8755,9 @@ type StrictServerInterface interface {
 	// (PATCH /projects/{projectId})
 	UpdateProject(ctx context.Context, request UpdateProjectRequestObject) (UpdateProjectResponseObject, error)
 
+	// (GET /projects/{projectId}/board)
+	GetBoard(ctx context.Context, request GetBoardRequestObject) (GetBoardResponseObject, error)
+
 	// (GET /projects/{projectId}/repositories)
 	ListRepositories(ctx context.Context, request ListRepositoriesRequestObject) (ListRepositoriesResponseObject, error)
 
@@ -8528,6 +8826,9 @@ type StrictServerInterface interface {
 
 	// (GET /tasks/{taskId})
 	GetTask(ctx context.Context, request GetTaskRequestObject) (GetTaskResponseObject, error)
+
+	// (PATCH /tasks/{taskId})
+	UpdateTask(ctx context.Context, request UpdateTaskRequestObject) (UpdateTaskResponseObject, error)
 
 	// (GET /tasks/{taskId}/artifacts)
 	ListTaskArtifacts(ctx context.Context, request ListTaskArtifactsRequestObject) (ListTaskArtifactsResponseObject, error)
@@ -9516,6 +9817,32 @@ func (sh *strictHandler) UpdateProject(w http.ResponseWriter, r *http.Request, p
 	}
 }
 
+// GetBoard operation middleware
+func (sh *strictHandler) GetBoard(w http.ResponseWriter, r *http.Request, projectId ProjectId) {
+	var request GetBoardRequestObject
+
+	request.ProjectId = projectId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetBoard(ctx, request.(GetBoardRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetBoard")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetBoardResponseObject); ok {
+		if err := validResponse.VisitGetBoardResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // ListRepositories operation middleware
 func (sh *strictHandler) ListRepositories(w http.ResponseWriter, r *http.Request, projectId ProjectId) {
 	var request ListRepositoriesRequestObject
@@ -10173,6 +10500,39 @@ func (sh *strictHandler) GetTask(w http.ResponseWriter, r *http.Request, taskId 
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(GetTaskResponseObject); ok {
 		if err := validResponse.VisitGetTaskResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UpdateTask operation middleware
+func (sh *strictHandler) UpdateTask(w http.ResponseWriter, r *http.Request, taskId TaskId) {
+	var request UpdateTaskRequestObject
+
+	request.TaskId = taskId
+
+	var body UpdateTaskJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.UpdateTask(ctx, request.(UpdateTaskRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UpdateTask")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(UpdateTaskResponseObject); ok {
+		if err := validResponse.VisitUpdateTaskResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

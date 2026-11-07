@@ -506,6 +506,25 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/projects/{projectId}/board": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: components["parameters"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        /** @description The project's task board, one entry per column with ordered cards. */
+        get: operations["getBoard"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/tasks": {
         parameters: {
             query?: never;
@@ -537,7 +556,8 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        /** @description Edits a card or moves it (column and/or position) on the board. */
+        patch: operations["updateTask"];
         trace?: never;
     };
     "/tasks/{taskId}/cancel": {
@@ -1415,10 +1435,51 @@ export interface components {
             title: string;
             description: string;
             status: components["schemas"]["TaskStatus"];
+            column?: components["schemas"]["BoardColumn"];
+            /** Format: double */
+            position?: number;
+            priority?: components["schemas"]["TaskPriority"];
+            labels?: string[];
+            /** @enum {string} */
+            source?: "manual" | "jira" | "clickup" | "trello";
+            externalId?: string | null;
+            externalUrl?: string | null;
+            externalStatus?: string | null;
+            /** Format: uuid */
+            templateId?: string | null;
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
             updatedAt: string;
+        };
+        /** @enum {string} */
+        TaskPriority: "none" | "low" | "medium" | "high" | "urgent";
+        UpdateTaskRequest: {
+            title?: string;
+            description?: string;
+            priority?: components["schemas"]["TaskPriority"];
+            labels?: string[];
+            column?: components["schemas"]["BoardColumn"];
+            /**
+             * Format: double
+             * @description Order within the column (cards sort ascending); omit to append.
+             */
+            position?: number;
+        };
+        BoardCard: {
+            task: components["schemas"]["Task"];
+            /** Format: uuid */
+            workflowId?: string | null;
+            workflowStatus?: components["schemas"]["WorkflowRunStatus"];
+            workflowStage?: string | null;
+            templateName?: string | null;
+            pendingApproval: boolean;
+        };
+        Board: {
+            columns: {
+                id: components["schemas"]["BoardColumn"];
+                cards: components["schemas"]["BoardCard"][];
+            }[];
         };
         TaskList: {
             items: components["schemas"]["Task"][];
@@ -1430,6 +1491,9 @@ export interface components {
             start: boolean;
             /** @description With start, pause after every step. */
             stepByStep?: boolean;
+            column?: components["schemas"]["BoardColumn"];
+            priority?: components["schemas"]["TaskPriority"];
+            labels?: string[];
             /**
              * Format: uuid
              * @description Workflow template (default template when omitted).
@@ -2825,6 +2889,30 @@ export interface operations {
             409: components["responses"]["Problem"];
         };
     };
+    getBoard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: components["parameters"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Board. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Board"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
     listTasks: {
         parameters: {
             query?: {
@@ -2869,6 +2957,35 @@ export interface operations {
                     "application/json": components["schemas"]["TaskDetail"];
                 };
             };
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    updateTask: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                taskId: components["parameters"]["TaskId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateTaskRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated task. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Task"];
+                };
+            };
+            400: components["responses"]["Problem"];
             401: components["responses"]["Problem"];
             404: components["responses"]["Problem"];
         };

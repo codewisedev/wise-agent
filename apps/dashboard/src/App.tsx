@@ -2,6 +2,7 @@ import { Navigate, createBrowserRouter } from "react-router";
 import { Layout } from "./components/Layout";
 import { AgentDetailPage } from "./pages/AgentDetailPage";
 import { AgentsPage } from "./pages/AgentsPage";
+import { BoardPage } from "./pages/BoardPage";
 import { ApprovalsPage } from "./pages/ApprovalsPage";
 import { ModelsPage } from "./pages/ModelsPage";
 import { RunPage } from "./pages/RunPage";
@@ -25,6 +26,7 @@ export const router = createBrowserRouter([
       { index: true, element: <Navigate to="/projects" replace /> },
       { path: "/projects", element: <ProjectsPage /> },
       { path: "/projects/:projectId", element: <ProjectDetailPage /> },
+      { path: "/projects/:projectId/board", element: <BoardPage /> },
       { path: "/tasks", element: <TasksPage /> },
       { path: "/tasks/:taskId", element: <TaskPage /> },
       { path: "/approvals", element: <ApprovalsPage /> },
