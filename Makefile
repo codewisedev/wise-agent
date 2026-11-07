@@ -7,7 +7,7 @@ export
 
 .PHONY: help
 help: ## Show targets
-	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*?## "}{printf "  \033[36m%-16s\033[0m %s\n",$$1,$$2}'
+	@grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*?## "}{printf "  \033[36m%-16s\033[0m %s\n",$$1,$$2}'
 
 .PHONY: setup
 setup: ## Install dashboard dependencies and create .env if missing
@@ -23,6 +23,10 @@ gen: ## Regenerate code from SQL and OpenAPI contracts
 db-up: ## Start Postgres only
 	docker compose up -d --wait postgres
 
+.PHONY: temporal-up
+temporal-up: db-up ## Start Temporal (+ UI on 127.0.0.1:8233) in Docker
+	docker compose up -d --wait temporal temporal-ui
+
 .PHONY: api
 api: db-up ## Run the API on the host (uses .env)
 	go run ./apps/api/cmd/wise-api serve
@@ -31,13 +35,18 @@ api: db-up ## Run the API on the host (uses .env)
 runtime: ## Run the agent runtime on the host (needs the API on :8080)
 	cd apps/agent-runtime && WISE_API_URL=http://127.0.0.1:8080 WISE_REPO_ROOTS="$$WISE_REPO_ROOTS" uv run python -m wise_runtime
 
+.PHONY: orchestrator
+orchestrator: temporal-up ## Run the Temporal worker + workflow dispatcher on the host
+	go run ./apps/api/cmd/wise-api orchestrator
+
 .PHONY: dashboard
 dashboard: ## Run the dashboard dev server (proxies /api to :8080)
 	pnpm -C apps/dashboard dev
 
 .PHONY: dev
-dev: db-up ## Run API + dashboard on the host
+dev: temporal-up ## Run API, orchestrator, runtime and dashboard on the host
 	@trap 'kill 0' EXIT; go run ./apps/api/cmd/wise-api serve & \
+	  (sleep 5 && go run ./apps/api/cmd/wise-api orchestrator) & \
 	  (sleep 5 && $(MAKE) --no-print-directory runtime) & pnpm -C apps/dashboard dev
 
 .PHONY: migrate

@@ -1,0 +1,11 @@
+# Engineering workflow settings (implementation-plan.md §10). Read when a workflow
+# starts and frozen into it, so editing this file never changes running workflows.
+
+gates:
+  # Requirements and scope approval (§10: required).
+  scope: { required: true }
+  # Implementation plan + architecture review approval (§10: required).
+  plan: { required: true }
+
+# Rejections allowed per gate before the workflow fails.
+max_revisions: 5

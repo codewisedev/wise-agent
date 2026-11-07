@@ -1,0 +1,5 @@
+# Temporal dynamic config (hot-reloaded by the server). Keys:
+# https://github.com/temporalio/temporal/blob/main/common/dynamicconfig/constants.go
+limit.maxIDLength:
+  - value: 255
+    constraints: {}

@@ -44,21 +44,93 @@ func (e AgentRunStatus) Valid() bool {
 	}
 }
 
+// Defines values for ApprovalGate.
+const (
+	ApprovalGatePlan  ApprovalGate = "plan"
+	ApprovalGateScope ApprovalGate = "scope"
+)
+
+// Valid indicates whether the value is a known member of the ApprovalGate enum.
+func (e ApprovalGate) Valid() bool {
+	switch e {
+	case ApprovalGatePlan:
+		return true
+	case ApprovalGateScope:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ApprovalStatus.
+const (
+	ApprovalStatusApproved   ApprovalStatus = "approved"
+	ApprovalStatusCancelled  ApprovalStatus = "cancelled"
+	ApprovalStatusPending    ApprovalStatus = "pending"
+	ApprovalStatusRejected   ApprovalStatus = "rejected"
+	ApprovalStatusSuperseded ApprovalStatus = "superseded"
+)
+
+// Valid indicates whether the value is a known member of the ApprovalStatus enum.
+func (e ApprovalStatus) Valid() bool {
+	switch e {
+	case ApprovalStatusApproved:
+		return true
+	case ApprovalStatusCancelled:
+		return true
+	case ApprovalStatusPending:
+		return true
+	case ApprovalStatusRejected:
+		return true
+	case ApprovalStatusSuperseded:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ArtifactKind.
+const (
+	ArtifactKindArchitectureReview ArtifactKind = "architecture_review"
+	ArtifactKindFinalReport        ArtifactKind = "final_report"
+	ArtifactKindPlan               ArtifactKind = "plan"
+	ArtifactKindProductAnalysis    ArtifactKind = "product_analysis"
+	ArtifactKindRequirements       ArtifactKind = "requirements"
+)
+
+// Valid indicates whether the value is a known member of the ArtifactKind enum.
+func (e ArtifactKind) Valid() bool {
+	switch e {
+	case ArtifactKindArchitectureReview:
+		return true
+	case ArtifactKindFinalReport:
+		return true
+	case ArtifactKindPlan:
+		return true
+	case ArtifactKindProductAnalysis:
+		return true
+	case ArtifactKindRequirements:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ModelCallStatus.
 const (
-	Error    ModelCallStatus = "error"
-	Ok       ModelCallStatus = "ok"
-	Rejected ModelCallStatus = "rejected"
+	ModelCallStatusError    ModelCallStatus = "error"
+	ModelCallStatusOk       ModelCallStatus = "ok"
+	ModelCallStatusRejected ModelCallStatus = "rejected"
 )
 
 // Valid indicates whether the value is a known member of the ModelCallStatus enum.
 func (e ModelCallStatus) Valid() bool {
 	switch e {
-	case Error:
+	case ModelCallStatusError:
 		return true
-	case Ok:
+	case ModelCallStatusOk:
 		return true
-	case Rejected:
+	case ModelCallStatusRejected:
 		return true
 	default:
 		return false
@@ -257,6 +329,36 @@ func (e SessionInfoAuthMethod) Valid() bool {
 	}
 }
 
+// Defines values for TaskStatus.
+const (
+	TaskStatusAwaitingApproval TaskStatus = "awaiting_approval"
+	TaskStatusCancelled        TaskStatus = "cancelled"
+	TaskStatusCompleted        TaskStatus = "completed"
+	TaskStatusFailed           TaskStatus = "failed"
+	TaskStatusInProgress       TaskStatus = "in_progress"
+	TaskStatusOpen             TaskStatus = "open"
+)
+
+// Valid indicates whether the value is a known member of the TaskStatus enum.
+func (e TaskStatus) Valid() bool {
+	switch e {
+	case TaskStatusAwaitingApproval:
+		return true
+	case TaskStatusCancelled:
+		return true
+	case TaskStatusCompleted:
+		return true
+	case TaskStatusFailed:
+		return true
+	case TaskStatusInProgress:
+		return true
+	case TaskStatusOpen:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ToolDefinitionSideEffects.
 const (
 	None  ToolDefinitionSideEffects = "none"
@@ -311,6 +413,69 @@ func (e UserRole) Valid() bool {
 	case Admin:
 		return true
 	case Member:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for WorkflowRunStatus.
+const (
+	WorkflowRunStatusAwaitingApproval WorkflowRunStatus = "awaiting_approval"
+	WorkflowRunStatusAwaitingRetry    WorkflowRunStatus = "awaiting_retry"
+	WorkflowRunStatusCancelled        WorkflowRunStatus = "cancelled"
+	WorkflowRunStatusCompleted        WorkflowRunStatus = "completed"
+	WorkflowRunStatusFailed           WorkflowRunStatus = "failed"
+	WorkflowRunStatusPending          WorkflowRunStatus = "pending"
+	WorkflowRunStatusRunning          WorkflowRunStatus = "running"
+)
+
+// Valid indicates whether the value is a known member of the WorkflowRunStatus enum.
+func (e WorkflowRunStatus) Valid() bool {
+	switch e {
+	case WorkflowRunStatusAwaitingApproval:
+		return true
+	case WorkflowRunStatusAwaitingRetry:
+		return true
+	case WorkflowRunStatusCancelled:
+		return true
+	case WorkflowRunStatusCompleted:
+		return true
+	case WorkflowRunStatusFailed:
+		return true
+	case WorkflowRunStatusPending:
+		return true
+	case WorkflowRunStatusRunning:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for WorkflowStepStatus.
+const (
+	WorkflowStepStatusAwaitingApproval WorkflowStepStatus = "awaiting_approval"
+	WorkflowStepStatusCancelled        WorkflowStepStatus = "cancelled"
+	WorkflowStepStatusFailed           WorkflowStepStatus = "failed"
+	WorkflowStepStatusRunning          WorkflowStepStatus = "running"
+	WorkflowStepStatusSkipped          WorkflowStepStatus = "skipped"
+	WorkflowStepStatusSucceeded        WorkflowStepStatus = "succeeded"
+)
+
+// Valid indicates whether the value is a known member of the WorkflowStepStatus enum.
+func (e WorkflowStepStatus) Valid() bool {
+	switch e {
+	case WorkflowStepStatusAwaitingApproval:
+		return true
+	case WorkflowStepStatusCancelled:
+		return true
+	case WorkflowStepStatusFailed:
+		return true
+	case WorkflowStepStatusRunning:
+		return true
+	case WorkflowStepStatusSkipped:
+		return true
+	case WorkflowStepStatusSucceeded:
 		return true
 	default:
 		return false
@@ -374,6 +539,7 @@ type AgentRun struct {
 	TotalCostUsd      float64                 `json:"totalCostUsd"`
 	TotalInputTokens  int64                   `json:"totalInputTokens"`
 	TotalOutputTokens int64                   `json:"totalOutputTokens"`
+	WorkflowRunId     *openapi_types.UUID     `json:"workflowRunId,omitempty"`
 }
 
 // AgentRunList defines model for AgentRunList.
@@ -413,6 +579,83 @@ type ApiToken struct {
 // ApiTokenList defines model for ApiTokenList.
 type ApiTokenList struct {
 	Items []ApiToken `json:"items"`
+}
+
+// Approval defines model for Approval.
+type Approval struct {
+	Artifacts []ArtifactRef `json:"artifacts"`
+
+	// CombinedHash Send this back when deciding; it identifies exactly what was reviewed.
+	CombinedHash  string              `json:"combinedHash"`
+	Comment       *string             `json:"comment,omitempty"`
+	CreatedAt     time.Time           `json:"createdAt"`
+	DecidedAt     *time.Time          `json:"decidedAt,omitempty"`
+	DecidedBy     *openapi_types.UUID `json:"decidedBy,omitempty"`
+	Gate          ApprovalGate        `json:"gate"`
+	Id            openapi_types.UUID  `json:"id"`
+	Notes         []string            `json:"notes"`
+	ProjectId     *openapi_types.UUID `json:"projectId,omitempty"`
+	ProjectName   *string             `json:"projectName,omitempty"`
+	Round         int                 `json:"round"`
+	Status        ApprovalStatus      `json:"status"`
+	TaskId        openapi_types.UUID  `json:"taskId"`
+	TaskTitle     *string             `json:"taskTitle,omitempty"`
+	WorkflowRunId openapi_types.UUID  `json:"workflowRunId"`
+}
+
+// ApprovalDecisionRequest defines model for ApprovalDecisionRequest.
+type ApprovalDecisionRequest struct {
+	CombinedHash string  `json:"combinedHash"`
+	Comment      *string `json:"comment,omitempty"`
+}
+
+// ApprovalDetail defines model for ApprovalDetail.
+type ApprovalDetail struct {
+	Approval Approval `json:"approval"`
+
+	// Artifacts The pinned artifact versions, with content.
+	Artifacts []Artifact `json:"artifacts"`
+}
+
+// ApprovalGate defines model for ApprovalGate.
+type ApprovalGate string
+
+// ApprovalList defines model for ApprovalList.
+type ApprovalList struct {
+	Items        []Approval `json:"items"`
+	PendingCount int        `json:"pendingCount"`
+}
+
+// ApprovalStatus defines model for ApprovalStatus.
+type ApprovalStatus string
+
+// Artifact defines model for Artifact.
+type Artifact struct {
+	AgentRunId    *openapi_types.UUID    `json:"agentRunId,omitempty"`
+	Content       map[string]interface{} `json:"content"`
+	ContentHash   string                 `json:"contentHash"`
+	CreatedAt     time.Time              `json:"createdAt"`
+	Id            openapi_types.UUID     `json:"id"`
+	Kind          ArtifactKind           `json:"kind"`
+	TaskId        openapi_types.UUID     `json:"taskId"`
+	Version       int                    `json:"version"`
+	WorkflowRunId *openapi_types.UUID    `json:"workflowRunId,omitempty"`
+}
+
+// ArtifactKind defines model for ArtifactKind.
+type ArtifactKind string
+
+// ArtifactList defines model for ArtifactList.
+type ArtifactList struct {
+	Items []Artifact `json:"items"`
+}
+
+// ArtifactRef defines model for ArtifactRef.
+type ArtifactRef struct {
+	ArtifactId openapi_types.UUID `json:"artifactId"`
+	Hash       string             `json:"hash"`
+	Kind       ArtifactKind       `json:"kind"`
+	Version    int                `json:"version"`
 }
 
 // CreateAgentRunRequest defines model for CreateAgentRunRequest.
@@ -466,6 +709,13 @@ type CreateRepositoryRequest struct {
 	Role       *RepositoryRole         `json:"role,omitempty"`
 	Settings   *map[string]interface{} `json:"settings,omitempty"`
 	SourceType RepositorySourceType    `json:"sourceType"`
+}
+
+// CreateTaskRequest defines model for CreateTaskRequest.
+type CreateTaskRequest struct {
+	Description *string `json:"description,omitempty"`
+	Start       *bool   `json:"start,omitempty"`
+	Title       string  `json:"title"`
 }
 
 // CreatedApiToken defines model for CreatedApiToken.
@@ -789,6 +1039,40 @@ type SessionInfo struct {
 // SessionInfoAuthMethod defines model for SessionInfo.AuthMethod.
 type SessionInfoAuthMethod string
 
+// Task defines model for Task.
+type Task struct {
+	CreatedAt   time.Time          `json:"createdAt"`
+	Description string             `json:"description"`
+	Id          openapi_types.UUID `json:"id"`
+	ProjectId   openapi_types.UUID `json:"projectId"`
+	ProjectName *string            `json:"projectName,omitempty"`
+	Status      TaskStatus         `json:"status"`
+	Title       string             `json:"title"`
+	UpdatedAt   time.Time          `json:"updatedAt"`
+}
+
+// TaskDetail defines model for TaskDetail.
+type TaskDetail struct {
+	Approvals []Approval `json:"approvals"`
+
+	// Artifacts Latest version of each artifact kind.
+	Artifacts []Artifact `json:"artifacts"`
+
+	// Stages The pipeline's stages in order.
+	Stages   []string       `json:"stages"`
+	Steps    []WorkflowStep `json:"steps"`
+	Task     Task           `json:"task"`
+	Workflow *WorkflowRun   `json:"workflow,omitempty"`
+}
+
+// TaskList defines model for TaskList.
+type TaskList struct {
+	Items []Task `json:"items"`
+}
+
+// TaskStatus defines model for TaskStatus.
+type TaskStatus string
+
 // TokenUsage defines model for TokenUsage.
 type TokenUsage struct {
 	InputTokens  int64 `json:"inputTokens"`
@@ -850,8 +1134,68 @@ type User struct {
 // UserRole defines model for User.Role.
 type UserRole string
 
+// WorkflowDetail defines model for WorkflowDetail.
+type WorkflowDetail struct {
+	Steps    []WorkflowStep `json:"steps"`
+	Workflow WorkflowRun    `json:"workflow"`
+}
+
+// WorkflowEvent defines model for WorkflowEvent.
+type WorkflowEvent struct {
+	CreatedAt     time.Time              `json:"createdAt"`
+	Payload       map[string]interface{} `json:"payload"`
+	Seq           int                    `json:"seq"`
+	Type          string                 `json:"type"`
+	WorkflowRunId openapi_types.UUID     `json:"workflowRunId"`
+}
+
+// WorkflowEventList defines model for WorkflowEventList.
+type WorkflowEventList struct {
+	Items []WorkflowEvent `json:"items"`
+}
+
+// WorkflowRun defines model for WorkflowRun.
+type WorkflowRun struct {
+	CreatedAt          time.Time          `json:"createdAt"`
+	CurrentStage       *string            `json:"currentStage,omitempty"`
+	Error              *string            `json:"error,omitempty"`
+	FinishedAt         *time.Time         `json:"finishedAt,omitempty"`
+	Id                 openapi_types.UUID `json:"id"`
+	StartedAt          *time.Time         `json:"startedAt,omitempty"`
+	Status             WorkflowRunStatus  `json:"status"`
+	TaskId             openapi_types.UUID `json:"taskId"`
+	TemporalWorkflowId *string            `json:"temporalWorkflowId,omitempty"`
+	UpdatedAt          time.Time          `json:"updatedAt"`
+	WorkflowType       string             `json:"workflowType"`
+}
+
+// WorkflowRunStatus defines model for WorkflowRunStatus.
+type WorkflowRunStatus string
+
+// WorkflowStep defines model for WorkflowStep.
+type WorkflowStep struct {
+	AgentRunId *openapi_types.UUID `json:"agentRunId,omitempty"`
+	ArtifactId *openapi_types.UUID `json:"artifactId,omitempty"`
+	Attempt    int                 `json:"attempt"`
+	Error      *string             `json:"error,omitempty"`
+	FinishedAt *time.Time          `json:"finishedAt,omitempty"`
+	Id         openapi_types.UUID  `json:"id"`
+	Stage      string              `json:"stage"`
+	StartedAt  time.Time           `json:"startedAt"`
+	Status     WorkflowStepStatus  `json:"status"`
+}
+
+// WorkflowStepStatus defines model for WorkflowStepStatus.
+type WorkflowStepStatus string
+
 // AgentName defines model for AgentName.
 type AgentName = string
+
+// ApprovalId defines model for ApprovalId.
+type ApprovalId = openapi_types.UUID
+
+// ArtifactId defines model for ArtifactId.
+type ArtifactId = openapi_types.UUID
 
 // ProjectId defines model for ProjectId.
 type ProjectId = openapi_types.UUID
@@ -868,8 +1212,14 @@ type ResourceId = openapi_types.UUID
 // RunId defines model for RunId.
 type RunId = openapi_types.UUID
 
+// TaskId defines model for TaskId.
+type TaskId = openapi_types.UUID
+
 // TokenId defines model for TokenId.
 type TokenId = openapi_types.UUID
+
+// WorkflowId defines model for WorkflowId.
+type WorkflowId = openapi_types.UUID
 
 // ListAgentRunsParams defines parameters for ListAgentRuns.
 type ListAgentRunsParams struct {
@@ -879,6 +1229,11 @@ type ListAgentRunsParams struct {
 // ListAgentRunEventsParams defines parameters for ListAgentRunEvents.
 type ListAgentRunEventsParams struct {
 	AfterSeq *int `form:"afterSeq,omitempty" json:"afterSeq,omitempty"`
+}
+
+// ListApprovalsParams defines parameters for ListApprovals.
+type ListApprovalsParams struct {
+	Status *ApprovalStatus `form:"status,omitempty" json:"status,omitempty"`
 }
 
 // GetModelsOverviewParams defines parameters for GetModelsOverview.
@@ -891,8 +1246,30 @@ type ListProjectsParams struct {
 	IncludeArchived *bool `form:"includeArchived,omitempty" json:"includeArchived,omitempty"`
 }
 
+// ListTasksParams defines parameters for ListTasks.
+type ListTasksParams struct {
+	ProjectId *openapi_types.UUID `form:"projectId,omitempty" json:"projectId,omitempty"`
+	Status    *TaskStatus         `form:"status,omitempty" json:"status,omitempty"`
+}
+
+// ListTaskArtifactsParams defines parameters for ListTaskArtifacts.
+type ListTaskArtifactsParams struct {
+	Kind *ArtifactKind `form:"kind,omitempty" json:"kind,omitempty"`
+}
+
+// ListWorkflowEventsParams defines parameters for ListWorkflowEvents.
+type ListWorkflowEventsParams struct {
+	AfterSeq *int `form:"afterSeq,omitempty" json:"afterSeq,omitempty"`
+}
+
 // CreateAgentRunJSONRequestBody defines body for CreateAgentRun for application/json ContentType.
 type CreateAgentRunJSONRequestBody = CreateAgentRunRequest
+
+// ApproveApprovalJSONRequestBody defines body for ApproveApproval for application/json ContentType.
+type ApproveApprovalJSONRequestBody = ApprovalDecisionRequest
+
+// RejectApprovalJSONRequestBody defines body for RejectApproval for application/json ContentType.
+type RejectApprovalJSONRequestBody = ApprovalDecisionRequest
 
 // LoginJSONRequestBody defines body for Login for application/json ContentType.
 type LoginJSONRequestBody = LoginRequest
@@ -914,6 +1291,9 @@ type CreateRepositoryRelationshipJSONRequestBody = CreateRepositoryRelationshipR
 
 // CreateProjectResourceJSONRequestBody defines body for CreateProjectResource for application/json ContentType.
 type CreateProjectResourceJSONRequestBody = CreateProjectResourceRequest
+
+// CreateTaskJSONRequestBody defines body for CreateTask for application/json ContentType.
+type CreateTaskJSONRequestBody = CreateTaskRequest
 
 // UpdateRepositoryJSONRequestBody defines body for UpdateRepository for application/json ContentType.
 type UpdateRepositoryJSONRequestBody = UpdateRepositoryRequest
@@ -962,6 +1342,21 @@ type ServerInterface interface {
 
 	// (POST /agents/{agentName}/runs)
 	CreateAgentRun(w http.ResponseWriter, r *http.Request, agentName AgentName)
+
+	// (GET /approvals)
+	ListApprovals(w http.ResponseWriter, r *http.Request, params ListApprovalsParams)
+
+	// (GET /approvals/{approvalId})
+	GetApproval(w http.ResponseWriter, r *http.Request, approvalId ApprovalId)
+
+	// (POST /approvals/{approvalId}/approve)
+	ApproveApproval(w http.ResponseWriter, r *http.Request, approvalId ApprovalId)
+
+	// (POST /approvals/{approvalId}/reject)
+	RejectApproval(w http.ResponseWriter, r *http.Request, approvalId ApprovalId)
+
+	// (GET /artifacts/{artifactId})
+	GetArtifact(w http.ResponseWriter, r *http.Request, artifactId ArtifactId)
 
 	// (POST /auth/login)
 	Login(w http.ResponseWriter, r *http.Request)
@@ -1023,6 +1418,9 @@ type ServerInterface interface {
 	// (POST /projects/{projectId}/resources)
 	CreateProjectResource(w http.ResponseWriter, r *http.Request, projectId ProjectId)
 
+	// (POST /projects/{projectId}/tasks)
+	CreateTask(w http.ResponseWriter, r *http.Request, projectId ProjectId)
+
 	// (GET /readyz)
 	GetReadiness(w http.ResponseWriter, r *http.Request)
 
@@ -1064,6 +1462,30 @@ type ServerInterface interface {
 
 	// (POST /runtime/v1/runs/{runId}/model-turn)
 	RuntimeModelTurn(w http.ResponseWriter, r *http.Request, runId RunId)
+
+	// (GET /tasks)
+	ListTasks(w http.ResponseWriter, r *http.Request, params ListTasksParams)
+
+	// (GET /tasks/{taskId})
+	GetTask(w http.ResponseWriter, r *http.Request, taskId TaskId)
+
+	// (GET /tasks/{taskId}/artifacts)
+	ListTaskArtifacts(w http.ResponseWriter, r *http.Request, taskId TaskId, params ListTaskArtifactsParams)
+
+	// (POST /tasks/{taskId}/cancel)
+	CancelTask(w http.ResponseWriter, r *http.Request, taskId TaskId)
+
+	// (POST /tasks/{taskId}/workflows)
+	StartTaskWorkflow(w http.ResponseWriter, r *http.Request, taskId TaskId)
+
+	// (GET /workflows/{workflowId})
+	GetWorkflow(w http.ResponseWriter, r *http.Request, workflowId WorkflowId)
+
+	// (GET /workflows/{workflowId}/events)
+	ListWorkflowEvents(w http.ResponseWriter, r *http.Request, workflowId WorkflowId, params ListWorkflowEventsParams)
+
+	// (POST /workflows/{workflowId}/retry)
+	RetryWorkflow(w http.ResponseWriter, r *http.Request, workflowId WorkflowId)
 }
 
 // Unimplemented server implementation that returns http.StatusNotImplemented for each endpoint.
@@ -1112,6 +1534,31 @@ func (_ Unimplemented) ListAgentRunsForAgent(w http.ResponseWriter, r *http.Requ
 
 // (POST /agents/{agentName}/runs)
 func (_ Unimplemented) CreateAgentRun(w http.ResponseWriter, r *http.Request, agentName AgentName) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (GET /approvals)
+func (_ Unimplemented) ListApprovals(w http.ResponseWriter, r *http.Request, params ListApprovalsParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (GET /approvals/{approvalId})
+func (_ Unimplemented) GetApproval(w http.ResponseWriter, r *http.Request, approvalId ApprovalId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (POST /approvals/{approvalId}/approve)
+func (_ Unimplemented) ApproveApproval(w http.ResponseWriter, r *http.Request, approvalId ApprovalId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (POST /approvals/{approvalId}/reject)
+func (_ Unimplemented) RejectApproval(w http.ResponseWriter, r *http.Request, approvalId ApprovalId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (GET /artifacts/{artifactId})
+func (_ Unimplemented) GetArtifact(w http.ResponseWriter, r *http.Request, artifactId ArtifactId) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -1215,6 +1662,11 @@ func (_ Unimplemented) CreateProjectResource(w http.ResponseWriter, r *http.Requ
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
+// (POST /projects/{projectId}/tasks)
+func (_ Unimplemented) CreateTask(w http.ResponseWriter, r *http.Request, projectId ProjectId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
 // (GET /readyz)
 func (_ Unimplemented) GetReadiness(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
@@ -1282,6 +1734,46 @@ func (_ Unimplemented) RuntimeHeartbeat(w http.ResponseWriter, r *http.Request, 
 
 // (POST /runtime/v1/runs/{runId}/model-turn)
 func (_ Unimplemented) RuntimeModelTurn(w http.ResponseWriter, r *http.Request, runId RunId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (GET /tasks)
+func (_ Unimplemented) ListTasks(w http.ResponseWriter, r *http.Request, params ListTasksParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (GET /tasks/{taskId})
+func (_ Unimplemented) GetTask(w http.ResponseWriter, r *http.Request, taskId TaskId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (GET /tasks/{taskId}/artifacts)
+func (_ Unimplemented) ListTaskArtifacts(w http.ResponseWriter, r *http.Request, taskId TaskId, params ListTaskArtifactsParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (POST /tasks/{taskId}/cancel)
+func (_ Unimplemented) CancelTask(w http.ResponseWriter, r *http.Request, taskId TaskId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (POST /tasks/{taskId}/workflows)
+func (_ Unimplemented) StartTaskWorkflow(w http.ResponseWriter, r *http.Request, taskId TaskId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (GET /workflows/{workflowId})
+func (_ Unimplemented) GetWorkflow(w http.ResponseWriter, r *http.Request, workflowId WorkflowId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (GET /workflows/{workflowId}/events)
+func (_ Unimplemented) ListWorkflowEvents(w http.ResponseWriter, r *http.Request, workflowId WorkflowId, params ListWorkflowEventsParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (POST /workflows/{workflowId}/retry)
+func (_ Unimplemented) RetryWorkflow(w http.ResponseWriter, r *http.Request, workflowId WorkflowId) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -1530,6 +2022,143 @@ func (siw *ServerInterfaceWrapper) CreateAgentRun(w http.ResponseWriter, r *http
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.CreateAgentRun(w, r, agentName)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListApprovals operation middleware
+func (siw *ServerInterfaceWrapper) ListApprovals(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListApprovalsParams
+
+	// ------------- Optional query parameter "status" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "status", r.URL.Query(), &params.Status, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "status"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "status", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListApprovals(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetApproval operation middleware
+func (siw *ServerInterfaceWrapper) GetApproval(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "approvalId" -------------
+	var approvalId ApprovalId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "approvalId", chi.URLParam(r, "approvalId"), &approvalId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "approvalId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetApproval(w, r, approvalId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ApproveApproval operation middleware
+func (siw *ServerInterfaceWrapper) ApproveApproval(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "approvalId" -------------
+	var approvalId ApprovalId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "approvalId", chi.URLParam(r, "approvalId"), &approvalId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "approvalId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ApproveApproval(w, r, approvalId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RejectApproval operation middleware
+func (siw *ServerInterfaceWrapper) RejectApproval(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "approvalId" -------------
+	var approvalId ApprovalId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "approvalId", chi.URLParam(r, "approvalId"), &approvalId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "approvalId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RejectApproval(w, r, approvalId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetArtifact operation middleware
+func (siw *ServerInterfaceWrapper) GetArtifact(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "artifactId" -------------
+	var artifactId ArtifactId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "artifactId", chi.URLParam(r, "artifactId"), &artifactId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "artifactId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetArtifact(w, r, artifactId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1989,6 +2618,32 @@ func (siw *ServerInterfaceWrapper) CreateProjectResource(w http.ResponseWriter, 
 	handler.ServeHTTP(w, r)
 }
 
+// CreateTask operation middleware
+func (siw *ServerInterfaceWrapper) CreateTask(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "projectId" -------------
+	var projectId ProjectId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "projectId", chi.URLParam(r, "projectId"), &projectId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "projectId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateTask(w, r, projectId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetReadiness operation middleware
 func (siw *ServerInterfaceWrapper) GetReadiness(w http.ResponseWriter, r *http.Request) {
 
@@ -2329,6 +2984,266 @@ func (siw *ServerInterfaceWrapper) RuntimeModelTurn(w http.ResponseWriter, r *ht
 	handler.ServeHTTP(w, r)
 }
 
+// ListTasks operation middleware
+func (siw *ServerInterfaceWrapper) ListTasks(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListTasksParams
+
+	// ------------- Optional query parameter "projectId" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "projectId", r.URL.Query(), &params.ProjectId, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "projectId"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "projectId", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "status" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "status", r.URL.Query(), &params.Status, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "status"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "status", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListTasks(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetTask operation middleware
+func (siw *ServerInterfaceWrapper) GetTask(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "taskId" -------------
+	var taskId TaskId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "taskId", chi.URLParam(r, "taskId"), &taskId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "taskId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetTask(w, r, taskId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListTaskArtifacts operation middleware
+func (siw *ServerInterfaceWrapper) ListTaskArtifacts(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "taskId" -------------
+	var taskId TaskId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "taskId", chi.URLParam(r, "taskId"), &taskId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "taskId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListTaskArtifactsParams
+
+	// ------------- Optional query parameter "kind" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "kind", r.URL.Query(), &params.Kind, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "kind"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "kind", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListTaskArtifacts(w, r, taskId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CancelTask operation middleware
+func (siw *ServerInterfaceWrapper) CancelTask(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "taskId" -------------
+	var taskId TaskId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "taskId", chi.URLParam(r, "taskId"), &taskId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "taskId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CancelTask(w, r, taskId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// StartTaskWorkflow operation middleware
+func (siw *ServerInterfaceWrapper) StartTaskWorkflow(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "taskId" -------------
+	var taskId TaskId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "taskId", chi.URLParam(r, "taskId"), &taskId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "taskId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.StartTaskWorkflow(w, r, taskId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetWorkflow operation middleware
+func (siw *ServerInterfaceWrapper) GetWorkflow(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "workflowId" -------------
+	var workflowId WorkflowId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "workflowId", chi.URLParam(r, "workflowId"), &workflowId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "workflowId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetWorkflow(w, r, workflowId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListWorkflowEvents operation middleware
+func (siw *ServerInterfaceWrapper) ListWorkflowEvents(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "workflowId" -------------
+	var workflowId WorkflowId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "workflowId", chi.URLParam(r, "workflowId"), &workflowId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "workflowId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListWorkflowEventsParams
+
+	// ------------- Optional query parameter "afterSeq" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "afterSeq", r.URL.Query(), &params.AfterSeq, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "afterSeq"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "afterSeq", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListWorkflowEvents(w, r, workflowId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RetryWorkflow operation middleware
+func (siw *ServerInterfaceWrapper) RetryWorkflow(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "workflowId" -------------
+	var workflowId WorkflowId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "workflowId", chi.URLParam(r, "workflowId"), &workflowId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "workflowId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RetryWorkflow(w, r, workflowId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 type UnescapedCookieParamError struct {
 	ParamName string
 	Err       error
@@ -2552,6 +3467,48 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/models", wrapper.GetModelsOverview)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/projects/{projectId}/tasks", wrapper.CreateTask)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/tasks", wrapper.ListTasks)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/tasks/{taskId}", wrapper.GetTask)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/tasks/{taskId}/cancel", wrapper.CancelTask)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/tasks/{taskId}/artifacts", wrapper.ListTaskArtifacts)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/tasks/{taskId}/workflows", wrapper.StartTaskWorkflow)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/workflows/{workflowId}", wrapper.GetWorkflow)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/workflows/{workflowId}/events", wrapper.ListWorkflowEvents)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/workflows/{workflowId}/retry", wrapper.RetryWorkflow)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/artifacts/{artifactId}", wrapper.GetArtifact)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/approvals", wrapper.ListApprovals)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/approvals/{approvalId}", wrapper.GetApproval)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/approvals/{approvalId}/approve", wrapper.ApproveApproval)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/approvals/{approvalId}/reject", wrapper.RejectApproval)
 	})
 	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/runtime/v1/runs/claim", wrapper.RuntimeClaimRun)
@@ -3056,6 +4013,338 @@ func (response CreateAgentRun409ApplicationProblemPlusJSONResponse) VisitCreateA
 	}
 	w.Header().Set("Content-Type", "application/problem+json")
 	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListApprovalsRequestObject struct {
+	Params ListApprovalsParams
+}
+
+type ListApprovalsResponseObject interface {
+	VisitListApprovalsResponse(w http.ResponseWriter) error
+}
+
+type ListApprovals200JSONResponse ApprovalList
+
+func (response ListApprovals200JSONResponse) VisitListApprovalsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListApprovals401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response ListApprovals401ApplicationProblemPlusJSONResponse) VisitListApprovalsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetApprovalRequestObject struct {
+	ApprovalId ApprovalId `json:"approvalId"`
+}
+
+type GetApprovalResponseObject interface {
+	VisitGetApprovalResponse(w http.ResponseWriter) error
+}
+
+type GetApproval200JSONResponse ApprovalDetail
+
+func (response GetApproval200JSONResponse) VisitGetApprovalResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetApproval401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response GetApproval401ApplicationProblemPlusJSONResponse) VisitGetApprovalResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetApproval404ApplicationProblemPlusJSONResponse Problem
+
+func (response GetApproval404ApplicationProblemPlusJSONResponse) VisitGetApprovalResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ApproveApprovalRequestObject struct {
+	ApprovalId ApprovalId `json:"approvalId"`
+	Body       *ApproveApprovalJSONRequestBody
+}
+
+type ApproveApprovalResponseObject interface {
+	VisitApproveApprovalResponse(w http.ResponseWriter) error
+}
+
+type ApproveApproval200JSONResponse Approval
+
+func (response ApproveApproval200JSONResponse) VisitApproveApprovalResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ApproveApproval400ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response ApproveApproval400ApplicationProblemPlusJSONResponse) VisitApproveApprovalResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ApproveApproval401ApplicationProblemPlusJSONResponse Problem
+
+func (response ApproveApproval401ApplicationProblemPlusJSONResponse) VisitApproveApprovalResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ApproveApproval403ApplicationProblemPlusJSONResponse Problem
+
+func (response ApproveApproval403ApplicationProblemPlusJSONResponse) VisitApproveApprovalResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ApproveApproval404ApplicationProblemPlusJSONResponse Problem
+
+func (response ApproveApproval404ApplicationProblemPlusJSONResponse) VisitApproveApprovalResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ApproveApproval409ApplicationProblemPlusJSONResponse Problem
+
+func (response ApproveApproval409ApplicationProblemPlusJSONResponse) VisitApproveApprovalResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RejectApprovalRequestObject struct {
+	ApprovalId ApprovalId `json:"approvalId"`
+	Body       *RejectApprovalJSONRequestBody
+}
+
+type RejectApprovalResponseObject interface {
+	VisitRejectApprovalResponse(w http.ResponseWriter) error
+}
+
+type RejectApproval200JSONResponse Approval
+
+func (response RejectApproval200JSONResponse) VisitRejectApprovalResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RejectApproval400ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response RejectApproval400ApplicationProblemPlusJSONResponse) VisitRejectApprovalResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RejectApproval401ApplicationProblemPlusJSONResponse Problem
+
+func (response RejectApproval401ApplicationProblemPlusJSONResponse) VisitRejectApprovalResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RejectApproval403ApplicationProblemPlusJSONResponse Problem
+
+func (response RejectApproval403ApplicationProblemPlusJSONResponse) VisitRejectApprovalResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RejectApproval404ApplicationProblemPlusJSONResponse Problem
+
+func (response RejectApproval404ApplicationProblemPlusJSONResponse) VisitRejectApprovalResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RejectApproval409ApplicationProblemPlusJSONResponse Problem
+
+func (response RejectApproval409ApplicationProblemPlusJSONResponse) VisitRejectApprovalResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetArtifactRequestObject struct {
+	ArtifactId ArtifactId `json:"artifactId"`
+}
+
+type GetArtifactResponseObject interface {
+	VisitGetArtifactResponse(w http.ResponseWriter) error
+}
+
+type GetArtifact200JSONResponse Artifact
+
+func (response GetArtifact200JSONResponse) VisitGetArtifactResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetArtifact401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response GetArtifact401ApplicationProblemPlusJSONResponse) VisitGetArtifactResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetArtifact404ApplicationProblemPlusJSONResponse Problem
+
+func (response GetArtifact404ApplicationProblemPlusJSONResponse) VisitGetArtifactResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
 	_, err := buf.WriteTo(w)
 	return err
 }
@@ -4088,6 +5377,87 @@ func (response CreateProjectResource404ApplicationProblemPlusJSONResponse) Visit
 	return err
 }
 
+type CreateTaskRequestObject struct {
+	ProjectId ProjectId `json:"projectId"`
+	Body      *CreateTaskJSONRequestBody
+}
+
+type CreateTaskResponseObject interface {
+	VisitCreateTaskResponse(w http.ResponseWriter) error
+}
+
+type CreateTask201JSONResponse TaskDetail
+
+func (response CreateTask201JSONResponse) VisitCreateTaskResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateTask400ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response CreateTask400ApplicationProblemPlusJSONResponse) VisitCreateTaskResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateTask401ApplicationProblemPlusJSONResponse Problem
+
+func (response CreateTask401ApplicationProblemPlusJSONResponse) VisitCreateTaskResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateTask404ApplicationProblemPlusJSONResponse Problem
+
+func (response CreateTask404ApplicationProblemPlusJSONResponse) VisitCreateTaskResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateTask409ApplicationProblemPlusJSONResponse Problem
+
+func (response CreateTask409ApplicationProblemPlusJSONResponse) VisitCreateTaskResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type GetReadinessRequestObject struct {
 }
 
@@ -4882,6 +6252,480 @@ func (response RuntimeModelTurn502ApplicationProblemPlusJSONResponse) VisitRunti
 	return err
 }
 
+type ListTasksRequestObject struct {
+	Params ListTasksParams
+}
+
+type ListTasksResponseObject interface {
+	VisitListTasksResponse(w http.ResponseWriter) error
+}
+
+type ListTasks200JSONResponse TaskList
+
+func (response ListTasks200JSONResponse) VisitListTasksResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListTasks401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response ListTasks401ApplicationProblemPlusJSONResponse) VisitListTasksResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetTaskRequestObject struct {
+	TaskId TaskId `json:"taskId"`
+}
+
+type GetTaskResponseObject interface {
+	VisitGetTaskResponse(w http.ResponseWriter) error
+}
+
+type GetTask200JSONResponse TaskDetail
+
+func (response GetTask200JSONResponse) VisitGetTaskResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetTask401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response GetTask401ApplicationProblemPlusJSONResponse) VisitGetTaskResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetTask404ApplicationProblemPlusJSONResponse Problem
+
+func (response GetTask404ApplicationProblemPlusJSONResponse) VisitGetTaskResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListTaskArtifactsRequestObject struct {
+	TaskId TaskId `json:"taskId"`
+	Params ListTaskArtifactsParams
+}
+
+type ListTaskArtifactsResponseObject interface {
+	VisitListTaskArtifactsResponse(w http.ResponseWriter) error
+}
+
+type ListTaskArtifacts200JSONResponse ArtifactList
+
+func (response ListTaskArtifacts200JSONResponse) VisitListTaskArtifactsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListTaskArtifacts401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response ListTaskArtifacts401ApplicationProblemPlusJSONResponse) VisitListTaskArtifactsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListTaskArtifacts404ApplicationProblemPlusJSONResponse Problem
+
+func (response ListTaskArtifacts404ApplicationProblemPlusJSONResponse) VisitListTaskArtifactsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CancelTaskRequestObject struct {
+	TaskId TaskId `json:"taskId"`
+}
+
+type CancelTaskResponseObject interface {
+	VisitCancelTaskResponse(w http.ResponseWriter) error
+}
+
+type CancelTask202JSONResponse Task
+
+func (response CancelTask202JSONResponse) VisitCancelTaskResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(202)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CancelTask401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response CancelTask401ApplicationProblemPlusJSONResponse) VisitCancelTaskResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CancelTask403ApplicationProblemPlusJSONResponse Problem
+
+func (response CancelTask403ApplicationProblemPlusJSONResponse) VisitCancelTaskResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CancelTask404ApplicationProblemPlusJSONResponse Problem
+
+func (response CancelTask404ApplicationProblemPlusJSONResponse) VisitCancelTaskResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CancelTask409ApplicationProblemPlusJSONResponse Problem
+
+func (response CancelTask409ApplicationProblemPlusJSONResponse) VisitCancelTaskResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type StartTaskWorkflowRequestObject struct {
+	TaskId TaskId `json:"taskId"`
+}
+
+type StartTaskWorkflowResponseObject interface {
+	VisitStartTaskWorkflowResponse(w http.ResponseWriter) error
+}
+
+type StartTaskWorkflow202JSONResponse WorkflowRun
+
+func (response StartTaskWorkflow202JSONResponse) VisitStartTaskWorkflowResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(202)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type StartTaskWorkflow401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response StartTaskWorkflow401ApplicationProblemPlusJSONResponse) VisitStartTaskWorkflowResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type StartTaskWorkflow404ApplicationProblemPlusJSONResponse Problem
+
+func (response StartTaskWorkflow404ApplicationProblemPlusJSONResponse) VisitStartTaskWorkflowResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type StartTaskWorkflow409ApplicationProblemPlusJSONResponse Problem
+
+func (response StartTaskWorkflow409ApplicationProblemPlusJSONResponse) VisitStartTaskWorkflowResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetWorkflowRequestObject struct {
+	WorkflowId WorkflowId `json:"workflowId"`
+}
+
+type GetWorkflowResponseObject interface {
+	VisitGetWorkflowResponse(w http.ResponseWriter) error
+}
+
+type GetWorkflow200JSONResponse WorkflowDetail
+
+func (response GetWorkflow200JSONResponse) VisitGetWorkflowResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetWorkflow401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response GetWorkflow401ApplicationProblemPlusJSONResponse) VisitGetWorkflowResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetWorkflow404ApplicationProblemPlusJSONResponse Problem
+
+func (response GetWorkflow404ApplicationProblemPlusJSONResponse) VisitGetWorkflowResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListWorkflowEventsRequestObject struct {
+	WorkflowId WorkflowId `json:"workflowId"`
+	Params     ListWorkflowEventsParams
+}
+
+type ListWorkflowEventsResponseObject interface {
+	VisitListWorkflowEventsResponse(w http.ResponseWriter) error
+}
+
+type ListWorkflowEvents200JSONResponse WorkflowEventList
+
+func (response ListWorkflowEvents200JSONResponse) VisitListWorkflowEventsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListWorkflowEvents401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response ListWorkflowEvents401ApplicationProblemPlusJSONResponse) VisitListWorkflowEventsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListWorkflowEvents404ApplicationProblemPlusJSONResponse Problem
+
+func (response ListWorkflowEvents404ApplicationProblemPlusJSONResponse) VisitListWorkflowEventsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RetryWorkflowRequestObject struct {
+	WorkflowId WorkflowId `json:"workflowId"`
+}
+
+type RetryWorkflowResponseObject interface {
+	VisitRetryWorkflowResponse(w http.ResponseWriter) error
+}
+
+type RetryWorkflow202JSONResponse WorkflowRun
+
+func (response RetryWorkflow202JSONResponse) VisitRetryWorkflowResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(202)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RetryWorkflow401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response RetryWorkflow401ApplicationProblemPlusJSONResponse) VisitRetryWorkflowResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RetryWorkflow403ApplicationProblemPlusJSONResponse Problem
+
+func (response RetryWorkflow403ApplicationProblemPlusJSONResponse) VisitRetryWorkflowResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RetryWorkflow404ApplicationProblemPlusJSONResponse Problem
+
+func (response RetryWorkflow404ApplicationProblemPlusJSONResponse) VisitRetryWorkflowResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RetryWorkflow409ApplicationProblemPlusJSONResponse Problem
+
+func (response RetryWorkflow409ApplicationProblemPlusJSONResponse) VisitRetryWorkflowResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
 
@@ -4911,6 +6755,21 @@ type StrictServerInterface interface {
 
 	// (POST /agents/{agentName}/runs)
 	CreateAgentRun(ctx context.Context, request CreateAgentRunRequestObject) (CreateAgentRunResponseObject, error)
+
+	// (GET /approvals)
+	ListApprovals(ctx context.Context, request ListApprovalsRequestObject) (ListApprovalsResponseObject, error)
+
+	// (GET /approvals/{approvalId})
+	GetApproval(ctx context.Context, request GetApprovalRequestObject) (GetApprovalResponseObject, error)
+
+	// (POST /approvals/{approvalId}/approve)
+	ApproveApproval(ctx context.Context, request ApproveApprovalRequestObject) (ApproveApprovalResponseObject, error)
+
+	// (POST /approvals/{approvalId}/reject)
+	RejectApproval(ctx context.Context, request RejectApprovalRequestObject) (RejectApprovalResponseObject, error)
+
+	// (GET /artifacts/{artifactId})
+	GetArtifact(ctx context.Context, request GetArtifactRequestObject) (GetArtifactResponseObject, error)
 
 	// (POST /auth/login)
 	Login(ctx context.Context, request LoginRequestObject) (LoginResponseObject, error)
@@ -4972,6 +6831,9 @@ type StrictServerInterface interface {
 	// (POST /projects/{projectId}/resources)
 	CreateProjectResource(ctx context.Context, request CreateProjectResourceRequestObject) (CreateProjectResourceResponseObject, error)
 
+	// (POST /projects/{projectId}/tasks)
+	CreateTask(ctx context.Context, request CreateTaskRequestObject) (CreateTaskResponseObject, error)
+
 	// (GET /readyz)
 	GetReadiness(ctx context.Context, request GetReadinessRequestObject) (GetReadinessResponseObject, error)
 
@@ -5013,6 +6875,30 @@ type StrictServerInterface interface {
 
 	// (POST /runtime/v1/runs/{runId}/model-turn)
 	RuntimeModelTurn(ctx context.Context, request RuntimeModelTurnRequestObject) (RuntimeModelTurnResponseObject, error)
+
+	// (GET /tasks)
+	ListTasks(ctx context.Context, request ListTasksRequestObject) (ListTasksResponseObject, error)
+
+	// (GET /tasks/{taskId})
+	GetTask(ctx context.Context, request GetTaskRequestObject) (GetTaskResponseObject, error)
+
+	// (GET /tasks/{taskId}/artifacts)
+	ListTaskArtifacts(ctx context.Context, request ListTaskArtifactsRequestObject) (ListTaskArtifactsResponseObject, error)
+
+	// (POST /tasks/{taskId}/cancel)
+	CancelTask(ctx context.Context, request CancelTaskRequestObject) (CancelTaskResponseObject, error)
+
+	// (POST /tasks/{taskId}/workflows)
+	StartTaskWorkflow(ctx context.Context, request StartTaskWorkflowRequestObject) (StartTaskWorkflowResponseObject, error)
+
+	// (GET /workflows/{workflowId})
+	GetWorkflow(ctx context.Context, request GetWorkflowRequestObject) (GetWorkflowResponseObject, error)
+
+	// (GET /workflows/{workflowId}/events)
+	ListWorkflowEvents(ctx context.Context, request ListWorkflowEventsRequestObject) (ListWorkflowEventsResponseObject, error)
+
+	// (POST /workflows/{workflowId}/retry)
+	RetryWorkflow(ctx context.Context, request RetryWorkflowRequestObject) (RetryWorkflowResponseObject, error)
 }
 
 type StrictHandlerFunc func(ctx context.Context, w http.ResponseWriter, r *http.Request, request any) (any, error)
@@ -5287,6 +7173,150 @@ func (sh *strictHandler) CreateAgentRun(w http.ResponseWriter, r *http.Request, 
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(CreateAgentRunResponseObject); ok {
 		if err := validResponse.VisitCreateAgentRunResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListApprovals operation middleware
+func (sh *strictHandler) ListApprovals(w http.ResponseWriter, r *http.Request, params ListApprovalsParams) {
+	var request ListApprovalsRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListApprovals(ctx, request.(ListApprovalsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListApprovals")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListApprovalsResponseObject); ok {
+		if err := validResponse.VisitListApprovalsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetApproval operation middleware
+func (sh *strictHandler) GetApproval(w http.ResponseWriter, r *http.Request, approvalId ApprovalId) {
+	var request GetApprovalRequestObject
+
+	request.ApprovalId = approvalId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetApproval(ctx, request.(GetApprovalRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetApproval")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetApprovalResponseObject); ok {
+		if err := validResponse.VisitGetApprovalResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ApproveApproval operation middleware
+func (sh *strictHandler) ApproveApproval(w http.ResponseWriter, r *http.Request, approvalId ApprovalId) {
+	var request ApproveApprovalRequestObject
+
+	request.ApprovalId = approvalId
+
+	var body ApproveApprovalJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ApproveApproval(ctx, request.(ApproveApprovalRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ApproveApproval")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ApproveApprovalResponseObject); ok {
+		if err := validResponse.VisitApproveApprovalResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RejectApproval operation middleware
+func (sh *strictHandler) RejectApproval(w http.ResponseWriter, r *http.Request, approvalId ApprovalId) {
+	var request RejectApprovalRequestObject
+
+	request.ApprovalId = approvalId
+
+	var body RejectApprovalJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RejectApproval(ctx, request.(RejectApprovalRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RejectApproval")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RejectApprovalResponseObject); ok {
+		if err := validResponse.VisitRejectApprovalResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetArtifact operation middleware
+func (sh *strictHandler) GetArtifact(w http.ResponseWriter, r *http.Request, artifactId ArtifactId) {
+	var request GetArtifactRequestObject
+
+	request.ArtifactId = artifactId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetArtifact(ctx, request.(GetArtifactRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetArtifact")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetArtifactResponseObject); ok {
+		if err := validResponse.VisitGetArtifactResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -5849,6 +7879,39 @@ func (sh *strictHandler) CreateProjectResource(w http.ResponseWriter, r *http.Re
 	}
 }
 
+// CreateTask operation middleware
+func (sh *strictHandler) CreateTask(w http.ResponseWriter, r *http.Request, projectId ProjectId) {
+	var request CreateTaskRequestObject
+
+	request.ProjectId = projectId
+
+	var body CreateTaskJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateTask(ctx, request.(CreateTaskRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateTask")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CreateTaskResponseObject); ok {
+		if err := validResponse.VisitCreateTaskResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // GetReadiness operation middleware
 func (sh *strictHandler) GetReadiness(w http.ResponseWriter, r *http.Request) {
 	var request GetReadinessRequestObject
@@ -6244,6 +8307,216 @@ func (sh *strictHandler) RuntimeModelTurn(w http.ResponseWriter, r *http.Request
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(RuntimeModelTurnResponseObject); ok {
 		if err := validResponse.VisitRuntimeModelTurnResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListTasks operation middleware
+func (sh *strictHandler) ListTasks(w http.ResponseWriter, r *http.Request, params ListTasksParams) {
+	var request ListTasksRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListTasks(ctx, request.(ListTasksRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListTasks")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListTasksResponseObject); ok {
+		if err := validResponse.VisitListTasksResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetTask operation middleware
+func (sh *strictHandler) GetTask(w http.ResponseWriter, r *http.Request, taskId TaskId) {
+	var request GetTaskRequestObject
+
+	request.TaskId = taskId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetTask(ctx, request.(GetTaskRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetTask")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetTaskResponseObject); ok {
+		if err := validResponse.VisitGetTaskResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListTaskArtifacts operation middleware
+func (sh *strictHandler) ListTaskArtifacts(w http.ResponseWriter, r *http.Request, taskId TaskId, params ListTaskArtifactsParams) {
+	var request ListTaskArtifactsRequestObject
+
+	request.TaskId = taskId
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListTaskArtifacts(ctx, request.(ListTaskArtifactsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListTaskArtifacts")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListTaskArtifactsResponseObject); ok {
+		if err := validResponse.VisitListTaskArtifactsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CancelTask operation middleware
+func (sh *strictHandler) CancelTask(w http.ResponseWriter, r *http.Request, taskId TaskId) {
+	var request CancelTaskRequestObject
+
+	request.TaskId = taskId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CancelTask(ctx, request.(CancelTaskRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CancelTask")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CancelTaskResponseObject); ok {
+		if err := validResponse.VisitCancelTaskResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// StartTaskWorkflow operation middleware
+func (sh *strictHandler) StartTaskWorkflow(w http.ResponseWriter, r *http.Request, taskId TaskId) {
+	var request StartTaskWorkflowRequestObject
+
+	request.TaskId = taskId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.StartTaskWorkflow(ctx, request.(StartTaskWorkflowRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "StartTaskWorkflow")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(StartTaskWorkflowResponseObject); ok {
+		if err := validResponse.VisitStartTaskWorkflowResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetWorkflow operation middleware
+func (sh *strictHandler) GetWorkflow(w http.ResponseWriter, r *http.Request, workflowId WorkflowId) {
+	var request GetWorkflowRequestObject
+
+	request.WorkflowId = workflowId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetWorkflow(ctx, request.(GetWorkflowRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetWorkflow")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetWorkflowResponseObject); ok {
+		if err := validResponse.VisitGetWorkflowResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListWorkflowEvents operation middleware
+func (sh *strictHandler) ListWorkflowEvents(w http.ResponseWriter, r *http.Request, workflowId WorkflowId, params ListWorkflowEventsParams) {
+	var request ListWorkflowEventsRequestObject
+
+	request.WorkflowId = workflowId
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListWorkflowEvents(ctx, request.(ListWorkflowEventsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListWorkflowEvents")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListWorkflowEventsResponseObject); ok {
+		if err := validResponse.VisitListWorkflowEventsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RetryWorkflow operation middleware
+func (sh *strictHandler) RetryWorkflow(w http.ResponseWriter, r *http.Request, workflowId WorkflowId) {
+	var request RetryWorkflowRequestObject
+
+	request.WorkflowId = workflowId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RetryWorkflow(ctx, request.(RetryWorkflowRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RetryWorkflow")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RetryWorkflowResponseObject); ok {
+		if err := validResponse.VisitRetryWorkflowResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

@@ -1,7 +1,10 @@
-import { Bot, Cpu, FolderGit2, LogOut, Monitor, Moon, Settings, Sun } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { Bot, Cpu, FolderGit2, Inbox, ListChecks, LogOut, Monitor, Moon, Settings, Sun } from "lucide-react";
 import { useMemo } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router";
+import { useEventSocket, type WorkflowEvent } from "../api/events";
 import { useLogout, useSession } from "../auth";
+import { usePendingApprovals } from "../pages/ApprovalsPage";
 import { useShortcuts } from "../shortcuts";
 import { useTheme } from "../theme";
 import { Kbd } from "./ui";
@@ -18,10 +21,22 @@ export function Layout() {
   const navigate = useNavigate();
   const { pref, cycle } = useTheme();
   const ThemeIcon = THEME_META[pref].icon;
+  const qc = useQueryClient();
+  const pending = usePendingApprovals();
+  const pendingCount = pending.data?.pendingCount ?? 0;
+  // Every workflow's events: keeps the approvals badge and inbox current.
+  useEventSocket<WorkflowEvent>("stream=workflows", true, (ev) => {
+    if (ev.type.startsWith("approval.") || ev.type === "workflow.status") {
+      void qc.invalidateQueries({ queryKey: ["approvals"] });
+      void qc.invalidateQueries({ queryKey: ["tasks"] });
+    }
+  });
 
   const bindings = useMemo(
     () => ({
       "g p": () => navigate("/projects"),
+      "g t": () => navigate("/tasks"),
+      "g i": () => navigate("/approvals"),
       "g a": () => navigate("/agents"),
       "g m": () => navigate("/models"),
       "g s": () => navigate("/settings"),
@@ -45,6 +60,18 @@ export function Layout() {
         <nav className="nav" aria-label="Main">
           <NavLink to="/projects">
             <FolderGit2 size={16} aria-hidden /> Projects <Kbd keys={["g", "p"]} />
+          </NavLink>
+          <NavLink to="/tasks">
+            <ListChecks size={16} aria-hidden /> Tasks <Kbd keys={["g", "t"]} />
+          </NavLink>
+          <NavLink to="/approvals">
+            <Inbox size={16} aria-hidden /> Approvals
+            {pendingCount > 0 && (
+              <span className="nav-count" aria-label={`${pendingCount} pending`}>
+                {pendingCount}
+              </span>
+            )}
+            <Kbd keys={["g", "i"]} />
           </NavLink>
           <NavLink to="/agents">
             <Bot size={16} aria-hidden /> Agents <Kbd keys={["g", "a"]} />

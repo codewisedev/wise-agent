@@ -2,7 +2,7 @@
 
 Personal, local-first AI engineering platform. See [`implementation-plan.md`](implementation-plan.md) for the full vision and roadmap.
 
-**Status: Phase 2 — Agent infrastructure.** Wise manages projects and repositories behind a login and executes specialized AI agents through a Model Gateway (LM Studio and Claude Code). Workflows (Temporal), context indexing and the engineering pipeline arrive in later phases.
+**Status: Phase 3 — Workflow engine.** Wise manages projects and repositories behind a login, executes specialized AI agents through a Model Gateway (LM Studio and Claude Code), and coordinates them in durable Temporal workflows with versioned artifacts and human approval gates. Context indexing and the coding pipeline arrive in later phases.
 
 ## What's here
 
@@ -16,7 +16,9 @@ Personal, local-first AI engineering platform. See [`implementation-plan.md`](im
 | `packages/agent-definitions`, `packages/prompts` | Agent contracts (YAML) and versioned system prompts |
 | `packages/contracts/{agents,events}` | JSON Schemas for agent/tool definitions and agent events |
 | `configs/models`, `configs/policies` | Model aliases/providers and usage policy (cloud allow-list, budgets) |
-| `apps/{orchestrator,execution-worker}` | Placeholders for later phases |
+| `apps/api/internal/{workflow,tasks}` | Temporal workflow, activities, outbox dispatcher; tasks, artifacts, approvals |
+| `configs/workflows`, `infrastructure/temporal` | Approval gates; Temporal DB/schema setup and dynamic config |
+| `apps/execution-worker` | Placeholder for later phases |
 | `docs/decisions/` | Architecture decision records |
 
 ## Getting started
@@ -40,7 +42,7 @@ docker compose exec -it wise-api wise-api user create -username alice
 
 ```bash
 make setup     # pnpm install, create .env
-make dev       # postgres in Docker, `go run` API on :8080, Vite on :5173
+make dev       # postgres + Temporal in Docker; API, orchestrator, runtime and Vite on the host
 ```
 
 For `make dev`, `.env` must also set `WISE_DATABASE_URL` (pointing at `127.0.0.1:$WISE_POSTGRES_PORT`) and `WISE_REPO_ROOTS` — see `.env.example`.
@@ -80,6 +82,23 @@ models at all — Wise never edits it itself.
 
 If a provider fails for good (e.g. not logged in), the gateway skips it for 60 s and uses the alias's
 fallbacks. The **Models** page shows provider status, aliases and token/cost usage per agent.
+
+## Workflows
+
+Create a **task** (Tasks → New task) and Wise runs the engineering workflow on Temporal:
+
+```text
+product analysis → requirements → SCOPE APPROVAL → planning → architecture review → PLAN APPROVAL → final report
+```
+
+- **Approvals** (sidebar badge, `g i`) pin the exact artifact versions you review. *Request changes*
+  needs a comment; the agents revise using it and ask again. A newer artifact version invalidates
+  an open approval. Gates and the revision limit are in `configs/workflows/engineering.yaml`.
+- A failed agent stage parks the workflow in **awaiting retry** — fix the cause (e.g. load a better
+  model) and press *Retry stage*. Cancelling a task stops its running agents.
+- The **Temporal UI** at http://127.0.0.1:8233 (namespace `wise`) shows each workflow's history.
+- Commands to Temporal go through a Postgres outbox, so decisions made while Temporal or the
+  orchestrator is down are delivered when they come back. See `docs/decisions/0003-workflow-engine.md`.
 
 ## API
 

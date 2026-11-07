@@ -1,5 +1,7 @@
-# Wise local stack — Phase 1 (Foundation).
-# Phase 2 adds the agent runtime. Temporal and the execution worker arrive in later phases.
+# Wise local stack.
+# Phase 1: Postgres, API, dashboard. Phase 2: agent runtime.
+# Phase 3: Temporal (on the shared Postgres), Temporal UI and the orchestrator.
+# Pinned image versions are listed in infrastructure/docker/versions.env.
 name: wise
 
 x-api-env: &api-env
@@ -21,6 +23,11 @@ x-api-env: &api-env
   CLAUDE_CODE_OAUTH_TOKEN: ${CLAUDE_CODE_OAUTH_TOKEN:-}
   HOME: /tmp
 
+x-hardened: &hardened
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: ["no-new-privileges:true"]
+
 services:
   postgres:
     image: pgvector/pgvector:0.8.1-pg17
@@ -34,7 +41,7 @@ services:
     ports:
       # Bound to loopback for the local dev loop (`make dev`) and psql access.
       - "127.0.0.1:${WISE_POSTGRES_PORT:-5433}:5432"
-    networks: [data]
+    networks: [data, workflow]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U wise -d wise"]
       interval: 5s
@@ -81,6 +88,122 @@ services:
     deploy:
       resources:
         limits: { cpus: "1.0", memory: 1G }
+
+  # One-shot: Temporal's role and databases in the shared Postgres.
+  temporal-db-init:
+    image: pgvector/pgvector:0.8.1-pg17
+    depends_on:
+      postgres:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "/scripts/init-db.sh"]
+    environment:
+      PGPASSWORD: ${WISE_POSTGRES_PASSWORD}
+      TEMPORAL_DB_PASSWORD: ${WISE_TEMPORAL_DB_PASSWORD:?set WISE_TEMPORAL_DB_PASSWORD in .env}
+    volumes:
+      - ./infrastructure/temporal/init-db.sh:/scripts/init-db.sh:ro
+    networks: [data]
+    restart: "no"
+
+  # One-shot: installs or upgrades Temporal's schemas.
+  temporal-schema:
+    image: temporalio/admin-tools:1.32.1
+    depends_on:
+      temporal-db-init:
+        condition: service_completed_successfully
+    entrypoint: ["/bin/sh", "/scripts/setup-schema.sh"]
+    environment:
+      SQL_PASSWORD: ${WISE_TEMPORAL_DB_PASSWORD}
+    volumes:
+      - ./infrastructure/temporal/setup-schema.sh:/scripts/setup-schema.sh:ro
+    networks: [data]
+    <<: *hardened
+    restart: "no"
+
+  temporal:
+    image: temporalio/server:1.32.1
+    restart: unless-stopped
+    depends_on:
+      temporal-schema:
+        condition: service_completed_successfully
+    environment:
+      DB: postgres12
+      DB_PORT: "5432"
+      POSTGRES_SEEDS: postgres
+      POSTGRES_USER: temporal
+      POSTGRES_PWD: ${WISE_TEMPORAL_DB_PASSWORD}
+      BIND_ON_IP: 0.0.0.0
+      LOG_LEVEL: ${WISE_TEMPORAL_LOG_LEVEL:-warn}
+      TEMPORAL_ALLOW_NO_AUTH: "true"
+      DYNAMIC_CONFIG_FILE_PATH: /etc/temporal/dynamicconfig.yaml
+    volumes:
+      - ./infrastructure/temporal/dynamicconfig.yaml:/etc/temporal/dynamicconfig.yaml:ro
+    ports:
+      # Loopback only (no auth on the frontend): used by `make dev` and the temporal CLI.
+      - "127.0.0.1:${WISE_TEMPORAL_PORT:-7233}:7233"
+    networks: [data, workflow]
+    <<: *hardened
+    tmpfs: [/tmp]
+    healthcheck:
+      test: ["CMD", "nc", "-z", "127.0.0.1", "7233"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 10s
+    deploy:
+      resources:
+        limits: { cpus: "1.0", memory: 1G }
+
+  temporal-ui:
+    image: temporalio/ui:2.57.0
+    restart: unless-stopped
+    depends_on:
+      temporal:
+        condition: service_healthy
+    environment:
+      TEMPORAL_ADDRESS: temporal:7233
+      TEMPORAL_DEFAULT_NAMESPACE: wise
+      TEMPORAL_CORS_ORIGINS: http://127.0.0.1:${WISE_TEMPORAL_UI_PORT:-8233}
+    ports:
+      - "127.0.0.1:${WISE_TEMPORAL_UI_PORT:-8233}:8080"
+    networks: [data]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    deploy:
+      resources:
+        limits: { cpus: "0.5", memory: 256M }
+
+  # Temporal worker + workflow command dispatcher (same image as the API).
+  # Internal network only: Postgres and Temporal, no internet, no model credentials.
+  wise-orchestrator:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+      network: host
+      args:
+        GOPROXY: ${GOPROXY:-https://proxy.golang.org,direct}
+        INSTALL_CLAUDE_CODE: ${INSTALL_CLAUDE_CODE:-true}
+        APK_MIRROR: ${APK_MIRROR:-}
+    command: ["orchestrator"]
+    restart: unless-stopped
+    depends_on:
+      wise-api:
+        condition: service_healthy
+      temporal:
+        condition: service_healthy
+    environment:
+      WISE_DATABASE_URL: postgres://wise:${WISE_POSTGRES_PASSWORD}@postgres:5432/wise?sslmode=disable
+      WISE_LOG_LEVEL: ${WISE_LOG_LEVEL:-info}
+      WISE_TEMPORAL_ADDRESS: temporal:7233
+      WISE_TEMPORAL_NAMESPACE: wise
+    user: "${WISE_UID:-1000}:${WISE_GID:-1000}"
+    <<: *hardened
+    tmpfs: [/tmp]
+    volumes:
+      - ./configs:/app/configs:ro
+    networks: [workflow]
+    deploy:
+      resources:
+        limits: { cpus: "0.5", memory: 256M }
 
   wise-agent-runtime:
     build:
@@ -134,6 +257,9 @@ networks:
   data: {}
   edge: {}
   runtime:
+    internal: true
+  # Orchestrator <-> Postgres/Temporal, no egress.
+  workflow:
     internal: true
 
 volumes:

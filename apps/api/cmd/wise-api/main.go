@@ -29,12 +29,15 @@ import (
 	"wise/apps/api/internal/projects"
 	"wise/apps/api/internal/repositories"
 	"wise/apps/api/internal/runqueue"
+	"wise/apps/api/internal/tasks"
+	"wise/apps/api/internal/workflow"
 )
 
 const usage = `Usage: wise-api <command> [args]
 
 Commands:
   serve                                  Run the HTTP API (default)
+  orchestrator                           Run the Temporal worker and workflow command dispatcher
   migrate [up|down|reset|status]         Manage database migrations
   user create -username NAME [-role R]   Create a user (password read from stdin/prompt)
   user set-password -username NAME      Replace a user's password
@@ -54,6 +57,8 @@ func main() {
 	switch cmd {
 	case "serve":
 		err = serve(ctx)
+	case "orchestrator":
+		err = orchestrator(ctx)
 	case "migrate":
 		err = migrate(ctx, args)
 	case "user":
@@ -140,16 +145,26 @@ func serve(ctx context.Context) error {
 		log.Warn("WISE_RUNTIME_TOKEN is empty; agent runtimes cannot claim runs")
 	}
 
+	wfCfg, err := tasks.LoadWorkflowConfig(cfg.WorkflowsConfig)
+	if err != nil {
+		return err
+	}
+
+	agentSvc := agents.NewService(d, hub)
+	taskSvc := tasks.NewService(d, wfCfg)
+	taskSvc.Runs = agentSvc
+
 	inspector := gitinspect.New(cfg.RepoRoots)
 	srv := &httpapi.Server{
 		DB:               d,
 		Auth:             authSvc,
 		Projects:         projects.NewService(d),
 		Repositories:     repositories.NewService(d, inspector),
-		Agents:           agents.NewService(d, hub),
+		Agents:           agentSvc,
 		RunQueue:         runQueue,
 		Gateway:          gateway,
 		Hub:              hub,
+		Tasks:            taskSvc,
 		Cookie:           httpapi.CookieConfig{Secure: cfg.CookieSecure, TTL: cfg.SessionTTL},
 		RuntimeToken:     cfg.RuntimeToken,
 		WSOriginPatterns: wsOriginPatterns(cfg.CORSOrigins),
@@ -163,6 +178,7 @@ func serve(ctx context.Context) error {
 
 	go pruneSessions(ctx, authSvc, log)
 	go runQueue.RunReaper(ctx, 15*time.Second)
+	go hub.ListenWorkflowEvents(ctx, d, log)
 
 	hs := &http.Server{
 		Addr:              cfg.HTTPAddr,
@@ -203,6 +219,26 @@ func wsOriginPatterns(origins []string) []string {
 		}
 	}
 	return patterns
+}
+
+// orchestrator runs the Temporal worker for engineering workflows plus the
+// outbox dispatcher. It needs Postgres and Temporal only: agent work is queued
+// for the runtime, and model credentials stay with the API.
+func orchestrator(ctx context.Context) error {
+	cfg, d, err := openDB(ctx)
+	if err != nil {
+		return err
+	}
+	defer d.Close()
+	log := newLogger(cfg.LogLevel).With("service", "orchestrator")
+	slog.SetDefault(log)
+	wfCfg, err := tasks.LoadWorkflowConfig(cfg.WorkflowsConfig)
+	if err != nil {
+		return err
+	}
+	return workflow.RunOrchestrator(ctx, workflow.OrchestratorConfig{
+		TemporalAddress: cfg.TemporalAddress, Namespace: cfg.TemporalNamespace,
+	}, d, tasks.NewService(d, wfCfg), agents.NewService(d, events.NewHub(d)), log)
 }
 
 func pruneSessions(ctx context.Context, a *auth.Service, log *slog.Logger) {

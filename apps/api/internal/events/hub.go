@@ -37,9 +37,12 @@ type Hub struct {
 	db   *db.DB
 	mu   sync.RWMutex
 	subs map[*subscriber]struct{}
+	wf   workflowSubs
 }
 
-func NewHub(d *db.DB) *Hub { return &Hub{db: d, subs: map[*subscriber]struct{}{}} }
+func NewHub(d *db.DB) *Hub {
+	return &Hub{db: d, subs: map[*subscriber]struct{}{}, wf: workflowSubs{subs: map[*wfSubscriber]struct{}{}}}
+}
 
 // Record inserts an event inside an existing transaction. The run row must be
 // locked by the caller (LockAgentRun) so sequence numbers stay gap-free.

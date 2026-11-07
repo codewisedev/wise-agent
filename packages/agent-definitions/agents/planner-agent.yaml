@@ -1,17 +1,74 @@
 name: planner-agent
-version: 0.1.0
-description: Breaks approved requirements into ordered implementation steps.
-enabled: false
+version: 1.0.0
+description: Breaks approved requirements into ordered, dependency-aware implementation steps.
+enabled: true
 phase: 3
+prompt: planner-agent/system.md
 responsibilities:
-  - Decompose requirements into steps
-  - Order steps by dependency
-  - Estimate risk per step
-input_schema: { type: object, properties: {} }
-output_schema: { type: object, properties: {} }
-tools: []
-permissions: []
-model_config: { alias: reasoning }
-execution_limits: { max_turns: 1, max_tool_calls: 0, timeout_s: 60 }
-error_handling: { max_attempts: 1, invalid_output_retries: 0 }
-evaluation: { criteria: [] }
+  - Decompose approved requirements into small, reviewable implementation steps
+  - Order steps by dependency and trace each to the requirements it satisfies
+  - Estimate risk per step and name the areas of the codebase it touches
+  - Propose a test strategy that verifies the acceptance criteria
+input_schema:
+  type: object
+  additionalProperties: false
+  required: [request, requirements]
+  properties:
+    request: { type: string, minLength: 3, description: The original task. }
+    requirements: { type: object, description: Approved output of requirements-agent. }
+    product_analysis: { type: object, description: Optional output of product-agent. }
+    feedback: { type: string, description: Reviewer feedback from a rejected plan approval; address every point. }
+    previous_output: { type: object, description: Your previous plan that the reviewer rejected; revise it. }
+output_schema:
+  type: object
+  additionalProperties: false
+  required: [summary, steps, milestones, risks, test_strategy]
+  properties:
+    summary: { type: string }
+    steps:
+      type: array
+      minItems: 1
+      items:
+        type: object
+        additionalProperties: false
+        required: [id, title, description, depends_on, affected_areas, risk, requirement_ids]
+        properties:
+          id: { type: string, pattern: "^S-\\d+$" }
+          title: { type: string }
+          description: { type: string }
+          depends_on: { type: array, items: { type: string, pattern: "^S-\\d+$" } }
+          affected_areas: { type: array, items: { type: string } }
+          risk: { enum: [low, medium, high] }
+          requirement_ids: { type: array, items: { type: string } }
+    milestones:
+      type: array
+      items:
+        type: object
+        additionalProperties: false
+        required: [name, step_ids]
+        properties:
+          name: { type: string }
+          step_ids: { type: array, items: { type: string } }
+    risks: { type: array, items: { type: string } }
+    test_strategy: { type: string }
+tools: [get_project_context, list_files, read_file, search_code]
+permissions: [project:read, repo:read]
+model_config:
+  alias: reasoning
+  fallbacks: [local]
+  temperature: 0.2
+  max_output_tokens: 6000
+execution_limits:
+  max_turns: 16
+  max_tool_calls: 30
+  max_tokens: 300000
+  max_cost_usd: 1.5
+  timeout_s: 900
+error_handling:
+  max_attempts: 2
+  invalid_output_retries: 2
+evaluation:
+  criteria:
+    - Every functional requirement is covered by at least one step
+    - Dependencies form a DAG and reference existing step IDs
+    - Each step is small enough to review in one sitting

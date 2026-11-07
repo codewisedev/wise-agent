@@ -93,16 +93,36 @@ func extendDeadlines(next http.Handler) http.Handler {
 	})
 }
 
-// eventsWebSocket streams agent events as JSON messages. ?runId= limits to one run.
+// eventsWebSocket streams events as JSON messages:
+//   - ?runId=<id>        agent events of one run (no parameter: every run)
+//   - ?workflowId=<id>   workflow events of one workflow run
+//   - ?stream=workflows  workflow events of every workflow (approvals inbox)
 func (s *Server) eventsWebSocket(w http.ResponseWriter, r *http.Request) {
-	var runID *uuid.UUID
-	if v := r.URL.Query().Get("runId"); v != "" {
+	q := r.URL.Query()
+	parseID := func(name string) (*uuid.UUID, bool) {
+		v := q.Get(name)
+		if v == "" {
+			return nil, true
+		}
 		id, err := uuid.Parse(v)
 		if err != nil {
-			writeProblem(w, apperr.BadRequest("runId must be a UUID"))
-			return
+			writeProblem(w, apperr.BadRequest(name+" must be a UUID"))
+			return nil, false
 		}
-		runID = &id
+		return &id, true
+	}
+	runID, ok := parseID("runId")
+	if !ok {
+		return
+	}
+	workflowID, ok := parseID("workflowId")
+	if !ok {
+		return
+	}
+	workflows := workflowID != nil || q.Get("stream") == "workflows"
+	if workflows && runID != nil {
+		writeProblem(w, apperr.BadRequest("use either runId or workflowId/stream=workflows"))
+		return
 	}
 	conn, err := websocket.Accept(w, r, &websocket.AcceptOptions{OriginPatterns: s.WSOriginPatterns})
 	if err != nil {
@@ -110,8 +130,19 @@ func (s *Server) eventsWebSocket(w http.ResponseWriter, r *http.Request) {
 	}
 	defer conn.CloseNow()
 	ctx := conn.CloseRead(r.Context())
+	if workflows {
+		ch, cancel := s.Hub.SubscribeWorkflow(workflowID)
+		defer cancel()
+		pumpEvents(ctx, conn, ch)
+		return
+	}
 	ch, cancel := s.Hub.Subscribe(runID)
 	defer cancel()
+	pumpEvents(ctx, conn, ch)
+}
+
+// pumpEvents writes each event as a JSON text message and pings every 30s.
+func pumpEvents[T any](ctx context.Context, conn *websocket.Conn, ch <-chan T) {
 	ping := time.NewTicker(30 * time.Second)
 	defer ping.Stop()
 	for {

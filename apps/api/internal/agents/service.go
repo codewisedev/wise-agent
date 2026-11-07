@@ -3,6 +3,7 @@ package agents
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -65,8 +66,31 @@ func (s *Service) Get(ctx context.Context, name string) (Summary, error) {
 	return Summary{}, apperr.NotFound(fmt.Sprintf("agent %q not found", name))
 }
 
+// RunOptions links a run to its project, creator and (optionally) workflow.
+type RunOptions struct {
+	ProjectID     *uuid.UUID
+	UserID        *uuid.UUID
+	WorkflowRunID *uuid.UUID
+	// IdempotencyKey makes creation idempotent: a second call with the same key
+	// returns the existing run instead of queueing another.
+	IdempotencyKey string
+}
+
 // CreateRun validates input against the agent's input schema and queues a run.
 func (s *Service) CreateRun(ctx context.Context, name string, input map[string]any, projectID *uuid.UUID, userID *uuid.UUID) (dbgen.AgentRun, error) {
+	return s.Enqueue(ctx, name, input, RunOptions{ProjectID: projectID, UserID: userID})
+}
+
+// Enqueue is CreateRun with workflow linkage and idempotency.
+func (s *Service) Enqueue(ctx context.Context, name string, input map[string]any, opts RunOptions) (dbgen.AgentRun, error) {
+	projectID, userID := opts.ProjectID, opts.UserID
+	if opts.IdempotencyKey != "" {
+		if run, err := s.db.GetAgentRunByIdempotencyKey(ctx, &opts.IdempotencyKey); err == nil {
+			return run, nil
+		} else if !db.IsNotFound(err) {
+			return dbgen.AgentRun{}, err
+		}
+	}
 	row, err := s.db.GetCurrentAgentDefinitionByName(ctx, name)
 	if db.IsNotFound(err) {
 		return dbgen.AgentRun{}, apperr.NotFound(fmt.Sprintf("agent %q not found", name))
@@ -107,11 +131,20 @@ func (s *Service) CreateRun(ctx context.Context, name string, input map[string]a
 				return err
 			}
 		}
-		run, err = q.CreateAgentRun(ctx, dbgen.CreateAgentRunParams{
+		var key *string
+		if opts.IdempotencyKey != "" {
+			key = &opts.IdempotencyKey
+		}
+		run, err = q.CreateWorkflowAgentRun(ctx, dbgen.CreateWorkflowAgentRunParams{
 			ID: id, AgentDefinitionID: row.ID, AgentName: name, ProjectID: projectID,
 			Input: raw, MaxAttempts: int32(max(def.ErrorHandling.MaxAttempts, 1)), CreatedBy: userID,
+			WorkflowRunID: opts.WorkflowRunID, IdempotencyKey: key,
 		})
-		if err != nil {
+		if db.IsNotFound(err) && key != nil { // lost a race with the same key
+			run, err = q.GetAgentRunByIdempotencyKey(ctx, key)
+			id = uuid.Nil
+		}
+		if err != nil || id == uuid.Nil {
 			return err
 		}
 		if ev, err = events.Record(ctx, q, id, "run.queued", map[string]any{
@@ -127,7 +160,9 @@ func (s *Service) CreateRun(ctx context.Context, name string, input map[string]a
 	if err != nil {
 		return dbgen.AgentRun{}, err
 	}
-	s.hub.Publish(ev)
+	if ev.Type != "" {
+		s.hub.Publish(ev)
+	}
 	return run, nil
 }
 
@@ -186,6 +221,24 @@ func (s *Service) CancelRun(ctx context.Context, id uuid.UUID) (dbgen.AgentRun, 
 	}
 	s.hub.Publish(evs...)
 	return run, nil
+}
+
+// CancelWorkflowRuns cancels every queued or running agent run of a workflow
+// run (best effort; runs that finish meanwhile are left as they are).
+func (s *Service) CancelWorkflowRuns(ctx context.Context, workflowRunID uuid.UUID) error {
+	ids, err := s.db.ListActiveWorkflowAgentRuns(ctx, &workflowRunID)
+	if err != nil {
+		return err
+	}
+	var errs []error
+	for _, id := range ids {
+		if _, err := s.CancelRun(ctx, id); err != nil {
+			if e, ok := apperr.As(err); !ok || e.Status != 409 {
+				errs = append(errs, err)
+			}
+		}
+	}
+	return errors.Join(errs...)
 }
 
 func (s *Service) ListEvents(ctx context.Context, id uuid.UUID, afterSeq int32) ([]dbgen.AgentEvent, error) {

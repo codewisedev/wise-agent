@@ -483,6 +483,276 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/projects/{projectId}/tasks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: components["parameters"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description Creates a task. With `start` (default true) its engineering workflow starts
+         *     right away: product analysis → requirements → scope approval → planning →
+         *     architecture review → plan approval → final report.
+         */
+        post: operations["createTask"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tasks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listTasks"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tasks/{taskId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                taskId: components["parameters"]["TaskId"];
+            };
+            cookie?: never;
+        };
+        get: operations["getTask"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tasks/{taskId}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                taskId: components["parameters"]["TaskId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Cancels the task's active workflow (signed-in session only). */
+        post: operations["cancelTask"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tasks/{taskId}/artifacts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                taskId: components["parameters"]["TaskId"];
+            };
+            cookie?: never;
+        };
+        /** @description Every version of the task's artifacts (optionally one kind), newest version first. */
+        get: operations["listTaskArtifacts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tasks/{taskId}/workflows": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                taskId: components["parameters"]["TaskId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Starts a new workflow run for a task without an active one. */
+        post: operations["startTaskWorkflow"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/workflows/{workflowId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workflowId: components["parameters"]["WorkflowId"];
+            };
+            cookie?: never;
+        };
+        get: operations["getWorkflow"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/workflows/{workflowId}/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workflowId: components["parameters"]["WorkflowId"];
+            };
+            cookie?: never;
+        };
+        /**
+         * @description Events in order. Live updates: WebSocket `GET /api/v1/events/ws?workflowId=<id>`
+         *     (or `?stream=workflows` for every workflow); messages are WorkflowEvent JSON.
+         */
+        get: operations["listWorkflowEvents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/workflows/{workflowId}/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workflowId: components["parameters"]["WorkflowId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Resumes a workflow parked in `awaiting_retry` by re-running its failed stage (signed-in session only). */
+        post: operations["retryWorkflow"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/artifacts/{artifactId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                artifactId: components["parameters"]["ArtifactId"];
+            };
+            cookie?: never;
+        };
+        get: operations["getArtifact"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/approvals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listApprovals"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/approvals/{approvalId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                approvalId: components["parameters"]["ApprovalId"];
+            };
+            cookie?: never;
+        };
+        get: operations["getApproval"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/approvals/{approvalId}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                approvalId: components["parameters"]["ApprovalId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description Approves exactly the artifact versions identified by `combinedHash`. Refused
+         *     with 409 when any pinned artifact has a newer version or its content changed.
+         *     Signed-in session only; API tokens get 403.
+         */
+        post: operations["approveApproval"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/approvals/{approvalId}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                approvalId: components["parameters"]["ApprovalId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description Rejects with a required comment; the workflow revises the artifacts using
+         *     the comment as feedback and asks again. Signed-in session only.
+         */
+        post: operations["rejectApproval"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/runtime/v1/runs/claim": {
         parameters: {
             query?: never;
@@ -874,6 +1144,8 @@ export interface components {
             agentDefinitionId: string;
             /** Format: uuid */
             projectId?: string | null;
+            /** Format: uuid */
+            workflowRunId?: string | null;
             status: components["schemas"]["AgentRunStatus"];
             input: {
                 [key: string]: unknown;
@@ -974,6 +1246,171 @@ export interface components {
             usage: components["schemas"]["ModelUsage"][];
             /** Format: date-time */
             since: string;
+        };
+        /** @enum {string} */
+        TaskStatus: "open" | "in_progress" | "awaiting_approval" | "completed" | "failed" | "cancelled";
+        Task: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            projectId: string;
+            projectName?: string;
+            title: string;
+            description: string;
+            status: components["schemas"]["TaskStatus"];
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        TaskList: {
+            items: components["schemas"]["Task"][];
+        };
+        CreateTaskRequest: {
+            title: string;
+            description?: string;
+            /** @default true */
+            start: boolean;
+        };
+        TaskDetail: {
+            task: components["schemas"]["Task"];
+            workflow?: components["schemas"]["WorkflowRun"];
+            /** @description The pipeline's stages in order. */
+            stages: string[];
+            steps: components["schemas"]["WorkflowStep"][];
+            /** @description Latest version of each artifact kind. */
+            artifacts: components["schemas"]["Artifact"][];
+            approvals: components["schemas"]["Approval"][];
+        };
+        /** @enum {string} */
+        WorkflowRunStatus: "pending" | "running" | "awaiting_approval" | "awaiting_retry" | "completed" | "failed" | "cancelled";
+        WorkflowRun: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            taskId: string;
+            workflowType: string;
+            status: components["schemas"]["WorkflowRunStatus"];
+            currentStage?: string | null;
+            error?: string | null;
+            temporalWorkflowId?: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            startedAt?: string | null;
+            /** Format: date-time */
+            finishedAt?: string | null;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        /** @enum {string} */
+        WorkflowStepStatus: "running" | "awaiting_approval" | "succeeded" | "failed" | "cancelled" | "skipped";
+        WorkflowStep: {
+            /** Format: uuid */
+            id: string;
+            stage: string;
+            attempt: number;
+            status: components["schemas"]["WorkflowStepStatus"];
+            /** Format: uuid */
+            agentRunId?: string | null;
+            /** Format: uuid */
+            artifactId?: string | null;
+            error?: string | null;
+            /** Format: date-time */
+            startedAt: string;
+            /** Format: date-time */
+            finishedAt?: string | null;
+        };
+        WorkflowDetail: {
+            workflow: components["schemas"]["WorkflowRun"];
+            steps: components["schemas"]["WorkflowStep"][];
+        };
+        WorkflowEvent: {
+            /** Format: uuid */
+            workflowRunId: string;
+            seq: number;
+            type: string;
+            payload: {
+                [key: string]: unknown;
+            };
+            /** Format: date-time */
+            createdAt: string;
+        };
+        WorkflowEventList: {
+            items: components["schemas"]["WorkflowEvent"][];
+        };
+        /** @enum {string} */
+        ArtifactKind: "product_analysis" | "requirements" | "plan" | "architecture_review" | "final_report";
+        Artifact: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            taskId: string;
+            /** Format: uuid */
+            workflowRunId?: string | null;
+            kind: components["schemas"]["ArtifactKind"];
+            version: number;
+            content: {
+                [key: string]: unknown;
+            };
+            contentHash: string;
+            /** Format: uuid */
+            agentRunId?: string | null;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        ArtifactList: {
+            items: components["schemas"]["Artifact"][];
+        };
+        /** @enum {string} */
+        ApprovalStatus: "pending" | "approved" | "rejected" | "superseded" | "cancelled";
+        /** @enum {string} */
+        ApprovalGate: "scope" | "plan";
+        ArtifactRef: {
+            /** Format: uuid */
+            artifactId: string;
+            kind: components["schemas"]["ArtifactKind"];
+            version: number;
+            hash: string;
+        };
+        Approval: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            workflowRunId: string;
+            /** Format: uuid */
+            taskId: string;
+            taskTitle?: string;
+            /** Format: uuid */
+            projectId?: string;
+            projectName?: string;
+            gate: components["schemas"]["ApprovalGate"];
+            round: number;
+            status: components["schemas"]["ApprovalStatus"];
+            artifacts: components["schemas"]["ArtifactRef"][];
+            /** @description Send this back when deciding; it identifies exactly what was reviewed. */
+            combinedHash: string;
+            notes: string[];
+            comment?: string | null;
+            /** Format: uuid */
+            decidedBy?: string | null;
+            /** Format: date-time */
+            decidedAt?: string | null;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        ApprovalList: {
+            items: components["schemas"]["Approval"][];
+            pendingCount: number;
+        };
+        ApprovalDetail: {
+            approval: components["schemas"]["Approval"];
+            /** @description The pinned artifact versions, with content. */
+            artifacts: components["schemas"]["Artifact"][];
+        };
+        ApprovalDecisionRequest: {
+            combinedHash: string;
+            comment?: string;
         };
         RuntimeClaimRequest: {
             runtimeId: string;
@@ -1106,6 +1543,10 @@ export interface components {
         AgentName: string;
         RunId: string;
         TokenId: string;
+        TaskId: string;
+        WorkflowId: string;
+        ApprovalId: string;
+        ArtifactId: string;
     };
     requestBodies: never;
     headers: never;
@@ -2011,6 +2452,370 @@ export interface operations {
                 };
             };
             401: components["responses"]["Problem"];
+        };
+    };
+    createTask: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: components["parameters"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateTaskRequest"];
+            };
+        };
+        responses: {
+            /** @description Task created. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskDetail"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+        };
+    };
+    listTasks: {
+        parameters: {
+            query?: {
+                projectId?: string;
+                status?: components["schemas"]["TaskStatus"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Tasks, newest first. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskList"];
+                };
+            };
+            401: components["responses"]["Problem"];
+        };
+    };
+    getTask: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                taskId: components["parameters"]["TaskId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Task with its latest workflow, steps, current artifacts and approvals. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskDetail"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    cancelTask: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                taskId: components["parameters"]["TaskId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Cancellation requested (or the task was cancelled directly). */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Task"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+        };
+    };
+    listTaskArtifacts: {
+        parameters: {
+            query?: {
+                kind?: components["schemas"]["ArtifactKind"];
+            };
+            header?: never;
+            path: {
+                taskId: components["parameters"]["TaskId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Artifacts. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArtifactList"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    startTaskWorkflow: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                taskId: components["parameters"]["TaskId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Workflow queued for start. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkflowRun"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+        };
+    };
+    getWorkflow: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workflowId: components["parameters"]["WorkflowId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Workflow run with its steps. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkflowDetail"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    listWorkflowEvents: {
+        parameters: {
+            query?: {
+                afterSeq?: number;
+            };
+            header?: never;
+            path: {
+                workflowId: components["parameters"]["WorkflowId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Events. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkflowEventList"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    retryWorkflow: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workflowId: components["parameters"]["WorkflowId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Retry requested. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkflowRun"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+        };
+    };
+    getArtifact: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                artifactId: components["parameters"]["ArtifactId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Artifact version. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Artifact"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    listApprovals: {
+        parameters: {
+            query?: {
+                status?: components["schemas"]["ApprovalStatus"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Approvals, newest first. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApprovalList"];
+                };
+            };
+            401: components["responses"]["Problem"];
+        };
+    };
+    getApproval: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                approvalId: components["parameters"]["ApprovalId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Approval with the artifact versions it pins. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApprovalDetail"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    approveApproval: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                approvalId: components["parameters"]["ApprovalId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApprovalDecisionRequest"];
+            };
+        };
+        responses: {
+            /** @description Approved. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Approval"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+        };
+    };
+    rejectApproval: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                approvalId: components["parameters"]["ApprovalId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApprovalDecisionRequest"];
+            };
+        };
+        responses: {
+            /** @description Rejected. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Approval"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
         };
     };
     runtimeClaimRun: {

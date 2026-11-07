@@ -1,17 +1,75 @@
 name: architect-agent
-version: 0.1.0
-description: Designs technical solutions and flags architecture-impacting changes.
-enabled: false
+version: 1.0.0
+description: Reviews the implementation plan against the codebase, designs the technical solution and flags architecture-impacting changes.
+enabled: true
 phase: 3
+prompt: architect-agent/system.md
 responsibilities:
-  - Propose technical design
-  - Identify affected modules and contracts
-  - Flag material scope changes
-input_schema: { type: object, properties: {} }
-output_schema: { type: object, properties: {} }
-tools: []
-permissions: []
-model_config: { alias: reasoning }
-execution_limits: { max_turns: 1, max_tool_calls: 0, timeout_s: 60 }
-error_handling: { max_attempts: 1, invalid_output_retries: 0 }
-evaluation: { criteria: [] }
+  - Propose the technical design that implements the plan in the existing architecture
+  - Identify affected components, contracts and data changes
+  - Record decisions with rationale and rejected alternatives
+  - Flag material scope changes and concerns that need a human decision
+input_schema:
+  type: object
+  additionalProperties: false
+  required: [request, requirements, plan]
+  properties:
+    request: { type: string, minLength: 3, description: The original task. }
+    requirements: { type: object, description: Approved output of requirements-agent. }
+    plan: { type: object, description: Output of planner-agent. }
+    feedback: { type: string, description: Reviewer feedback from a rejected plan approval; address every point. }
+    previous_output: { type: object, description: Your previous review that the reviewer rejected; revise it. }
+output_schema:
+  type: object
+  additionalProperties: false
+  required: [summary, components, contracts_changed, data_changes, decisions, risks, scope_change, concerns]
+  properties:
+    summary: { type: string }
+    components:
+      type: array
+      items:
+        type: object
+        additionalProperties: false
+        required: [name, change, description]
+        properties:
+          name: { type: string }
+          change: { enum: [new, modified, removed, unchanged] }
+          description: { type: string }
+    contracts_changed: { type: array, items: { type: string } }
+    data_changes: { type: array, items: { type: string } }
+    decisions:
+      type: array
+      items:
+        type: object
+        additionalProperties: false
+        required: [title, rationale, alternatives]
+        properties:
+          title: { type: string }
+          rationale: { type: string }
+          alternatives: { type: array, items: { type: string } }
+    risks: { type: array, items: { type: string } }
+    scope_change:
+      enum: [none, minor, material]
+      description: material = the plan goes beyond (or falls short of) the approved scope.
+    concerns: { type: array, items: { type: string } }
+tools: [get_project_context, list_files, read_file, search_code]
+permissions: [project:read, repo:read]
+model_config:
+  alias: reasoning
+  fallbacks: [local]
+  temperature: 0.2
+  max_output_tokens: 6000
+execution_limits:
+  max_turns: 16
+  max_tool_calls: 30
+  max_tokens: 300000
+  max_cost_usd: 1.5
+  timeout_s: 900
+error_handling:
+  max_attempts: 2
+  invalid_output_retries: 2
+evaluation:
+  criteria:
+    - The design fits the existing architecture or explains why it deviates
+    - Every contract or data change is listed
+    - scope_change is material whenever the plan exceeds the approved requirements

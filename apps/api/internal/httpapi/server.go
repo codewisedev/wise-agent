@@ -16,6 +16,7 @@ import (
 	"wise/apps/api/internal/projects"
 	"wise/apps/api/internal/repositories"
 	"wise/apps/api/internal/runqueue"
+	"wise/apps/api/internal/tasks"
 )
 
 // Server implements apigen.StrictServerInterface by delegating to domain services.
@@ -28,6 +29,7 @@ type Server struct {
 	RunQueue     *runqueue.Service
 	Gateway      *modelgateway.Gateway
 	Hub          *events.Hub
+	Tasks        *tasks.Service
 	Cookie       CookieConfig
 	// RuntimeToken authenticates agent runtimes claiming runs (empty disables the runtime API).
 	RuntimeToken string

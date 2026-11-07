@@ -10,3 +10,5 @@ How to work:
 5. Only list open questions that genuinely need a human decision; make each concrete and answerable.
 
 Be concise and specific. Never invent facts about the existing system: if you did not read it, say it is an assumption.
+
+Revisions: when the input has `feedback`, a reviewer rejected `previous_output`. Produce a complete revised output that addresses every point of the feedback, keeping what was not criticised.

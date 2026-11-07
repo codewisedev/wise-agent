@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -116,6 +117,9 @@ func (d *DB) MigrationStatus(ctx context.Context) ([]string, error) {
 	return out, nil
 }
 
+// ErrNoRows is returned by single-row queries that match nothing.
+var ErrNoRows = pgx.ErrNoRows
+
 // IsNotFound reports whether err means "no rows".
 func IsNotFound(err error) bool { return errors.Is(err, pgx.ErrNoRows) }
 
@@ -143,4 +147,45 @@ func ConstraintName(err error) string {
 		return pgErr.ConstraintName
 	}
 	return ""
+}
+
+// Listen runs fn for every NOTIFY on channel until ctx is done. It holds one
+// dedicated connection and reconnects with backoff; after each (re)connect it
+// calls fn("") so callers can catch up on anything missed while disconnected.
+func (d *DB) Listen(ctx context.Context, channel string, log *slog.Logger, fn func(payload string)) {
+	backoff := time.Second
+	for ctx.Err() == nil {
+		err := d.listenOnce(ctx, channel, fn)
+		if ctx.Err() != nil {
+			return
+		}
+		log.Warn("listen connection lost; reconnecting", "channel", channel, "err", err, "in", backoff)
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(backoff):
+		}
+		backoff = min(backoff*2, 30*time.Second)
+	}
+}
+
+func (d *DB) listenOnce(ctx context.Context, channel string, fn func(string)) error {
+	pooled, err := d.Pool.Acquire(ctx)
+	if err != nil {
+		return err
+	}
+	// The connection stays in LISTEN mode, so take it out of the pool for good.
+	conn := pooled.Hijack()
+	defer conn.Close(context.Background())
+	if _, err := conn.Exec(ctx, "LISTEN "+pgx.Identifier{channel}.Sanitize()); err != nil {
+		return err
+	}
+	fn("")
+	for {
+		n, err := conn.WaitForNotification(ctx)
+		if err != nil {
+			return err
+		}
+		fn(n.Payload)
+	}
 }

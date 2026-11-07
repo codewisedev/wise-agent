@@ -29,7 +29,7 @@ func toAgentSummary(a agents.Summary) apigen.AgentSummary {
 
 func toAgentRun(r dbgen.AgentRun) apigen.AgentRun {
 	out := apigen.AgentRun{
-		Id: r.ID, AgentName: r.AgentName, AgentDefinitionId: r.AgentDefinitionID, ProjectId: r.ProjectID,
+		Id: r.ID, AgentName: r.AgentName, AgentDefinitionId: r.AgentDefinitionID, ProjectId: r.ProjectID, WorkflowRunId: r.WorkflowRunID,
 		Status: apigen.AgentRunStatus(r.Status), Input: jsonObject(r.Input), Error: r.Error,
 		Attempt: int(r.Attempt), MaxAttempts: int(r.MaxAttempts), CancelRequested: r.CancelRequested,
 		TotalInputTokens: r.TotalInputTokens, TotalOutputTokens: r.TotalOutputTokens, TotalCostUsd: r.TotalCostUsd,

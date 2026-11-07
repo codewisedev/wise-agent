@@ -393,6 +393,8 @@ type AgentRun struct {
 	StartedAt         *time.Time
 	FinishedAt        *time.Time
 	UpdatedAt         time.Time
+	WorkflowRunID     *uuid.UUID
+	IdempotencyKey    *string
 }
 
 type ApiToken struct {
@@ -406,6 +408,35 @@ type ApiToken struct {
 	LastUsedAt *time.Time
 	ExpiresAt  *time.Time
 	RevokedAt  *time.Time
+}
+
+type Approval struct {
+	ID            uuid.UUID
+	WorkflowRunID uuid.UUID
+	TaskID        uuid.UUID
+	Gate          string
+	Round         int32
+	Status        string
+	Artifacts     json.RawMessage
+	CombinedHash  string
+	Notes         json.RawMessage
+	Comment       *string
+	DecidedBy     *uuid.UUID
+	DecidedAt     *time.Time
+	ConsumedAt    *time.Time
+	CreatedAt     time.Time
+}
+
+type Artifact struct {
+	ID            uuid.UUID
+	TaskID        uuid.UUID
+	WorkflowRunID *uuid.UUID
+	Kind          string
+	Version       int32
+	Content       json.RawMessage
+	ContentHash   string
+	AgentRunID    *uuid.UUID
+	CreatedAt     time.Time
 }
 
 type AuditLog struct {
@@ -517,6 +548,17 @@ type Session struct {
 	Ip         string
 }
 
+type Task struct {
+	ID          uuid.UUID
+	ProjectID   uuid.UUID
+	Title       string
+	Description string
+	Status      string
+	CreatedBy   *uuid.UUID
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+}
+
 type ToolCall struct {
 	ID         uuid.UUID
 	RunID      uuid.UUID
@@ -537,4 +579,54 @@ type User struct {
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
 	DisabledAt   *time.Time
+}
+
+type WorkflowCommand struct {
+	ID            uuid.UUID
+	WorkflowRunID uuid.UUID
+	Kind          string
+	Payload       json.RawMessage
+	Attempts      int32
+	LastError     *string
+	AvailableAt   time.Time
+	ProcessedAt   *time.Time
+	CreatedAt     time.Time
+}
+
+type WorkflowEvent struct {
+	ID            int64
+	WorkflowRunID uuid.UUID
+	Seq           int32
+	Type          string
+	Payload       json.RawMessage
+	CreatedAt     time.Time
+}
+
+type WorkflowRun struct {
+	ID            uuid.UUID
+	TaskID        uuid.UUID
+	WorkflowType  string
+	Status        string
+	CurrentStage  *string
+	Error         *string
+	Config        json.RawMessage
+	TemporalRunID *string
+	CreatedBy     *uuid.UUID
+	CreatedAt     time.Time
+	StartedAt     *time.Time
+	FinishedAt    *time.Time
+	UpdatedAt     time.Time
+}
+
+type WorkflowStep struct {
+	ID            uuid.UUID
+	WorkflowRunID uuid.UUID
+	Stage         string
+	Attempt       int32
+	Status        string
+	AgentRunID    *uuid.UUID
+	ArtifactID    *uuid.UUID
+	Error         *string
+	StartedAt     time.Time
+	FinishedAt    *time.Time
 }

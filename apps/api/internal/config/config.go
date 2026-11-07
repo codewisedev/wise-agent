@@ -25,6 +25,9 @@ type Config struct {
 	RuntimeToken      string
 	ModelsConfig      string
 	ModelsPolicy      string
+	WorkflowsConfig   string
+	TemporalAddress   string
+	TemporalNamespace string
 }
 
 // Load reads configuration from WISE_* environment variables.
@@ -38,6 +41,9 @@ func Load() (Config, error) {
 		RuntimeToken:      os.Getenv("WISE_RUNTIME_TOKEN"),
 		ModelsConfig:      getenv("WISE_MODELS_CONFIG", "configs/models/models.yaml"),
 		ModelsPolicy:      getenv("WISE_MODELS_POLICY", "configs/policies/models.yaml"),
+		WorkflowsConfig:   getenv("WISE_WORKFLOWS_CONFIG", "configs/workflows/engineering.yaml"),
+		TemporalAddress:   getenv("WISE_TEMPORAL_ADDRESS", "127.0.0.1:7233"),
+		TemporalNamespace: getenv("WISE_TEMPORAL_NAMESPACE", "wise"),
 	}
 	var errs []error
 

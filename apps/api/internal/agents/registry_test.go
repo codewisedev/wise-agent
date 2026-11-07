@@ -26,7 +26,13 @@ func TestEmbeddedCatalogIsValid(t *testing.T) {
 			}
 		}
 	}
-	if !enabled["product-agent"] || !enabled["requirements-agent"] || len(enabled) != 2 {
+	want := []string{"product-agent", "requirements-agent", "planner-agent", "architect-agent"}
+	for _, name := range want {
+		if !enabled[name] {
+			t.Errorf("%s should be enabled", name)
+		}
+	}
+	if len(enabled) != len(want) {
 		t.Fatalf("unexpected enabled agents: %v", enabled)
 	}
 }

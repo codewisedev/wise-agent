@@ -154,6 +154,16 @@ export function SettingsPage() {
           </div>
         )}
       </Panel>
+
+      <Panel title="Workflow engine" flush={false}>
+        <p className="small muted">
+          Workflows run on Temporal. Its UI shows every workflow's full history (namespace <span className="mono">wise</span>):{" "}
+          <a href="http://127.0.0.1:8233/namespaces/wise/workflows" target="_blank" rel="noreferrer">
+            Temporal UI on 127.0.0.1:8233
+          </a>
+          . Approval gates are configured in <span className="mono">configs/workflows/engineering.yaml</span>.
+        </p>
+      </Panel>
     </>
   );
 }

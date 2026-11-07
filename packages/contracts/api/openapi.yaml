@@ -25,6 +25,9 @@ tags:
   - name: agents
   - name: models
   - name: runtime
+  - name: tasks
+  - name: workflows
+  - name: approvals
 
 paths:
   /healthz:
@@ -563,6 +566,267 @@ paths:
               schema: { $ref: "#/components/schemas/ModelsOverview" }
         "401": { $ref: "#/components/responses/Problem" }
 
+  /projects/{projectId}/tasks:
+    parameters:
+      - $ref: "#/components/parameters/ProjectId"
+    post:
+      tags: [tasks]
+      operationId: createTask
+      description: |
+        Creates a task. With `start` (default true) its engineering workflow starts
+        right away: product analysis → requirements → scope approval → planning →
+        architecture review → plan approval → final report.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateTaskRequest" }
+      responses:
+        "201":
+          description: Task created.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TaskDetail" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+  /tasks:
+    get:
+      tags: [tasks]
+      operationId: listTasks
+      parameters:
+        - name: projectId
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+        - name: status
+          in: query
+          required: false
+          schema: { $ref: "#/components/schemas/TaskStatus" }
+      responses:
+        "200":
+          description: Tasks, newest first.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TaskList" }
+        "401": { $ref: "#/components/responses/Problem" }
+  /tasks/{taskId}:
+    parameters:
+      - $ref: "#/components/parameters/TaskId"
+    get:
+      tags: [tasks]
+      operationId: getTask
+      responses:
+        "200":
+          description: Task with its latest workflow, steps, current artifacts and approvals.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TaskDetail" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+  /tasks/{taskId}/cancel:
+    parameters:
+      - $ref: "#/components/parameters/TaskId"
+    post:
+      tags: [tasks]
+      operationId: cancelTask
+      description: Cancels the task's active workflow (signed-in session only).
+      responses:
+        "202":
+          description: Cancellation requested (or the task was cancelled directly).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Task" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+  /tasks/{taskId}/artifacts:
+    parameters:
+      - $ref: "#/components/parameters/TaskId"
+    get:
+      tags: [tasks]
+      operationId: listTaskArtifacts
+      description: Every version of the task's artifacts (optionally one kind), newest version first.
+      parameters:
+        - name: kind
+          in: query
+          required: false
+          schema: { $ref: "#/components/schemas/ArtifactKind" }
+      responses:
+        "200":
+          description: Artifacts.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ArtifactList" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+  /tasks/{taskId}/workflows:
+    parameters:
+      - $ref: "#/components/parameters/TaskId"
+    post:
+      tags: [workflows]
+      operationId: startTaskWorkflow
+      description: Starts a new workflow run for a task without an active one.
+      responses:
+        "202":
+          description: Workflow queued for start.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WorkflowRun" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+  /workflows/{workflowId}:
+    parameters:
+      - $ref: "#/components/parameters/WorkflowId"
+    get:
+      tags: [workflows]
+      operationId: getWorkflow
+      responses:
+        "200":
+          description: Workflow run with its steps.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WorkflowDetail" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+  /workflows/{workflowId}/events:
+    parameters:
+      - $ref: "#/components/parameters/WorkflowId"
+    get:
+      tags: [workflows]
+      operationId: listWorkflowEvents
+      description: |
+        Events in order. Live updates: WebSocket `GET /api/v1/events/ws?workflowId=<id>`
+        (or `?stream=workflows` for every workflow); messages are WorkflowEvent JSON.
+      parameters:
+        - name: afterSeq
+          in: query
+          required: false
+          schema: { type: integer, minimum: 0, default: 0 }
+      responses:
+        "200":
+          description: Events.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WorkflowEventList" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+  /workflows/{workflowId}/retry:
+    parameters:
+      - $ref: "#/components/parameters/WorkflowId"
+    post:
+      tags: [workflows]
+      operationId: retryWorkflow
+      description: Resumes a workflow parked in `awaiting_retry` by re-running its failed stage (signed-in session only).
+      responses:
+        "202":
+          description: Retry requested.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WorkflowRun" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+  /artifacts/{artifactId}:
+    parameters:
+      - $ref: "#/components/parameters/ArtifactId"
+    get:
+      tags: [tasks]
+      operationId: getArtifact
+      responses:
+        "200":
+          description: Artifact version.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Artifact" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+  /approvals:
+    get:
+      tags: [approvals]
+      operationId: listApprovals
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema: { $ref: "#/components/schemas/ApprovalStatus" }
+      responses:
+        "200":
+          description: Approvals, newest first.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApprovalList" }
+        "401": { $ref: "#/components/responses/Problem" }
+  /approvals/{approvalId}:
+    parameters:
+      - $ref: "#/components/parameters/ApprovalId"
+    get:
+      tags: [approvals]
+      operationId: getApproval
+      responses:
+        "200":
+          description: Approval with the artifact versions it pins.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApprovalDetail" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+  /approvals/{approvalId}/approve:
+    parameters:
+      - $ref: "#/components/parameters/ApprovalId"
+    post:
+      tags: [approvals]
+      operationId: approveApproval
+      description: |
+        Approves exactly the artifact versions identified by `combinedHash`. Refused
+        with 409 when any pinned artifact has a newer version or its content changed.
+        Signed-in session only; API tokens get 403.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ApprovalDecisionRequest" }
+      responses:
+        "200":
+          description: Approved.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Approval" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+  /approvals/{approvalId}/reject:
+    parameters:
+      - $ref: "#/components/parameters/ApprovalId"
+    post:
+      tags: [approvals]
+      operationId: rejectApproval
+      description: |
+        Rejects with a required comment; the workflow revises the artifacts using
+        the comment as feedback and asks again. Signed-in session only.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ApprovalDecisionRequest" }
+      responses:
+        "200":
+          description: Rejected.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Approval" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+
   /runtime/v1/runs/claim:
     post:
       tags: [runtime]
@@ -725,6 +989,26 @@ components:
       schema: { type: string, format: uuid }
     TokenId:
       name: tokenId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    TaskId:
+      name: taskId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    WorkflowId:
+      name: workflowId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    ApprovalId:
+      name: approvalId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    ArtifactId:
+      name: artifactId
       in: path
       required: true
       schema: { type: string, format: uuid }
@@ -1052,6 +1336,7 @@ components:
         agentName: { type: string }
         agentDefinitionId: { type: string, format: uuid }
         projectId: { type: string, format: uuid, nullable: true }
+        workflowRunId: { type: string, format: uuid, nullable: true }
         status: { $ref: "#/components/schemas/AgentRunStatus" }
         input: { type: object, additionalProperties: true }
         output: { type: object, additionalProperties: true, nullable: true }
@@ -1149,6 +1434,181 @@ components:
         usage: { type: array, items: { $ref: "#/components/schemas/ModelUsage" } }
         since: { type: string, format: date-time }
 
+    TaskStatus:
+      type: string
+      enum: [open, in_progress, awaiting_approval, completed, failed, cancelled]
+    Task:
+      type: object
+      required: [id, projectId, title, description, status, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        projectId: { type: string, format: uuid }
+        projectName: { type: string }
+        title: { type: string }
+        description: { type: string }
+        status: { $ref: "#/components/schemas/TaskStatus" }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    TaskList:
+      type: object
+      required: [items]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/Task" } }
+    CreateTaskRequest:
+      type: object
+      required: [title]
+      properties:
+        title: { type: string, minLength: 3, maxLength: 200 }
+        description: { type: string, maxLength: 20000 }
+        start: { type: boolean, default: true }
+    TaskDetail:
+      type: object
+      required: [task, stages, steps, artifacts, approvals]
+      properties:
+        task: { $ref: "#/components/schemas/Task" }
+        workflow: { $ref: "#/components/schemas/WorkflowRun" }
+        stages:
+          description: The pipeline's stages in order.
+          type: array
+          items: { type: string }
+        steps: { type: array, items: { $ref: "#/components/schemas/WorkflowStep" } }
+        artifacts:
+          description: Latest version of each artifact kind.
+          type: array
+          items: { $ref: "#/components/schemas/Artifact" }
+        approvals: { type: array, items: { $ref: "#/components/schemas/Approval" } }
+    WorkflowRunStatus:
+      type: string
+      enum: [pending, running, awaiting_approval, awaiting_retry, completed, failed, cancelled]
+    WorkflowRun:
+      type: object
+      required: [id, taskId, workflowType, status, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        taskId: { type: string, format: uuid }
+        workflowType: { type: string }
+        status: { $ref: "#/components/schemas/WorkflowRunStatus" }
+        currentStage: { type: string, nullable: true }
+        error: { type: string, nullable: true }
+        temporalWorkflowId: { type: string }
+        createdAt: { type: string, format: date-time }
+        startedAt: { type: string, format: date-time, nullable: true }
+        finishedAt: { type: string, format: date-time, nullable: true }
+        updatedAt: { type: string, format: date-time }
+    WorkflowStepStatus:
+      type: string
+      enum: [running, awaiting_approval, succeeded, failed, cancelled, skipped]
+    WorkflowStep:
+      type: object
+      required: [id, stage, attempt, status, startedAt]
+      properties:
+        id: { type: string, format: uuid }
+        stage: { type: string }
+        attempt: { type: integer }
+        status: { $ref: "#/components/schemas/WorkflowStepStatus" }
+        agentRunId: { type: string, format: uuid, nullable: true }
+        artifactId: { type: string, format: uuid, nullable: true }
+        error: { type: string, nullable: true }
+        startedAt: { type: string, format: date-time }
+        finishedAt: { type: string, format: date-time, nullable: true }
+    WorkflowDetail:
+      type: object
+      required: [workflow, steps]
+      properties:
+        workflow: { $ref: "#/components/schemas/WorkflowRun" }
+        steps: { type: array, items: { $ref: "#/components/schemas/WorkflowStep" } }
+    WorkflowEvent:
+      type: object
+      required: [workflowRunId, seq, type, payload, createdAt]
+      properties:
+        workflowRunId: { type: string, format: uuid }
+        seq: { type: integer }
+        type: { type: string }
+        payload: { type: object, additionalProperties: true }
+        createdAt: { type: string, format: date-time }
+    WorkflowEventList:
+      type: object
+      required: [items]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/WorkflowEvent" } }
+    ArtifactKind:
+      type: string
+      enum: [product_analysis, requirements, plan, architecture_review, final_report]
+    Artifact:
+      type: object
+      required: [id, taskId, kind, version, content, contentHash, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        taskId: { type: string, format: uuid }
+        workflowRunId: { type: string, format: uuid, nullable: true }
+        kind: { $ref: "#/components/schemas/ArtifactKind" }
+        version: { type: integer }
+        content: { type: object, additionalProperties: true }
+        contentHash: { type: string }
+        agentRunId: { type: string, format: uuid, nullable: true }
+        createdAt: { type: string, format: date-time }
+    ArtifactList:
+      type: object
+      required: [items]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/Artifact" } }
+    ApprovalStatus:
+      type: string
+      enum: [pending, approved, rejected, superseded, cancelled]
+    ApprovalGate:
+      type: string
+      enum: [scope, plan]
+    ArtifactRef:
+      type: object
+      required: [artifactId, kind, version, hash]
+      properties:
+        artifactId: { type: string, format: uuid }
+        kind: { $ref: "#/components/schemas/ArtifactKind" }
+        version: { type: integer }
+        hash: { type: string }
+    Approval:
+      type: object
+      required: [id, workflowRunId, taskId, gate, round, status, artifacts, combinedHash, notes, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        workflowRunId: { type: string, format: uuid }
+        taskId: { type: string, format: uuid }
+        taskTitle: { type: string }
+        projectId: { type: string, format: uuid }
+        projectName: { type: string }
+        gate: { $ref: "#/components/schemas/ApprovalGate" }
+        round: { type: integer }
+        status: { $ref: "#/components/schemas/ApprovalStatus" }
+        artifacts: { type: array, items: { $ref: "#/components/schemas/ArtifactRef" } }
+        combinedHash:
+          type: string
+          description: Send this back when deciding; it identifies exactly what was reviewed.
+        notes: { type: array, items: { type: string } }
+        comment: { type: string, nullable: true }
+        decidedBy: { type: string, format: uuid, nullable: true }
+        decidedAt: { type: string, format: date-time, nullable: true }
+        createdAt: { type: string, format: date-time }
+    ApprovalList:
+      type: object
+      required: [items, pendingCount]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/Approval" } }
+        pendingCount: { type: integer }
+    ApprovalDetail:
+      type: object
+      required: [approval, artifacts]
+      properties:
+        approval: { $ref: "#/components/schemas/Approval" }
+        artifacts:
+          description: The pinned artifact versions, with content.
+          type: array
+          items: { $ref: "#/components/schemas/Artifact" }
+    ApprovalDecisionRequest:
+      type: object
+      required: [combinedHash]
+      properties:
+        combinedHash: { type: string, minLength: 64, maxLength: 64 }
+        comment: { type: string, maxLength: 10000 }
     RuntimeClaimRequest:
       type: object
       required: [runtimeId]

@@ -1,5 +1,5 @@
 name: requirements-agent
-version: 1.0.0
+version: 1.1.0
 description: Refines a product analysis into structured, testable requirements with acceptance criteria.
 enabled: true
 phase: 2
@@ -17,6 +17,8 @@ input_schema:
     request: { type: string, minLength: 3, description: The feature request or the product summary to refine. }
     product_analysis: { type: object, description: Optional output of product-agent. }
     constraints: { type: array, items: { type: string } }
+    feedback: { type: string, description: Reviewer feedback from a rejected approval; address every point. }
+    previous_output: { type: object, description: Your previous output that the reviewer rejected; revise it. }
 output_schema:
   type: object
   additionalProperties: false

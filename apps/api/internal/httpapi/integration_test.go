@@ -26,6 +26,7 @@ import (
 	"wise/apps/api/internal/projects"
 	"wise/apps/api/internal/repositories"
 	"wise/apps/api/internal/runqueue"
+	"wise/apps/api/internal/tasks"
 	"wise/apps/api/internal/testutil"
 )
 
@@ -44,6 +45,9 @@ type env struct {
 	repoRoot string
 	queue    *runqueue.Service
 	model    *scriptedProvider
+	tasks    *tasks.Service
+	agents   *agents.Service
+	hub      *events.Hub
 }
 
 func setup(t *testing.T) *env {
@@ -72,10 +76,13 @@ func setup(t *testing.T) *env {
 		},
 	}, modelgateway.Policy{CloudAllowedAgents: []string{"*"}, MaxRetries: 1}, hub, log).WithProvider(model)
 	queue := runqueue.NewService(d, hub, gw, catalog.Tools, log)
+	agentSvc := agents.NewService(d, hub)
+	taskSvc := tasks.NewService(d, tasks.DefaultWorkflowConfig())
+	taskSvc.Runs = agentSvc
 	server := &httpapi.Server{
 		DB: d, Auth: authSvc, Projects: projects.NewService(d),
 		Repositories: repositories.NewService(d, gitinspect.New([]string{root})),
-		Agents:       agents.NewService(d, hub), RunQueue: queue, Gateway: gw, Hub: hub,
+		Agents:       agentSvc, RunQueue: queue, Gateway: gw, Hub: hub, Tasks: taskSvc,
 		Cookie:       httpapi.CookieConfig{TTL: time.Hour},
 		RuntimeToken: runtimeToken,
 	}
@@ -86,7 +93,8 @@ func setup(t *testing.T) *env {
 	ts := httptest.NewServer(h)
 	t.Cleanup(ts.Close)
 	jar, _ := cookiejar.New(nil)
-	return &env{t: t, db: d, srv: ts, client: &http.Client{Jar: jar}, repoRoot: root, queue: queue, model: model}
+	return &env{t: t, db: d, srv: ts, client: &http.Client{Jar: jar}, repoRoot: root, queue: queue, model: model,
+		tasks: taskSvc, agents: agentSvc, hub: hub}
 }
 
 type resp struct {
