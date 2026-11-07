@@ -71,6 +71,9 @@ func ProtocolInstructions(tools []ToolSpec) string {
 	var b strings.Builder
 	b.WriteString("\n\n# Response protocol\nRespond with a single JSON object and nothing else.\n")
 	if len(tools) > 0 {
+		b.WriteString("The tools listed below are NOT native function calls and you have no native tools. " +
+			"Invoke them only by returning a call_tools object; the platform runs them and replies with the results. " +
+			"They are available: use them to gather evidence before answering.\n")
 		b.WriteString(`- To use tools: {"thought": "...", "action": "call_tools", "tool_calls": [{"tool": "<name>", "arguments": {...}}]}` + "\n")
 		b.WriteString("  Tool results arrive in the next message. Call several independent tools in one turn when possible.\n")
 	}
