@@ -1,0 +1,717 @@
+openapi: 3.0.3
+info:
+  title: Wise API
+  version: 0.1.0
+  description: |
+    Control-plane API for Wise, the personal AI engineering platform.
+
+    Authentication: either the `wise_session` cookie (dashboard) or an
+    `Authorization: Bearer wise_...` personal API token. State-changing requests
+    authenticated by cookie must also send the session's CSRF token in the
+    `X-Wise-CSRF` header (returned by `/auth/login` and `/auth/me`).
+
+    Errors use RFC 7807 `application/problem+json`.
+servers:
+  - url: http://localhost:8080/api/v1
+security:
+  - cookieAuth: []
+  - bearerAuth: []
+
+tags:
+  - name: system
+  - name: auth
+  - name: projects
+  - name: repositories
+
+paths:
+  /healthz:
+    get:
+      tags: [system]
+      operationId: getHealth
+      security: []
+      responses:
+        "200":
+          description: Process is alive.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Health" }
+  /readyz:
+    get:
+      tags: [system]
+      operationId: getReadiness
+      security: []
+      responses:
+        "200":
+          description: Dependencies are reachable.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Health" }
+        "503":
+          $ref: "#/components/responses/Problem"
+
+  /auth/login:
+    post:
+      tags: [auth]
+      operationId: login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LoginRequest" }
+      responses:
+        "200":
+          description: Logged in. Sets the `wise_session` cookie.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SessionInfo" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "429": { $ref: "#/components/responses/Problem" }
+  /auth/logout:
+    post:
+      tags: [auth]
+      operationId: logout
+      responses:
+        "204":
+          description: Session ended and cookie cleared.
+        "401": { $ref: "#/components/responses/Problem" }
+  /auth/me:
+    get:
+      tags: [auth]
+      operationId: getMe
+      responses:
+        "200":
+          description: Current principal.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SessionInfo" }
+        "401": { $ref: "#/components/responses/Problem" }
+  /auth/tokens:
+    get:
+      tags: [auth]
+      operationId: listApiTokens
+      responses:
+        "200":
+          description: Personal API tokens of the current user.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiTokenList" }
+        "401": { $ref: "#/components/responses/Problem" }
+    post:
+      tags: [auth]
+      operationId: createApiToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateApiTokenRequest" }
+      responses:
+        "201":
+          description: Token created. The secret is shown only once.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CreatedApiToken" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+  /auth/tokens/{tokenId}:
+    parameters:
+      - $ref: "#/components/parameters/TokenId"
+    delete:
+      tags: [auth]
+      operationId: revokeApiToken
+      responses:
+        "204": { description: Token revoked. }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+
+  /projects:
+    get:
+      tags: [projects]
+      operationId: listProjects
+      parameters:
+        - name: includeArchived
+          in: query
+          required: false
+          schema: { type: boolean, default: false }
+      responses:
+        "200":
+          description: Projects.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProjectList" }
+        "401": { $ref: "#/components/responses/Problem" }
+    post:
+      tags: [projects]
+      operationId: createProject
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateProjectRequest" }
+      responses:
+        "201":
+          description: Project created.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Project" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+  /projects/{projectId}:
+    parameters:
+      - $ref: "#/components/parameters/ProjectId"
+    get:
+      tags: [projects]
+      operationId: getProject
+      responses:
+        "200":
+          description: Project.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Project" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+    patch:
+      tags: [projects]
+      operationId: updateProject
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateProjectRequest" }
+      responses:
+        "200":
+          description: Updated project.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Project" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+    delete:
+      tags: [projects]
+      operationId: archiveProject
+      description: Archives (soft-deletes) the project.
+      responses:
+        "204": { description: Project archived. }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+
+  /projects/{projectId}/resources:
+    parameters:
+      - $ref: "#/components/parameters/ProjectId"
+    get:
+      tags: [projects]
+      operationId: listProjectResources
+      responses:
+        "200":
+          description: Resources attached to the project.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProjectResourceList" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+    post:
+      tags: [projects]
+      operationId: createProjectResource
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateProjectResourceRequest" }
+      responses:
+        "201":
+          description: Resource created.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProjectResource" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+  /project-resources/{resourceId}:
+    parameters:
+      - $ref: "#/components/parameters/ResourceId"
+    delete:
+      tags: [projects]
+      operationId: deleteProjectResource
+      responses:
+        "204": { description: Resource deleted. }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+
+  /projects/{projectId}/repositories:
+    parameters:
+      - $ref: "#/components/parameters/ProjectId"
+    get:
+      tags: [repositories]
+      operationId: listRepositories
+      responses:
+        "200":
+          description: Repositories of the project.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RepositoryList" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+    post:
+      tags: [repositories]
+      operationId: createRepository
+      description: |
+        Registers a repository. Local repositories must live under one of the
+        configured `WISE_REPO_ROOTS` and are inspected immediately.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateRepositoryRequest" }
+      responses:
+        "201":
+          description: Repository registered.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Repository" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+  /repositories/{repositoryId}:
+    parameters:
+      - $ref: "#/components/parameters/RepositoryId"
+    get:
+      tags: [repositories]
+      operationId: getRepository
+      responses:
+        "200":
+          description: Repository.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Repository" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+    patch:
+      tags: [repositories]
+      operationId: updateRepository
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateRepositoryRequest" }
+      responses:
+        "200":
+          description: Updated repository.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Repository" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+    delete:
+      tags: [repositories]
+      operationId: deleteRepository
+      description: Unregisters the repository. Files on disk are never touched.
+      responses:
+        "204": { description: Repository unregistered. }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+  /repositories/{repositoryId}/inspect:
+    parameters:
+      - $ref: "#/components/parameters/RepositoryId"
+    post:
+      tags: [repositories]
+      operationId: inspectRepository
+      description: Refreshes Git information (branch, HEAD SHA, remotes) for a local repository.
+      responses:
+        "200":
+          description: Repository with refreshed Git information.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Repository" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+  /repositories/{repositoryId}/index:
+    parameters:
+      - $ref: "#/components/parameters/RepositoryId"
+    post:
+      tags: [repositories]
+      operationId: requestRepositoryIndex
+      description: Queues the repository for indexing. The indexer itself arrives in Phase 4.
+      responses:
+        "202":
+          description: Index request accepted.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RepositoryStatus" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+  /repositories/{repositoryId}/status:
+    parameters:
+      - $ref: "#/components/parameters/RepositoryId"
+    get:
+      tags: [repositories]
+      operationId: getRepositoryStatus
+      responses:
+        "200":
+          description: Indexing and Git status.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RepositoryStatus" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+
+  /projects/{projectId}/repository-relationships:
+    parameters:
+      - $ref: "#/components/parameters/ProjectId"
+    get:
+      tags: [repositories]
+      operationId: listRepositoryRelationships
+      responses:
+        "200":
+          description: Relationships between repositories of the project.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RepositoryRelationshipList" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+    post:
+      tags: [repositories]
+      operationId: createRepositoryRelationship
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateRepositoryRelationshipRequest" }
+      responses:
+        "201":
+          description: Relationship created.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RepositoryRelationship" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+  /repository-relationships/{relationshipId}:
+    parameters:
+      - $ref: "#/components/parameters/RelationshipId"
+    delete:
+      tags: [repositories]
+      operationId: deleteRepositoryRelationship
+      responses:
+        "204": { description: Relationship deleted. }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: wise_session
+    bearerAuth:
+      type: http
+      scheme: bearer
+
+  parameters:
+    ProjectId:
+      name: projectId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    RepositoryId:
+      name: repositoryId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    ResourceId:
+      name: resourceId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    RelationshipId:
+      name: relationshipId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    TokenId:
+      name: tokenId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+
+  responses:
+    Problem:
+      description: Error (RFC 7807).
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+
+  schemas:
+    Problem:
+      type: object
+      required: [type, title, status]
+      properties:
+        type: { type: string, example: "about:blank" }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        errors:
+          type: array
+          items: { $ref: "#/components/schemas/FieldError" }
+    FieldError:
+      type: object
+      required: [field, message]
+      properties:
+        field: { type: string }
+        message: { type: string }
+
+    Health:
+      type: object
+      required: [status]
+      properties:
+        status: { type: string, example: ok }
+
+    LoginRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username: { type: string, minLength: 1, maxLength: 64 }
+        password: { type: string, minLength: 1, maxLength: 256 }
+    User:
+      type: object
+      required: [id, username, role, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        username: { type: string }
+        role: { type: string, enum: [admin, member] }
+        createdAt: { type: string, format: date-time }
+    SessionInfo:
+      type: object
+      required: [user, authMethod]
+      properties:
+        user: { $ref: "#/components/schemas/User" }
+        authMethod: { type: string, enum: [session, api_token] }
+        csrfToken:
+          type: string
+          description: Present for cookie sessions; send it as `X-Wise-CSRF` on mutating requests.
+        expiresAt: { type: string, format: date-time }
+
+    ApiToken:
+      type: object
+      required: [id, name, prefix, scopes, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        prefix: { type: string }
+        scopes:
+          type: array
+          items: { type: string }
+        createdAt: { type: string, format: date-time }
+        lastUsedAt: { type: string, format: date-time, nullable: true }
+        expiresAt: { type: string, format: date-time, nullable: true }
+        revokedAt: { type: string, format: date-time, nullable: true }
+    ApiTokenList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/ApiToken" }
+    CreateApiTokenRequest:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 100 }
+        expiresInDays: { type: integer, minimum: 1, maximum: 3650 }
+    CreatedApiToken:
+      type: object
+      required: [token, secret]
+      properties:
+        token: { $ref: "#/components/schemas/ApiToken" }
+        secret:
+          type: string
+          description: Full bearer token. Shown once; store it securely.
+
+    Project:
+      type: object
+      required: [id, slug, name, description, metadata, repositoryCount, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        slug: { type: string }
+        name: { type: string }
+        description: { type: string }
+        metadata: { type: object, additionalProperties: true }
+        repositoryCount: { type: integer }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        archivedAt: { type: string, format: date-time, nullable: true }
+    ProjectList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/Project" }
+    CreateProjectRequest:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 200 }
+        slug:
+          type: string
+          pattern: "^[a-z0-9]+(-[a-z0-9]+)*$"
+          maxLength: 100
+          description: Derived from the name when omitted.
+        description: { type: string, maxLength: 5000 }
+        metadata: { type: object, additionalProperties: true }
+    UpdateProjectRequest:
+      type: object
+      properties:
+        name: { type: string, minLength: 1, maxLength: 200 }
+        description: { type: string, maxLength: 5000 }
+        metadata: { type: object, additionalProperties: true }
+
+    ProjectResourceKind:
+      type: string
+      enum: [documentation, external_service, database_definition, other]
+    ProjectResource:
+      type: object
+      required: [id, projectId, kind, name, uri, metadata, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        projectId: { type: string, format: uuid }
+        kind: { $ref: "#/components/schemas/ProjectResourceKind" }
+        name: { type: string }
+        uri: { type: string }
+        metadata: { type: object, additionalProperties: true }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    ProjectResourceList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/ProjectResource" }
+    CreateProjectResourceRequest:
+      type: object
+      required: [kind, name]
+      properties:
+        kind: { $ref: "#/components/schemas/ProjectResourceKind" }
+        name: { type: string, minLength: 1, maxLength: 200 }
+        uri: { type: string, maxLength: 2000 }
+        metadata: { type: object, additionalProperties: true }
+
+    RepositoryRole:
+      type: string
+      enum: [backend, frontend, mobile, shared_library, infrastructure, documentation, other]
+    RepositorySourceType:
+      type: string
+      enum: [local, remote]
+    RepositoryIndexStatus:
+      type: string
+      enum: [not_indexed, queued, indexing, indexed, failed]
+    GitRemote:
+      type: object
+      required: [name, url]
+      properties:
+        name: { type: string }
+        url: { type: string }
+    Repository:
+      type: object
+      required: [id, projectId, name, role, sourceType, gitRemotes, indexStatus, settings, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        projectId: { type: string, format: uuid }
+        name: { type: string }
+        role: { $ref: "#/components/schemas/RepositoryRole" }
+        sourceType: { $ref: "#/components/schemas/RepositorySourceType" }
+        localPath: { type: string, nullable: true }
+        remoteUrl: { type: string, nullable: true }
+        defaultBranch: { type: string, nullable: true }
+        currentBranch: { type: string, nullable: true }
+        headSha: { type: string, nullable: true }
+        gitRemotes:
+          type: array
+          items: { $ref: "#/components/schemas/GitRemote" }
+        gitInspectedAt: { type: string, format: date-time, nullable: true }
+        gitError: { type: string, nullable: true }
+        indexStatus: { $ref: "#/components/schemas/RepositoryIndexStatus" }
+        indexRequestedAt: { type: string, format: date-time, nullable: true }
+        settings: { type: object, additionalProperties: true }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    RepositoryList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/Repository" }
+    CreateRepositoryRequest:
+      type: object
+      required: [name, sourceType]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 200 }
+        role: { $ref: "#/components/schemas/RepositoryRole" }
+        sourceType: { $ref: "#/components/schemas/RepositorySourceType" }
+        localPath:
+          type: string
+          maxLength: 4096
+          description: Absolute path; required when sourceType is `local`.
+        remoteUrl:
+          type: string
+          maxLength: 2000
+          description: Required when sourceType is `remote`.
+        defaultBranch: { type: string, maxLength: 255 }
+        settings: { type: object, additionalProperties: true }
+    UpdateRepositoryRequest:
+      type: object
+      properties:
+        name: { type: string, minLength: 1, maxLength: 200 }
+        role: { $ref: "#/components/schemas/RepositoryRole" }
+        remoteUrl: { type: string, maxLength: 2000 }
+        defaultBranch: { type: string, maxLength: 255 }
+        settings: { type: object, additionalProperties: true }
+    RepositoryStatus:
+      type: object
+      required: [repositoryId, indexStatus]
+      properties:
+        repositoryId: { type: string, format: uuid }
+        indexStatus: { $ref: "#/components/schemas/RepositoryIndexStatus" }
+        indexRequestedAt: { type: string, format: date-time, nullable: true }
+        headSha: { type: string, nullable: true }
+        gitInspectedAt: { type: string, format: date-time, nullable: true }
+        gitError: { type: string, nullable: true }
+
+    RepositoryRelationshipKind:
+      type: string
+      enum: [depends_on, consumes_api, shares_library, deploys]
+    RepositoryRelationship:
+      type: object
+      required: [id, projectId, fromRepositoryId, toRepositoryId, kind, note, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        projectId: { type: string, format: uuid }
+        fromRepositoryId: { type: string, format: uuid }
+        toRepositoryId: { type: string, format: uuid }
+        kind: { $ref: "#/components/schemas/RepositoryRelationshipKind" }
+        note: { type: string }
+        createdAt: { type: string, format: date-time }
+    RepositoryRelationshipList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/RepositoryRelationship" }
+    CreateRepositoryRelationshipRequest:
+      type: object
+      required: [fromRepositoryId, toRepositoryId, kind]
+      properties:
+        fromRepositoryId: { type: string, format: uuid }
+        toRepositoryId: { type: string, format: uuid }
+        kind: { $ref: "#/components/schemas/RepositoryRelationshipKind" }
+        note: { type: string, maxLength: 2000 }

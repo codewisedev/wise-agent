@@ -1,0 +1,9 @@
+{
+  "name": "wise",
+  "private": true,
+  "packageManager": "pnpm@12.16.1",
+  "scripts": {
+    "dashboard:dev": "pnpm -C apps/dashboard dev",
+    "dashboard:build": "pnpm -C apps/dashboard build"
+  }
+}

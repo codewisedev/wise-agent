@@ -1,0 +1,12 @@
+.env
+*.local
+node_modules/
+dist/
+coverage/
+/bin/
+*.test
+*.out
+.DS_Store
+.idea/
+.vscode/
+graphify-out/

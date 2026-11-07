@@ -1,0 +1,10 @@
+**/node_modules
+**/dist
+.git
+.env
+bin/
+graphify-out/
+docs/
+tests/
+*.md
+!apps/**/README.md
