@@ -1,5 +1,5 @@
 name: requirements-agent
-version: 1.1.0
+version: 1.2.0
 description: Refines a product analysis into structured, testable requirements with acceptance criteria.
 enabled: true
 phase: 2

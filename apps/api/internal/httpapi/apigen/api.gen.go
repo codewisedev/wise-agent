@@ -129,6 +129,27 @@ func (e BoardColumn) Valid() bool {
 	}
 }
 
+// Defines values for IntegrationKind.
+const (
+	IntegrationKindClickup IntegrationKind = "clickup"
+	IntegrationKindJira    IntegrationKind = "jira"
+	IntegrationKindTrello  IntegrationKind = "trello"
+)
+
+// Valid indicates whether the value is a known member of the IntegrationKind enum.
+func (e IntegrationKind) Valid() bool {
+	switch e {
+	case IntegrationKindClickup:
+		return true
+	case IntegrationKindJira:
+		return true
+	case IntegrationKindTrello:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ModelCallStatus.
 const (
 	ModelCallStatusError    ModelCallStatus = "error"
@@ -906,6 +927,51 @@ type Health struct {
 	Status string `json:"status"`
 }
 
+// Integration defines model for Integration.
+type Integration struct {
+	AccountId openapi_types.UUID `json:"accountId"`
+	AutoStart bool               `json:"autoStart"`
+
+	// Config jira: jql; clickup: listId; trello: boardId, lists[]
+	Config            map[string]interface{} `json:"config"`
+	CreatedAt         time.Time              `json:"createdAt"`
+	DefaultTemplateId *openapi_types.UUID    `json:"defaultTemplateId,omitempty"`
+	Enabled           bool                   `json:"enabled"`
+	Id                openapi_types.UUID     `json:"id"`
+	IntervalMinutes   int                    `json:"intervalMinutes"`
+	Kind              IntegrationKind        `json:"kind"`
+	LastError         *string                `json:"lastError,omitempty"`
+	LastResult        *SyncResult            `json:"lastResult,omitempty"`
+	LastSyncedAt      *time.Time             `json:"lastSyncedAt,omitempty"`
+	Name              string                 `json:"name"`
+	ProjectId         openapi_types.UUID     `json:"projectId"`
+
+	// StatusMap External status (lowercase) → board column.
+	StatusMap map[string]BoardColumn `json:"statusMap"`
+	UpdatedAt time.Time              `json:"updatedAt"`
+}
+
+// IntegrationInput defines model for IntegrationInput.
+type IntegrationInput struct {
+	AccountId         openapi_types.UUID      `json:"accountId"`
+	AutoStart         *bool                   `json:"autoStart,omitempty"`
+	Config            *map[string]interface{} `json:"config,omitempty"`
+	DefaultTemplateId *openapi_types.UUID     `json:"defaultTemplateId,omitempty"`
+	Enabled           *bool                   `json:"enabled,omitempty"`
+	IntervalMinutes   *int                    `json:"intervalMinutes,omitempty"`
+	Kind              IntegrationKind         `json:"kind"`
+	Name              string                  `json:"name"`
+	StatusMap         *map[string]BoardColumn `json:"statusMap,omitempty"`
+}
+
+// IntegrationKind defines model for IntegrationKind.
+type IntegrationKind string
+
+// IntegrationList defines model for IntegrationList.
+type IntegrationList struct {
+	Items []Integration `json:"items"`
+}
+
 // LoginRequest defines model for LoginRequest.
 type LoginRequest struct {
 	Password string `json:"password"`
@@ -1252,6 +1318,17 @@ type StepOverride struct {
 	Review  *bool   `json:"review,omitempty"`
 }
 
+// SyncResult defines model for SyncResult.
+type SyncResult struct {
+	At        time.Time `json:"at"`
+	Created   int       `json:"created"`
+	Errors    *[]string `json:"errors,omitempty"`
+	Started   int       `json:"started"`
+	Total     int       `json:"total"`
+	Unchanged int       `json:"unchanged"`
+	Updated   int       `json:"updated"`
+}
+
 // Task defines model for Task.
 type Task struct {
 	Column         *BoardColumn        `json:"column,omitempty"`
@@ -1532,6 +1609,9 @@ type ApprovalId = openapi_types.UUID
 // ArtifactId defines model for ArtifactId.
 type ArtifactId = openapi_types.UUID
 
+// IntegrationId defines model for IntegrationId.
+type IntegrationId = openapi_types.UUID
+
 // ProjectId defines model for ProjectId.
 type ProjectId = openapi_types.UUID
 
@@ -1621,11 +1701,17 @@ type LoginJSONRequestBody = LoginRequest
 // CreateApiTokenJSONRequestBody defines body for CreateApiToken for application/json ContentType.
 type CreateApiTokenJSONRequestBody = CreateApiTokenRequest
 
+// UpdateIntegrationJSONRequestBody defines body for UpdateIntegration for application/json ContentType.
+type UpdateIntegrationJSONRequestBody = IntegrationInput
+
 // CreateProjectJSONRequestBody defines body for CreateProject for application/json ContentType.
 type CreateProjectJSONRequestBody = CreateProjectRequest
 
 // UpdateProjectJSONRequestBody defines body for UpdateProject for application/json ContentType.
 type UpdateProjectJSONRequestBody = UpdateProjectRequest
+
+// CreateIntegrationJSONRequestBody defines body for CreateIntegration for application/json ContentType.
+type CreateIntegrationJSONRequestBody = IntegrationInput
 
 // CreateRepositoryJSONRequestBody defines body for CreateRepository for application/json ContentType.
 type CreateRepositoryJSONRequestBody = CreateRepositoryRequest
@@ -1759,6 +1845,15 @@ type ServerInterface interface {
 	// (GET /healthz)
 	GetHealth(w http.ResponseWriter, r *http.Request)
 
+	// (DELETE /integrations/{integrationId})
+	DeleteIntegration(w http.ResponseWriter, r *http.Request, integrationId IntegrationId)
+
+	// (PUT /integrations/{integrationId})
+	UpdateIntegration(w http.ResponseWriter, r *http.Request, integrationId IntegrationId)
+
+	// (POST /integrations/{integrationId}/sync)
+	SyncIntegration(w http.ResponseWriter, r *http.Request, integrationId IntegrationId)
+
 	// (GET /models)
 	GetModelsOverview(w http.ResponseWriter, r *http.Request, params GetModelsOverviewParams)
 
@@ -1782,6 +1877,12 @@ type ServerInterface interface {
 
 	// (GET /projects/{projectId}/board)
 	GetBoard(w http.ResponseWriter, r *http.Request, projectId ProjectId)
+
+	// (GET /projects/{projectId}/integrations)
+	ListIntegrations(w http.ResponseWriter, r *http.Request, projectId ProjectId)
+
+	// (POST /projects/{projectId}/integrations)
+	CreateIntegration(w http.ResponseWriter, r *http.Request, projectId ProjectId)
 
 	// (GET /projects/{projectId}/repositories)
 	ListRepositories(w http.ResponseWriter, r *http.Request, projectId ProjectId)
@@ -2035,6 +2136,21 @@ func (_ Unimplemented) GetHealth(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
+// (DELETE /integrations/{integrationId})
+func (_ Unimplemented) DeleteIntegration(w http.ResponseWriter, r *http.Request, integrationId IntegrationId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (PUT /integrations/{integrationId})
+func (_ Unimplemented) UpdateIntegration(w http.ResponseWriter, r *http.Request, integrationId IntegrationId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (POST /integrations/{integrationId}/sync)
+func (_ Unimplemented) SyncIntegration(w http.ResponseWriter, r *http.Request, integrationId IntegrationId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
 // (GET /models)
 func (_ Unimplemented) GetModelsOverview(w http.ResponseWriter, r *http.Request, params GetModelsOverviewParams) {
 	w.WriteHeader(http.StatusNotImplemented)
@@ -2072,6 +2188,16 @@ func (_ Unimplemented) UpdateProject(w http.ResponseWriter, r *http.Request, pro
 
 // (GET /projects/{projectId}/board)
 func (_ Unimplemented) GetBoard(w http.ResponseWriter, r *http.Request, projectId ProjectId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (GET /projects/{projectId}/integrations)
+func (_ Unimplemented) ListIntegrations(w http.ResponseWriter, r *http.Request, projectId ProjectId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (POST /projects/{projectId}/integrations)
+func (_ Unimplemented) CreateIntegration(w http.ResponseWriter, r *http.Request, projectId ProjectId) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -2877,6 +3003,84 @@ func (siw *ServerInterfaceWrapper) GetHealth(w http.ResponseWriter, r *http.Requ
 	handler.ServeHTTP(w, r)
 }
 
+// DeleteIntegration operation middleware
+func (siw *ServerInterfaceWrapper) DeleteIntegration(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "integrationId" -------------
+	var integrationId IntegrationId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "integrationId", chi.URLParam(r, "integrationId"), &integrationId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "integrationId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteIntegration(w, r, integrationId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateIntegration operation middleware
+func (siw *ServerInterfaceWrapper) UpdateIntegration(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "integrationId" -------------
+	var integrationId IntegrationId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "integrationId", chi.URLParam(r, "integrationId"), &integrationId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "integrationId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateIntegration(w, r, integrationId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SyncIntegration operation middleware
+func (siw *ServerInterfaceWrapper) SyncIntegration(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "integrationId" -------------
+	var integrationId IntegrationId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "integrationId", chi.URLParam(r, "integrationId"), &integrationId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "integrationId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SyncIntegration(w, r, integrationId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetModelsOverview operation middleware
 func (siw *ServerInterfaceWrapper) GetModelsOverview(w http.ResponseWriter, r *http.Request) {
 
@@ -3078,6 +3282,58 @@ func (siw *ServerInterfaceWrapper) GetBoard(w http.ResponseWriter, r *http.Reque
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetBoard(w, r, projectId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListIntegrations operation middleware
+func (siw *ServerInterfaceWrapper) ListIntegrations(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "projectId" -------------
+	var projectId ProjectId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "projectId", chi.URLParam(r, "projectId"), &projectId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "projectId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListIntegrations(w, r, projectId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateIntegration operation middleware
+func (siw *ServerInterfaceWrapper) CreateIntegration(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "projectId" -------------
+	var projectId ProjectId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "projectId", chi.URLParam(r, "projectId"), &projectId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "projectId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateIntegration(w, r, projectId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -4415,6 +4671,21 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Put(options.BaseURL+"/workflow-templates/{templateId}", wrapper.UpdateWorkflowTemplate)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/projects/{projectId}/integrations", wrapper.ListIntegrations)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/projects/{projectId}/integrations", wrapper.CreateIntegration)
+	})
+	r.Group(func(r chi.Router) {
+		r.Delete(options.BaseURL+"/integrations/{integrationId}", wrapper.DeleteIntegration)
+	})
+	r.Group(func(r chi.Router) {
+		r.Put(options.BaseURL+"/integrations/{integrationId}", wrapper.UpdateIntegration)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/integrations/{integrationId}/sync", wrapper.SyncIntegration)
 	})
 	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/runtime/v1/runs/claim", wrapper.RuntimeClaimRun)
@@ -5897,6 +6168,227 @@ func (response GetHealth200JSONResponse) VisitGetHealthResponse(w http.ResponseW
 	return err
 }
 
+type DeleteIntegrationRequestObject struct {
+	IntegrationId IntegrationId `json:"integrationId"`
+}
+
+type DeleteIntegrationResponseObject interface {
+	VisitDeleteIntegrationResponse(w http.ResponseWriter) error
+}
+
+type DeleteIntegration204Response struct {
+}
+
+func (response DeleteIntegration204Response) VisitDeleteIntegrationResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type DeleteIntegration401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response DeleteIntegration401ApplicationProblemPlusJSONResponse) VisitDeleteIntegrationResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteIntegration403ApplicationProblemPlusJSONResponse Problem
+
+func (response DeleteIntegration403ApplicationProblemPlusJSONResponse) VisitDeleteIntegrationResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteIntegration404ApplicationProblemPlusJSONResponse Problem
+
+func (response DeleteIntegration404ApplicationProblemPlusJSONResponse) VisitDeleteIntegrationResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateIntegrationRequestObject struct {
+	IntegrationId IntegrationId `json:"integrationId"`
+	Body          *UpdateIntegrationJSONRequestBody
+}
+
+type UpdateIntegrationResponseObject interface {
+	VisitUpdateIntegrationResponse(w http.ResponseWriter) error
+}
+
+type UpdateIntegration200JSONResponse Integration
+
+func (response UpdateIntegration200JSONResponse) VisitUpdateIntegrationResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateIntegration400ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response UpdateIntegration400ApplicationProblemPlusJSONResponse) VisitUpdateIntegrationResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateIntegration401ApplicationProblemPlusJSONResponse Problem
+
+func (response UpdateIntegration401ApplicationProblemPlusJSONResponse) VisitUpdateIntegrationResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateIntegration403ApplicationProblemPlusJSONResponse Problem
+
+func (response UpdateIntegration403ApplicationProblemPlusJSONResponse) VisitUpdateIntegrationResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateIntegration404ApplicationProblemPlusJSONResponse Problem
+
+func (response UpdateIntegration404ApplicationProblemPlusJSONResponse) VisitUpdateIntegrationResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SyncIntegrationRequestObject struct {
+	IntegrationId IntegrationId `json:"integrationId"`
+}
+
+type SyncIntegrationResponseObject interface {
+	VisitSyncIntegrationResponse(w http.ResponseWriter) error
+}
+
+type SyncIntegration200JSONResponse SyncResult
+
+func (response SyncIntegration200JSONResponse) VisitSyncIntegrationResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SyncIntegration401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response SyncIntegration401ApplicationProblemPlusJSONResponse) VisitSyncIntegrationResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SyncIntegration404ApplicationProblemPlusJSONResponse Problem
+
+func (response SyncIntegration404ApplicationProblemPlusJSONResponse) VisitSyncIntegrationResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SyncIntegration409ApplicationProblemPlusJSONResponse Problem
+
+func (response SyncIntegration409ApplicationProblemPlusJSONResponse) VisitSyncIntegrationResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SyncIntegration502ApplicationProblemPlusJSONResponse Problem
+
+func (response SyncIntegration502ApplicationProblemPlusJSONResponse) VisitSyncIntegrationResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(502)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type GetModelsOverviewRequestObject struct {
 	Params GetModelsOverviewParams
 }
@@ -6291,6 +6783,125 @@ func (response GetBoard401ApplicationProblemPlusJSONResponse) VisitGetBoardRespo
 type GetBoard404ApplicationProblemPlusJSONResponse Problem
 
 func (response GetBoard404ApplicationProblemPlusJSONResponse) VisitGetBoardResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListIntegrationsRequestObject struct {
+	ProjectId ProjectId `json:"projectId"`
+}
+
+type ListIntegrationsResponseObject interface {
+	VisitListIntegrationsResponse(w http.ResponseWriter) error
+}
+
+type ListIntegrations200JSONResponse IntegrationList
+
+func (response ListIntegrations200JSONResponse) VisitListIntegrationsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListIntegrations401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response ListIntegrations401ApplicationProblemPlusJSONResponse) VisitListIntegrationsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateIntegrationRequestObject struct {
+	ProjectId ProjectId `json:"projectId"`
+	Body      *CreateIntegrationJSONRequestBody
+}
+
+type CreateIntegrationResponseObject interface {
+	VisitCreateIntegrationResponse(w http.ResponseWriter) error
+}
+
+type CreateIntegration201JSONResponse Integration
+
+func (response CreateIntegration201JSONResponse) VisitCreateIntegrationResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateIntegration400ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response CreateIntegration400ApplicationProblemPlusJSONResponse) VisitCreateIntegrationResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateIntegration401ApplicationProblemPlusJSONResponse Problem
+
+func (response CreateIntegration401ApplicationProblemPlusJSONResponse) VisitCreateIntegrationResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateIntegration403ApplicationProblemPlusJSONResponse Problem
+
+func (response CreateIntegration403ApplicationProblemPlusJSONResponse) VisitCreateIntegrationResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateIntegration404ApplicationProblemPlusJSONResponse Problem
+
+func (response CreateIntegration404ApplicationProblemPlusJSONResponse) VisitCreateIntegrationResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -8734,6 +9345,15 @@ type StrictServerInterface interface {
 	// (GET /healthz)
 	GetHealth(ctx context.Context, request GetHealthRequestObject) (GetHealthResponseObject, error)
 
+	// (DELETE /integrations/{integrationId})
+	DeleteIntegration(ctx context.Context, request DeleteIntegrationRequestObject) (DeleteIntegrationResponseObject, error)
+
+	// (PUT /integrations/{integrationId})
+	UpdateIntegration(ctx context.Context, request UpdateIntegrationRequestObject) (UpdateIntegrationResponseObject, error)
+
+	// (POST /integrations/{integrationId}/sync)
+	SyncIntegration(ctx context.Context, request SyncIntegrationRequestObject) (SyncIntegrationResponseObject, error)
+
 	// (GET /models)
 	GetModelsOverview(ctx context.Context, request GetModelsOverviewRequestObject) (GetModelsOverviewResponseObject, error)
 
@@ -8757,6 +9377,12 @@ type StrictServerInterface interface {
 
 	// (GET /projects/{projectId}/board)
 	GetBoard(ctx context.Context, request GetBoardRequestObject) (GetBoardResponseObject, error)
+
+	// (GET /projects/{projectId}/integrations)
+	ListIntegrations(ctx context.Context, request ListIntegrationsRequestObject) (ListIntegrationsResponseObject, error)
+
+	// (POST /projects/{projectId}/integrations)
+	CreateIntegration(ctx context.Context, request CreateIntegrationRequestObject) (CreateIntegrationResponseObject, error)
 
 	// (GET /projects/{projectId}/repositories)
 	ListRepositories(ctx context.Context, request ListRepositoriesRequestObject) (ListRepositoriesResponseObject, error)
@@ -9623,6 +10249,91 @@ func (sh *strictHandler) GetHealth(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// DeleteIntegration operation middleware
+func (sh *strictHandler) DeleteIntegration(w http.ResponseWriter, r *http.Request, integrationId IntegrationId) {
+	var request DeleteIntegrationRequestObject
+
+	request.IntegrationId = integrationId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteIntegration(ctx, request.(DeleteIntegrationRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteIntegration")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DeleteIntegrationResponseObject); ok {
+		if err := validResponse.VisitDeleteIntegrationResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UpdateIntegration operation middleware
+func (sh *strictHandler) UpdateIntegration(w http.ResponseWriter, r *http.Request, integrationId IntegrationId) {
+	var request UpdateIntegrationRequestObject
+
+	request.IntegrationId = integrationId
+
+	var body UpdateIntegrationJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.UpdateIntegration(ctx, request.(UpdateIntegrationRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UpdateIntegration")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(UpdateIntegrationResponseObject); ok {
+		if err := validResponse.VisitUpdateIntegrationResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// SyncIntegration operation middleware
+func (sh *strictHandler) SyncIntegration(w http.ResponseWriter, r *http.Request, integrationId IntegrationId) {
+	var request SyncIntegrationRequestObject
+
+	request.IntegrationId = integrationId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.SyncIntegration(ctx, request.(SyncIntegrationRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SyncIntegration")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(SyncIntegrationResponseObject); ok {
+		if err := validResponse.VisitSyncIntegrationResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // GetModelsOverview operation middleware
 func (sh *strictHandler) GetModelsOverview(w http.ResponseWriter, r *http.Request, params GetModelsOverviewParams) {
 	var request GetModelsOverviewRequestObject
@@ -9836,6 +10547,65 @@ func (sh *strictHandler) GetBoard(w http.ResponseWriter, r *http.Request, projec
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(GetBoardResponseObject); ok {
 		if err := validResponse.VisitGetBoardResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListIntegrations operation middleware
+func (sh *strictHandler) ListIntegrations(w http.ResponseWriter, r *http.Request, projectId ProjectId) {
+	var request ListIntegrationsRequestObject
+
+	request.ProjectId = projectId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListIntegrations(ctx, request.(ListIntegrationsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListIntegrations")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListIntegrationsResponseObject); ok {
+		if err := validResponse.VisitListIntegrationsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CreateIntegration operation middleware
+func (sh *strictHandler) CreateIntegration(w http.ResponseWriter, r *http.Request, projectId ProjectId) {
+	var request CreateIntegrationRequestObject
+
+	request.ProjectId = projectId
+
+	var body CreateIntegrationJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateIntegration(ctx, request.(CreateIntegrationRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateIntegration")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CreateIntegrationResponseObject); ok {
+		if err := validResponse.VisitCreateIntegrationResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

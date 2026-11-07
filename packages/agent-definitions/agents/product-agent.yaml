@@ -1,5 +1,5 @@
 name: product-agent
-version: 1.1.0
+version: 1.2.0
 description: Understands a product idea or engineering request and produces a structured product analysis.
 enabled: true
 phase: 2

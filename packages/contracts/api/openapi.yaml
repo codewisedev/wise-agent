@@ -30,6 +30,7 @@ tags:
   - name: approvals
   - name: accounts
   - name: templates
+  - name: integrations
 
 paths:
   /healthz:
@@ -1097,6 +1098,86 @@ paths:
         "404": { $ref: "#/components/responses/Problem" }
         "409": { $ref: "#/components/responses/Problem" }
 
+  /projects/{projectId}/integrations:
+    parameters:
+      - $ref: "#/components/parameters/ProjectId"
+    get:
+      tags: [integrations]
+      operationId: listIntegrations
+      responses:
+        "200":
+          description: The project's task sources.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/IntegrationList" }
+        "401": { $ref: "#/components/responses/Problem" }
+    post:
+      tags: [integrations]
+      operationId: createIntegration
+      description: Adds a Jira, ClickUp or Trello task source (import only). Signed-in session only.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/IntegrationInput" }
+      responses:
+        "201":
+          description: Created.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Integration" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+  /integrations/{integrationId}:
+    parameters:
+      - $ref: "#/components/parameters/IntegrationId"
+    put:
+      tags: [integrations]
+      operationId: updateIntegration
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/IntegrationInput" }
+      responses:
+        "200":
+          description: Updated.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Integration" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+    delete:
+      tags: [integrations]
+      operationId: deleteIntegration
+      description: Removes the source; imported tasks stay on the board.
+      responses:
+        "204": { description: Deleted. }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+  /integrations/{integrationId}/sync:
+    parameters:
+      - $ref: "#/components/parameters/IntegrationId"
+    post:
+      tags: [integrations]
+      operationId: syncIntegration
+      description: Imports now (otherwise every intervalMinutes).
+      responses:
+        "200":
+          description: Sync result.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SyncResult" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+        "502": { $ref: "#/components/responses/Problem" }
+
   /runtime/v1/runs/claim:
     post:
       tags: [runtime]
@@ -1274,6 +1355,11 @@ components:
       schema: { type: string, format: uuid }
     ApprovalId:
       name: approvalId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    IntegrationId:
+      name: integrationId
       in: path
       required: true
       schema: { type: string, format: uuid }
@@ -2135,6 +2221,63 @@ components:
       properties:
         account: { type: string, description: Empty string = back to the agent's default routing. }
         model: { type: string }
+    IntegrationKind:
+      type: string
+      enum: [jira, clickup, trello]
+    SyncResult:
+      type: object
+      required: [total, created, updated, unchanged, started, at]
+      properties:
+        total: { type: integer }
+        created: { type: integer }
+        updated: { type: integer }
+        unchanged: { type: integer }
+        started: { type: integer }
+        errors: { type: array, items: { type: string } }
+        at: { type: string, format: date-time }
+    Integration:
+      type: object
+      required: [id, projectId, kind, name, accountId, config, statusMap, autoStart, intervalMinutes, enabled, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        projectId: { type: string, format: uuid }
+        kind: { $ref: "#/components/schemas/IntegrationKind" }
+        name: { type: string }
+        accountId: { type: string, format: uuid }
+        config: { type: object, additionalProperties: true, description: "jira: jql; clickup: listId; trello: boardId, lists[]" }
+        statusMap:
+          type: object
+          description: External status (lowercase) → board column.
+          additionalProperties: { $ref: "#/components/schemas/BoardColumn" }
+        defaultTemplateId: { type: string, format: uuid, nullable: true }
+        autoStart: { type: boolean }
+        intervalMinutes: { type: integer }
+        enabled: { type: boolean }
+        lastSyncedAt: { type: string, format: date-time, nullable: true }
+        lastResult: { $ref: "#/components/schemas/SyncResult" }
+        lastError: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    IntegrationList:
+      type: object
+      required: [items]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/Integration" } }
+    IntegrationInput:
+      type: object
+      required: [name, kind, accountId]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 100 }
+        kind: { $ref: "#/components/schemas/IntegrationKind" }
+        accountId: { type: string, format: uuid }
+        config: { type: object, additionalProperties: true }
+        statusMap:
+          type: object
+          additionalProperties: { $ref: "#/components/schemas/BoardColumn" }
+        defaultTemplateId: { type: string, format: uuid, nullable: true }
+        autoStart: { type: boolean }
+        intervalMinutes: { type: integer, minimum: 5, maximum: 1440 }
+        enabled: { type: boolean }
     RuntimeClaimRequest:
       type: object
       required: [runtimeId]

@@ -164,7 +164,7 @@ export function SettingsPage() {
           <a href="http://127.0.0.1:8233/namespaces/wise/workflows" target="_blank" rel="noreferrer">
             Temporal UI on 127.0.0.1:8233
           </a>
-          . Approval gates are configured in <span className="mono">configs/workflows/engineering.yaml</span>.
+          . Steps, accounts and review gates are set per workflow template; <span className="mono">configs/workflows/engineering.yaml</span> holds global limits.
         </p>
       </Panel>
     </>

@@ -26,6 +26,7 @@ import (
 	"wise/apps/api/internal/events"
 	"wise/apps/api/internal/gitinspect"
 	"wise/apps/api/internal/httpapi"
+	"wise/apps/api/internal/integrations"
 	"wise/apps/api/internal/modelgateway"
 	"wise/apps/api/internal/projects"
 	"wise/apps/api/internal/repositories"
@@ -178,6 +179,8 @@ func serve(ctx context.Context) error {
 		return fmt.Errorf("seed workflow templates: %w", err)
 	}
 
+	integrationSvc := integrations.NewService(d, accountSvc, taskSvc, log.With("component", "integrations"))
+
 	inspector := gitinspect.New(cfg.RepoRoots)
 	srv := &httpapi.Server{
 		DB:               d,
@@ -190,6 +193,7 @@ func serve(ctx context.Context) error {
 		Hub:              hub,
 		Tasks:            taskSvc,
 		Accounts:         accountSvc,
+		Integrations:     integrationSvc,
 		Cookie:           httpapi.CookieConfig{Secure: cfg.CookieSecure, TTL: cfg.SessionTTL},
 		RuntimeToken:     cfg.RuntimeToken,
 		WSOriginPatterns: wsOriginPatterns(cfg.CORSOrigins),
@@ -204,6 +208,7 @@ func serve(ctx context.Context) error {
 	go pruneSessions(ctx, authSvc, log)
 	go runQueue.RunReaper(ctx, 15*time.Second)
 	go hub.ListenWorkflowEvents(ctx, d, log)
+	go integrationSvc.RunScheduler(ctx, time.Minute)
 
 	hs := &http.Server{
 		Addr:              cfg.HTTPAddr,

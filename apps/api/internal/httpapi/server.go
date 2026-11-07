@@ -13,6 +13,7 @@ import (
 	"wise/apps/api/internal/db/dbgen"
 	"wise/apps/api/internal/events"
 	"wise/apps/api/internal/httpapi/apigen"
+	"wise/apps/api/internal/integrations"
 	"wise/apps/api/internal/modelgateway"
 	"wise/apps/api/internal/projects"
 	"wise/apps/api/internal/repositories"
@@ -32,6 +33,7 @@ type Server struct {
 	Hub          *events.Hub
 	Tasks        *tasks.Service
 	Accounts     *accounts.Service
+	Integrations *integrations.Service
 	Cookie       CookieConfig
 	// RuntimeToken authenticates agent runtimes claiming runs (empty disables the runtime API).
 	RuntimeToken string

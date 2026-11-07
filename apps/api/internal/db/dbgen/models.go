@@ -467,6 +467,27 @@ type AuditLog struct {
 	CreatedAt  time.Time
 }
 
+type Integration struct {
+	ID                uuid.UUID
+	ProjectID         uuid.UUID
+	Kind              string
+	Name              string
+	AccountID         uuid.UUID
+	Config            json.RawMessage
+	StatusMap         json.RawMessage
+	DefaultTemplateID *uuid.UUID
+	AutoStart         bool
+	IntervalMinutes   int32
+	Enabled           bool
+	LastSyncedAt      *time.Time
+	LastResult        []byte
+	LastError         *string
+	SyncStartedAt     *time.Time
+	CreatedBy         *uuid.UUID
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
+}
+
 type ModelCache struct {
 	Key       []byte
 	Response  json.RawMessage

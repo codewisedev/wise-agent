@@ -1,5 +1,5 @@
 name: architect-agent
-version: 1.0.0
+version: 1.1.0
 description: Reviews the implementation plan against the codebase, designs the technical solution and flags architecture-impacting changes.
 enabled: true
 phase: 3

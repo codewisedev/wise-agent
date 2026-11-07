@@ -485,3 +485,13 @@ details[open] > summary { margin-bottom: 6px; }
 @media (max-width: 900px) {
   .board { grid-template-columns: repeat(5, 260px); }
 }
+
+/* ---------- task sources ---------- */
+.status-map { margin: 12px 0 0; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius); display: grid; gap: 8px; }
+.status-map legend { padding: 0 4px; color: var(--text-muted); }
+.status-map .form-grid { align-items: center; }
+.spin { animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spin { animation: none; } }
+.status-map > .btn { justify-self: start; }
+.status-map .form-grid > .btn { margin-top: 0; }

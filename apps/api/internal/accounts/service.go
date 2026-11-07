@@ -421,3 +421,18 @@ func (s *Service) ValidateModelChoice(ctx context.Context, name string) error {
 	}
 	return nil
 }
+
+// Credential returns an account with its decrypted secret and metadata.
+func (s *Service) Credential(ctx context.Context, id uuid.UUID) (dbgen.Account, string, map[string]any, error) {
+	a, err := s.Get(ctx, id)
+	if err != nil {
+		return a, "", nil, err
+	}
+	secret, err := s.Secret(a)
+	if err != nil {
+		return a, "", nil, err
+	}
+	meta := map[string]any{}
+	_ = json.Unmarshal(a.Metadata, &meta)
+	return a, secret, meta, nil
+}

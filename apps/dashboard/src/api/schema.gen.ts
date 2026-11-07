@@ -926,6 +926,63 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/projects/{projectId}/integrations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: components["parameters"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        get: operations["listIntegrations"];
+        put?: never;
+        /** @description Adds a Jira, ClickUp or Trello task source (import only). Signed-in session only. */
+        post: operations["createIntegration"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/integrations/{integrationId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                integrationId: components["parameters"]["IntegrationId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["updateIntegration"];
+        post?: never;
+        /** @description Removes the source; imported tasks stay on the board. */
+        delete: operations["deleteIntegration"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/integrations/{integrationId}/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                integrationId: components["parameters"]["IntegrationId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Imports now (otherwise every intervalMinutes). */
+        post: operations["syncIntegration"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/runtime/v1/runs/claim": {
         parameters: {
             query?: never;
@@ -1815,6 +1872,69 @@ export interface components {
             account?: string;
             model?: string;
         };
+        /** @enum {string} */
+        IntegrationKind: "jira" | "clickup" | "trello";
+        SyncResult: {
+            total: number;
+            created: number;
+            updated: number;
+            unchanged: number;
+            started: number;
+            errors?: string[];
+            /** Format: date-time */
+            at: string;
+        };
+        Integration: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            projectId: string;
+            kind: components["schemas"]["IntegrationKind"];
+            name: string;
+            /** Format: uuid */
+            accountId: string;
+            /** @description jira: jql; clickup: listId; trello: boardId, lists[] */
+            config: {
+                [key: string]: unknown;
+            };
+            /** @description External status (lowercase) → board column. */
+            statusMap: {
+                [key: string]: components["schemas"]["BoardColumn"];
+            };
+            /** Format: uuid */
+            defaultTemplateId?: string | null;
+            autoStart: boolean;
+            intervalMinutes: number;
+            enabled: boolean;
+            /** Format: date-time */
+            lastSyncedAt?: string | null;
+            lastResult?: components["schemas"]["SyncResult"];
+            lastError?: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        IntegrationList: {
+            items: components["schemas"]["Integration"][];
+        };
+        IntegrationInput: {
+            name: string;
+            kind: components["schemas"]["IntegrationKind"];
+            /** Format: uuid */
+            accountId: string;
+            config?: {
+                [key: string]: unknown;
+            };
+            statusMap?: {
+                [key: string]: components["schemas"]["BoardColumn"];
+            };
+            /** Format: uuid */
+            defaultTemplateId?: string | null;
+            autoStart?: boolean;
+            intervalMinutes?: number;
+            enabled?: boolean;
+        };
         RuntimeClaimRequest: {
             runtimeId: string;
         };
@@ -1949,6 +2069,7 @@ export interface components {
         TaskId: string;
         WorkflowId: string;
         ApprovalId: string;
+        IntegrationId: string;
         TemplateId: string;
         AccountId: string;
         ArtifactId: string;
@@ -3642,6 +3763,138 @@ export interface operations {
             401: components["responses"]["Problem"];
             404: components["responses"]["Problem"];
             409: components["responses"]["Problem"];
+        };
+    };
+    listIntegrations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: components["parameters"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The project's task sources. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IntegrationList"];
+                };
+            };
+            401: components["responses"]["Problem"];
+        };
+    };
+    createIntegration: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: components["parameters"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IntegrationInput"];
+            };
+        };
+        responses: {
+            /** @description Created. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Integration"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    updateIntegration: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                integrationId: components["parameters"]["IntegrationId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IntegrationInput"];
+            };
+        };
+        responses: {
+            /** @description Updated. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Integration"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    deleteIntegration: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                integrationId: components["parameters"]["IntegrationId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    syncIntegration: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                integrationId: components["parameters"]["IntegrationId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Sync result. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyncResult"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            502: components["responses"]["Problem"];
         };
     };
     runtimeClaimRun: {

@@ -3,6 +3,7 @@ import { Layout } from "./components/Layout";
 import { AgentDetailPage } from "./pages/AgentDetailPage";
 import { AgentsPage } from "./pages/AgentsPage";
 import { BoardPage } from "./pages/BoardPage";
+import { IntegrationsPage } from "./pages/IntegrationsPage";
 import { ApprovalsPage } from "./pages/ApprovalsPage";
 import { ModelsPage } from "./pages/ModelsPage";
 import { RunPage } from "./pages/RunPage";
@@ -27,6 +28,7 @@ export const router = createBrowserRouter([
       { path: "/projects", element: <ProjectsPage /> },
       { path: "/projects/:projectId", element: <ProjectDetailPage /> },
       { path: "/projects/:projectId/board", element: <BoardPage /> },
+      { path: "/projects/:projectId/integrations", element: <IntegrationsPage /> },
       { path: "/tasks", element: <TasksPage /> },
       { path: "/tasks/:taskId", element: <TaskPage /> },
       { path: "/approvals", element: <ApprovalsPage /> },

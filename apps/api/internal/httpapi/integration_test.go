@@ -23,6 +23,7 @@ import (
 	"wise/apps/api/internal/events"
 	"wise/apps/api/internal/gitinspect"
 	"wise/apps/api/internal/httpapi"
+	"wise/apps/api/internal/integrations"
 	"wise/apps/api/internal/modelgateway"
 	"wise/apps/api/internal/projects"
 	"wise/apps/api/internal/repositories"
@@ -52,6 +53,7 @@ type env struct {
 	hub      *events.Hub
 	accounts *accounts.Service
 	gw       *modelgateway.Gateway
+	sources  *integrations.Service
 }
 
 func setup(t *testing.T) *env {
@@ -94,10 +96,11 @@ func setup(t *testing.T) *env {
 	if err := taskSvc.SeedTemplates(context.Background(), log); err != nil {
 		t.Fatal(err)
 	}
+	integrationSvc := integrations.NewService(d, accountSvc, taskSvc, log)
 	server := &httpapi.Server{
 		DB: d, Auth: authSvc, Projects: projects.NewService(d),
 		Repositories: repositories.NewService(d, gitinspect.New([]string{root})),
-		Agents:       agentSvc, RunQueue: queue, Gateway: gw, Hub: hub, Tasks: taskSvc, Accounts: accountSvc,
+		Agents:       agentSvc, RunQueue: queue, Gateway: gw, Hub: hub, Tasks: taskSvc, Accounts: accountSvc, Integrations: integrationSvc,
 		Cookie:       httpapi.CookieConfig{TTL: time.Hour},
 		RuntimeToken: runtimeToken,
 	}
@@ -109,7 +112,7 @@ func setup(t *testing.T) *env {
 	t.Cleanup(ts.Close)
 	jar, _ := cookiejar.New(nil)
 	return &env{t: t, db: d, srv: ts, client: &http.Client{Jar: jar}, repoRoot: root, queue: queue, model: model,
-		tasks: taskSvc, agents: agentSvc, hub: hub, accounts: accountSvc, gw: gw}
+		tasks: taskSvc, agents: agentSvc, hub: hub, accounts: accountSvc, gw: gw, sources: integrationSvc}
 }
 
 type resp struct {

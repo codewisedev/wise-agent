@@ -5,7 +5,7 @@ import {
 import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, ChevronRight, ExternalLink, Eye, Plus, Workflow } from "lucide-react";
+import { AlertTriangle, ChevronRight, ExternalLink, Eye, Plug, Plus, Workflow } from "lucide-react";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Link, useParams } from "react-router";
 import { api, unwrap, type Schemas } from "../api/client";
@@ -238,6 +238,9 @@ export function BoardPage() {
           <h1>{project.data?.name ?? "Board"}</h1>
           <p className="desc">Drag cards between columns. Running a task's workflow moves its card; reviews land in Review.</p>
         </div>
+        <Link to={`/projects/${projectId}/integrations`} className="btn btn-sm">
+          <Plug size={14} aria-hidden /> Task sources
+        </Link>
       </header>
       <ErrorNote error={board.error ?? move.error} />
       <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={onDragStart} onDragOver={onDragOver} onDragEnd={onDragEnd} onDragCancel={() => setActive(null)}>
