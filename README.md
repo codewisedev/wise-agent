@@ -2,7 +2,7 @@
 
 Personal, local-first AI engineering platform. See [`implementation-plan.md`](implementation-plan.md) for the full vision and roadmap.
 
-**Status: Phase 3 — Workflow engine.** Wise manages projects and repositories behind a login, executes specialized AI agents through a Model Gateway (LM Studio and Claude Code), and coordinates them in durable Temporal workflows with versioned artifacts and human approval gates. Context indexing and the coding pipeline arrive in later phases.
+**Status: Phase 3b — Board and configurable workflows.** Wise manages projects and repositories behind a login, keeps tasks on a Kanban board (by hand or imported from Jira, ClickUp and Trello), and runs them through configurable agent workflows on Temporal — any step on any of your accounts (Claude Code, Codex, LM Studio, DeepSeek…), with review gates or fully step by step. Context indexing and the coding pipeline arrive in later phases.
 
 ## What's here
 
@@ -83,22 +83,31 @@ models at all — Wise never edits it itself.
 If a provider fails for good (e.g. not logged in), the gateway skips it for 60 s and uses the alias's
 fallbacks. The **Models** page shows provider status, aliases and token/cost usage per agent.
 
-## Workflows
+## Board, workflows and accounts
 
-Create a **task** (Tasks → New task) and Wise runs the engineering workflow on Temporal:
+**Board** — every project has a board (Projects → a project → Board): Backlog, To do, In progress, Review,
+Done. Add cards in any column, drag them (mouse or keyboard: focus a card, Space, arrows, Space). Running a
+task's workflow moves its card; a step waiting for your review puts it in Review.
 
-```text
-product analysis → requirements → SCOPE APPROVAL → planning → architecture review → PLAN APPROVAL → final report
-```
+**Task sources** — Board → Task sources imports Jira issues (JQL), ClickUp list tasks or Trello cards on a
+schedule or with *Sync now*. Import only: Wise never writes back. Map source statuses to columns, pick the
+workflow imported tasks use, and optionally run it automatically.
 
-- **Approvals** (sidebar badge, `g i`) pin the exact artifact versions you review. *Request changes*
-  needs a comment; the agents revise using it and ask again. A newer artifact version invalidates
-  an open approval. Gates and the revision limit are in `configs/workflows/engineering.yaml`.
-- A failed agent stage parks the workflow in **awaiting retry** — fix the cause (e.g. load a better
-  model) and press *Retry stage*. Cancelling a task stops its running agents.
-- The **Temporal UI** at http://127.0.0.1:8233 (namespace `wise`) shows each workflow's history.
-- Commands to Temporal go through a Postgres outbox, so decisions made while Temporal or the
-  orchestrator is down are delivered when they come back. See `docs/decisions/0003-workflow-engine.md`.
+**Workflows** (`g w`) — templates of agent steps drawn as a flowchart. For each step choose the agent, the
+account and model that runs it, and whether to pause for review (*Pass to next step* / *Request changes*;
+changes re-run the step, or from an earlier one, with your comment as feedback). Insert steps with **+**
+on a connection. Problems (e.g. a planner without a requirements step) are highlighted before you save.
+On a task, pick a template, switch steps off or change their accounts for that task only, then **Run** or
+**Run step by step** (pause after every step). A failed step waits; retry it, optionally on another account.
+
+**Accounts** (Settings → Accounts) — add as many as you like: Claude Code (`claude setup-token`), Codex
+(paste `~/.codex/auth.json`), LM Studio, DeepSeek or any OpenAI-compatible endpoint, plus Jira, ClickUp and
+Trello for task sources. Secrets are encrypted with `WISE_SECRETS_KEY` and never shown again. Claude Code
+and Codex run in the isolated `wise-cli-runner` container.
+
+Temporal's UI (http://127.0.0.1:8233, namespace `wise`) shows every workflow's history. Commands to Temporal go
+through a Postgres outbox, so decisions made while Temporal or the orchestrator is down are delivered later.
+See `docs/decisions/0003-workflow-engine.md` and `0004-board-accounts-templates.md`.
 
 ## API
 
