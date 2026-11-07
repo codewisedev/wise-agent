@@ -4,6 +4,9 @@ description: Refines a product analysis into structured, testable requirements w
 enabled: true
 phase: 2
 prompt: requirements-agent/system.md
+produces: requirements
+consumes:
+  product_analysis: product_analysis
 responsibilities:
   - Turn product goals and features into user stories with acceptance criteria
   - Separate functional and non-functional requirements

@@ -27,6 +27,9 @@ type Service struct {
 	// Runs, when set, lets CancelTask stop running agents immediately instead of
 	// waiting for the workflow's activity to notice the cancellation.
 	Runs RunCanceller
+	// Agents and Accounts validate workflow plans.
+	Agents   AgentLookup
+	Accounts AccountChecker
 }
 
 func NewService(d *db.DB, cfg WorkflowConfig) *Service { return &Service{db: d, cfg: cfg} }
@@ -38,10 +41,20 @@ type Detail struct {
 	Steps     []dbgen.WorkflowStep
 	Artifacts []dbgen.Artifact // latest version of each kind
 	Approvals []dbgen.Approval
+	// Plan is the latest run's frozen plan, or what running the task would do.
+	Plan   Plan
+	Issues []Issue
 }
 
 // CreateTask creates a task and, when start is true, its first workflow run.
-func (s *Service) CreateTask(ctx context.Context, projectID uuid.UUID, title, description string, start bool, userID *uuid.UUID) (dbgen.Task, *dbgen.WorkflowRun, error) {
+// CreateOptions are optional task settings at creation.
+type CreateOptions struct {
+	TemplateID *uuid.UUID
+	Start      bool
+	StepByStep bool
+}
+
+func (s *Service) CreateTask(ctx context.Context, projectID uuid.UUID, title, description string, opts CreateOptions, userID *uuid.UUID) (dbgen.Task, *dbgen.WorkflowRun, error) {
 	title = strings.TrimSpace(title)
 	// Agents require a request of at least 3 characters; the title alone must satisfy it.
 	if len([]rune(title)) < 3 || len(title) > 200 {
@@ -62,16 +75,26 @@ func (s *Service) CreateTask(ctx context.Context, projectID uuid.UUID, title, de
 		}); err != nil {
 			return err
 		}
+		if opts.TemplateID != nil {
+			if _, err := q.GetWorkflowTemplate(ctx, *opts.TemplateID); db.IsNotFound(err) {
+				return apperr.Validation(apperr.FieldError{Field: "templateId", Message: "no such template"})
+			} else if err != nil {
+				return err
+			}
+			if task, err = q.SetTaskWorkflow(ctx, dbgen.SetTaskWorkflowParams{ID: id, TemplateID: opts.TemplateID, WorkflowOverrides: []byte("{}")}); err != nil {
+				return err
+			}
+		}
 		if err := audit.Record(ctx, q, audit.Entry{
 			Action: "task.create", EntityType: "task", EntityID: audit.Ptr(id),
 			Payload: map[string]any{"projectId": projectID, "title": title},
 		}); err != nil {
 			return err
 		}
-		if !start {
+		if !opts.Start {
 			return nil
 		}
-		r, err := s.startInTx(ctx, q, task, userID)
+		r, err := s.startInTx(ctx, q, task, userID, opts.StepByStep)
 		run = &r
 		return err
 	})
@@ -79,7 +102,7 @@ func (s *Service) CreateTask(ctx context.Context, projectID uuid.UUID, title, de
 }
 
 // StartWorkflow starts a new workflow run for a task that has none active.
-func (s *Service) StartWorkflow(ctx context.Context, taskID uuid.UUID, userID *uuid.UUID) (dbgen.WorkflowRun, error) {
+func (s *Service) StartWorkflow(ctx context.Context, taskID uuid.UUID, userID *uuid.UUID, stepByStep bool) (dbgen.WorkflowRun, error) {
 	var run dbgen.WorkflowRun
 	err := s.db.InTx(ctx, func(q *dbgen.Queries) error {
 		task, err := q.LockTask(ctx, taskID)
@@ -92,19 +115,26 @@ func (s *Service) StartWorkflow(ctx context.Context, taskID uuid.UUID, userID *u
 		if err := projects.LockActive(ctx, q, task.ProjectID); err != nil {
 			return err
 		}
-		run, err = s.startInTx(ctx, q, task, userID)
+		run, err = s.startInTx(ctx, q, task, userID, stepByStep)
 		return err
 	})
 	return run, err
 }
 
-func (s *Service) startInTx(ctx context.Context, q *dbgen.Queries, task dbgen.Task, userID *uuid.UUID) (dbgen.WorkflowRun, error) {
+func (s *Service) startInTx(ctx context.Context, q *dbgen.Queries, task dbgen.Task, userID *uuid.UUID, stepByStep bool) (dbgen.WorkflowRun, error) {
 	if latest, err := q.GetLatestWorkflowRunForTask(ctx, task.ID); err == nil && IsActiveRun(latest.Status) {
 		return dbgen.WorkflowRun{}, apperr.Conflict("this task already has an active workflow")
 	} else if err != nil && !db.IsNotFound(err) {
 		return dbgen.WorkflowRun{}, err
 	}
-	cfg, err := json.Marshal(s.cfg)
+	tw, err := s.planFor(ctx, q, task, stepByStep)
+	if err != nil {
+		return dbgen.WorkflowRun{}, err
+	}
+	if len(tw.Issues) > 0 {
+		return dbgen.WorkflowRun{}, issuesError(tw.Issues)
+	}
+	cfg, err := json.Marshal(tw.Plan)
 	if err != nil {
 		return dbgen.WorkflowRun{}, err
 	}
@@ -113,7 +143,7 @@ func (s *Service) startInTx(ctx context.Context, q *dbgen.Queries, task dbgen.Ta
 		return dbgen.WorkflowRun{}, err
 	}
 	run, err := q.CreateWorkflowRun(ctx, dbgen.CreateWorkflowRunParams{
-		ID: id, TaskID: task.ID, WorkflowType: WorkflowType, Config: cfg, CreatedBy: userID,
+		ID: id, TaskID: task.ID, WorkflowType: PipelineType, Config: cfg, CreatedBy: userID,
 	})
 	if db.IsUniqueViolation(err) {
 		return dbgen.WorkflowRun{}, apperr.Conflict("this task already has an active workflow")
@@ -124,7 +154,9 @@ func (s *Service) startInTx(ctx context.Context, q *dbgen.Queries, task dbgen.Ta
 	if err := q.SetTaskStatus(ctx, dbgen.SetTaskStatusParams{ID: task.ID, Status: "in_progress"}); err != nil {
 		return dbgen.WorkflowRun{}, err
 	}
-	if err := recordEvent(ctx, q, id, "workflow.created", map[string]any{"taskId": task.ID, "type": WorkflowType}); err != nil {
+	if err := recordEvent(ctx, q, id, "workflow.created", map[string]any{
+		"taskId": task.ID, "type": PipelineType, "template": tw.Plan.TemplateName, "stepByStep": stepByStep,
+	}); err != nil {
 		return dbgen.WorkflowRun{}, err
 	}
 	if err := enqueueCommand(ctx, q, id, CmdStart, nil); err != nil {
@@ -153,6 +185,18 @@ func (s *Service) GetTask(ctx context.Context, id uuid.UUID) (Detail, error) {
 		d.Workflow = &run
 		if d.Steps, err = s.db.ListWorkflowSteps(ctx, run.ID); err != nil {
 			return Detail{}, err
+		}
+	}
+	if p, ok := ParsePlan(run.Config); ok && d.Workflow != nil && IsActiveRun(run.Status) {
+		d.Plan = p
+	} else {
+		tw, err := s.planFor(ctx, s.db.Queries, task, false)
+		if err != nil && !isConflict(err) {
+			return Detail{}, err
+		}
+		d.Plan, d.Issues = tw.Plan, tw.Issues
+		if p, ok := ParsePlan(run.Config); ok && d.Workflow != nil {
+			d.Plan = p // finished runs show what actually ran
 		}
 	}
 	all, err := s.db.ListArtifacts(ctx, dbgen.ListArtifactsParams{TaskID: id})
@@ -432,4 +476,9 @@ func enqueueCommand(ctx context.Context, q *dbgen.Queries, runID uuid.UUID, kind
 		return err
 	}
 	return q.NotifyWorkflowCommand(ctx)
+}
+
+func isConflict(err error) bool {
+	e, ok := apperr.As(err)
+	return ok && e.Status == 409
 }

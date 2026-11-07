@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Link } from "react-router";
 import { api, unwrap, type Schemas } from "../api/client";
 import { Badge, Empty, ErrorNote, Panel, label, relativeTime, type Tone } from "../components/ui";
-import { KIND_LABEL } from "./workflowUi";
+import { kindLabel } from "./workflowUi";
 
 const tone: Record<Schemas["ApprovalStatus"], Tone> = {
   pending: "warn",
@@ -58,7 +58,7 @@ export function ApprovalsPage() {
               <thead>
                 <tr>
                   <th>Task</th>
-                  <th>Gate</th>
+                  <th>Step</th>
                   <th>Pins</th>
                   <th>Status</th>
                   <th>Requested</th>
@@ -71,10 +71,10 @@ export function ApprovalsPage() {
                       <Link to={`/tasks/${a.taskId}`} className="row-link">{a.taskTitle}</Link>
                       <div className="cell-sub small faint">{a.projectName}</div>
                     </td>
-                    <td className="small">{a.gate} · round {a.round}</td>
+                    <td className="small mono">{a.gate} · round {a.round}</td>
                     <td className="small">
                       {a.artifacts.map((r) => (
-                        <span key={r.artifactId} className="chip">{KIND_LABEL[r.kind]} v{r.version}</span>
+                        <span key={r.artifactId} className="chip">{kindLabel(r.kind)} v{r.version}</span>
                       ))}
                     </td>
                     <td><Badge tone={tone[a.status]}>{label(a.status)}</Badge></td>

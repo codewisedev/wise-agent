@@ -578,7 +578,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/tasks/{taskId}/workflows": {
+    "/tasks/{taskId}/run": {
         parameters: {
             query?: never;
             header?: never;
@@ -589,8 +589,31 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Starts a new workflow run for a task without an active one. */
-        post: operations["startTaskWorkflow"];
+        /**
+         * @description Starts the task's workflow (its template with the task's step overrides). With
+         *     `stepByStep`, the workflow pauses after every step so you pass each result on yourself.
+         */
+        post: operations["runTask"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tasks/{taskId}/workflow": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                taskId: components["parameters"]["TaskId"];
+            };
+            cookie?: never;
+        };
+        /** @description The task's template, overrides and the plan a run would use (with any issues). */
+        get: operations["getTaskWorkflow"];
+        /** @description Chooses the task's template (null = the default) and per-step overrides. */
+        put: operations["setTaskWorkflow"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -635,6 +658,29 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/workflows/{workflowId}/steps/{stepId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workflowId: components["parameters"]["WorkflowId"];
+                stepId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * @description Switches the account/model of a step that has not run yet or is waiting (for a retry or a
+         *     review re-run). Signed-in session only.
+         */
+        patch: operations["changeWorkflowStep"];
         trace?: never;
     };
     "/workflows/{workflowId}/retry": {
@@ -803,6 +849,58 @@ export interface paths {
         /** @description Checks the account works without sending any task data. */
         post: operations["testAccount"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/workflow-templates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listWorkflowTemplates"];
+        put?: never;
+        post: operations["createWorkflowTemplate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/workflow-templates/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Resolves a definition without saving it (live validation for the editor). */
+        post: operations["previewWorkflowTemplate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/workflow-templates/{templateId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                templateId: components["parameters"]["TemplateId"];
+            };
+            cookie?: never;
+        };
+        get: operations["getWorkflowTemplate"];
+        /** @description Replaces the template; running workflows keep the plan they started with. */
+        put: operations["updateWorkflowTemplate"];
+        post?: never;
+        delete: operations["deleteWorkflowTemplate"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1330,12 +1428,20 @@ export interface components {
             description?: string;
             /** @default true */
             start: boolean;
+            /** @description With start, pause after every step. */
+            stepByStep?: boolean;
+            /**
+             * Format: uuid
+             * @description Workflow template (default template when omitted).
+             */
+            templateId?: string;
         };
         TaskDetail: {
             task: components["schemas"]["Task"];
             workflow?: components["schemas"]["WorkflowRun"];
-            /** @description The pipeline's stages in order. */
-            stages: string[];
+            plan: components["schemas"]["WorkflowPlan"];
+            /** @description Problems that would stop the task's workflow from starting. */
+            issues: components["schemas"]["PlanIssue"][];
             steps: components["schemas"]["WorkflowStep"][];
             /** @description Latest version of each artifact kind. */
             artifacts: components["schemas"]["Artifact"][];
@@ -1398,8 +1504,8 @@ export interface components {
         WorkflowEventList: {
             items: components["schemas"]["WorkflowEvent"][];
         };
-        /** @enum {string} */
-        ArtifactKind: "product_analysis" | "requirements" | "plan" | "architecture_review" | "final_report";
+        /** @description The artifact kind an agent produces (e.g. product_analysis, requirements, plan, final_report). */
+        ArtifactKind: string;
         Artifact: {
             /** Format: uuid */
             id: string;
@@ -1423,8 +1529,8 @@ export interface components {
         };
         /** @enum {string} */
         ApprovalStatus: "pending" | "approved" | "rejected" | "superseded" | "cancelled";
-        /** @enum {string} */
-        ApprovalGate: "scope" | "plan";
+        /** @description The id of the reviewed workflow step. */
+        ApprovalGate: string;
         ArtifactRef: {
             /** Format: uuid */
             artifactId: string;
@@ -1527,6 +1633,123 @@ export interface components {
         AccountTestResult: {
             ok: boolean;
             error?: string;
+        };
+        RunTaskRequest: {
+            /** @description Pause after every step. */
+            stepByStep?: boolean;
+        };
+        TemplateStep: {
+            id: string;
+            name?: string;
+            agent: string;
+            /** @description Account or models.yaml provider; empty = the agent's default routing. */
+            account?: string;
+            model?: string;
+            /** @description Pause after this step until its result is approved. */
+            review?: boolean;
+            /** @description Earlier step ids whose outputs the same review pins. */
+            reviewIncludes?: string[];
+            /** @description Earliest step re-run when changes are requested. */
+            reviseFrom?: string;
+            enabled?: boolean;
+        };
+        TemplateDefinition: {
+            steps: components["schemas"]["TemplateStep"][];
+            source?: {
+                /** @description Run as soon as a task is created or imported. */
+                autoStart?: boolean;
+            };
+            destination?: {
+                column?: components["schemas"]["BoardColumn"];
+            };
+            finalReport?: boolean;
+            maxRevisions?: number;
+        };
+        /** @enum {string} */
+        BoardColumn: "backlog" | "todo" | "in_progress" | "review" | "done";
+        WorkflowTemplate: {
+            /** Format: uuid */
+            id: string;
+            slug?: string | null;
+            name: string;
+            description: string;
+            definition: components["schemas"]["TemplateDefinition"];
+            version: number;
+            isDefault: boolean;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        WorkflowTemplateList: {
+            items: components["schemas"]["WorkflowTemplate"][];
+        };
+        WorkflowTemplateInput: {
+            name: string;
+            description?: string;
+            definition: components["schemas"]["TemplateDefinition"];
+            isDefault?: boolean;
+        };
+        PlanStep: {
+            id: string;
+            name: string;
+            agent: string;
+            /** @description Artifact kind the step produces. */
+            kind: string;
+            account?: string;
+            model?: string;
+            enabled: boolean;
+            review: boolean;
+            reviewKinds: string[];
+            reviseFrom?: string;
+            consumes?: {
+                [key: string]: string;
+            };
+        };
+        WorkflowPlan: {
+            templateId?: string;
+            templateName?: string;
+            templateVersion?: number;
+            steps: components["schemas"]["PlanStep"][];
+            finalReport: boolean;
+            maxRevisions: number;
+            destination: string;
+            stepByStep: boolean;
+        };
+        PlanIssue: {
+            stepId?: string;
+            message: string;
+        };
+        PlanPreview: {
+            plan: components["schemas"]["WorkflowPlan"];
+            issues: components["schemas"]["PlanIssue"][];
+        };
+        StepOverride: {
+            enabled?: boolean;
+            account?: string;
+            model?: string;
+            review?: boolean;
+        };
+        SetTaskWorkflowRequest: {
+            /** Format: uuid */
+            templateId?: string | null;
+            /** @description Per-step overrides keyed by step id. */
+            steps?: {
+                [key: string]: components["schemas"]["StepOverride"];
+            };
+        };
+        TaskWorkflow: {
+            template: components["schemas"]["WorkflowTemplate"];
+            steps: {
+                [key: string]: components["schemas"]["StepOverride"];
+            };
+            plan: components["schemas"]["WorkflowPlan"];
+            issues: components["schemas"]["PlanIssue"][];
+        };
+        ChangeStepRequest: {
+            /** @description Empty string = back to the agent's default routing. */
+            account?: string;
+            model?: string;
         };
         RuntimeClaimRequest: {
             runtimeId: string;
@@ -1662,6 +1885,7 @@ export interface components {
         TaskId: string;
         WorkflowId: string;
         ApprovalId: string;
+        TemplateId: string;
         AccountId: string;
         ArtifactId: string;
     };
@@ -2701,7 +2925,7 @@ export interface operations {
             404: components["responses"]["Problem"];
         };
     };
-    startTaskWorkflow: {
+    runTask: {
         parameters: {
             query?: never;
             header?: never;
@@ -2710,7 +2934,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["RunTaskRequest"];
+            };
+        };
         responses: {
             /** @description Workflow queued for start. */
             202: {
@@ -2721,9 +2949,63 @@ export interface operations {
                     "application/json": components["schemas"]["WorkflowRun"];
                 };
             };
+            400: components["responses"]["Problem"];
             401: components["responses"]["Problem"];
             404: components["responses"]["Problem"];
             409: components["responses"]["Problem"];
+        };
+    };
+    getTaskWorkflow: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                taskId: components["parameters"]["TaskId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Task workflow setup. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskWorkflow"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    setTaskWorkflow: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                taskId: components["parameters"]["TaskId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetTaskWorkflowRequest"];
+            };
+        };
+        responses: {
+            /** @description Saved. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskWorkflow"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
         };
     };
     getWorkflow: {
@@ -2774,6 +3056,38 @@ export interface operations {
             };
             401: components["responses"]["Problem"];
             404: components["responses"]["Problem"];
+        };
+    };
+    changeWorkflowStep: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workflowId: components["parameters"]["WorkflowId"];
+                stepId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChangeStepRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated plan. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkflowPlan"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
         };
     };
     retryWorkflow: {
@@ -3062,6 +3376,155 @@ export interface operations {
             };
             401: components["responses"]["Problem"];
             404: components["responses"]["Problem"];
+        };
+    };
+    listWorkflowTemplates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Templates (default first). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkflowTemplateList"];
+                };
+            };
+            401: components["responses"]["Problem"];
+        };
+    };
+    createWorkflowTemplate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WorkflowTemplateInput"];
+            };
+        };
+        responses: {
+            /** @description Created. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkflowTemplate"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+        };
+    };
+    previewWorkflowTemplate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TemplateDefinition"];
+            };
+        };
+        responses: {
+            /** @description Resolved plan and issues. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanPreview"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+        };
+    };
+    getWorkflowTemplate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                templateId: components["parameters"]["TemplateId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Template. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkflowTemplate"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    updateWorkflowTemplate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                templateId: components["parameters"]["TemplateId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WorkflowTemplateInput"];
+            };
+        };
+        responses: {
+            /** @description Updated. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkflowTemplate"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    deleteWorkflowTemplate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                templateId: components["parameters"]["TemplateId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
         };
     };
     runtimeClaimRun: {

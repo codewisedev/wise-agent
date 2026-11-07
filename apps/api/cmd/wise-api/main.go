@@ -172,6 +172,11 @@ func serve(ctx context.Context) error {
 	agentSvc := agents.NewService(d, hub)
 	taskSvc := tasks.NewService(d, wfCfg)
 	taskSvc.Runs = agentSvc
+	taskSvc.Agents = tasks.LookupFrom(catalog.Lookup(), func(i agents.Info) tasks.AgentInfo { return tasks.AgentInfo(i) })
+	taskSvc.Accounts = accountSvc.ValidateModelChoice
+	if err := taskSvc.SeedTemplates(ctx, log); err != nil {
+		return fmt.Errorf("seed workflow templates: %w", err)
+	}
 
 	inspector := gitinspect.New(cfg.RepoRoots)
 	srv := &httpapi.Server{

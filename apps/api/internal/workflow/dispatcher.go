@@ -123,6 +123,9 @@ func (d *Dispatcher) deliver(ctx context.Context, c dbgen.WorkflowCommand) error
 	switch c.Kind {
 	case tasks.CmdStart:
 		info, err := d.Tasks.StartInfo(ctx, c.WorkflowRunID)
+		if errors.Is(err, tasks.ErrNoPlan) {
+			return fmt.Errorf("%w: %v", errPermanent, err) // a run from before configurable workflows
+		}
 		if err != nil {
 			return err
 		}
@@ -133,9 +136,9 @@ func (d *Dispatcher) deliver(ctx context.Context, c dbgen.WorkflowCommand) error
 			ID:                    wfID,
 			TaskQueue:             TaskQueue,
 			WorkflowIDReusePolicy: enumspb.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
-		}, tasks.WorkflowType, Input{
+		}, tasks.PipelineType, Input{
 			WorkflowRunID: c.WorkflowRunID, TaskID: info.Task.ID, ProjectID: info.Project,
-			CreatedBy: info.Run.CreatedBy, Config: info.Config,
+			CreatedBy: info.Run.CreatedBy, Plan: info.Plan,
 		})
 		var started *serviceerror.WorkflowExecutionAlreadyStarted
 		if errors.As(err, &started) {

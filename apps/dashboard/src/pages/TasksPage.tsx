@@ -15,9 +15,15 @@ function NewTaskForm({ defaultProject }: { defaultProject?: string }) {
   const [projectId, setProjectId] = useState(defaultProject ?? "");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [templateId, setTemplateId] = useState("");
+  const [mode, setMode] = useState<"run" | "step" | "later">("later");
+  const templates = useQuery({ queryKey: ["workflow-templates"], queryFn: () => unwrap(api.GET("/workflow-templates")) });
   const create = useMutation({
     mutationFn: (pid: string) =>
-      unwrap(api.POST("/projects/{projectId}/tasks", { params: { path: { projectId: pid } }, body: { title, description, start: true } })),
+      unwrap(api.POST("/projects/{projectId}/tasks", {
+        params: { path: { projectId: pid } },
+        body: { title, description, start: mode !== "later", stepByStep: mode === "step", ...(templateId ? { templateId } : {}) },
+      })),
     onSuccess: (d) => {
       void qc.invalidateQueries({ queryKey: ["tasks"] });
       navigate(`/tasks/${d.task.id}`);
@@ -49,9 +55,24 @@ function NewTaskForm({ defaultProject }: { defaultProject?: string }) {
             <textarea rows={4} value={description} onChange={(e) => setDescription(e.target.value)} maxLength={20000} />
           </Field>
         </div>
+        <div className="form-grid" style={{ marginTop: 12 }}>
+          <Field label="Workflow" hint="Steps, accounts and reviews can be adjusted on the task before running.">
+            <select value={templateId} onChange={(e) => setTemplateId(e.target.value)}>
+              <option value="">default template</option>
+              {templates.data?.items.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+            </select>
+          </Field>
+          <Field label="After creating">
+            <select value={mode} onChange={(e) => setMode(e.target.value as typeof mode)}>
+              <option value="later">set up, run later</option>
+              <option value="step">run step by step</option>
+              <option value="run">run now</option>
+            </select>
+          </Field>
+        </div>
         <div className="actions">
           <button type="submit" className="btn btn-primary" disabled={create.isPending || !project || title.trim().length < 3}>
-            <Plus size={15} aria-hidden /> Create and start workflow
+            <Plus size={15} aria-hidden /> Create task
           </button>
         </div>
         <ErrorNote error={create.error} />

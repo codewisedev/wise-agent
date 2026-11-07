@@ -28,16 +28,20 @@ import (
 
 // Definition is the typed view of the fields the control plane needs.
 type Definition struct {
-	Name         string          `json:"name"`
-	Version      string          `json:"version"`
-	Description  string          `json:"description"`
-	Enabled      bool            `json:"enabled"`
-	Phase        *int            `json:"phase,omitempty"`
-	Prompt       string          `json:"prompt,omitempty"`
-	InputSchema  json.RawMessage `json:"input_schema"`
-	OutputSchema json.RawMessage `json:"output_schema"`
-	Tools        []string        `json:"tools"`
-	Permissions  []string        `json:"permissions"`
+	Name        string `json:"name"`
+	Version     string `json:"version"`
+	Description string `json:"description"`
+	Enabled     bool   `json:"enabled"`
+	Phase       *int   `json:"phase,omitempty"`
+	Prompt      string `json:"prompt,omitempty"`
+	// Produces is the artifact kind of the agent's output in workflows.
+	Produces string `json:"produces,omitempty"`
+	// Consumes maps input properties to the artifact kinds that fill them.
+	Consumes     map[string]string `json:"consumes,omitempty"`
+	InputSchema  json.RawMessage   `json:"input_schema"`
+	OutputSchema json.RawMessage   `json:"output_schema"`
+	Tools        []string          `json:"tools"`
+	Permissions  []string          `json:"permissions"`
 	ModelConfig  struct {
 		Alias           string   `json:"alias"`
 		Fallbacks       []string `json:"fallbacks,omitempty"`
@@ -165,6 +169,20 @@ func loadOne(defs, promptFS fs.FS, file string, tools map[string]Tool) (Loaded, 
 			return Loaded{}, err
 		}
 	}
+	if d.Enabled && d.Produces == "" {
+		return Loaded{}, fmt.Errorf("enabled agents must declare `produces` (the artifact kind of their output)")
+	}
+	if len(d.Consumes) > 0 {
+		var in struct {
+			Properties map[string]json.RawMessage `json:"properties"`
+		}
+		_ = json.Unmarshal(d.InputSchema, &in)
+		for prop := range d.Consumes {
+			if _, ok := in.Properties[prop]; !ok {
+				return Loaded{}, fmt.Errorf("consumes %q, which is not an input_schema property", prop)
+			}
+		}
+	}
 	var prompt string
 	if d.Prompt != "" {
 		b, err := fs.ReadFile(promptFS, d.Prompt)
@@ -230,4 +248,35 @@ func ParseDefinition(raw []byte) (Definition, error) {
 	var d Definition
 	err := json.Unmarshal(raw, &d)
 	return d, err
+}
+
+// Info is the workflow-relevant view of one agent.
+type Info struct {
+	Enabled         bool
+	Produces        string
+	Consumes        map[string]string
+	RequiredInputs  []string
+	AcceptsFeedback bool
+}
+
+// Lookup returns a function resolving agent names to their workflow info.
+func (c Catalog) Lookup() func(name string) (Info, bool) {
+	infos := map[string]Info{}
+	for _, l := range c.Agents {
+		var in struct {
+			Required   []string                   `json:"required"`
+			Properties map[string]json.RawMessage `json:"properties"`
+		}
+		_ = json.Unmarshal(l.Def.InputSchema, &in)
+		_, fb := in.Properties["feedback"]
+		_, prev := in.Properties["previous_output"]
+		infos[l.Def.Name] = Info{
+			Enabled: l.Def.Enabled, Produces: l.Def.Produces, Consumes: l.Def.Consumes,
+			RequiredInputs: in.Required, AcceptsFeedback: fb && prev,
+		}
+	}
+	return func(name string) (Info, bool) {
+		i, ok := infos[name]
+		return i, ok
+	}
 }

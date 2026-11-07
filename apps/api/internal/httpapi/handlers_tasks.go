@@ -70,7 +70,8 @@ func toApproval(a dbgen.Approval) apigen.Approval {
 func toTaskDetail(d tasks.Detail) apigen.TaskDetail {
 	out := apigen.TaskDetail{
 		Task:      toTask(d.Task, nil),
-		Stages:    tasks.Stages,
+		Plan:      toPlan(d.Plan),
+		Issues:    toIssues(d.Issues),
 		Steps:     mapSlice(d.Steps, toWorkflowStep),
 		Artifacts: mapSlice(d.Artifacts, toArtifact),
 		Approvals: mapSlice(d.Approvals, toApproval),
@@ -102,9 +103,11 @@ func (s *Server) CreateTask(ctx context.Context, req apigen.CreateTaskRequestObj
 	if err != nil {
 		return nil, err
 	}
-	start := req.Body.Start == nil || *req.Body.Start
+	opts := tasks.CreateOptions{
+		Start: req.Body.Start == nil || *req.Body.Start, StepByStep: deref(req.Body.StepByStep), TemplateID: req.Body.TemplateId,
+	}
 	userID := p.User.ID
-	task, _, err := s.Tasks.CreateTask(ctx, req.ProjectId, req.Body.Title, deref(req.Body.Description), start, &userID)
+	task, _, err := s.Tasks.CreateTask(ctx, req.ProjectId, req.Body.Title, deref(req.Body.Description), opts, &userID)
 	if err != nil {
 		return nil, err
 	}
@@ -177,19 +180,6 @@ func (s *Server) GetArtifact(ctx context.Context, req apigen.GetArtifactRequestO
 }
 
 // ---- workflows ----
-
-func (s *Server) StartTaskWorkflow(ctx context.Context, req apigen.StartTaskWorkflowRequestObject) (apigen.StartTaskWorkflowResponseObject, error) {
-	p, err := principal(ctx)
-	if err != nil {
-		return nil, err
-	}
-	userID := p.User.ID
-	run, err := s.Tasks.StartWorkflow(ctx, req.TaskId, &userID)
-	if err != nil {
-		return nil, err
-	}
-	return apigen.StartTaskWorkflow202JSONResponse(toWorkflowRun(run)), nil
-}
 
 func (s *Server) GetWorkflow(ctx context.Context, req apigen.GetWorkflowRequestObject) (apigen.GetWorkflowResponseObject, error) {
 	run, steps, err := s.Tasks.GetWorkflow(ctx, req.WorkflowId)

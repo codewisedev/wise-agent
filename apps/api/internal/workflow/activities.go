@@ -5,7 +5,6 @@ package workflow
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"time"
 
@@ -80,13 +79,23 @@ type StageResult struct {
 // artifact version. Cancelling the activity cancels the agent run.
 func (a *Activities) RunStage(ctx context.Context, req StageRequest) (StageResult, error) {
 	key := fmt.Sprintf("wf:%s:%s:a%d:r%d", req.WorkflowRunID, req.Stage, req.Attempt, req.Revision)
-	input, err := a.agentInput(ctx, req)
+	// Read the step's live settings: its account and model may have been
+	// changed while the workflow waited.
+	step, err := a.Tasks.CurrentStep(ctx, req.WorkflowRunID, req.Stage)
 	if err != nil {
 		return StageResult{}, err
 	}
-	run, err := a.Agents.Enqueue(ctx, req.Agent, input, agents.RunOptions{
+	input, err := a.agentInput(ctx, req, step)
+	if err != nil {
+		return StageResult{}, err
+	}
+	opts := agents.RunOptions{
 		ProjectID: &req.ProjectID, UserID: req.CreatedBy, WorkflowRunID: &req.WorkflowRunID, IdempotencyKey: key,
-	})
+	}
+	if step.Account != "" {
+		opts.Model = &agents.ModelOverride{Account: step.Account, Model: step.Model}
+	}
+	run, err := a.Agents.Enqueue(ctx, req.Agent, input, opts)
 	if err != nil {
 		if e, ok := apperr.As(err); ok && e.Status < 500 {
 			// Validation, disabled or unknown agent: retrying automatically cannot help.
@@ -191,8 +200,10 @@ func stageNotes(kind string, output json.RawMessage) []string {
 	return notes
 }
 
-// agentInput builds each agent's input from the task and the latest artifacts.
-func (a *Activities) agentInput(ctx context.Context, req StageRequest) (map[string]any, error) {
+// agentInput builds an agent's input: the task as `request`, each consumed
+// property from the latest artifact of its kind and, on a revision, the
+// reviewer's feedback with the rejected output.
+func (a *Activities) agentInput(ctx context.Context, req StageRequest, step tasks.PlanStep) (map[string]any, error) {
 	info, err := a.Tasks.StartInfo(ctx, req.WorkflowRunID)
 	if err != nil {
 		return nil, err
@@ -201,8 +212,11 @@ func (a *Activities) agentInput(ctx context.Context, req StageRequest) (map[stri
 	if info.Task.Description != "" {
 		request += "\n\n" + info.Task.Description
 	}
-	arts, err := a.Tasks.LatestArtifacts(ctx, req.TaskID,
-		tasks.KindProductAnalysis, tasks.KindRequirements, tasks.KindPlan, tasks.KindArchitectureReview)
+	kinds := []string{req.Kind}
+	for _, k := range step.Consumes {
+		kinds = append(kinds, k)
+	}
+	arts, err := a.Tasks.LatestArtifacts(ctx, req.TaskID, kinds...)
 	if err != nil {
 		return nil, err
 	}
@@ -218,27 +232,12 @@ func (a *Activities) agentInput(ctx context.Context, req StageRequest) (map[stri
 		return v, true
 	}
 	in := map[string]any{"request": request}
-	need := map[string][]string{
-		"product-agent":      {},
-		"requirements-agent": {tasks.KindProductAnalysis},
-		"planner-agent":      {tasks.KindRequirements, tasks.KindProductAnalysis},
-		"architect-agent":    {tasks.KindRequirements, tasks.KindPlan},
-	}
-	kinds, ok := need[req.Agent]
-	if !ok {
-		return nil, temporal.NewNonRetryableApplicationError("no input mapping for agent "+req.Agent, "InvalidStage", nil)
-	}
-	for _, k := range kinds {
-		if v, ok := content(k); ok {
-			in[k] = v
+	for prop, kind := range step.Consumes {
+		if v, ok := content(kind); ok {
+			in[prop] = v
 		}
 	}
-	if req.Agent == "planner-agent" || req.Agent == "architect-agent" {
-		if _, ok := in[tasks.KindRequirements]; !ok {
-			return nil, errors.New("requirements artifact missing")
-		}
-	}
-	if req.Revision > 0 {
+	if req.Revision > 0 && step.AcceptsFeedback {
 		if req.Feedback != "" {
 			in["feedback"] = req.Feedback
 		}
@@ -253,7 +252,8 @@ func (a *Activities) agentInput(ctx context.Context, req StageRequest) (map[stri
 type ApprovalRequest struct {
 	WorkflowRunID uuid.UUID
 	TaskID        uuid.UUID
-	Gate          string
+	Gate          string   // the reviewed step's id
+	Kinds         []string // artifact kinds pinned by the approval
 	Notes         []string
 }
 
@@ -264,7 +264,7 @@ type ApprovalInfo struct {
 }
 
 func (a *Activities) CreateApproval(ctx context.Context, r ApprovalRequest) (ApprovalInfo, error) {
-	ap, err := a.Tasks.CreateApproval(ctx, r.WorkflowRunID, r.TaskID, r.Gate, r.Notes)
+	ap, err := a.Tasks.CreateApproval(ctx, r.WorkflowRunID, r.TaskID, r.Gate, r.Kinds, r.Notes)
 	if err != nil {
 		return ApprovalInfo{}, err
 	}
@@ -286,8 +286,13 @@ func (a *Activities) BuildFinalReport(ctx context.Context, r ReportRequest) (uui
 	if err != nil {
 		return uuid.Nil, err
 	}
-	arts, err := a.Tasks.LatestArtifacts(ctx, r.TaskID,
-		tasks.KindProductAnalysis, tasks.KindRequirements, tasks.KindPlan, tasks.KindArchitectureReview)
+	var kinds []string
+	for _, st := range info.Plan.Steps {
+		if st.Enabled && st.Kind != "" {
+			kinds = append(kinds, st.Kind)
+		}
+	}
+	arts, err := a.Tasks.LatestArtifacts(ctx, r.TaskID, kinds...)
 	if err != nil {
 		return uuid.Nil, err
 	}
@@ -295,7 +300,7 @@ func (a *Activities) BuildFinalReport(ctx context.Context, r ReportRequest) (uui
 	if err != nil {
 		return uuid.Nil, err
 	}
-	report := BuildReport(info.Task, arts, approvals, r.WorkflowRunID)
+	report := BuildReport(info.Task, info.Plan, arts, approvals, r.WorkflowRunID)
 	raw, err := json.Marshal(report)
 	if err != nil {
 		return uuid.Nil, err

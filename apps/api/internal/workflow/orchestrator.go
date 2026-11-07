@@ -46,7 +46,7 @@ func RunOrchestrator(ctx context.Context, cfg OrchestratorConfig, d *db.DB, task
 	defer c.Close()
 
 	w := worker.New(c, TaskQueue, worker.Options{})
-	w.RegisterWorkflowWithOptions(EngineeringWorkflow, workflow.RegisterOptions{Name: tasks.WorkflowType})
+	w.RegisterWorkflowWithOptions(PipelineWorkflow, workflow.RegisterOptions{Name: tasks.PipelineType})
 	w.RegisterActivity(&Activities{Tasks: taskSvc, Agents: agentSvc})
 	if err := w.Start(); err != nil {
 		return fmt.Errorf("start temporal worker: %w", err)

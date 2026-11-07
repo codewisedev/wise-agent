@@ -89,6 +89,11 @@ func setup(t *testing.T) *env {
 	}
 	accountSvc := accounts.NewService(d, box, gw, log)
 	gw.WithSecretSaver(accountSvc.SaveSecret)
+	taskSvc.Agents = tasks.LookupFrom(catalog.Lookup(), func(i agents.Info) tasks.AgentInfo { return tasks.AgentInfo(i) })
+	taskSvc.Accounts = accountSvc.ValidateModelChoice
+	if err := taskSvc.SeedTemplates(context.Background(), log); err != nil {
+		t.Fatal(err)
+	}
 	server := &httpapi.Server{
 		DB: d, Auth: authSvc, Projects: projects.NewService(d),
 		Repositories: repositories.NewService(d, gitinspect.New([]string{root})),

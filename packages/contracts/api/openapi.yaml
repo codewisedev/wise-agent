@@ -29,6 +29,7 @@ tags:
   - name: workflows
   - name: approvals
   - name: accounts
+  - name: templates
 
 paths:
   /healthz:
@@ -663,22 +664,63 @@ paths:
               schema: { $ref: "#/components/schemas/ArtifactList" }
         "401": { $ref: "#/components/responses/Problem" }
         "404": { $ref: "#/components/responses/Problem" }
-  /tasks/{taskId}/workflows:
+  /tasks/{taskId}/run:
     parameters:
       - $ref: "#/components/parameters/TaskId"
     post:
       tags: [workflows]
-      operationId: startTaskWorkflow
-      description: Starts a new workflow run for a task without an active one.
+      operationId: runTask
+      description: |
+        Starts the task's workflow (its template with the task's step overrides). With
+        `stepByStep`, the workflow pauses after every step so you pass each result on yourself.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RunTaskRequest" }
       responses:
         "202":
           description: Workflow queued for start.
           content:
             application/json:
               schema: { $ref: "#/components/schemas/WorkflowRun" }
+        "400": { $ref: "#/components/responses/Problem" }
         "401": { $ref: "#/components/responses/Problem" }
         "404": { $ref: "#/components/responses/Problem" }
         "409": { $ref: "#/components/responses/Problem" }
+  /tasks/{taskId}/workflow:
+    parameters:
+      - $ref: "#/components/parameters/TaskId"
+    get:
+      tags: [workflows]
+      operationId: getTaskWorkflow
+      description: The task's template, overrides and the plan a run would use (with any issues).
+      responses:
+        "200":
+          description: Task workflow setup.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TaskWorkflow" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+    put:
+      tags: [workflows]
+      operationId: setTaskWorkflow
+      description: Chooses the task's template (null = the default) and per-step overrides.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SetTaskWorkflowRequest" }
+      responses:
+        "200":
+          description: Saved.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TaskWorkflow" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
   /workflows/{workflowId}:
     parameters:
       - $ref: "#/components/parameters/WorkflowId"
@@ -715,6 +757,35 @@ paths:
               schema: { $ref: "#/components/schemas/WorkflowEventList" }
         "401": { $ref: "#/components/responses/Problem" }
         "404": { $ref: "#/components/responses/Problem" }
+  /workflows/{workflowId}/steps/{stepId}:
+    parameters:
+      - $ref: "#/components/parameters/WorkflowId"
+      - name: stepId
+        in: path
+        required: true
+        schema: { type: string, pattern: "^[a-z][a-z0-9_-]{0,40}$" }
+    patch:
+      tags: [workflows]
+      operationId: changeWorkflowStep
+      description: |
+        Switches the account/model of a step that has not run yet or is waiting (for a retry or a
+        review re-run). Signed-in session only.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ChangeStepRequest" }
+      responses:
+        "200":
+          description: Updated plan.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WorkflowPlan" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
   /workflows/{workflowId}/retry:
     parameters:
       - $ref: "#/components/parameters/WorkflowId"
@@ -907,6 +978,92 @@ paths:
         "401": { $ref: "#/components/responses/Problem" }
         "404": { $ref: "#/components/responses/Problem" }
 
+  /workflow-templates:
+    get:
+      tags: [templates]
+      operationId: listWorkflowTemplates
+      responses:
+        "200":
+          description: Templates (default first).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WorkflowTemplateList" }
+        "401": { $ref: "#/components/responses/Problem" }
+    post:
+      tags: [templates]
+      operationId: createWorkflowTemplate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/WorkflowTemplateInput" }
+      responses:
+        "201":
+          description: Created.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WorkflowTemplate" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+  /workflow-templates/preview:
+    post:
+      tags: [templates]
+      operationId: previewWorkflowTemplate
+      description: Resolves a definition without saving it (live validation for the editor).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TemplateDefinition" }
+      responses:
+        "200":
+          description: Resolved plan and issues.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PlanPreview" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+  /workflow-templates/{templateId}:
+    parameters:
+      - $ref: "#/components/parameters/TemplateId"
+    get:
+      tags: [templates]
+      operationId: getWorkflowTemplate
+      responses:
+        "200":
+          description: Template.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WorkflowTemplate" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+    put:
+      tags: [templates]
+      operationId: updateWorkflowTemplate
+      description: Replaces the template; running workflows keep the plan they started with.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/WorkflowTemplateInput" }
+      responses:
+        "200":
+          description: Updated.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WorkflowTemplate" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+    delete:
+      tags: [templates]
+      operationId: deleteWorkflowTemplate
+      responses:
+        "204": { description: Deleted. }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+
   /runtime/v1/runs/claim:
     post:
       tags: [runtime]
@@ -1084,6 +1241,11 @@ components:
       schema: { type: string, format: uuid }
     ApprovalId:
       name: approvalId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    TemplateId:
+      name: templateId
       in: path
       required: true
       schema: { type: string, format: uuid }
@@ -1550,16 +1712,19 @@ components:
         title: { type: string, minLength: 3, maxLength: 200 }
         description: { type: string, maxLength: 20000 }
         start: { type: boolean, default: true }
+        stepByStep: { type: boolean, description: "With start, pause after every step." }
+        templateId: { type: string, format: uuid, description: Workflow template (default template when omitted). }
     TaskDetail:
       type: object
-      required: [task, stages, steps, artifacts, approvals]
+      required: [task, plan, issues, steps, artifacts, approvals]
       properties:
         task: { $ref: "#/components/schemas/Task" }
         workflow: { $ref: "#/components/schemas/WorkflowRun" }
-        stages:
-          description: The pipeline's stages in order.
+        plan: { $ref: "#/components/schemas/WorkflowPlan" }
+        issues:
+          description: Problems that would stop the task's workflow from starting.
           type: array
-          items: { type: string }
+          items: { $ref: "#/components/schemas/PlanIssue" }
         steps: { type: array, items: { $ref: "#/components/schemas/WorkflowStep" } }
         artifacts:
           description: Latest version of each artifact kind.
@@ -1622,7 +1787,8 @@ components:
         items: { type: array, items: { $ref: "#/components/schemas/WorkflowEvent" } }
     ArtifactKind:
       type: string
-      enum: [product_analysis, requirements, plan, architecture_review, final_report]
+      description: The artifact kind an agent produces (e.g. product_analysis, requirements, plan, final_report).
+      pattern: "^[a-z][a-z0-9_]{1,62}$"
     Artifact:
       type: object
       required: [id, taskId, kind, version, content, contentHash, createdAt]
@@ -1646,7 +1812,7 @@ components:
       enum: [pending, approved, rejected, superseded, cancelled]
     ApprovalGate:
       type: string
-      enum: [scope, plan]
+      description: The id of the reviewed workflow step.
     ArtifactRef:
       type: object
       required: [artifactId, kind, version, hash]
@@ -1755,6 +1921,141 @@ components:
       properties:
         ok: { type: boolean }
         error: { type: string }
+    RunTaskRequest:
+      type: object
+      properties:
+        stepByStep: { type: boolean, description: Pause after every step. }
+    TemplateStep:
+      type: object
+      required: [id, agent]
+      properties:
+        id: { type: string, pattern: "^[a-z][a-z0-9_-]{0,40}$" }
+        name: { type: string, maxLength: 100 }
+        agent: { type: string }
+        account: { type: string, description: Account or models.yaml provider; empty = the agent's default routing. }
+        model: { type: string }
+        review: { type: boolean, description: Pause after this step until its result is approved. }
+        reviewIncludes:
+          type: array
+          description: Earlier step ids whose outputs the same review pins.
+          items: { type: string }
+        reviseFrom: { type: string, description: Earliest step re-run when changes are requested. }
+        enabled: { type: boolean }
+    TemplateDefinition:
+      type: object
+      required: [steps]
+      properties:
+        steps: { type: array, items: { $ref: "#/components/schemas/TemplateStep" } }
+        source:
+          type: object
+          properties:
+            autoStart: { type: boolean, description: Run as soon as a task is created or imported. }
+        destination:
+          type: object
+          properties:
+            column: { $ref: "#/components/schemas/BoardColumn" }
+        finalReport: { type: boolean }
+        maxRevisions: { type: integer, minimum: 0, maximum: 50 }
+    BoardColumn:
+      type: string
+      enum: [backlog, todo, in_progress, review, done]
+    WorkflowTemplate:
+      type: object
+      required: [id, name, description, definition, version, isDefault, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        slug: { type: string, nullable: true }
+        name: { type: string }
+        description: { type: string }
+        definition: { $ref: "#/components/schemas/TemplateDefinition" }
+        version: { type: integer }
+        isDefault: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    WorkflowTemplateList:
+      type: object
+      required: [items]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/WorkflowTemplate" } }
+    WorkflowTemplateInput:
+      type: object
+      required: [name, definition]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 100 }
+        description: { type: string, maxLength: 2000 }
+        definition: { $ref: "#/components/schemas/TemplateDefinition" }
+        isDefault: { type: boolean }
+    PlanStep:
+      type: object
+      required: [id, name, agent, kind, enabled, review, reviewKinds]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        agent: { type: string }
+        kind: { type: string, description: Artifact kind the step produces. }
+        account: { type: string }
+        model: { type: string }
+        enabled: { type: boolean }
+        review: { type: boolean }
+        reviewKinds: { type: array, items: { type: string } }
+        reviseFrom: { type: string }
+        consumes:
+          type: object
+          additionalProperties: { type: string }
+    WorkflowPlan:
+      type: object
+      required: [steps, finalReport, maxRevisions, destination, stepByStep]
+      properties:
+        templateId: { type: string }
+        templateName: { type: string }
+        templateVersion: { type: integer }
+        steps: { type: array, items: { $ref: "#/components/schemas/PlanStep" } }
+        finalReport: { type: boolean }
+        maxRevisions: { type: integer }
+        destination: { type: string }
+        stepByStep: { type: boolean }
+    PlanIssue:
+      type: object
+      required: [message]
+      properties:
+        stepId: { type: string }
+        message: { type: string }
+    PlanPreview:
+      type: object
+      required: [plan, issues]
+      properties:
+        plan: { $ref: "#/components/schemas/WorkflowPlan" }
+        issues: { type: array, items: { $ref: "#/components/schemas/PlanIssue" } }
+    StepOverride:
+      type: object
+      properties:
+        enabled: { type: boolean }
+        account: { type: string }
+        model: { type: string }
+        review: { type: boolean }
+    SetTaskWorkflowRequest:
+      type: object
+      properties:
+        templateId: { type: string, format: uuid, nullable: true }
+        steps:
+          type: object
+          description: Per-step overrides keyed by step id.
+          additionalProperties: { $ref: "#/components/schemas/StepOverride" }
+    TaskWorkflow:
+      type: object
+      required: [template, steps, plan, issues]
+      properties:
+        template: { $ref: "#/components/schemas/WorkflowTemplate" }
+        steps:
+          type: object
+          additionalProperties: { $ref: "#/components/schemas/StepOverride" }
+        plan: { $ref: "#/components/schemas/WorkflowPlan" }
+        issues: { type: array, items: { $ref: "#/components/schemas/PlanIssue" } }
+    ChangeStepRequest:
+      type: object
+      properties:
+        account: { type: string, description: Empty string = back to the agent's default routing. }
+        model: { type: string }
     RuntimeClaimRequest:
       type: object
       required: [runtimeId]

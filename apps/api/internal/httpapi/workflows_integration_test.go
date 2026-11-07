@@ -62,7 +62,7 @@ func TestTaskWorkflowAndApprovals(t *testing.T) {
 	if got := e.pendingCommands(runID); len(got) != 1 || got[0] != "start:{}" {
 		t.Fatalf("start must be in the outbox: %v", got)
 	}
-	e.expect(e.do("POST", "/tasks/"+taskID.String()+"/workflows", nil), 409) // one active workflow per task
+	e.expect(e.do("POST", "/tasks/"+taskID.String()+"/run", nil), 409) // one active workflow per task
 	list := e.expect(e.do("GET", "/tasks", nil), 200)["items"].([]any)
 	if len(list) != 1 || list[0].(map[string]any)["projectName"] == "" {
 		t.Fatalf("tasks: %v", list)
@@ -72,11 +72,11 @@ func TestTaskWorkflowAndApprovals(t *testing.T) {
 	// artifacts and opens the scope gate.
 	e.saveArtifact(runID, taskID, tasks.KindProductAnalysis, map[string]any{"summary": "s"})
 	e.saveArtifact(runID, taskID, tasks.KindRequirements, map[string]any{"title": "r1"})
-	ap1, err := e.tasks.CreateApproval(ctx, runID, taskID, tasks.GateScope, nil)
+	ap1, err := e.tasks.CreateApproval(ctx, runID, taskID, "requirements", scopeKinds, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if again, _ := e.tasks.CreateApproval(ctx, runID, taskID, tasks.GateScope, nil); again.ID != ap1.ID {
+	if again, _ := e.tasks.CreateApproval(ctx, runID, taskID, "requirements", scopeKinds, nil); again.ID != ap1.ID {
 		t.Fatal("CreateApproval must be idempotent for unchanged artifacts")
 	}
 	inbox := e.expect(e.do("GET", "/approvals?status=pending", nil), 200)
@@ -100,7 +100,7 @@ func TestTaskWorkflowAndApprovals(t *testing.T) {
 	}
 	e.expect(e.do("POST", base+"/approve", map[string]any{"combinedHash": ap1.CombinedHash}), 409)
 
-	ap2, err := e.tasks.CreateApproval(ctx, runID, taskID, tasks.GateScope, []string{"note"})
+	ap2, err := e.tasks.CreateApproval(ctx, runID, taskID, "requirements", scopeKinds, []string{"note"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -154,7 +154,7 @@ func TestTaskWorkflowAndApprovals(t *testing.T) {
 	// Retry only from awaiting_retry.
 	e.expect(e.do("POST", "/workflows/"+runID.String()+"/retry", nil), 409)
 	msg := "agent failed"
-	if err := e.tasks.SetState(ctx, runID, tasks.RunAwaitingRetry, tasks.StagePlanning, &msg); err != nil {
+	if err := e.tasks.SetState(ctx, runID, tasks.RunAwaitingRetry, "planning", &msg); err != nil {
 		t.Fatal(err)
 	}
 	e.expect(e.do("POST", "/workflows/"+runID.String()+"/retry", nil), 202)
@@ -185,7 +185,7 @@ func TestBearerTokenCannotDecide(t *testing.T) {
 	taskID, runID := e.newTask("Token boundary")
 	e.saveArtifact(runID, taskID, tasks.KindProductAnalysis, map[string]any{"summary": "s"})
 	e.saveArtifact(runID, taskID, tasks.KindRequirements, map[string]any{"title": "r"})
-	ap, err := e.tasks.CreateApproval(context.Background(), runID, taskID, tasks.GateScope, nil)
+	ap, err := e.tasks.CreateApproval(context.Background(), runID, taskID, "requirements", scopeKinds, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -235,7 +235,7 @@ func TestWorkflowEventsReachHubViaNotify(t *testing.T) {
 	go e.hub.ListenWorkflowEvents(ctx, e.db, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	time.Sleep(300 * time.Millisecond) // let LISTEN start
 
-	if err := e.tasks.SetState(context.Background(), runID, tasks.RunRunning, tasks.StageProductAnalysis, nil); err != nil {
+	if err := e.tasks.SetState(context.Background(), runID, tasks.RunRunning, "analysis", nil); err != nil {
 		t.Fatal(err)
 	}
 	select {
@@ -247,6 +247,8 @@ func TestWorkflowEventsReachHubViaNotify(t *testing.T) {
 		t.Fatal("NOTIFY did not reach the hub")
 	}
 }
+
+var scopeKinds = []string{tasks.KindProductAnalysis, tasks.KindRequirements}
 
 func contains(xs []string, x string) bool {
 	for _, v := range xs {

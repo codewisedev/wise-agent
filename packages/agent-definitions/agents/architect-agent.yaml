@@ -4,6 +4,10 @@ description: Reviews the implementation plan against the codebase, designs the t
 enabled: true
 phase: 3
 prompt: architect-agent/system.md
+produces: architecture_review
+consumes:
+  requirements: requirements
+  plan: plan
 responsibilities:
   - Propose the technical design that implements the plan in the existing architecture
   - Identify affected components, contracts and data changes

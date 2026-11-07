@@ -9,7 +9,7 @@ const approval: Approval = {
   id: "11111111-1111-4111-8111-111111111111",
   workflowRunId: "22222222-2222-4222-8222-222222222222",
   taskId: "33333333-3333-4333-8333-333333333333",
-  gate: "plan",
+  gate: "architecture",
   round: 2,
   status: "pending",
   artifacts: [
@@ -52,7 +52,7 @@ describe("ApprovalCard", () => {
       response: new Response(null, { status: 200 }),
     } as never);
     renderCard();
-    fireEvent.click(screen.getByRole("button", { name: /^Approve$/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Pass to next step/ }));
     await waitFor(() => expect(post).toHaveBeenCalledTimes(1));
     const [path, init] = post.mock.calls[0] as unknown as [string, unknown];
     expect(path).toBe("/approvals/{approvalId}/approve");

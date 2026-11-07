@@ -176,7 +176,7 @@ const createTask = `-- name: CreateTask :one
 
 INSERT INTO tasks (id, project_id, title, description, created_by)
 VALUES ($1, $2, $3, $4, $5)
-RETURNING id, project_id, title, description, status, created_by, created_at, updated_at
+RETURNING id, project_id, title, description, status, created_by, created_at, updated_at, template_id, workflow_overrides
 `
 
 type CreateTaskParams struct {
@@ -206,6 +206,8 @@ func (q *Queries) CreateTask(ctx context.Context, arg CreateTaskParams) (Task, e
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.TemplateID,
+		&i.WorkflowOverrides,
 	)
 	return i, err
 }
@@ -517,7 +519,7 @@ func (q *Queries) GetLatestWorkflowRunForTask(ctx context.Context, taskID uuid.U
 }
 
 const getTask = `-- name: GetTask :one
-SELECT id, project_id, title, description, status, created_by, created_at, updated_at FROM tasks WHERE id = $1
+SELECT id, project_id, title, description, status, created_by, created_at, updated_at, template_id, workflow_overrides FROM tasks WHERE id = $1
 `
 
 func (q *Queries) GetTask(ctx context.Context, id uuid.UUID) (Task, error) {
@@ -532,6 +534,8 @@ func (q *Queries) GetTask(ctx context.Context, id uuid.UUID) (Task, error) {
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.TemplateID,
+		&i.WorkflowOverrides,
 	)
 	return i, err
 }
@@ -830,7 +834,7 @@ func (q *Queries) ListArtifacts(ctx context.Context, arg ListArtifactsParams) ([
 }
 
 const listTasks = `-- name: ListTasks :many
-SELECT t.id, t.project_id, t.title, t.description, t.status, t.created_by, t.created_at, t.updated_at, p.name AS project_name, p.slug AS project_slug
+SELECT t.id, t.project_id, t.title, t.description, t.status, t.created_by, t.created_at, t.updated_at, t.template_id, t.workflow_overrides, p.name AS project_name, p.slug AS project_slug
 FROM tasks t JOIN projects p ON p.id = t.project_id
 WHERE ($1::uuid IS NULL OR t.project_id = $1)
   AND ($2::text IS NULL OR t.status = $2)
@@ -845,16 +849,18 @@ type ListTasksParams struct {
 }
 
 type ListTasksRow struct {
-	ID          uuid.UUID
-	ProjectID   uuid.UUID
-	Title       string
-	Description string
-	Status      string
-	CreatedBy   *uuid.UUID
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
-	ProjectName string
-	ProjectSlug string
+	ID                uuid.UUID
+	ProjectID         uuid.UUID
+	Title             string
+	Description       string
+	Status            string
+	CreatedBy         *uuid.UUID
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
+	TemplateID        *uuid.UUID
+	WorkflowOverrides json.RawMessage
+	ProjectName       string
+	ProjectSlug       string
 }
 
 func (q *Queries) ListTasks(ctx context.Context, arg ListTasksParams) ([]ListTasksRow, error) {
@@ -875,6 +881,8 @@ func (q *Queries) ListTasks(ctx context.Context, arg ListTasksParams) ([]ListTas
 			&i.CreatedBy,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.TemplateID,
+			&i.WorkflowOverrides,
 			&i.ProjectName,
 			&i.ProjectSlug,
 		); err != nil {
@@ -1024,7 +1032,7 @@ func (q *Queries) LockApproval(ctx context.Context, id uuid.UUID) (Approval, err
 }
 
 const lockTask = `-- name: LockTask :one
-SELECT id, project_id, title, description, status, created_by, created_at, updated_at FROM tasks WHERE id = $1 FOR UPDATE
+SELECT id, project_id, title, description, status, created_by, created_at, updated_at, template_id, workflow_overrides FROM tasks WHERE id = $1 FOR UPDATE
 `
 
 func (q *Queries) LockTask(ctx context.Context, id uuid.UUID) (Task, error) {
@@ -1039,6 +1047,8 @@ func (q *Queries) LockTask(ctx context.Context, id uuid.UUID) (Task, error) {
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.TemplateID,
+		&i.WorkflowOverrides,
 	)
 	return i, err
 }

@@ -4,6 +4,10 @@ description: Breaks approved requirements into ordered, dependency-aware impleme
 enabled: true
 phase: 3
 prompt: planner-agent/system.md
+produces: plan
+consumes:
+  requirements: requirements
+  product_analysis: product_analysis
 responsibilities:
   - Decompose approved requirements into small, reviewable implementation steps
   - Order steps by dependency and trace each to the requirements it satisfies

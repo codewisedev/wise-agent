@@ -4,6 +4,7 @@ description: Understands a product idea or engineering request and produces a st
 enabled: true
 phase: 2
 prompt: product-agent/system.md
+produces: product_analysis
 responsibilities:
   - Clarify the problem, target users and goals behind a request
   - Identify key features with priorities, non-goals, risks and assumptions

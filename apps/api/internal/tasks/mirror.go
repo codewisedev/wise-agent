@@ -3,6 +3,7 @@ package tasks
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/google/uuid"
@@ -15,11 +16,15 @@ import (
 // activities). Each is idempotent, because Temporal may retry an activity after
 // its transaction committed.
 
+// ErrNoPlan marks a workflow run without a pipeline plan (created before
+// configurable workflows); it can never start.
+var ErrNoPlan = errors.New("workflow run has no pipeline plan")
+
 // StartInfo is what the orchestrator needs to start a workflow run.
 type StartInfo struct {
 	Run     dbgen.WorkflowRun
 	Task    dbgen.Task
-	Config  WorkflowConfig
+	Plan    Plan
 	Project uuid.UUID
 }
 
@@ -32,11 +37,11 @@ func (s *Service) StartInfo(ctx context.Context, runID uuid.UUID) (StartInfo, er
 	if err != nil {
 		return StartInfo{}, fmt.Errorf("load task: %w", err)
 	}
-	cfg := DefaultWorkflowConfig()
-	if err := json.Unmarshal(run.Config, &cfg); err != nil {
-		return StartInfo{}, fmt.Errorf("decode workflow config: %w", err)
+	plan, ok := ParsePlan(run.Config)
+	if !ok {
+		return StartInfo{}, fmt.Errorf("workflow run %s: %w", runID, ErrNoPlan)
 	}
-	return StartInfo{Run: run, Task: task, Config: cfg, Project: task.ProjectID}, nil
+	return StartInfo{Run: run, Task: task, Plan: plan, Project: task.ProjectID}, nil
 }
 
 func (s *Service) SetTemporalRunID(ctx context.Context, runID uuid.UUID, temporalRunID string) error {
@@ -193,10 +198,9 @@ func (s *Service) SaveArtifact(ctx context.Context, runID, taskID uuid.UUID, kin
 // CreateApproval opens an approval pinning the latest version of each artifact
 // the gate covers. If an identical pending approval exists (activity retry), it
 // is returned instead.
-func (s *Service) CreateApproval(ctx context.Context, runID, taskID uuid.UUID, gate string, notes []string) (dbgen.Approval, error) {
-	kinds, ok := GateArtifacts[gate]
-	if !ok {
-		return dbgen.Approval{}, fmt.Errorf("unknown gate %q", gate)
+func (s *Service) CreateApproval(ctx context.Context, runID, taskID uuid.UUID, gate string, kinds []string, notes []string) (dbgen.Approval, error) {
+	if len(kinds) == 0 {
+		return dbgen.Approval{}, fmt.Errorf("gate %q pins no artifacts", gate)
 	}
 	id, err := uuid.NewV7()
 	if err != nil {

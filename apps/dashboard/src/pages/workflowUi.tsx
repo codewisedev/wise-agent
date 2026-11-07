@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, Check, CheckCircle2, Circle, CircleDot, CircleSlash, Hourglass, PauseCircle, Undo2, XCircle } from "lucide-react";
+import { AlertTriangle, Check, CheckCircle2, Circle, CircleDot, CircleSlash, Eye, Hourglass, KeyRound, PauseCircle, Undo2, XCircle } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { api, unwrap, type Schemas } from "../api/client";
 import { Badge, ErrorNote, Field, label, relativeTime, type Tone } from "../components/ui";
@@ -9,6 +9,8 @@ export type WorkflowRun = Schemas["WorkflowRun"];
 export type WorkflowStep = Schemas["WorkflowStep"];
 export type Approval = Schemas["Approval"];
 export type Artifact = Schemas["Artifact"];
+export type Plan = Schemas["WorkflowPlan"];
+export type PlanStep = Schemas["PlanStep"];
 
 export const taskTone: Record<Schemas["TaskStatus"], Tone> = {
   open: "neutral",
@@ -40,9 +42,7 @@ export function WorkflowStatus({ wf }: { wf: WorkflowRun }) {
   return <Badge tone={workflowTone[wf.status]} pulse={wf.status === "running" || wf.status === "pending"}>{label(wf.status)}</Badge>;
 }
 
-export const stageName = (s: string) => label(s.toLowerCase());
-export const GATE_STAGE: Record<string, string> = { scope: "SCOPE_APPROVAL", plan: "PLAN_APPROVAL" };
-export const KIND_LABEL: Record<Schemas["ArtifactKind"], string> = {
+const KNOWN_KINDS: Record<string, string> = {
   product_analysis: "Product analysis",
   requirements: "Requirements",
   plan: "Plan",
@@ -50,12 +50,22 @@ export const KIND_LABEL: Record<Schemas["ArtifactKind"], string> = {
   final_report: "Report",
 };
 
+/** Human label for an artifact kind (any agent may declare its own). */
+export const kindLabel = (kind: string) => KNOWN_KINDS[kind] ?? label(kind).replace(/^./, (c) => c.toUpperCase());
+
+/** Step name from the plan, falling back to the id ("report", "completed"). */
+export function stepName(plan: Plan | undefined, id: string): string {
+  const st = plan?.steps.find((s) => s.id === id);
+  if (st) return st.name;
+  if (id === "report") return "Final report";
+  if (id === "completed") return "Completed";
+  return label(id.toLowerCase());
+}
+
 type StageState = "done" | "active" | "waiting" | "failed" | "skipped" | "cancelled" | "todo";
 
 function stageState(stage: string, steps: WorkflowStep[], wf?: WorkflowRun): StageState {
-  const mine = steps.filter((s) => s.stage === stage);
-  const last = mine.at(-1);
-  if (stage === "COMPLETED") return wf?.status === "completed" ? "done" : "todo";
+  const last = steps.filter((s) => s.stage === stage).at(-1);
   if (wf?.currentStage === stage) {
     if (wf.status === "awaiting_approval") return "waiting";
     if (wf.status === "awaiting_retry" || wf.status === "failed") return "failed";
@@ -87,18 +97,22 @@ const STAGE_ICON: Record<StageState, typeof Circle> = {
   todo: Circle,
 };
 
-/** The pipeline as a strip of stages with their live state. */
-export function Pipeline({ stages, steps, wf }: { stages: string[]; steps: WorkflowStep[]; wf?: WorkflowRun }) {
+/** The task's steps as a strip with their live state, account and review gates. */
+export function Pipeline({ plan, steps, wf }: { plan: Plan; steps: WorkflowStep[]; wf?: WorkflowRun }) {
+  const nodes = plan.steps.map((s) => ({ id: s.id, name: s.name, account: s.account, review: s.review, enabled: s.enabled }));
+  if (plan.finalReport) nodes.push({ id: "report", name: "Final report", account: undefined, review: false, enabled: true });
   return (
-    <ol className="pipeline" aria-label="Workflow stages">
-      {stages.map((stage) => {
-        const st = stageState(stage, steps, wf);
+    <ol className="pipeline" aria-label="Workflow steps">
+      {nodes.map((n) => {
+        const st: StageState = !n.enabled ? "skipped" : stageState(n.id, steps, wf);
         const Icon = STAGE_ICON[st];
-        const runs = steps.filter((s) => s.stage === stage).length;
+        const runs = steps.filter((s) => s.stage === n.id).length;
         return (
-          <li key={stage} className={`stage stage-${st}`} aria-current={st === "active" || st === "waiting" ? "step" : undefined}>
+          <li key={n.id} className={`stage stage-${st}`} aria-current={st === "active" || st === "waiting" ? "step" : undefined}>
             <Icon size={15} aria-hidden />
-            <span className="stage-name">{stageName(stage)}</span>
+            <span className="stage-name">{n.name}</span>
+            {n.account && <span className="stage-acct" title={`account ${n.account}`}><KeyRound size={11} aria-hidden />{n.account}</span>}
+            {n.review && <Eye size={13} aria-label="reviewed" />}
             {runs > 1 && <span className="stage-runs" title={`${runs} executions`}>×{runs}</span>}
             <span className="sr-only">{st}</span>
           </li>
@@ -114,9 +128,11 @@ export function Pipeline({ stages, steps, wf }: { stages: string[]; steps: Workf
  */
 export function ApprovalCard({
   approval,
+  stepLabel,
   onShowArtifact,
 }: {
   approval: Approval;
+  stepLabel?: string;
   onShowArtifact?: (kind: Schemas["ArtifactKind"]) => void;
 }) {
   const qc = useQueryClient();
@@ -149,7 +165,7 @@ export function ApprovalCard({
       <header>
         <Hourglass size={16} aria-hidden />
         <h2>
-          {approval.gate === "scope" ? "Approve scope" : "Approve plan"}
+          Review: {stepLabel ?? label(approval.gate)}
           <span className="faint small"> · round {approval.round} · requested {relativeTime(approval.createdAt)}</span>
         </h2>
       </header>
@@ -160,7 +176,7 @@ export function ApprovalCard({
         {approval.artifacts.map((a) => (
           <li key={a.artifactId}>
             <button type="button" className="btn btn-ghost btn-sm" onClick={() => onShowArtifact?.(a.kind)}>
-              {KIND_LABEL[a.kind]} <span className="mono">v{a.version}</span>
+              {kindLabel(a.kind)} <span className="mono">v{a.version}</span>
             </button>
             <span className="mono small faint" title={a.hash}>#{a.hash.slice(0, 10)}</span>
           </li>
@@ -181,7 +197,7 @@ export function ApprovalCard({
         </Field>
         <div className="actions">
           <button type="submit" className="btn btn-primary" disabled={decide.isPending}>
-            <Check size={15} aria-hidden /> Approve
+            <Check size={15} aria-hidden /> Pass to next step
           </button>
           <button
             type="button"

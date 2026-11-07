@@ -566,14 +566,16 @@ type Session struct {
 }
 
 type Task struct {
-	ID          uuid.UUID
-	ProjectID   uuid.UUID
-	Title       string
-	Description string
-	Status      string
-	CreatedBy   *uuid.UUID
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
+	ID                uuid.UUID
+	ProjectID         uuid.UUID
+	Title             string
+	Description       string
+	Status            string
+	CreatedBy         *uuid.UUID
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
+	TemplateID        *uuid.UUID
+	WorkflowOverrides json.RawMessage
 }
 
 type ToolCall struct {
@@ -646,4 +648,17 @@ type WorkflowStep struct {
 	Error         *string
 	StartedAt     time.Time
 	FinishedAt    *time.Time
+}
+
+type WorkflowTemplate struct {
+	ID          uuid.UUID
+	Slug        *string
+	Name        string
+	Description string
+	Definition  json.RawMessage
+	Version     int32
+	IsDefault   bool
+	CreatedBy   *uuid.UUID
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
 }

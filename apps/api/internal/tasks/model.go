@@ -15,27 +15,6 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-// WorkflowType is the Temporal workflow type of the engineering pipeline.
-const WorkflowType = "EngineeringWorkflow"
-
-// Stages of the engineering workflow (implementation-plan.md §10).
-const (
-	StageProductAnalysis    = "PRODUCT_ANALYSIS"
-	StageRequirements       = "REQUIREMENTS_REFINEMENT"
-	StageScopeApproval      = "SCOPE_APPROVAL"
-	StagePlanning           = "PLANNING"
-	StageArchitectureReview = "ARCHITECTURE_REVIEW"
-	StagePlanApproval       = "PLAN_APPROVAL"
-	StageFinalReport        = "FINAL_REPORT"
-	StageCompleted          = "COMPLETED"
-)
-
-// Stages lists the Phase 3 pipeline in order (the dashboard renders it as-is).
-var Stages = []string{
-	StageProductAnalysis, StageRequirements, StageScopeApproval, StagePlanning,
-	StageArchitectureReview, StagePlanApproval, StageFinalReport, StageCompleted,
-}
-
 // Artifact kinds.
 const (
 	KindProductAnalysis    = "product_analysis"
@@ -43,12 +22,6 @@ const (
 	KindPlan               = "plan"
 	KindArchitectureReview = "architecture_review"
 	KindFinalReport        = "final_report"
-)
-
-// Approval gates.
-const (
-	GateScope = "scope"
-	GatePlan  = "plan"
 )
 
 // Workflow run statuses.
@@ -101,31 +74,14 @@ const (
 	SignalRetry           = "retry"
 )
 
-// GateConfig says whether a gate needs a human decision.
-type GateConfig struct {
-	Required bool `json:"required"`
-}
-
-// WorkflowConfig is configs/workflows/engineering.yaml. It is frozen into each
-// workflow run when it starts, so later edits never change a running workflow.
+// WorkflowConfig is configs/workflows/engineering.yaml: defaults for every
+// workflow run (templates may override them).
 type WorkflowConfig struct {
-	Gates        map[string]GateConfig `json:"gates"`
-	MaxRevisions int                   `json:"max_revisions"`
+	MaxRevisions int `json:"max_revisions"`
 }
 
-// DefaultWorkflowConfig requires both gates (§10 "Approval requirements").
-func DefaultWorkflowConfig() WorkflowConfig {
-	return WorkflowConfig{
-		Gates:        map[string]GateConfig{GateScope: {Required: true}, GatePlan: {Required: true}},
-		MaxRevisions: 5,
-	}
-}
-
-// GateRequired reports whether a gate needs approval; unknown gates are required.
-func (c WorkflowConfig) GateRequired(gate string) bool {
-	g, ok := c.Gates[gate]
-	return !ok || g.Required
-}
+// DefaultWorkflowConfig allows 5 rejections per review gate.
+func DefaultWorkflowConfig() WorkflowConfig { return WorkflowConfig{MaxRevisions: 5} }
 
 // LoadWorkflowConfig reads the workflow config; a missing file means defaults.
 func LoadWorkflowConfig(path string) (WorkflowConfig, error) {
@@ -138,17 +94,10 @@ func LoadWorkflowConfig(path string) (WorkflowConfig, error) {
 		return cfg, err
 	}
 	var file struct {
-		Gates        map[string]GateConfig `json:"gates"`
-		MaxRevisions *int                  `json:"max_revisions"`
+		MaxRevisions *int `json:"max_revisions"`
 	}
 	if err := yaml.UnmarshalStrict(b, &file); err != nil {
 		return cfg, fmt.Errorf("parse %s: %w", path, err)
-	}
-	for gate, g := range file.Gates {
-		if gate != GateScope && gate != GatePlan {
-			return cfg, fmt.Errorf("%s: unknown gate %q", path, gate)
-		}
-		cfg.Gates[gate] = g
 	}
 	if file.MaxRevisions != nil {
 		if *file.MaxRevisions < 0 || *file.MaxRevisions > 50 {
@@ -192,11 +141,4 @@ func CombinedHash(refs []ArtifactRef) string {
 	sort.Strings(lines)
 	sum := sha256.Sum256([]byte(strings.Join(lines, "\n")))
 	return hex.EncodeToString(sum[:])
-}
-
-// GateArtifacts lists the artifact kinds each gate approves. The plan gate also
-// pins the requirements, so a requirements change invalidates plan approval.
-var GateArtifacts = map[string][]string{
-	GateScope: {KindProductAnalysis, KindRequirements},
-	GatePlan:  {KindRequirements, KindPlan, KindArchitectureReview},
 }

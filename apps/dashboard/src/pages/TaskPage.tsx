@@ -10,15 +10,16 @@ import { ArtifactView } from "../components/ArtifactView";
 import { Json } from "../components/Json";
 import { Badge, CopyText, Empty, ErrorNote, Panel, formatDate, relativeTime } from "../components/ui";
 import {
-  ApprovalCard, KIND_LABEL, Pipeline, TaskStatus, WorkflowStatus, isActiveWorkflow, stageName, type Artifact,
+  ApprovalCard, Pipeline, TaskStatus, WorkflowStatus, isActiveWorkflow, kindLabel, stepName, type Artifact, type Plan,
 } from "./workflowUi";
+import { TaskWorkflowPanel } from "./TaskWorkflowPanel";
+import { AccountSelect } from "../components/AccountSelect";
 
 type P = Record<string, unknown>;
 const str = (v: unknown) => (typeof v === "string" ? v : v == null ? "" : JSON.stringify(v));
-const KIND_ORDER: Schemas["ArtifactKind"][] = ["product_analysis", "requirements", "plan", "architecture_review", "final_report"];
-
-function describe(ev: WorkflowEvent): { icon: ReactNode; title: ReactNode; tone?: string } {
+function describe(ev: WorkflowEvent, plan: Plan): { icon: ReactNode; title: ReactNode; tone?: string } {
   const p = ev.payload as P;
+  const stageName = (id: string) => stepName(plan, id);
   const agentLink = p.agentRunId ? <> · <Link to={`/runs/${str(p.agentRunId)}`} className="mono small">run {str(p.agentRunId).slice(0, 8)}</Link></> : null;
   switch (ev.type) {
     case "workflow.created":
@@ -38,19 +39,21 @@ function describe(ev: WorkflowEvent): { icon: ReactNode; title: ReactNode; tone?
     case "stage.awaiting_approval":
       return { icon: <Hourglass size={14} />, tone: "warn", title: <><span className="mono small">{stageName(str(p.stage))}</span> waiting for you</> };
     case "stage.skipped":
-      return { icon: <ChevronRight size={14} />, title: <><span className="mono small">{stageName(str(p.stage))}</span> skipped (not required)</> };
+      return { icon: <ChevronRight size={14} />, title: <><span className="mono small">{stageName(str(p.stage))}</span> skipped (disabled)</> };
+    case "step.changed":
+      return { icon: <ChevronRight size={14} />, title: <><span className="mono small">{stageName(str(p.stage))}</span> now uses {str(p.account) || "default routing"}{p.model ? ` · ${str(p.model)}` : ""}</> };
     case "artifact.created":
-      return { icon: <FileText size={14} />, title: <>{KIND_LABEL[str(p.kind) as Schemas["ArtifactKind"]] ?? str(p.kind)} <span className="mono">v{str(p.version)}</span> <span className="mono small faint">#{str(p.hash).slice(0, 10)}</span></> };
+      return { icon: <FileText size={14} />, title: <>{kindLabel(str(p.kind))} <span className="mono">v{str(p.version)}</span> <span className="mono small faint">#{str(p.hash).slice(0, 10)}</span></> };
     case "approval.requested":
-      return { icon: <Hourglass size={14} />, tone: "warn", title: <>{str(p.gate)} approval requested · round {str(p.round)}</> };
+      return { icon: <Hourglass size={14} />, tone: "warn", title: <>review of {stageName(str(p.gate))} requested · round {str(p.round)}</> };
     case "approval.approved":
-      return { icon: <CheckCircle2 size={14} />, tone: "ok", title: <>{str(p.gate)} approved{p.comment ? <> — {str(p.comment)}</> : null}</> };
+      return { icon: <CheckCircle2 size={14} />, tone: "ok", title: <>{stageName(str(p.gate))} passed on{p.comment ? <> — {str(p.comment)}</> : null}</> };
     case "approval.rejected":
-      return { icon: <RotateCcw size={14} />, tone: "warn", title: <>{str(p.gate)} changes requested — {str(p.comment)}</> };
+      return { icon: <RotateCcw size={14} />, tone: "warn", title: <>{stageName(str(p.gate))}: changes requested — {str(p.comment)}</> };
     case "approval.superseded":
-      return { icon: <RotateCcw size={14} />, title: <>{str(p.gate)} approval superseded ({str(p.reason)})</> };
+      return { icon: <RotateCcw size={14} />, title: <>{stageName(str(p.gate))} review superseded ({str(p.reason)})</> };
     case "approval.cancelled":
-      return { icon: <CircleSlash size={14} />, title: <>{str(p.gate)} approval cancelled</> };
+      return { icon: <CircleSlash size={14} />, title: <>{stageName(str(p.gate))} review cancelled</> };
     case "workflow.retry_requested":
       return { icon: <RotateCcw size={14} />, title: <>retry requested · <span className="mono small">{stageName(str(p.stage))}</span></> };
     case "workflow.cancel_requested":
@@ -60,13 +63,16 @@ function describe(ev: WorkflowEvent): { icon: ReactNode; title: ReactNode; tone?
   }
 }
 
-function ArtifactsPanel({ taskId, latest, kind, onKind }: {
+function ArtifactsPanel({ taskId, plan, latest, kind, onKind }: {
   taskId: string;
+  plan: Plan;
   latest: Artifact[];
   kind?: Schemas["ArtifactKind"];
   onKind: (k: Schemas["ArtifactKind"]) => void;
 }) {
-  const kinds = KIND_ORDER.filter((k) => latest.some((a) => a.kind === k));
+  // Plan order first, then anything else the task has (e.g. from an earlier template).
+  const order = [...plan.steps.map((s) => s.kind), "final_report", ...latest.map((a) => a.kind)];
+  const kinds = order.filter((k, i) => order.indexOf(k) === i && latest.some((a) => a.kind === k));
   const active = kind && kinds.includes(kind) ? kind : kinds.at(-1);
   const [version, setVersion] = useState<number | undefined>();
   const [raw, setRaw] = useState(false);
@@ -99,7 +105,7 @@ function ArtifactsPanel({ taskId, latest, kind, onKind }: {
       <div className="tabs" role="tablist" aria-label="Artifact kind">
         {kinds.map((k) => (
           <button key={k} type="button" role="tab" aria-selected={k === active} className="tab" onClick={() => onKind(k)}>
-            {KIND_LABEL[k]}
+            {kindLabel(k)}
             <span className="mono faint small">v{latest.find((a) => a.kind === k)?.version}</span>
           </button>
         ))}
@@ -111,7 +117,7 @@ function ArtifactsPanel({ taskId, latest, kind, onKind }: {
             <span title={formatDate(shown.createdAt)}>{relativeTime(shown.createdAt)}</span>
             {shown.agentRunId && <Link to={`/runs/${shown.agentRunId}`}>agent run</Link>}
           </div>
-          {raw ? <Json value={shown.content} label={KIND_LABEL[shown.kind]} maxHeight={700} /> : <ArtifactView content={shown.content} />}
+          {raw ? <Json value={shown.content} label={kindLabel(shown.kind)} maxHeight={700} /> : <ArtifactView content={shown.content} />}
         </div>
       )}
     </Panel>
@@ -141,18 +147,27 @@ export function TaskPage() {
     mutationFn: () => unwrap(api.POST("/tasks/{taskId}/cancel", { params: { path: { taskId } } })),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["task", taskId] }),
   });
+  const [retryAccount, setRetryAccount] = useState<string | null>(null);
   const retry = useMutation({
-    mutationFn: (workflowId: string) => unwrap(api.POST("/workflows/{workflowId}/retry", { params: { path: { workflowId } } })),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["task", taskId] }),
-  });
-  const restart = useMutation({
-    mutationFn: () => unwrap(api.POST("/tasks/{taskId}/workflows", { params: { path: { taskId } } })),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["task", taskId] }),
+    mutationFn: async ({ workflowId, stepId }: { workflowId: string; stepId: string }) => {
+      // Optionally switch the failed step to another account before retrying it.
+      if (retryAccount !== null) {
+        await unwrap(api.PATCH("/workflows/{workflowId}/steps/{stepId}", {
+          params: { path: { workflowId, stepId } }, body: { account: retryAccount },
+        }));
+      }
+      return unwrap(api.POST("/workflows/{workflowId}/retry", { params: { path: { workflowId } } }));
+    },
+    onSuccess: () => {
+      setRetryAccount(null);
+      void qc.invalidateQueries({ queryKey: ["task", taskId] });
+    },
   });
 
   if (detail.error) return <ErrorNote error={detail.error} />;
   if (!detail.data) return <p className="loading">loading…</p>;
-  const { task, stages, steps, artifacts, approvals } = detail.data;
+  const { task, plan, steps, artifacts, approvals } = detail.data;
+  const failedStep = plan.steps.find((s) => s.id === wf?.currentStage);
   const pending = approvals.find((a) => a.status === "pending" && a.workflowRunId === wf?.id);
 
   return (
@@ -180,27 +195,28 @@ export function TaskPage() {
               <Square size={14} aria-hidden /> Cancel
             </button>
           )}
-          {(!wf || !isActiveWorkflow(wf)) && task.status !== "completed" && (
-            <button className="btn" onClick={() => restart.mutate()} disabled={restart.isPending}>
-              <Play size={14} aria-hidden /> Start new workflow
-            </button>
-          )}
         </div>
       </header>
-      <ErrorNote error={cancel.error ?? restart.error} />
+      <ErrorNote error={cancel.error} />
 
-      <Pipeline stages={stages} steps={steps} wf={wf} />
+      <Pipeline plan={plan} steps={steps} wf={wf} />
 
       {wf?.status === "awaiting_retry" && (
         <section className="approval approval-bad" aria-label="Stage failed">
           <header>
             <XCircle size={16} aria-hidden />
-            <h2>{stageName(wf.currentStage ?? "")} failed</h2>
+            <h2>{stepName(plan, wf.currentStage ?? "")} failed</h2>
           </header>
           <p className="small">{wf.error}</p>
           <div className="actions">
-            <button className="btn btn-primary" onClick={() => retry.mutate(wf.id)} disabled={retry.isPending}>
-              <RotateCcw size={15} aria-hidden /> Retry stage
+            {failedStep && (
+              <label className="field" style={{ minWidth: 220 }}>
+                <span>Retry with account</span>
+                <AccountSelect value={retryAccount ?? failedStep.account ?? ""} onChange={setRetryAccount} defaultLabel="default routing" />
+              </label>
+            )}
+            <button className="btn btn-primary" onClick={() => retry.mutate({ workflowId: wf.id, stepId: wf.currentStage ?? "" })} disabled={retry.isPending}>
+              <RotateCcw size={15} aria-hidden /> Retry step
             </button>
           </div>
           <ErrorNote error={retry.error} />
@@ -209,16 +225,18 @@ export function TaskPage() {
       {wf?.status === "failed" && wf.error && (
         <p className="error" role="alert"><AlertTriangle size={14} aria-hidden /> <span>{wf.error}</span></p>
       )}
-      {pending && <ApprovalCard key={pending.id} approval={pending} onShowArtifact={setKind} />}
+      {pending && <ApprovalCard key={pending.id} approval={pending} stepLabel={stepName(plan, pending.gate)} onShowArtifact={setKind} />}
 
-      <ArtifactsPanel taskId={taskId} latest={artifacts} kind={kind} onKind={setKind} />
+      {(!wf || !isActiveWorkflow(wf)) && <TaskWorkflowPanel taskId={taskId} canRun={task.status !== "cancelled"} />}
+
+      <ArtifactsPanel taskId={taskId} plan={plan} latest={artifacts} kind={kind} onKind={setKind} />
 
       <Panel title="Timeline" count={events.length}>
         <ErrorNote error={eventsError} />
         {!wf && <Empty icon={<Flag size={24} aria-hidden />}>No workflow has run for this task.</Empty>}
         <ol className="timeline">
           {events.map((ev) => {
-            const d = describe(ev);
+            const d = describe(ev, plan);
             return (
               <li key={ev.seq} className={d.tone ? `tone-${d.tone}` : ""}>
                 <span className="tl-icon" aria-hidden>{d.icon}</span>
