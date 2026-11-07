@@ -10,14 +10,29 @@ COPY go.mod go.sum ./
 RUN --mount=type=cache,target=/go/pkg/mod go mod download
 COPY apps/api ./apps/api
 COPY migrations ./migrations
-COPY packages/contracts/api ./packages/contracts/api
+COPY packages/contracts ./packages/contracts
+COPY packages/agent-definitions ./packages/agent-definitions
+COPY packages/prompts ./packages/prompts
 RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache/go-build \
     go build -trimpath -ldflags="-s -w" -o /out/wise-api ./apps/api/cmd/wise-api
 
 FROM alpine:${ALPINE_VERSION}
+# Claude Code CLI powers the claude-code model provider (set INSTALL_CLAUDE_CODE=false to skip).
+ARG INSTALL_CLAUDE_CODE=true
+ARG CLAUDE_CODE_VERSION=2.1.319
+# Optional Alpine mirror (e.g. https://mirror.arvancloud.ir/alpine) when dl-cdn is unreachable.
+ARG APK_MIRROR=
 # git is required to inspect registered repositories.
-RUN apk add --no-cache git ca-certificates tzdata \
- && adduser -D -H -u 10001 wise
+RUN if [ -n "$APK_MIRROR" ]; then sed -i "s#https\?://dl-cdn.alpinelinux.org/alpine#${APK_MIRROR}#" /etc/apk/repositories; fi \
+ && apk add --no-cache git ca-certificates tzdata \
+ && adduser -D -H -u 10001 wise \
+ && if [ "$INSTALL_CLAUDE_CODE" = "true" ]; then \
+      apk add --no-cache nodejs npm libstdc++ ripgrep \
+      && npm install -g --omit=dev "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}" \
+      && npm cache clean --force; \
+    fi
+WORKDIR /app
+COPY configs ./configs
 COPY --from=build /out/wise-api /usr/local/bin/wise-api
 USER 10001
 EXPOSE 8080

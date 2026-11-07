@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://wise.local/contracts/events/agent-event.schema.json",
+  "title": "Wise agent event",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["runId", "seq", "type", "payload", "createdAt"],
+  "properties": {
+    "runId": { "type": "string", "format": "uuid" },
+    "seq": { "type": "integer", "minimum": 1 },
+    "type": {
+      "enum": [
+        "run.queued", "run.started", "run.completed", "run.failed", "run.cancelled", "run.requeued",
+        "model.request", "model.response", "model.error",
+        "tool.call", "tool.result",
+        "agent.message", "output.invalid", "artifact.created"
+      ]
+    },
+    "payload": { "type": "object" },
+    "createdAt": { "type": "string", "format": "date-time" }
+  }
+}

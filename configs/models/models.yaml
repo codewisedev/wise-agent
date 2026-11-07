@@ -1,0 +1,36 @@
+# Model Gateway configuration. ${VAR} references are expanded from the environment.
+# Agents reference aliases (model_config.alias); each alias tries its targets in order.
+
+providers:
+  lmstudio:
+    type: openai-compatible
+    # LM Studio's local server. From Docker use host.docker.internal (see docker-compose.yml).
+    base_url: ${WISE_LMSTUDIO_URL}
+    api_key_env: WISE_LMSTUDIO_API_KEY
+    cloud: false
+    timeout_s: 600
+
+  claude-code:
+    type: claude-code
+    # Headless Claude Code CLI using your Claude subscription (`claude setup-token`).
+    binary: claude
+    cloud: true
+    timeout_s: 900
+
+aliases:
+  local:
+    description: Local model served by LM Studio (empty model = whichever model is loaded).
+    targets:
+      - { provider: lmstudio, model: "${WISE_LMSTUDIO_MODEL}" }
+  reasoning:
+    description: Strongest available model for analysis and planning.
+    targets:
+      - { provider: claude-code, model: sonnet }
+  deep:
+    description: Highest-capability model for hard problems.
+    targets:
+      - { provider: claude-code, model: opus }
+
+cache:
+  enabled: true
+  ttl_hours: 24

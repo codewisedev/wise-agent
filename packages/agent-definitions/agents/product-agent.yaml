@@ -1,0 +1,62 @@
+name: product-agent
+version: 1.0.0
+description: Understands a product idea or engineering request and produces a structured product analysis.
+enabled: true
+phase: 2
+prompt: product-agent/system.md
+responsibilities:
+  - Clarify the problem, target users and goals behind a request
+  - Identify key features with priorities, non-goals, risks and assumptions
+  - Ground the analysis in the existing project when one is attached
+  - Surface open questions that need a human decision
+input_schema:
+  type: object
+  additionalProperties: false
+  required: [request]
+  properties:
+    request: { type: string, minLength: 3, description: The product idea, feature request or problem statement. }
+    context: { type: string, description: Optional extra context (constraints, audience, links). }
+output_schema:
+  type: object
+  additionalProperties: false
+  required: [summary, problem, target_users, goals, non_goals, key_features, risks, assumptions, open_questions]
+  properties:
+    summary: { type: string }
+    problem: { type: string }
+    target_users: { type: array, items: { type: string } }
+    goals: { type: array, items: { type: string } }
+    non_goals: { type: array, items: { type: string } }
+    key_features:
+      type: array
+      items:
+        type: object
+        additionalProperties: false
+        required: [name, description, priority]
+        properties:
+          name: { type: string }
+          description: { type: string }
+          priority: { enum: [must, should, could] }
+    risks: { type: array, items: { type: string } }
+    assumptions: { type: array, items: { type: string } }
+    open_questions: { type: array, items: { type: string } }
+tools: [get_project_context, list_files, read_file, search_code]
+permissions: [project:read, repo:read]
+model_config:
+  alias: reasoning
+  fallbacks: [local]
+  temperature: 0.3
+  max_output_tokens: 4096
+execution_limits:
+  max_turns: 12
+  max_tool_calls: 20
+  max_tokens: 200000
+  max_cost_usd: 1.0
+  timeout_s: 600
+error_handling:
+  max_attempts: 2
+  invalid_output_retries: 2
+evaluation:
+  criteria:
+    - Every key feature traces back to the request or the existing project
+    - Open questions are concrete and answerable by the user
+    - Non-goals are explicit

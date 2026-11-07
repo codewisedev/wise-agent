@@ -1,5 +1,5 @@
 # Wise local stack — Phase 1 (Foundation).
-# Temporal, Ollama and the agent/execution services are added in later phases.
+# Phase 2 adds the agent runtime. Temporal and the execution worker arrive in later phases.
 name: wise
 
 x-api-env: &api-env
@@ -12,6 +12,14 @@ x-api-env: &api-env
   WISE_LOG_LEVEL: ${WISE_LOG_LEVEL:-info}
   WISE_BOOTSTRAP_ADMIN_USER: ${WISE_BOOTSTRAP_ADMIN_USER:-}
   WISE_BOOTSTRAP_ADMIN_PASSWORD: ${WISE_BOOTSTRAP_ADMIN_PASSWORD:-}
+  WISE_RUNTIME_TOKEN: ${WISE_RUNTIME_TOKEN:?set WISE_RUNTIME_TOKEN in .env}
+  # LM Studio on the host (enable "Serve on Local Network" so containers can reach it).
+  WISE_LMSTUDIO_URL: ${WISE_LMSTUDIO_DOCKER_URL:-http://host.docker.internal:1234/v1}
+  WISE_LMSTUDIO_MODEL: ${WISE_LMSTUDIO_MODEL:-}
+  WISE_LMSTUDIO_API_KEY: ${WISE_LMSTUDIO_API_KEY:-}
+  # Long-lived subscription token from `claude setup-token` (enables the claude-code provider).
+  CLAUDE_CODE_OAUTH_TOKEN: ${CLAUDE_CODE_OAUTH_TOKEN:-}
+  HOME: /tmp
 
 services:
   postgres:
@@ -38,8 +46,12 @@ services:
     build:
       context: .
       dockerfile: apps/api/Dockerfile
+      # Build with the host network (more reliable than the bridge on some networks).
+      network: host
       args:
         GOPROXY: ${GOPROXY:-https://proxy.golang.org,direct}
+        INSTALL_CLAUDE_CODE: ${INSTALL_CLAUDE_CODE:-true}
+        APK_MIRROR: ${APK_MIRROR:-}
     restart: unless-stopped
     depends_on:
       postgres:
@@ -54,14 +66,45 @@ services:
     volumes:
       # Mounted read-only at the same path so host paths work unchanged.
       - ${WISE_REPO_ROOT}:${WISE_REPO_ROOT}:ro
+      # Model aliases and policies; edit on the host, restart the API to apply.
+      - ./configs:/app/configs:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "127.0.0.1:8080:8080"
-    networks: [data, edge]
+    networks: [data, edge, runtime]
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/api/v1/readyz"]
       interval: 10s
       timeout: 3s
       retries: 10
+    deploy:
+      resources:
+        limits: { cpus: "1.0", memory: 1G }
+
+  wise-agent-runtime:
+    build:
+      context: .
+      dockerfile: apps/agent-runtime/Dockerfile
+      # Build with the host network (more reliable than the bridge on some networks).
+      network: host
+    restart: unless-stopped
+    depends_on:
+      wise-api:
+        condition: service_healthy
+    environment:
+      WISE_API_URL: http://wise-api:8080
+      WISE_RUNTIME_TOKEN: ${WISE_RUNTIME_TOKEN}
+      WISE_REPO_ROOTS: ${WISE_REPO_ROOT}
+    user: "${WISE_UID:-1000}:${WISE_GID:-1000}"
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    volumes:
+      - ${WISE_REPO_ROOT}:${WISE_REPO_ROOT}:ro
+    # Internal network only: the runtime can reach the API and nothing else.
+    networks: [runtime]
     deploy:
       resources:
         limits: { cpus: "1.0", memory: 512M }
@@ -70,6 +113,8 @@ services:
     build:
       context: .
       dockerfile: apps/dashboard/Dockerfile
+      # Build with the host network (more reliable than the bridge on some networks).
+      network: host
     restart: unless-stopped
     depends_on:
       wise-api:
@@ -88,6 +133,8 @@ services:
 networks:
   data: {}
   edge: {}
+  runtime:
+    internal: true
 
 volumes:
   postgres-data: {}

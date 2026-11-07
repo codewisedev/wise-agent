@@ -1,0 +1,80 @@
+name: requirements-agent
+version: 1.0.0
+description: Refines a product analysis into structured, testable requirements with acceptance criteria.
+enabled: true
+phase: 2
+prompt: requirements-agent/system.md
+responsibilities:
+  - Turn product goals and features into user stories with acceptance criteria
+  - Separate functional and non-functional requirements
+  - Make scope explicit (in and out) and list remaining open questions
+  - Keep every requirement testable and uniquely identified
+input_schema:
+  type: object
+  additionalProperties: false
+  required: [request]
+  properties:
+    request: { type: string, minLength: 3, description: The feature request or the product summary to refine. }
+    product_analysis: { type: object, description: Optional output of product-agent. }
+    constraints: { type: array, items: { type: string } }
+output_schema:
+  type: object
+  additionalProperties: false
+  required: [title, user_stories, functional_requirements, non_functional_requirements, out_of_scope, open_questions]
+  properties:
+    title: { type: string }
+    user_stories:
+      type: array
+      items:
+        type: object
+        additionalProperties: false
+        required: [id, as_a, i_want, so_that, acceptance_criteria]
+        properties:
+          id: { type: string, pattern: "^US-\\d+$" }
+          as_a: { type: string }
+          i_want: { type: string }
+          so_that: { type: string }
+          acceptance_criteria: { type: array, minItems: 1, items: { type: string } }
+    functional_requirements:
+      type: array
+      items:
+        type: object
+        additionalProperties: false
+        required: [id, description, priority]
+        properties:
+          id: { type: string, pattern: "^FR-\\d+$" }
+          description: { type: string }
+          priority: { enum: [must, should, could] }
+    non_functional_requirements:
+      type: array
+      items:
+        type: object
+        additionalProperties: false
+        required: [id, category, description]
+        properties:
+          id: { type: string, pattern: "^NFR-\\d+$" }
+          category: { enum: [performance, security, reliability, usability, maintainability, compliance, other] }
+          description: { type: string }
+    out_of_scope: { type: array, items: { type: string } }
+    open_questions: { type: array, items: { type: string } }
+tools: [get_project_context, list_files, read_file, search_code]
+permissions: [project:read, repo:read]
+model_config:
+  alias: reasoning
+  fallbacks: [local]
+  temperature: 0.2
+  max_output_tokens: 6000
+execution_limits:
+  max_turns: 12
+  max_tool_calls: 20
+  max_tokens: 250000
+  max_cost_usd: 1.0
+  timeout_s: 600
+error_handling:
+  max_attempts: 2
+  invalid_output_retries: 2
+evaluation:
+  criteria:
+    - Every user story has at least one verifiable acceptance criterion
+    - Requirement IDs are unique and sequential
+    - Out-of-scope items are explicit

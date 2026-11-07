@@ -13,6 +13,63 @@ import (
 	"github.com/google/uuid"
 )
 
+type AgentRunStatus string
+
+const (
+	AgentRunStatusQueued    AgentRunStatus = "queued"
+	AgentRunStatusRunning   AgentRunStatus = "running"
+	AgentRunStatusSucceeded AgentRunStatus = "succeeded"
+	AgentRunStatusFailed    AgentRunStatus = "failed"
+	AgentRunStatusCancelled AgentRunStatus = "cancelled"
+)
+
+func (e *AgentRunStatus) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = AgentRunStatus(s)
+	case string:
+		*e = AgentRunStatus(s)
+	default:
+		return fmt.Errorf("unsupported scan type for AgentRunStatus: %T", src)
+	}
+	return nil
+}
+
+type NullAgentRunStatus struct {
+	AgentRunStatus AgentRunStatus
+	Valid          bool // Valid is true if AgentRunStatus is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullAgentRunStatus) Scan(value interface{}) error {
+	if value == nil {
+		ns.AgentRunStatus, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.AgentRunStatus.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullAgentRunStatus) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.AgentRunStatus), nil
+}
+
+func (e AgentRunStatus) Valid() bool {
+	switch e {
+	case AgentRunStatusQueued,
+		AgentRunStatusRunning,
+		AgentRunStatusSucceeded,
+		AgentRunStatusFailed,
+		AgentRunStatusCancelled:
+		return true
+	}
+	return false
+}
+
 type ProjectResourceKind string
 
 const (
@@ -292,6 +349,52 @@ func (e RepositorySourceType) Valid() bool {
 	return false
 }
 
+type AgentDefinition struct {
+	ID          uuid.UUID
+	Name        string
+	Version     string
+	ContentHash string
+	Definition  json.RawMessage
+	Prompt      string
+	Enabled     bool
+	IsCurrent   bool
+	CreatedAt   time.Time
+}
+
+type AgentEvent struct {
+	ID        int64
+	RunID     uuid.UUID
+	Seq       int32
+	Type      string
+	Payload   json.RawMessage
+	CreatedAt time.Time
+}
+
+type AgentRun struct {
+	ID                uuid.UUID
+	AgentDefinitionID uuid.UUID
+	AgentName         string
+	ProjectID         *uuid.UUID
+	Status            AgentRunStatus
+	Input             json.RawMessage
+	Output            []byte
+	Error             *string
+	Attempt           int32
+	MaxAttempts       int32
+	RuntimeID         *string
+	RunTokenHash      []byte
+	LeaseExpiresAt    *time.Time
+	CancelRequested   bool
+	TotalInputTokens  int64
+	TotalOutputTokens int64
+	TotalCostUsd      float64
+	CreatedBy         *uuid.UUID
+	CreatedAt         time.Time
+	StartedAt         *time.Time
+	FinishedAt        *time.Time
+	UpdatedAt         time.Time
+}
+
 type ApiToken struct {
 	ID         uuid.UUID
 	UserID     uuid.UUID
@@ -314,6 +417,30 @@ type AuditLog struct {
 	EntityID   *uuid.UUID
 	Payload    json.RawMessage
 	CreatedAt  time.Time
+}
+
+type ModelCache struct {
+	Key       []byte
+	Response  json.RawMessage
+	ExpiresAt time.Time
+	CreatedAt time.Time
+}
+
+type ModelCall struct {
+	ID           uuid.UUID
+	RunID        *uuid.UUID
+	AgentName    string
+	Alias        string
+	Provider     string
+	Model        string
+	Status       string
+	Error        *string
+	InputTokens  int32
+	OutputTokens int32
+	CostUsd      float64
+	LatencyMs    int32
+	CacheHit     bool
+	CreatedAt    time.Time
 }
 
 type Project struct {
@@ -388,6 +515,18 @@ type Session struct {
 	LastSeenAt time.Time
 	UserAgent  string
 	Ip         string
+}
+
+type ToolCall struct {
+	ID         uuid.UUID
+	RunID      uuid.UUID
+	Tool       string
+	Input      json.RawMessage
+	Output     []byte
+	Status     string
+	Error      *string
+	DurationMs int32
+	CreatedAt  time.Time
 }
 
 type User struct {

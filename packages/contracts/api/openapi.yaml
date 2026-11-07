@@ -22,6 +22,9 @@ tags:
   - name: auth
   - name: projects
   - name: repositories
+  - name: agents
+  - name: models
+  - name: runtime
 
 paths:
   /healthz:
@@ -404,6 +407,274 @@ paths:
         "401": { $ref: "#/components/responses/Problem" }
         "404": { $ref: "#/components/responses/Problem" }
 
+  /agents:
+    get:
+      tags: [agents]
+      operationId: listAgents
+      responses:
+        "200":
+          description: Current agent definitions.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AgentList" }
+        "401": { $ref: "#/components/responses/Problem" }
+  /agents/{agentName}:
+    parameters:
+      - $ref: "#/components/parameters/AgentName"
+    get:
+      tags: [agents]
+      operationId: getAgent
+      responses:
+        "200":
+          description: Agent definition with its contract and prompt.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AgentDetail" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+  /agents/{agentName}/runs:
+    parameters:
+      - $ref: "#/components/parameters/AgentName"
+    get:
+      tags: [agents]
+      operationId: listAgentRunsForAgent
+      responses:
+        "200":
+          description: Recent runs of the agent.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AgentRunList" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+    post:
+      tags: [agents]
+      operationId: createAgentRun
+      description: Queues a run. `input` is validated against the agent's input_schema.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateAgentRunRequest" }
+      responses:
+        "202":
+          description: Run queued.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AgentRun" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+  /agent-runs:
+    get:
+      tags: [agents]
+      operationId: listAgentRuns
+      parameters:
+        - name: projectId
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Recent runs across agents.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AgentRunList" }
+        "401": { $ref: "#/components/responses/Problem" }
+  /agent-runs/{runId}:
+    parameters:
+      - $ref: "#/components/parameters/RunId"
+    get:
+      tags: [agents]
+      operationId: getAgentRun
+      responses:
+        "200":
+          description: Run.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AgentRun" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+  /agent-runs/{runId}/events:
+    parameters:
+      - $ref: "#/components/parameters/RunId"
+    get:
+      tags: [agents]
+      operationId: listAgentRunEvents
+      description: |
+        Events in order. Live updates are available over the WebSocket at
+        `GET /api/v1/events/ws?runId=<id>` (messages are AgentEvent JSON).
+      parameters:
+        - name: afterSeq
+          in: query
+          required: false
+          schema: { type: integer, minimum: 0, default: 0 }
+      responses:
+        "200":
+          description: Events.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AgentEventList" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+  /agent-runs/{runId}/model-calls:
+    parameters:
+      - $ref: "#/components/parameters/RunId"
+    get:
+      tags: [agents]
+      operationId: listAgentRunModelCalls
+      responses:
+        "200":
+          description: Every model call attempt made for the run.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ModelCallList" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+  /agent-runs/{runId}/cancel:
+    parameters:
+      - $ref: "#/components/parameters/RunId"
+    post:
+      tags: [agents]
+      operationId: cancelAgentRun
+      responses:
+        "200":
+          description: Run cancelled (queued) or cancellation requested (running).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AgentRun" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+  /models:
+    get:
+      tags: [models]
+      operationId: getModelsOverview
+      parameters:
+        - name: days
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 90, default: 7 }
+      responses:
+        "200":
+          description: Model aliases, provider health and usage.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ModelsOverview" }
+        "401": { $ref: "#/components/responses/Problem" }
+
+  /runtime/v1/runs/claim:
+    post:
+      tags: [runtime]
+      operationId: runtimeClaimRun
+      description: Claims the oldest queued run. Requires the runtime service token.
+      security: [{ runtimeAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RuntimeClaimRequest" }
+      responses:
+        "200":
+          description: Claimed run with everything needed to execute it.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RuntimeClaim" }
+        "204": { description: Nothing queued. }
+        "401": { $ref: "#/components/responses/Problem" }
+  /runtime/v1/runs/{runId}/heartbeat:
+    parameters:
+      - $ref: "#/components/parameters/RunId"
+    post:
+      tags: [runtime]
+      operationId: runtimeHeartbeat
+      security: [{ runtimeAuth: [] }]
+      responses:
+        "200":
+          description: Lease extended.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RuntimeHeartbeat" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+  /runtime/v1/runs/{runId}/events:
+    parameters:
+      - $ref: "#/components/parameters/RunId"
+    post:
+      tags: [runtime]
+      operationId: runtimeAppendEvents
+      security: [{ runtimeAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RuntimeEventsRequest" }
+      responses:
+        "204": { description: Events stored. }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+  /runtime/v1/runs/{runId}/model-turn:
+    parameters:
+      - $ref: "#/components/parameters/RunId"
+    post:
+      tags: [runtime]
+      operationId: runtimeModelTurn
+      description: |
+        Sends the transcript through the Model Gateway. Alias, fallbacks, schemas,
+        tools and budgets come from the run's agent definition, never from the runtime.
+      security: [{ runtimeAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ModelTurnRequest" }
+      responses:
+        "200":
+          description: Parsed model turn.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ModelTurn" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "429": { $ref: "#/components/responses/Problem" }
+        "502": { $ref: "#/components/responses/Problem" }
+  /runtime/v1/runs/{runId}/complete:
+    parameters:
+      - $ref: "#/components/parameters/RunId"
+    post:
+      tags: [runtime]
+      operationId: runtimeCompleteRun
+      security: [{ runtimeAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RuntimeCompleteRequest" }
+      responses:
+        "204": { description: Run succeeded. }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+  /runtime/v1/runs/{runId}/fail:
+    parameters:
+      - $ref: "#/components/parameters/RunId"
+    post:
+      tags: [runtime]
+      operationId: runtimeFailRun
+      security: [{ runtimeAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RuntimeFailRequest" }
+      responses:
+        "204": { description: "Run failed, requeued or cancelled." }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+
+
 components:
   securitySchemes:
     cookieAuth:
@@ -413,6 +684,13 @@ components:
     bearerAuth:
       type: http
       scheme: bearer
+    runtimeAuth:
+      type: http
+      scheme: bearer
+      description: |
+        Agent runtime credentials. `/runtime/v1/runs/claim` takes the runtime
+        service token (WISE_RUNTIME_TOKEN); every other runtime route takes the
+        per-run token returned by the claim.
 
   parameters:
     ProjectId:
@@ -432,6 +710,16 @@ components:
       schema: { type: string, format: uuid }
     RelationshipId:
       name: relationshipId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    AgentName:
+      name: agentName
+      in: path
+      required: true
+      schema: { type: string, pattern: "^[a-z][a-z0-9-]*$" }
+    RunId:
+      name: runId
       in: path
       required: true
       schema: { type: string, format: uuid }
@@ -715,3 +1003,265 @@ components:
         toRepositoryId: { type: string, format: uuid }
         kind: { $ref: "#/components/schemas/RepositoryRelationshipKind" }
         note: { type: string, maxLength: 2000 }
+
+    AgentRunStatus:
+      type: string
+      enum: [queued, running, succeeded, failed, cancelled]
+    AgentSummary:
+      type: object
+      required: [id, name, version, description, enabled, modelAlias, tools, runCount]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        version: { type: string }
+        description: { type: string }
+        enabled: { type: boolean }
+        phase: { type: integer }
+        modelAlias: { type: string }
+        tools: { type: array, items: { type: string } }
+        runCount: { type: integer, format: int64 }
+        lastRunAt: { type: string, format: date-time, nullable: true }
+    AgentList:
+      type: object
+      required: [items]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/AgentSummary" } }
+    AgentDetail:
+      allOf:
+        - $ref: "#/components/schemas/AgentSummary"
+        - type: object
+          required: [definition, prompt, contentHash, createdAt, cloudAllowed]
+          properties:
+            definition: { type: object, additionalProperties: true }
+            prompt: { type: string }
+            contentHash: { type: string }
+            createdAt: { type: string, format: date-time }
+            cloudAllowed: { type: boolean }
+    CreateAgentRunRequest:
+      type: object
+      required: [input]
+      properties:
+        input: { type: object, additionalProperties: true }
+        projectId: { type: string, format: uuid }
+    AgentRun:
+      type: object
+      required: [id, agentName, agentDefinitionId, status, input, attempt, maxAttempts, cancelRequested,
+                 totalInputTokens, totalOutputTokens, totalCostUsd, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        agentName: { type: string }
+        agentDefinitionId: { type: string, format: uuid }
+        projectId: { type: string, format: uuid, nullable: true }
+        status: { $ref: "#/components/schemas/AgentRunStatus" }
+        input: { type: object, additionalProperties: true }
+        output: { type: object, additionalProperties: true, nullable: true }
+        error: { type: string, nullable: true }
+        attempt: { type: integer }
+        maxAttempts: { type: integer }
+        cancelRequested: { type: boolean }
+        totalInputTokens: { type: integer, format: int64 }
+        totalOutputTokens: { type: integer, format: int64 }
+        totalCostUsd: { type: number, format: double }
+        createdAt: { type: string, format: date-time }
+        startedAt: { type: string, format: date-time, nullable: true }
+        finishedAt: { type: string, format: date-time, nullable: true }
+    AgentRunList:
+      type: object
+      required: [items]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/AgentRun" } }
+    AgentEvent:
+      type: object
+      required: [runId, seq, type, payload, createdAt]
+      properties:
+        runId: { type: string, format: uuid }
+        seq: { type: integer }
+        type: { type: string }
+        payload: { type: object, additionalProperties: true }
+        createdAt: { type: string, format: date-time }
+    AgentEventList:
+      type: object
+      required: [items]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/AgentEvent" } }
+    ModelCall:
+      type: object
+      required: [id, alias, provider, model, status, inputTokens, outputTokens, costUsd, latencyMs, cacheHit, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        alias: { type: string }
+        provider: { type: string }
+        model: { type: string }
+        status: { type: string, enum: [ok, error, rejected] }
+        error: { type: string, nullable: true }
+        inputTokens: { type: integer }
+        outputTokens: { type: integer }
+        costUsd: { type: number, format: double }
+        latencyMs: { type: integer }
+        cacheHit: { type: boolean }
+        createdAt: { type: string, format: date-time }
+    ModelCallList:
+      type: object
+      required: [items]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/ModelCall" } }
+    ModelTarget:
+      type: object
+      required: [provider, model]
+      properties:
+        provider: { type: string }
+        model: { type: string }
+    ModelAlias:
+      type: object
+      required: [name, description, targets]
+      properties:
+        name: { type: string }
+        description: { type: string }
+        targets: { type: array, items: { $ref: "#/components/schemas/ModelTarget" } }
+    ModelProvider:
+      type: object
+      required: [name, type, cloud, healthy]
+      properties:
+        name: { type: string }
+        type: { type: string }
+        cloud: { type: boolean }
+        healthy: { type: boolean }
+        error: { type: string }
+    ModelUsage:
+      type: object
+      required: [agentName, alias, provider, model, calls, errors, inputTokens, outputTokens, costUsd]
+      properties:
+        agentName: { type: string }
+        alias: { type: string }
+        provider: { type: string }
+        model: { type: string }
+        calls: { type: integer, format: int64 }
+        errors: { type: integer, format: int64 }
+        inputTokens: { type: integer, format: int64 }
+        outputTokens: { type: integer, format: int64 }
+        costUsd: { type: number, format: double }
+    ModelsOverview:
+      type: object
+      required: [aliases, providers, usage, since]
+      properties:
+        aliases: { type: array, items: { $ref: "#/components/schemas/ModelAlias" } }
+        providers: { type: array, items: { $ref: "#/components/schemas/ModelProvider" } }
+        usage: { type: array, items: { $ref: "#/components/schemas/ModelUsage" } }
+        since: { type: string, format: date-time }
+
+    RuntimeClaimRequest:
+      type: object
+      required: [runtimeId]
+      properties:
+        runtimeId: { type: string, minLength: 1, maxLength: 200 }
+    ToolDefinition:
+      type: object
+      required: [name, description, inputSchema, sideEffects, permissionsRequired]
+      properties:
+        name: { type: string }
+        description: { type: string }
+        inputSchema: { type: object, additionalProperties: true }
+        sideEffects: { type: string, enum: [none, read, write] }
+        permissionsRequired: { type: array, items: { type: string } }
+    RuntimeRepository:
+      type: object
+      required: [id, name, role, sourceType]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        role: { type: string }
+        sourceType: { type: string }
+        localPath: { type: string, nullable: true }
+        remoteUrl: { type: string, nullable: true }
+        currentBranch: { type: string, nullable: true }
+        headSha: { type: string, nullable: true }
+    RuntimeProject:
+      type: object
+      required: [id, name, slug, description, repositories]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        slug: { type: string }
+        description: { type: string }
+        repositories: { type: array, items: { $ref: "#/components/schemas/RuntimeRepository" } }
+    RuntimeClaim:
+      type: object
+      required: [run, runToken, leaseSeconds, definition, prompt, tools]
+      properties:
+        run: { $ref: "#/components/schemas/AgentRun" }
+        runToken: { type: string, description: Bearer token scoped to this run; invalid once it ends. }
+        leaseSeconds: { type: integer }
+        definition: { type: object, additionalProperties: true }
+        prompt: { type: string }
+        tools: { type: array, items: { $ref: "#/components/schemas/ToolDefinition" } }
+        project: { $ref: "#/components/schemas/RuntimeProject" }
+    RuntimeHeartbeat:
+      type: object
+      required: [cancelRequested, leaseSeconds]
+      properties:
+        cancelRequested: { type: boolean }
+        leaseSeconds: { type: integer }
+    RuntimeEvent:
+      type: object
+      required: [type, payload]
+      properties:
+        type: { type: string, enum: [tool.call, tool.result, agent.message, output.invalid, artifact.created] }
+        payload: { type: object, additionalProperties: true }
+    RuntimeEventsRequest:
+      type: object
+      required: [events]
+      properties:
+        events: { type: array, minItems: 1, maxItems: 100, items: { $ref: "#/components/schemas/RuntimeEvent" } }
+    TurnMessage:
+      type: object
+      required: [role, content]
+      properties:
+        role: { type: string, enum: [user, assistant, tool] }
+        content: { type: string, maxLength: 400000 }
+        name: { type: string }
+    ModelTurnRequest:
+      type: object
+      required: [messages]
+      properties:
+        messages: { type: array, minItems: 1, maxItems: 400, items: { $ref: "#/components/schemas/TurnMessage" } }
+    TurnToolCall:
+      type: object
+      required: [tool, arguments]
+      properties:
+        tool: { type: string }
+        arguments: { type: object, additionalProperties: true }
+    TokenUsage:
+      type: object
+      required: [inputTokens, outputTokens]
+      properties:
+        inputTokens: { type: integer, format: int64 }
+        outputTokens: { type: integer, format: int64 }
+    ModelTurn:
+      type: object
+      required: [action, alias, provider, model, usage, costUsd, cacheHit, latencyMs]
+      properties:
+        action: { type: string, enum: [call_tools, final, invalid] }
+        thought: { type: string }
+        toolCalls: { type: array, items: { $ref: "#/components/schemas/TurnToolCall" } }
+        final: { type: object, additionalProperties: true, nullable: true }
+        parseError: { type: string }
+        rawText: { type: string }
+        alias: { type: string }
+        provider: { type: string }
+        model: { type: string }
+        usage: { $ref: "#/components/schemas/TokenUsage" }
+        costUsd: { type: number, format: double }
+        cacheHit: { type: boolean }
+        latencyMs: { type: integer, format: int64 }
+    RuntimeCompleteRequest:
+      type: object
+      required: [output]
+      properties:
+        output: { type: object, additionalProperties: true }
+    RuntimeFailRequest:
+      type: object
+      required: [error]
+      properties:
+        error: { type: string, maxLength: 10000 }
+        retryable: { type: boolean, default: false }
+        cancelled: { type: boolean, default: false }

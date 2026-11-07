@@ -2,7 +2,7 @@
 
 Personal, local-first AI engineering platform. See [`implementation-plan.md`](implementation-plan.md) for the full vision and roadmap.
 
-**Status: Phase 1 — Foundation.** Wise can manage multiple projects and their repositories behind a login. Agents, workflows (Temporal), context indexing and the engineering pipeline arrive in later phases.
+**Status: Phase 2 — Agent infrastructure.** Wise manages projects and repositories behind a login and executes specialized AI agents through a Model Gateway (LM Studio and Claude Code). Workflows (Temporal), context indexing and the engineering pipeline arrive in later phases.
 
 ## What's here
 
@@ -12,7 +12,11 @@ Personal, local-first AI engineering platform. See [`implementation-plan.md`](im
 | `apps/dashboard` | React + TypeScript dashboard (Vite, React Router, TanStack Query) |
 | `packages/contracts/api/openapi.yaml` | **Source of truth** for the REST API; Go server and TS client types are generated from it |
 | `migrations/` | goose SQL migrations (embedded into the API binary) |
-| `apps/{orchestrator,agent-runtime,execution-worker}` | Placeholders for later phases |
+| `apps/agent-runtime` | Python agent runtime (WiseLoop, read-only repository tools) |
+| `packages/agent-definitions`, `packages/prompts` | Agent contracts (YAML) and versioned system prompts |
+| `packages/contracts/{agents,events}` | JSON Schemas for agent/tool definitions and agent events |
+| `configs/models`, `configs/policies` | Model aliases/providers and usage policy (cloud allow-list, budgets) |
+| `apps/{orchestrator,execution-worker}` | Placeholders for later phases |
 | `docs/decisions/` | Architecture decision records |
 
 ## Getting started
@@ -49,6 +53,33 @@ For `make dev`, `.env` must also set `WISE_DATABASE_URL` (pointing at `127.0.0.1
 | `make test` | Go unit + integration tests (uses the compose Postgres) and dashboard typecheck + tests |
 | `make migrate ARGS=status` | Migration status (`up`, `down`, `reset` also available) |
 | `make lint` | `go vet`, `gofmt`, `tsc` |
+
+## Agents and models
+
+Agents are declared in `packages/agent-definitions/agents/*.yaml` and validated against
+`packages/contracts/agents/agent-definition.schema.json` at startup. Executable now: **product-agent**
+and **requirements-agent**; the other nine are declared for later phases. Start a run from **Agents** in
+the dashboard (optionally attaching a project so the agent can read its repositories) and watch the live
+timeline of model calls, tool calls and the validated output.
+
+Every model call goes through the **Model Gateway** (`configs/models/models.yaml`):
+
+| Alias | Default target | Use |
+| --- | --- | --- |
+| `reasoning` | `claude-code/sonnet` | analysis and planning agents |
+| `deep` | `claude-code/opus` | hard problems |
+| `local` | `lmstudio/<loaded model>` | fallback and lightweight work |
+
+**LM Studio:** start the local server (Developer tab), load a chat model and enable *Serve on Local
+Network* so Docker can reach it. Set `WISE_LMSTUDIO_MODEL` to pin a model; empty uses the loaded one.
+
+**Claude Code:** run `claude setup-token` once and put the token in `.env` as `CLAUDE_CODE_OAUTH_TOKEN`
+(`make dev` uses your existing login instead). Claude Code reports API-equivalent cost; the daily budgets
+in `configs/policies/models.yaml` still bound usage. That file also lists which agents may use cloud
+models at all — Wise never edits it itself.
+
+If a provider fails for good (e.g. not logged in), the gateway skips it for 60 s and uses the alias's
+fallbacks. The **Models** page shows provider status, aliases and token/cost usage per agent.
 
 ## API
 

@@ -22,6 +22,9 @@ type Config struct {
 	BootstrapPassword string
 	LogLevel          string
 	CORSOrigins       []string
+	RuntimeToken      string
+	ModelsConfig      string
+	ModelsPolicy      string
 }
 
 // Load reads configuration from WISE_* environment variables.
@@ -32,6 +35,9 @@ func Load() (Config, error) {
 		BootstrapUser:     os.Getenv("WISE_BOOTSTRAP_ADMIN_USER"),
 		BootstrapPassword: os.Getenv("WISE_BOOTSTRAP_ADMIN_PASSWORD"),
 		LogLevel:          getenv("WISE_LOG_LEVEL", "info"),
+		RuntimeToken:      os.Getenv("WISE_RUNTIME_TOKEN"),
+		ModelsConfig:      getenv("WISE_MODELS_CONFIG", "configs/models/models.yaml"),
+		ModelsPolicy:      getenv("WISE_MODELS_POLICY", "configs/policies/models.yaml"),
 	}
 	var errs []error
 
@@ -64,6 +70,9 @@ func Load() (Config, error) {
 
 	if c.DatabaseURL == "" {
 		errs = append(errs, errors.New("WISE_DATABASE_URL is required"))
+	}
+	if c.RuntimeToken != "" && len(c.RuntimeToken) < 32 {
+		errs = append(errs, errors.New("WISE_RUNTIME_TOKEN must be at least 32 characters"))
 	}
 	if (c.BootstrapUser == "") != (c.BootstrapPassword == "") {
 		errs = append(errs, errors.New("WISE_BOOTSTRAP_ADMIN_USER and WISE_BOOTSTRAP_ADMIN_PASSWORD must be set together"))

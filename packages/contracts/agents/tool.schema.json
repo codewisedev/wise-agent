@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://wise.local/contracts/agents/tool.schema.json",
+  "title": "Wise tool definition",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["name", "description", "input_schema", "side_effects", "permissions_required"],
+  "properties": {
+    "name": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+    "description": { "type": "string", "minLength": 1 },
+    "input_schema": { "type": "object" },
+    "output_schema": { "type": "object" },
+    "side_effects": { "enum": ["none", "read", "write"] },
+    "permissions_required": { "type": "array", "items": { "type": "string" } }
+  }
+}

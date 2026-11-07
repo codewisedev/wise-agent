@@ -1,0 +1,16 @@
+# Model usage policy (implementation-plan.md §13). Wise never changes this file itself.
+
+# Agents allowed to send data to cloud providers (claude-code). "*" allows all.
+cloud_allowed_agents:
+  - product-agent
+  - requirements-agent
+
+# Daily spend caps in USD, per agent ("default" applies to unlisted agents).
+# Claude Code reports API-equivalent cost even on a subscription; caps still bound usage.
+daily_budget_usd:
+  default: 5
+  product-agent: 10
+  requirements-agent: 10
+
+# Retries per target for transient errors before falling back.
+max_retries: 2

@@ -16,12 +16,16 @@ import (
 	"testing"
 	"time"
 
+	"wise/apps/api/internal/agents"
 	"wise/apps/api/internal/auth"
 	"wise/apps/api/internal/db"
+	"wise/apps/api/internal/events"
 	"wise/apps/api/internal/gitinspect"
 	"wise/apps/api/internal/httpapi"
+	"wise/apps/api/internal/modelgateway"
 	"wise/apps/api/internal/projects"
 	"wise/apps/api/internal/repositories"
+	"wise/apps/api/internal/runqueue"
 	"wise/apps/api/internal/testutil"
 )
 
@@ -38,6 +42,8 @@ type env struct {
 	csrf     string
 	bearer   string
 	repoRoot string
+	queue    *runqueue.Service
+	model    *scriptedProvider
 }
 
 func setup(t *testing.T) *env {
@@ -48,10 +54,30 @@ func setup(t *testing.T) *env {
 	if _, err := authSvc.Bootstrap(context.Background(), adminUser, adminPass); err != nil {
 		t.Fatal(err)
 	}
+	log := slog.New(slog.NewTextHandler(io.Discard, nil))
+	catalog, err := agents.Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := agents.Sync(context.Background(), d, catalog, log); err != nil {
+		t.Fatal(err)
+	}
+	model := &scriptedProvider{}
+	hub := events.NewHub(d)
+	gw := modelgateway.New(d, modelgateway.Config{
+		Providers: map[string]modelgateway.ProviderConfig{"scripted": {Type: "fake", Cloud: true}},
+		Aliases: map[string]modelgateway.AliasConfig{
+			"reasoning": {Targets: []modelgateway.Target{{Provider: "scripted", Model: "test-model"}}},
+			"local":     {Targets: []modelgateway.Target{{Provider: "scripted", Model: "test-model"}}},
+		},
+	}, modelgateway.Policy{CloudAllowedAgents: []string{"*"}, MaxRetries: 1}, hub, log).WithProvider(model)
+	queue := runqueue.NewService(d, hub, gw, catalog.Tools, log)
 	server := &httpapi.Server{
 		DB: d, Auth: authSvc, Projects: projects.NewService(d),
 		Repositories: repositories.NewService(d, gitinspect.New([]string{root})),
+		Agents:       agents.NewService(d, hub), RunQueue: queue, Gateway: gw, Hub: hub,
 		Cookie:       httpapi.CookieConfig{TTL: time.Hour},
+		RuntimeToken: runtimeToken,
 	}
 	h, err := httpapi.NewRouter(server, httpapi.RouterOptions{Logger: slog.New(slog.NewTextHandler(io.Discard, nil))})
 	if err != nil {
@@ -60,7 +86,7 @@ func setup(t *testing.T) *env {
 	ts := httptest.NewServer(h)
 	t.Cleanup(ts.Close)
 	jar, _ := cookiejar.New(nil)
-	return &env{t: t, db: d, srv: ts, client: &http.Client{Jar: jar}, repoRoot: root}
+	return &env{t: t, db: d, srv: ts, client: &http.Client{Jar: jar}, repoRoot: root, queue: queue, model: model}
 }
 
 type resp struct {

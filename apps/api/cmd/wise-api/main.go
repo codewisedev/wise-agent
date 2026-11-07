@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"strings"
@@ -17,13 +18,17 @@ import (
 
 	"golang.org/x/term"
 
+	"wise/apps/api/internal/agents"
 	"wise/apps/api/internal/auth"
 	"wise/apps/api/internal/config"
 	"wise/apps/api/internal/db"
+	"wise/apps/api/internal/events"
 	"wise/apps/api/internal/gitinspect"
 	"wise/apps/api/internal/httpapi"
+	"wise/apps/api/internal/modelgateway"
 	"wise/apps/api/internal/projects"
 	"wise/apps/api/internal/repositories"
+	"wise/apps/api/internal/runqueue"
 )
 
 const usage = `Usage: wise-api <command> [args]
@@ -116,13 +121,38 @@ func serve(ctx context.Context) error {
 		log.Warn("WISE_REPO_ROOTS is empty; local repositories cannot be registered")
 	}
 
+	// Agent infrastructure: registry, model gateway, event hub and run queue.
+	catalog, err := agents.Load()
+	if err != nil {
+		return fmt.Errorf("load agent definitions: %w", err)
+	}
+	if err := agents.Sync(ctx, d, catalog, log); err != nil {
+		return fmt.Errorf("register agent definitions: %w", err)
+	}
+	modelCfg, modelPolicy, err := modelgateway.LoadConfig(cfg.ModelsConfig, cfg.ModelsPolicy)
+	if err != nil {
+		return fmt.Errorf("load model config: %w", err)
+	}
+	hub := events.NewHub(d)
+	gateway := modelgateway.New(d, modelCfg, modelPolicy, hub, log)
+	runQueue := runqueue.NewService(d, hub, gateway, catalog.Tools, log)
+	if cfg.RuntimeToken == "" {
+		log.Warn("WISE_RUNTIME_TOKEN is empty; agent runtimes cannot claim runs")
+	}
+
 	inspector := gitinspect.New(cfg.RepoRoots)
 	srv := &httpapi.Server{
-		DB:           d,
-		Auth:         authSvc,
-		Projects:     projects.NewService(d),
-		Repositories: repositories.NewService(d, inspector),
-		Cookie:       httpapi.CookieConfig{Secure: cfg.CookieSecure, TTL: cfg.SessionTTL},
+		DB:               d,
+		Auth:             authSvc,
+		Projects:         projects.NewService(d),
+		Repositories:     repositories.NewService(d, inspector),
+		Agents:           agents.NewService(d, hub),
+		RunQueue:         runQueue,
+		Gateway:          gateway,
+		Hub:              hub,
+		Cookie:           httpapi.CookieConfig{Secure: cfg.CookieSecure, TTL: cfg.SessionTTL},
+		RuntimeToken:     cfg.RuntimeToken,
+		WSOriginPatterns: wsOriginPatterns(cfg.CORSOrigins),
 	}
 	handler, err := httpapi.NewRouter(srv, httpapi.RouterOptions{
 		Logger: log, TrustProxyHeaders: os.Getenv("WISE_TRUST_PROXY_HEADERS") == "true", CORSOrigins: cfg.CORSOrigins,
@@ -132,6 +162,7 @@ func serve(ctx context.Context) error {
 	}
 
 	go pruneSessions(ctx, authSvc, log)
+	go runQueue.RunReaper(ctx, 15*time.Second)
 
 	hs := &http.Server{
 		Addr:              cfg.HTTPAddr,
@@ -159,6 +190,19 @@ func serve(ctx context.Context) error {
 		return hs.Shutdown(shutCtx)
 	}
 	return nil
+}
+
+// wsOriginPatterns allows configured CORS origins. Same-host origins are always
+// accepted by the WebSocket library; no wildcard is added because any page on
+// another local port is same-site with the dashboard and would get the cookie.
+func wsOriginPatterns(origins []string) []string {
+	var patterns []string
+	for _, o := range origins {
+		if u, err := url.Parse(o); err == nil && u.Host != "" {
+			patterns = append(patterns, u.Host)
+		}
+	}
+	return patterns
 }
 
 func pruneSessions(ctx context.Context, a *auth.Service, log *slog.Logger) {

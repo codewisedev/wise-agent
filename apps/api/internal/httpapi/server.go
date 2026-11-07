@@ -5,13 +5,17 @@ import (
 	"net/http"
 	"time"
 
+	"wise/apps/api/internal/agents"
 	"wise/apps/api/internal/apperr"
 	"wise/apps/api/internal/auth"
 	"wise/apps/api/internal/db"
 	"wise/apps/api/internal/db/dbgen"
+	"wise/apps/api/internal/events"
 	"wise/apps/api/internal/httpapi/apigen"
+	"wise/apps/api/internal/modelgateway"
 	"wise/apps/api/internal/projects"
 	"wise/apps/api/internal/repositories"
+	"wise/apps/api/internal/runqueue"
 )
 
 // Server implements apigen.StrictServerInterface by delegating to domain services.
@@ -20,7 +24,15 @@ type Server struct {
 	Auth         *auth.Service
 	Projects     *projects.Service
 	Repositories *repositories.Service
+	Agents       *agents.Service
+	RunQueue     *runqueue.Service
+	Gateway      *modelgateway.Gateway
+	Hub          *events.Hub
 	Cookie       CookieConfig
+	// RuntimeToken authenticates agent runtimes claiming runs (empty disables the runtime API).
+	RuntimeToken string
+	// WSOriginPatterns are extra Origin host patterns accepted for WebSockets.
+	WSOriginPatterns []string
 }
 
 type CookieConfig struct {

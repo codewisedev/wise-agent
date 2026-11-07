@@ -1,0 +1,145 @@
+package httpapi
+
+import (
+	"context"
+	"crypto/subtle"
+	"encoding/json"
+	"net/http"
+	"strings"
+	"time"
+
+	"github.com/coder/websocket"
+	"github.com/google/uuid"
+
+	"wise/apps/api/internal/apperr"
+	"wise/apps/api/internal/audit"
+	"wise/apps/api/internal/auth"
+)
+
+const (
+	runtimePrefix = BasePath + "/runtime/"
+	claimPath     = BasePath + "/runtime/v1/runs/claim"
+	runsPrefix    = BasePath + "/runtime/v1/runs/"
+	wsPath        = BasePath + "/events/ws"
+)
+
+type runCtxKey struct{}
+
+// runtimeAuth authenticates agent runtimes: the service token for claims and a
+// per-run token (bound to the run in the URL) for everything else.
+func (s *Server) runtimeAuth(writeErr auth.ErrorWriter) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			token, ok := bearerToken(r)
+			if !ok {
+				writeErr(w, r, apperr.Unauthorized("runtime credentials required"))
+				return
+			}
+			ctx := audit.WithActor(r.Context(), audit.System)
+			if r.URL.Path == claimPath {
+				if s.RuntimeToken == "" {
+					writeErr(w, r, apperr.Unavailable("agent runtime disabled: WISE_RUNTIME_TOKEN is not configured"))
+					return
+				}
+				if subtle.ConstantTimeCompare([]byte(token), []byte(s.RuntimeToken)) != 1 {
+					writeErr(w, r, apperr.Unauthorized("invalid runtime token"))
+					return
+				}
+				next.ServeHTTP(w, r.WithContext(ctx))
+				return
+			}
+			run, err := s.RunQueue.Authenticate(ctx, token)
+			if err != nil {
+				writeErr(w, r, err)
+				return
+			}
+			idStr, _, _ := strings.Cut(strings.TrimPrefix(r.URL.Path, runsPrefix), "/")
+			if id, err := uuid.Parse(idStr); err != nil || id != run.ID {
+				writeErr(w, r, apperr.Forbidden("run token does not grant access to this run"))
+				return
+			}
+			next.ServeHTTP(w, r.WithContext(context.WithValue(ctx, runCtxKey{}, run)))
+		})
+	}
+}
+
+func bearerToken(r *http.Request) (string, bool) {
+	scheme, token, ok := strings.Cut(r.Header.Get("Authorization"), " ")
+	if !ok || !strings.EqualFold(scheme, "Bearer") || strings.TrimSpace(token) == "" {
+		return "", false
+	}
+	return strings.TrimSpace(token), true
+}
+
+// isLongRunning marks requests exempt from the default request timeout:
+// model turns (a provider call can take minutes) and WebSocket streams.
+func isLongRunning(r *http.Request) bool {
+	return r.URL.Path == wsPath || (strings.HasPrefix(r.URL.Path, runsPrefix) && strings.HasSuffix(r.URL.Path, "/model-turn"))
+}
+
+// extendDeadlines lifts the server's read/write deadlines for long requests.
+func extendDeadlines(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if isLongRunning(r) {
+			rc := http.NewResponseController(w)
+			if r.URL.Path == wsPath {
+				_ = rc.SetReadDeadline(time.Time{})
+				_ = rc.SetWriteDeadline(time.Time{})
+			} else {
+				_ = rc.SetWriteDeadline(time.Now().Add(20 * time.Minute))
+			}
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+// eventsWebSocket streams agent events as JSON messages. ?runId= limits to one run.
+func (s *Server) eventsWebSocket(w http.ResponseWriter, r *http.Request) {
+	var runID *uuid.UUID
+	if v := r.URL.Query().Get("runId"); v != "" {
+		id, err := uuid.Parse(v)
+		if err != nil {
+			writeProblem(w, apperr.BadRequest("runId must be a UUID"))
+			return
+		}
+		runID = &id
+	}
+	conn, err := websocket.Accept(w, r, &websocket.AcceptOptions{OriginPatterns: s.WSOriginPatterns})
+	if err != nil {
+		return
+	}
+	defer conn.CloseNow()
+	ctx := conn.CloseRead(r.Context())
+	ch, cancel := s.Hub.Subscribe(runID)
+	defer cancel()
+	ping := time.NewTicker(30 * time.Second)
+	defer ping.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			conn.Close(websocket.StatusNormalClosure, "")
+			return
+		case <-ping.C:
+			pctx, c := context.WithTimeout(ctx, 10*time.Second)
+			err := conn.Ping(pctx)
+			c()
+			if err != nil {
+				return
+			}
+		case ev, ok := <-ch:
+			if !ok {
+				return
+			}
+			b, err := json.Marshal(ev)
+			if err != nil {
+				continue
+			}
+			wctx, c := context.WithTimeout(ctx, 10*time.Second)
+			err = conn.Write(wctx, websocket.MessageText, b)
+			c()
+			if err != nil {
+				return
+			}
+		}
+	}
+}

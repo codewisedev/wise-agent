@@ -322,6 +322,278 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/agents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listAgents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agents/{agentName}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agentName: components["parameters"]["AgentName"];
+            };
+            cookie?: never;
+        };
+        get: operations["getAgent"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agents/{agentName}/runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agentName: components["parameters"]["AgentName"];
+            };
+            cookie?: never;
+        };
+        get: operations["listAgentRunsForAgent"];
+        put?: never;
+        /** @description Queues a run. `input` is validated against the agent's input_schema. */
+        post: operations["createAgentRun"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent-runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listAgentRuns"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent-runs/{runId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                runId: components["parameters"]["RunId"];
+            };
+            cookie?: never;
+        };
+        get: operations["getAgentRun"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent-runs/{runId}/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                runId: components["parameters"]["RunId"];
+            };
+            cookie?: never;
+        };
+        /**
+         * @description Events in order. Live updates are available over the WebSocket at
+         *     `GET /api/v1/events/ws?runId=<id>` (messages are AgentEvent JSON).
+         */
+        get: operations["listAgentRunEvents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent-runs/{runId}/model-calls": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                runId: components["parameters"]["RunId"];
+            };
+            cookie?: never;
+        };
+        get: operations["listAgentRunModelCalls"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent-runs/{runId}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                runId: components["parameters"]["RunId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["cancelAgentRun"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/models": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getModelsOverview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/runtime/v1/runs/claim": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Claims the oldest queued run. Requires the runtime service token. */
+        post: operations["runtimeClaimRun"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/runtime/v1/runs/{runId}/heartbeat": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                runId: components["parameters"]["RunId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["runtimeHeartbeat"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/runtime/v1/runs/{runId}/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                runId: components["parameters"]["RunId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["runtimeAppendEvents"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/runtime/v1/runs/{runId}/model-turn": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                runId: components["parameters"]["RunId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description Sends the transcript through the Model Gateway. Alias, fallbacks, schemas,
+         *     tools and budgets come from the run's agent definition, never from the runtime.
+         */
+        post: operations["runtimeModelTurn"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/runtime/v1/runs/{runId}/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                runId: components["parameters"]["RunId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["runtimeCompleteRun"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/runtime/v1/runs/{runId}/fail": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                runId: components["parameters"]["RunId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["runtimeFailRun"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -557,6 +829,263 @@ export interface components {
             kind: components["schemas"]["RepositoryRelationshipKind"];
             note?: string;
         };
+        /** @enum {string} */
+        AgentRunStatus: "queued" | "running" | "succeeded" | "failed" | "cancelled";
+        AgentSummary: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            version: string;
+            description: string;
+            enabled: boolean;
+            phase?: number;
+            modelAlias: string;
+            tools: string[];
+            /** Format: int64 */
+            runCount: number;
+            /** Format: date-time */
+            lastRunAt?: string | null;
+        };
+        AgentList: {
+            items: components["schemas"]["AgentSummary"][];
+        };
+        AgentDetail: components["schemas"]["AgentSummary"] & {
+            definition: {
+                [key: string]: unknown;
+            };
+            prompt: string;
+            contentHash: string;
+            /** Format: date-time */
+            createdAt: string;
+            cloudAllowed: boolean;
+        };
+        CreateAgentRunRequest: {
+            input: {
+                [key: string]: unknown;
+            };
+            /** Format: uuid */
+            projectId?: string;
+        };
+        AgentRun: {
+            /** Format: uuid */
+            id: string;
+            agentName: string;
+            /** Format: uuid */
+            agentDefinitionId: string;
+            /** Format: uuid */
+            projectId?: string | null;
+            status: components["schemas"]["AgentRunStatus"];
+            input: {
+                [key: string]: unknown;
+            };
+            output?: {
+                [key: string]: unknown;
+            } | null;
+            error?: string | null;
+            attempt: number;
+            maxAttempts: number;
+            cancelRequested: boolean;
+            /** Format: int64 */
+            totalInputTokens: number;
+            /** Format: int64 */
+            totalOutputTokens: number;
+            /** Format: double */
+            totalCostUsd: number;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            startedAt?: string | null;
+            /** Format: date-time */
+            finishedAt?: string | null;
+        };
+        AgentRunList: {
+            items: components["schemas"]["AgentRun"][];
+        };
+        AgentEvent: {
+            /** Format: uuid */
+            runId: string;
+            seq: number;
+            type: string;
+            payload: {
+                [key: string]: unknown;
+            };
+            /** Format: date-time */
+            createdAt: string;
+        };
+        AgentEventList: {
+            items: components["schemas"]["AgentEvent"][];
+        };
+        ModelCall: {
+            /** Format: uuid */
+            id: string;
+            alias: string;
+            provider: string;
+            model: string;
+            /** @enum {string} */
+            status: "ok" | "error" | "rejected";
+            error?: string | null;
+            inputTokens: number;
+            outputTokens: number;
+            /** Format: double */
+            costUsd: number;
+            latencyMs: number;
+            cacheHit: boolean;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        ModelCallList: {
+            items: components["schemas"]["ModelCall"][];
+        };
+        ModelTarget: {
+            provider: string;
+            model: string;
+        };
+        ModelAlias: {
+            name: string;
+            description: string;
+            targets: components["schemas"]["ModelTarget"][];
+        };
+        ModelProvider: {
+            name: string;
+            type: string;
+            cloud: boolean;
+            healthy: boolean;
+            error?: string;
+        };
+        ModelUsage: {
+            agentName: string;
+            alias: string;
+            provider: string;
+            model: string;
+            /** Format: int64 */
+            calls: number;
+            /** Format: int64 */
+            errors: number;
+            /** Format: int64 */
+            inputTokens: number;
+            /** Format: int64 */
+            outputTokens: number;
+            /** Format: double */
+            costUsd: number;
+        };
+        ModelsOverview: {
+            aliases: components["schemas"]["ModelAlias"][];
+            providers: components["schemas"]["ModelProvider"][];
+            usage: components["schemas"]["ModelUsage"][];
+            /** Format: date-time */
+            since: string;
+        };
+        RuntimeClaimRequest: {
+            runtimeId: string;
+        };
+        ToolDefinition: {
+            name: string;
+            description: string;
+            inputSchema: {
+                [key: string]: unknown;
+            };
+            /** @enum {string} */
+            sideEffects: "none" | "read" | "write";
+            permissionsRequired: string[];
+        };
+        RuntimeRepository: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            role: string;
+            sourceType: string;
+            localPath?: string | null;
+            remoteUrl?: string | null;
+            currentBranch?: string | null;
+            headSha?: string | null;
+        };
+        RuntimeProject: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            slug: string;
+            description: string;
+            repositories: components["schemas"]["RuntimeRepository"][];
+        };
+        RuntimeClaim: {
+            run: components["schemas"]["AgentRun"];
+            /** @description Bearer token scoped to this run; invalid once it ends. */
+            runToken: string;
+            leaseSeconds: number;
+            definition: {
+                [key: string]: unknown;
+            };
+            prompt: string;
+            tools: components["schemas"]["ToolDefinition"][];
+            project?: components["schemas"]["RuntimeProject"];
+        };
+        RuntimeHeartbeat: {
+            cancelRequested: boolean;
+            leaseSeconds: number;
+        };
+        RuntimeEvent: {
+            /** @enum {string} */
+            type: "tool.call" | "tool.result" | "agent.message" | "output.invalid" | "artifact.created";
+            payload: {
+                [key: string]: unknown;
+            };
+        };
+        RuntimeEventsRequest: {
+            events: components["schemas"]["RuntimeEvent"][];
+        };
+        TurnMessage: {
+            /** @enum {string} */
+            role: "user" | "assistant" | "tool";
+            content: string;
+            name?: string;
+        };
+        ModelTurnRequest: {
+            messages: components["schemas"]["TurnMessage"][];
+        };
+        TurnToolCall: {
+            tool: string;
+            arguments: {
+                [key: string]: unknown;
+            };
+        };
+        TokenUsage: {
+            /** Format: int64 */
+            inputTokens: number;
+            /** Format: int64 */
+            outputTokens: number;
+        };
+        ModelTurn: {
+            /** @enum {string} */
+            action: "call_tools" | "final" | "invalid";
+            thought?: string;
+            toolCalls?: components["schemas"]["TurnToolCall"][];
+            final?: {
+                [key: string]: unknown;
+            } | null;
+            parseError?: string;
+            rawText?: string;
+            alias: string;
+            provider: string;
+            model: string;
+            usage: components["schemas"]["TokenUsage"];
+            /** Format: double */
+            costUsd: number;
+            cacheHit: boolean;
+            /** Format: int64 */
+            latencyMs: number;
+        };
+        RuntimeCompleteRequest: {
+            output: {
+                [key: string]: unknown;
+            };
+        };
+        RuntimeFailRequest: {
+            error: string;
+            /** @default false */
+            retryable: boolean;
+            /** @default false */
+            cancelled: boolean;
+        };
     };
     responses: {
         /** @description Error (RFC 7807). */
@@ -574,6 +1103,8 @@ export interface components {
         RepositoryId: string;
         ResourceId: string;
         RelationshipId: string;
+        AgentName: string;
+        RunId: string;
         TokenId: string;
     };
     requestBodies: never;
@@ -1236,6 +1767,417 @@ export interface operations {
             };
             401: components["responses"]["Problem"];
             404: components["responses"]["Problem"];
+        };
+    };
+    listAgents: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current agent definitions. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentList"];
+                };
+            };
+            401: components["responses"]["Problem"];
+        };
+    };
+    getAgent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agentName: components["parameters"]["AgentName"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Agent definition with its contract and prompt. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentDetail"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    listAgentRunsForAgent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agentName: components["parameters"]["AgentName"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Recent runs of the agent. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentRunList"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    createAgentRun: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agentName: components["parameters"]["AgentName"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateAgentRunRequest"];
+            };
+        };
+        responses: {
+            /** @description Run queued. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentRun"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+        };
+    };
+    listAgentRuns: {
+        parameters: {
+            query?: {
+                projectId?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Recent runs across agents. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentRunList"];
+                };
+            };
+            401: components["responses"]["Problem"];
+        };
+    };
+    getAgentRun: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                runId: components["parameters"]["RunId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Run. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentRun"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    listAgentRunEvents: {
+        parameters: {
+            query?: {
+                afterSeq?: number;
+            };
+            header?: never;
+            path: {
+                runId: components["parameters"]["RunId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Events. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentEventList"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    listAgentRunModelCalls: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                runId: components["parameters"]["RunId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Every model call attempt made for the run. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelCallList"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    cancelAgentRun: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                runId: components["parameters"]["RunId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Run cancelled (queued) or cancellation requested (running). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentRun"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+        };
+    };
+    getModelsOverview: {
+        parameters: {
+            query?: {
+                days?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Model aliases, provider health and usage. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelsOverview"];
+                };
+            };
+            401: components["responses"]["Problem"];
+        };
+    };
+    runtimeClaimRun: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RuntimeClaimRequest"];
+            };
+        };
+        responses: {
+            /** @description Claimed run with everything needed to execute it. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RuntimeClaim"];
+                };
+            };
+            /** @description Nothing queued. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Problem"];
+        };
+    };
+    runtimeHeartbeat: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                runId: components["parameters"]["RunId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Lease extended. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RuntimeHeartbeat"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+        };
+    };
+    runtimeAppendEvents: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                runId: components["parameters"]["RunId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RuntimeEventsRequest"];
+            };
+        };
+        responses: {
+            /** @description Events stored. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+        };
+    };
+    runtimeModelTurn: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                runId: components["parameters"]["RunId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ModelTurnRequest"];
+            };
+        };
+        responses: {
+            /** @description Parsed model turn. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelTurn"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            429: components["responses"]["Problem"];
+            502: components["responses"]["Problem"];
+        };
+    };
+    runtimeCompleteRun: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                runId: components["parameters"]["RunId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RuntimeCompleteRequest"];
+            };
+        };
+        responses: {
+            /** @description Run succeeded. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+        };
+    };
+    runtimeFailRun: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                runId: components["parameters"]["RunId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RuntimeFailRequest"];
+            };
+        };
+        responses: {
+            /** @description Run failed, requeued or cancelled. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
         };
     };
 }

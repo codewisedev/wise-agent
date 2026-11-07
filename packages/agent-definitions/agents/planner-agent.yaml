@@ -1,0 +1,17 @@
+name: planner-agent
+version: 0.1.0
+description: Breaks approved requirements into ordered implementation steps.
+enabled: false
+phase: 3
+responsibilities:
+  - Decompose requirements into steps
+  - Order steps by dependency
+  - Estimate risk per step
+input_schema: { type: object, properties: {} }
+output_schema: { type: object, properties: {} }
+tools: []
+permissions: []
+model_config: { alias: reasoning }
+execution_limits: { max_turns: 1, max_tool_calls: 0, timeout_s: 60 }
+error_handling: { max_attempts: 1, invalid_output_retries: 0 }
+evaluation: { criteria: [] }

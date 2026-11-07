@@ -1,0 +1,17 @@
+name: architect-agent
+version: 0.1.0
+description: Designs technical solutions and flags architecture-impacting changes.
+enabled: false
+phase: 3
+responsibilities:
+  - Propose technical design
+  - Identify affected modules and contracts
+  - Flag material scope changes
+input_schema: { type: object, properties: {} }
+output_schema: { type: object, properties: {} }
+tools: []
+permissions: []
+model_config: { alias: reasoning }
+execution_limits: { max_turns: 1, max_tool_calls: 0, timeout_s: 60 }
+error_handling: { max_attempts: 1, invalid_output_retries: 0 }
+evaluation: { criteria: [] }

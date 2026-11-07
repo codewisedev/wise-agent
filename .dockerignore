@@ -8,3 +8,4 @@ docs/
 tests/
 *.md
 !apps/**/README.md
+!packages/prompts/**/*.md

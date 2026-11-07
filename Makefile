@@ -27,13 +27,18 @@ db-up: ## Start Postgres only
 api: db-up ## Run the API on the host (uses .env)
 	go run ./apps/api/cmd/wise-api serve
 
+.PHONY: runtime
+runtime: ## Run the agent runtime on the host (needs the API on :8080)
+	cd apps/agent-runtime && WISE_API_URL=http://127.0.0.1:8080 WISE_REPO_ROOTS="$$WISE_REPO_ROOTS" uv run python -m wise_runtime
+
 .PHONY: dashboard
 dashboard: ## Run the dashboard dev server (proxies /api to :8080)
 	pnpm -C apps/dashboard dev
 
 .PHONY: dev
 dev: db-up ## Run API + dashboard on the host
-	@trap 'kill 0' EXIT; go run ./apps/api/cmd/wise-api serve & pnpm -C apps/dashboard dev
+	@trap 'kill 0' EXIT; go run ./apps/api/cmd/wise-api serve & \
+	  (sleep 5 && $(MAKE) --no-print-directory runtime) & pnpm -C apps/dashboard dev
 
 .PHONY: migrate
 migrate: ## Apply migrations (make migrate ARGS=status|down|reset)
@@ -52,11 +57,15 @@ logs: ## Follow stack logs
 	docker compose logs -f
 
 .PHONY: test
-test: test-go test-dashboard ## Run all tests
+test: test-go test-runtime test-dashboard ## Run all tests
 
 .PHONY: test-go
 test-go: db-up ## Go unit + integration tests (integration tests use the compose Postgres)
 	WISE_TEST_DATABASE_URL="$${WISE_TEST_DATABASE_URL:-$${WISE_DATABASE_URL:-postgres://wise:$${WISE_POSTGRES_PASSWORD}@127.0.0.1:$${WISE_POSTGRES_PORT:-5433}/wise?sslmode=disable}}" go test -count=1 ./...
+
+.PHONY: test-runtime
+test-runtime: ## Python agent runtime tests
+	cd apps/agent-runtime && uv run pytest -q
 
 .PHONY: test-dashboard
 test-dashboard:
@@ -67,6 +76,7 @@ test-dashboard:
 lint: ## Static checks
 	go vet ./...
 	test -z "$$(gofmt -l apps migrations packages)"
+	cd apps/agent-runtime && uv run ruff check . && uv run ruff format --check .
 	pnpm -C apps/dashboard typecheck
 
 .PHONY: build

@@ -17,6 +17,75 @@ import (
 	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
+// Defines values for AgentRunStatus.
+const (
+	AgentRunStatusCancelled AgentRunStatus = "cancelled"
+	AgentRunStatusFailed    AgentRunStatus = "failed"
+	AgentRunStatusQueued    AgentRunStatus = "queued"
+	AgentRunStatusRunning   AgentRunStatus = "running"
+	AgentRunStatusSucceeded AgentRunStatus = "succeeded"
+)
+
+// Valid indicates whether the value is a known member of the AgentRunStatus enum.
+func (e AgentRunStatus) Valid() bool {
+	switch e {
+	case AgentRunStatusCancelled:
+		return true
+	case AgentRunStatusFailed:
+		return true
+	case AgentRunStatusQueued:
+		return true
+	case AgentRunStatusRunning:
+		return true
+	case AgentRunStatusSucceeded:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ModelCallStatus.
+const (
+	Error    ModelCallStatus = "error"
+	Ok       ModelCallStatus = "ok"
+	Rejected ModelCallStatus = "rejected"
+)
+
+// Valid indicates whether the value is a known member of the ModelCallStatus enum.
+func (e ModelCallStatus) Valid() bool {
+	switch e {
+	case Error:
+		return true
+	case Ok:
+		return true
+	case Rejected:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ModelTurnAction.
+const (
+	CallTools ModelTurnAction = "call_tools"
+	Final     ModelTurnAction = "final"
+	Invalid   ModelTurnAction = "invalid"
+)
+
+// Valid indicates whether the value is a known member of the ModelTurnAction enum.
+func (e ModelTurnAction) Valid() bool {
+	switch e {
+	case CallTools:
+		return true
+	case Final:
+		return true
+	case Invalid:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ProjectResourceKind.
 const (
 	ProjectResourceKindDatabaseDefinition ProjectResourceKind = "database_definition"
@@ -43,25 +112,25 @@ func (e ProjectResourceKind) Valid() bool {
 
 // Defines values for RepositoryIndexStatus.
 const (
-	Failed     RepositoryIndexStatus = "failed"
-	Indexed    RepositoryIndexStatus = "indexed"
-	Indexing   RepositoryIndexStatus = "indexing"
-	NotIndexed RepositoryIndexStatus = "not_indexed"
-	Queued     RepositoryIndexStatus = "queued"
+	RepositoryIndexStatusFailed     RepositoryIndexStatus = "failed"
+	RepositoryIndexStatusIndexed    RepositoryIndexStatus = "indexed"
+	RepositoryIndexStatusIndexing   RepositoryIndexStatus = "indexing"
+	RepositoryIndexStatusNotIndexed RepositoryIndexStatus = "not_indexed"
+	RepositoryIndexStatusQueued     RepositoryIndexStatus = "queued"
 )
 
 // Valid indicates whether the value is a known member of the RepositoryIndexStatus enum.
 func (e RepositoryIndexStatus) Valid() bool {
 	switch e {
-	case Failed:
+	case RepositoryIndexStatusFailed:
 		return true
-	case Indexed:
+	case RepositoryIndexStatusIndexed:
 		return true
-	case Indexing:
+	case RepositoryIndexStatusIndexing:
 		return true
-	case NotIndexed:
+	case RepositoryIndexStatusNotIndexed:
 		return true
-	case Queued:
+	case RepositoryIndexStatusQueued:
 		return true
 	default:
 		return false
@@ -143,6 +212,33 @@ func (e RepositorySourceType) Valid() bool {
 	}
 }
 
+// Defines values for RuntimeEventType.
+const (
+	AgentMessage    RuntimeEventType = "agent.message"
+	ArtifactCreated RuntimeEventType = "artifact.created"
+	OutputInvalid   RuntimeEventType = "output.invalid"
+	ToolCall        RuntimeEventType = "tool.call"
+	ToolResult      RuntimeEventType = "tool.result"
+)
+
+// Valid indicates whether the value is a known member of the RuntimeEventType enum.
+func (e RuntimeEventType) Valid() bool {
+	switch e {
+	case AgentMessage:
+		return true
+	case ArtifactCreated:
+		return true
+	case OutputInvalid:
+		return true
+	case ToolCall:
+		return true
+	case ToolResult:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for SessionInfoAuthMethod.
 const (
 	SessionInfoAuthMethodApiToken SessionInfoAuthMethod = "api_token"
@@ -155,6 +251,48 @@ func (e SessionInfoAuthMethod) Valid() bool {
 	case SessionInfoAuthMethodApiToken:
 		return true
 	case SessionInfoAuthMethodSession:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ToolDefinitionSideEffects.
+const (
+	None  ToolDefinitionSideEffects = "none"
+	Read  ToolDefinitionSideEffects = "read"
+	Write ToolDefinitionSideEffects = "write"
+)
+
+// Valid indicates whether the value is a known member of the ToolDefinitionSideEffects enum.
+func (e ToolDefinitionSideEffects) Valid() bool {
+	switch e {
+	case None:
+		return true
+	case Read:
+		return true
+	case Write:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for TurnMessageRole.
+const (
+	TurnMessageRoleAssistant TurnMessageRole = "assistant"
+	TurnMessageRoleTool      TurnMessageRole = "tool"
+	TurnMessageRoleUser      TurnMessageRole = "user"
+)
+
+// Valid indicates whether the value is a known member of the TurnMessageRole enum.
+func (e TurnMessageRole) Valid() bool {
+	switch e {
+	case TurnMessageRoleAssistant:
+		return true
+	case TurnMessageRoleTool:
+		return true
+	case TurnMessageRoleUser:
 		return true
 	default:
 		return false
@@ -179,6 +317,87 @@ func (e UserRole) Valid() bool {
 	}
 }
 
+// AgentDetail defines model for AgentDetail.
+type AgentDetail struct {
+	CloudAllowed bool                   `json:"cloudAllowed"`
+	ContentHash  string                 `json:"contentHash"`
+	CreatedAt    time.Time              `json:"createdAt"`
+	Definition   map[string]interface{} `json:"definition"`
+	Description  string                 `json:"description"`
+	Enabled      bool                   `json:"enabled"`
+	Id           openapi_types.UUID     `json:"id"`
+	LastRunAt    *time.Time             `json:"lastRunAt,omitempty"`
+	ModelAlias   string                 `json:"modelAlias"`
+	Name         string                 `json:"name"`
+	Phase        *int                   `json:"phase,omitempty"`
+	Prompt       string                 `json:"prompt"`
+	RunCount     int64                  `json:"runCount"`
+	Tools        []string               `json:"tools"`
+	Version      string                 `json:"version"`
+}
+
+// AgentEvent defines model for AgentEvent.
+type AgentEvent struct {
+	CreatedAt time.Time              `json:"createdAt"`
+	Payload   map[string]interface{} `json:"payload"`
+	RunId     openapi_types.UUID     `json:"runId"`
+	Seq       int                    `json:"seq"`
+	Type      string                 `json:"type"`
+}
+
+// AgentEventList defines model for AgentEventList.
+type AgentEventList struct {
+	Items []AgentEvent `json:"items"`
+}
+
+// AgentList defines model for AgentList.
+type AgentList struct {
+	Items []AgentSummary `json:"items"`
+}
+
+// AgentRun defines model for AgentRun.
+type AgentRun struct {
+	AgentDefinitionId openapi_types.UUID      `json:"agentDefinitionId"`
+	AgentName         string                  `json:"agentName"`
+	Attempt           int                     `json:"attempt"`
+	CancelRequested   bool                    `json:"cancelRequested"`
+	CreatedAt         time.Time               `json:"createdAt"`
+	Error             *string                 `json:"error,omitempty"`
+	FinishedAt        *time.Time              `json:"finishedAt,omitempty"`
+	Id                openapi_types.UUID      `json:"id"`
+	Input             map[string]interface{}  `json:"input"`
+	MaxAttempts       int                     `json:"maxAttempts"`
+	Output            *map[string]interface{} `json:"output,omitempty"`
+	ProjectId         *openapi_types.UUID     `json:"projectId,omitempty"`
+	StartedAt         *time.Time              `json:"startedAt,omitempty"`
+	Status            AgentRunStatus          `json:"status"`
+	TotalCostUsd      float64                 `json:"totalCostUsd"`
+	TotalInputTokens  int64                   `json:"totalInputTokens"`
+	TotalOutputTokens int64                   `json:"totalOutputTokens"`
+}
+
+// AgentRunList defines model for AgentRunList.
+type AgentRunList struct {
+	Items []AgentRun `json:"items"`
+}
+
+// AgentRunStatus defines model for AgentRunStatus.
+type AgentRunStatus string
+
+// AgentSummary defines model for AgentSummary.
+type AgentSummary struct {
+	Description string             `json:"description"`
+	Enabled     bool               `json:"enabled"`
+	Id          openapi_types.UUID `json:"id"`
+	LastRunAt   *time.Time         `json:"lastRunAt,omitempty"`
+	ModelAlias  string             `json:"modelAlias"`
+	Name        string             `json:"name"`
+	Phase       *int               `json:"phase,omitempty"`
+	RunCount    int64              `json:"runCount"`
+	Tools       []string           `json:"tools"`
+	Version     string             `json:"version"`
+}
+
 // ApiToken defines model for ApiToken.
 type ApiToken struct {
 	CreatedAt  time.Time          `json:"createdAt"`
@@ -194,6 +413,12 @@ type ApiToken struct {
 // ApiTokenList defines model for ApiTokenList.
 type ApiTokenList struct {
 	Items []ApiToken `json:"items"`
+}
+
+// CreateAgentRunRequest defines model for CreateAgentRunRequest.
+type CreateAgentRunRequest struct {
+	Input     map[string]interface{} `json:"input"`
+	ProjectId *openapi_types.UUID    `json:"projectId,omitempty"`
 }
 
 // CreateApiTokenRequest defines model for CreateApiTokenRequest.
@@ -272,6 +497,98 @@ type Health struct {
 type LoginRequest struct {
 	Password string `json:"password"`
 	Username string `json:"username"`
+}
+
+// ModelAlias defines model for ModelAlias.
+type ModelAlias struct {
+	Description string        `json:"description"`
+	Name        string        `json:"name"`
+	Targets     []ModelTarget `json:"targets"`
+}
+
+// ModelCall defines model for ModelCall.
+type ModelCall struct {
+	Alias        string             `json:"alias"`
+	CacheHit     bool               `json:"cacheHit"`
+	CostUsd      float64            `json:"costUsd"`
+	CreatedAt    time.Time          `json:"createdAt"`
+	Error        *string            `json:"error,omitempty"`
+	Id           openapi_types.UUID `json:"id"`
+	InputTokens  int                `json:"inputTokens"`
+	LatencyMs    int                `json:"latencyMs"`
+	Model        string             `json:"model"`
+	OutputTokens int                `json:"outputTokens"`
+	Provider     string             `json:"provider"`
+	Status       ModelCallStatus    `json:"status"`
+}
+
+// ModelCallStatus defines model for ModelCall.Status.
+type ModelCallStatus string
+
+// ModelCallList defines model for ModelCallList.
+type ModelCallList struct {
+	Items []ModelCall `json:"items"`
+}
+
+// ModelProvider defines model for ModelProvider.
+type ModelProvider struct {
+	Cloud   bool    `json:"cloud"`
+	Error   *string `json:"error,omitempty"`
+	Healthy bool    `json:"healthy"`
+	Name    string  `json:"name"`
+	Type    string  `json:"type"`
+}
+
+// ModelTarget defines model for ModelTarget.
+type ModelTarget struct {
+	Model    string `json:"model"`
+	Provider string `json:"provider"`
+}
+
+// ModelTurn defines model for ModelTurn.
+type ModelTurn struct {
+	Action     ModelTurnAction         `json:"action"`
+	Alias      string                  `json:"alias"`
+	CacheHit   bool                    `json:"cacheHit"`
+	CostUsd    float64                 `json:"costUsd"`
+	Final      *map[string]interface{} `json:"final,omitempty"`
+	LatencyMs  int64                   `json:"latencyMs"`
+	Model      string                  `json:"model"`
+	ParseError *string                 `json:"parseError,omitempty"`
+	Provider   string                  `json:"provider"`
+	RawText    *string                 `json:"rawText,omitempty"`
+	Thought    *string                 `json:"thought,omitempty"`
+	ToolCalls  *[]TurnToolCall         `json:"toolCalls,omitempty"`
+	Usage      TokenUsage              `json:"usage"`
+}
+
+// ModelTurnAction defines model for ModelTurn.Action.
+type ModelTurnAction string
+
+// ModelTurnRequest defines model for ModelTurnRequest.
+type ModelTurnRequest struct {
+	Messages []TurnMessage `json:"messages"`
+}
+
+// ModelUsage defines model for ModelUsage.
+type ModelUsage struct {
+	AgentName    string  `json:"agentName"`
+	Alias        string  `json:"alias"`
+	Calls        int64   `json:"calls"`
+	CostUsd      float64 `json:"costUsd"`
+	Errors       int64   `json:"errors"`
+	InputTokens  int64   `json:"inputTokens"`
+	Model        string  `json:"model"`
+	OutputTokens int64   `json:"outputTokens"`
+	Provider     string  `json:"provider"`
+}
+
+// ModelsOverview defines model for ModelsOverview.
+type ModelsOverview struct {
+	Aliases   []ModelAlias    `json:"aliases"`
+	Providers []ModelProvider `json:"providers"`
+	Since     time.Time       `json:"since"`
+	Usage     []ModelUsage    `json:"usage"`
 }
 
 // Problem defines model for Problem.
@@ -388,6 +705,77 @@ type RepositoryStatus struct {
 	RepositoryId     openapi_types.UUID    `json:"repositoryId"`
 }
 
+// RuntimeClaim defines model for RuntimeClaim.
+type RuntimeClaim struct {
+	Definition   map[string]interface{} `json:"definition"`
+	LeaseSeconds int                    `json:"leaseSeconds"`
+	Project      *RuntimeProject        `json:"project,omitempty"`
+	Prompt       string                 `json:"prompt"`
+	Run          AgentRun               `json:"run"`
+
+	// RunToken Bearer token scoped to this run; invalid once it ends.
+	RunToken string           `json:"runToken"`
+	Tools    []ToolDefinition `json:"tools"`
+}
+
+// RuntimeClaimRequest defines model for RuntimeClaimRequest.
+type RuntimeClaimRequest struct {
+	RuntimeId string `json:"runtimeId"`
+}
+
+// RuntimeCompleteRequest defines model for RuntimeCompleteRequest.
+type RuntimeCompleteRequest struct {
+	Output map[string]interface{} `json:"output"`
+}
+
+// RuntimeEvent defines model for RuntimeEvent.
+type RuntimeEvent struct {
+	Payload map[string]interface{} `json:"payload"`
+	Type    RuntimeEventType       `json:"type"`
+}
+
+// RuntimeEventType defines model for RuntimeEvent.Type.
+type RuntimeEventType string
+
+// RuntimeEventsRequest defines model for RuntimeEventsRequest.
+type RuntimeEventsRequest struct {
+	Events []RuntimeEvent `json:"events"`
+}
+
+// RuntimeFailRequest defines model for RuntimeFailRequest.
+type RuntimeFailRequest struct {
+	Cancelled *bool  `json:"cancelled,omitempty"`
+	Error     string `json:"error"`
+	Retryable *bool  `json:"retryable,omitempty"`
+}
+
+// RuntimeHeartbeat defines model for RuntimeHeartbeat.
+type RuntimeHeartbeat struct {
+	CancelRequested bool `json:"cancelRequested"`
+	LeaseSeconds    int  `json:"leaseSeconds"`
+}
+
+// RuntimeProject defines model for RuntimeProject.
+type RuntimeProject struct {
+	Description  string              `json:"description"`
+	Id           openapi_types.UUID  `json:"id"`
+	Name         string              `json:"name"`
+	Repositories []RuntimeRepository `json:"repositories"`
+	Slug         string              `json:"slug"`
+}
+
+// RuntimeRepository defines model for RuntimeRepository.
+type RuntimeRepository struct {
+	CurrentBranch *string            `json:"currentBranch,omitempty"`
+	HeadSha       *string            `json:"headSha,omitempty"`
+	Id            openapi_types.UUID `json:"id"`
+	LocalPath     *string            `json:"localPath,omitempty"`
+	Name          string             `json:"name"`
+	RemoteUrl     *string            `json:"remoteUrl,omitempty"`
+	Role          string             `json:"role"`
+	SourceType    string             `json:"sourceType"`
+}
+
 // SessionInfo defines model for SessionInfo.
 type SessionInfo struct {
 	AuthMethod SessionInfoAuthMethod `json:"authMethod"`
@@ -400,6 +788,40 @@ type SessionInfo struct {
 
 // SessionInfoAuthMethod defines model for SessionInfo.AuthMethod.
 type SessionInfoAuthMethod string
+
+// TokenUsage defines model for TokenUsage.
+type TokenUsage struct {
+	InputTokens  int64 `json:"inputTokens"`
+	OutputTokens int64 `json:"outputTokens"`
+}
+
+// ToolDefinition defines model for ToolDefinition.
+type ToolDefinition struct {
+	Description         string                    `json:"description"`
+	InputSchema         map[string]interface{}    `json:"inputSchema"`
+	Name                string                    `json:"name"`
+	PermissionsRequired []string                  `json:"permissionsRequired"`
+	SideEffects         ToolDefinitionSideEffects `json:"sideEffects"`
+}
+
+// ToolDefinitionSideEffects defines model for ToolDefinition.SideEffects.
+type ToolDefinitionSideEffects string
+
+// TurnMessage defines model for TurnMessage.
+type TurnMessage struct {
+	Content string          `json:"content"`
+	Name    *string         `json:"name,omitempty"`
+	Role    TurnMessageRole `json:"role"`
+}
+
+// TurnMessageRole defines model for TurnMessage.Role.
+type TurnMessageRole string
+
+// TurnToolCall defines model for TurnToolCall.
+type TurnToolCall struct {
+	Arguments map[string]interface{} `json:"arguments"`
+	Tool      string                 `json:"tool"`
+}
 
 // UpdateProjectRequest defines model for UpdateProjectRequest.
 type UpdateProjectRequest struct {
@@ -428,6 +850,9 @@ type User struct {
 // UserRole defines model for User.Role.
 type UserRole string
 
+// AgentName defines model for AgentName.
+type AgentName = string
+
 // ProjectId defines model for ProjectId.
 type ProjectId = openapi_types.UUID
 
@@ -440,13 +865,34 @@ type RepositoryId = openapi_types.UUID
 // ResourceId defines model for ResourceId.
 type ResourceId = openapi_types.UUID
 
+// RunId defines model for RunId.
+type RunId = openapi_types.UUID
+
 // TokenId defines model for TokenId.
 type TokenId = openapi_types.UUID
+
+// ListAgentRunsParams defines parameters for ListAgentRuns.
+type ListAgentRunsParams struct {
+	ProjectId *openapi_types.UUID `form:"projectId,omitempty" json:"projectId,omitempty"`
+}
+
+// ListAgentRunEventsParams defines parameters for ListAgentRunEvents.
+type ListAgentRunEventsParams struct {
+	AfterSeq *int `form:"afterSeq,omitempty" json:"afterSeq,omitempty"`
+}
+
+// GetModelsOverviewParams defines parameters for GetModelsOverview.
+type GetModelsOverviewParams struct {
+	Days *int `form:"days,omitempty" json:"days,omitempty"`
+}
 
 // ListProjectsParams defines parameters for ListProjects.
 type ListProjectsParams struct {
 	IncludeArchived *bool `form:"includeArchived,omitempty" json:"includeArchived,omitempty"`
 }
+
+// CreateAgentRunJSONRequestBody defines body for CreateAgentRun for application/json ContentType.
+type CreateAgentRunJSONRequestBody = CreateAgentRunRequest
 
 // LoginJSONRequestBody defines body for Login for application/json ContentType.
 type LoginJSONRequestBody = LoginRequest
@@ -472,8 +918,50 @@ type CreateProjectResourceJSONRequestBody = CreateProjectResourceRequest
 // UpdateRepositoryJSONRequestBody defines body for UpdateRepository for application/json ContentType.
 type UpdateRepositoryJSONRequestBody = UpdateRepositoryRequest
 
+// RuntimeClaimRunJSONRequestBody defines body for RuntimeClaimRun for application/json ContentType.
+type RuntimeClaimRunJSONRequestBody = RuntimeClaimRequest
+
+// RuntimeCompleteRunJSONRequestBody defines body for RuntimeCompleteRun for application/json ContentType.
+type RuntimeCompleteRunJSONRequestBody = RuntimeCompleteRequest
+
+// RuntimeAppendEventsJSONRequestBody defines body for RuntimeAppendEvents for application/json ContentType.
+type RuntimeAppendEventsJSONRequestBody = RuntimeEventsRequest
+
+// RuntimeFailRunJSONRequestBody defines body for RuntimeFailRun for application/json ContentType.
+type RuntimeFailRunJSONRequestBody = RuntimeFailRequest
+
+// RuntimeModelTurnJSONRequestBody defines body for RuntimeModelTurn for application/json ContentType.
+type RuntimeModelTurnJSONRequestBody = ModelTurnRequest
+
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+
+	// (GET /agent-runs)
+	ListAgentRuns(w http.ResponseWriter, r *http.Request, params ListAgentRunsParams)
+
+	// (GET /agent-runs/{runId})
+	GetAgentRun(w http.ResponseWriter, r *http.Request, runId RunId)
+
+	// (POST /agent-runs/{runId}/cancel)
+	CancelAgentRun(w http.ResponseWriter, r *http.Request, runId RunId)
+
+	// (GET /agent-runs/{runId}/events)
+	ListAgentRunEvents(w http.ResponseWriter, r *http.Request, runId RunId, params ListAgentRunEventsParams)
+
+	// (GET /agent-runs/{runId}/model-calls)
+	ListAgentRunModelCalls(w http.ResponseWriter, r *http.Request, runId RunId)
+
+	// (GET /agents)
+	ListAgents(w http.ResponseWriter, r *http.Request)
+
+	// (GET /agents/{agentName})
+	GetAgent(w http.ResponseWriter, r *http.Request, agentName AgentName)
+
+	// (GET /agents/{agentName}/runs)
+	ListAgentRunsForAgent(w http.ResponseWriter, r *http.Request, agentName AgentName)
+
+	// (POST /agents/{agentName}/runs)
+	CreateAgentRun(w http.ResponseWriter, r *http.Request, agentName AgentName)
 
 	// (POST /auth/login)
 	Login(w http.ResponseWriter, r *http.Request)
@@ -495,6 +983,9 @@ type ServerInterface interface {
 
 	// (GET /healthz)
 	GetHealth(w http.ResponseWriter, r *http.Request)
+
+	// (GET /models)
+	GetModelsOverview(w http.ResponseWriter, r *http.Request, params GetModelsOverviewParams)
 
 	// (DELETE /project-resources/{resourceId})
 	DeleteProjectResource(w http.ResponseWriter, r *http.Request, resourceId ResourceId)
@@ -555,11 +1046,74 @@ type ServerInterface interface {
 
 	// (DELETE /repository-relationships/{relationshipId})
 	DeleteRepositoryRelationship(w http.ResponseWriter, r *http.Request, relationshipId RelationshipId)
+
+	// (POST /runtime/v1/runs/claim)
+	RuntimeClaimRun(w http.ResponseWriter, r *http.Request)
+
+	// (POST /runtime/v1/runs/{runId}/complete)
+	RuntimeCompleteRun(w http.ResponseWriter, r *http.Request, runId RunId)
+
+	// (POST /runtime/v1/runs/{runId}/events)
+	RuntimeAppendEvents(w http.ResponseWriter, r *http.Request, runId RunId)
+
+	// (POST /runtime/v1/runs/{runId}/fail)
+	RuntimeFailRun(w http.ResponseWriter, r *http.Request, runId RunId)
+
+	// (POST /runtime/v1/runs/{runId}/heartbeat)
+	RuntimeHeartbeat(w http.ResponseWriter, r *http.Request, runId RunId)
+
+	// (POST /runtime/v1/runs/{runId}/model-turn)
+	RuntimeModelTurn(w http.ResponseWriter, r *http.Request, runId RunId)
 }
 
 // Unimplemented server implementation that returns http.StatusNotImplemented for each endpoint.
 
 type Unimplemented struct{}
+
+// (GET /agent-runs)
+func (_ Unimplemented) ListAgentRuns(w http.ResponseWriter, r *http.Request, params ListAgentRunsParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (GET /agent-runs/{runId})
+func (_ Unimplemented) GetAgentRun(w http.ResponseWriter, r *http.Request, runId RunId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (POST /agent-runs/{runId}/cancel)
+func (_ Unimplemented) CancelAgentRun(w http.ResponseWriter, r *http.Request, runId RunId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (GET /agent-runs/{runId}/events)
+func (_ Unimplemented) ListAgentRunEvents(w http.ResponseWriter, r *http.Request, runId RunId, params ListAgentRunEventsParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (GET /agent-runs/{runId}/model-calls)
+func (_ Unimplemented) ListAgentRunModelCalls(w http.ResponseWriter, r *http.Request, runId RunId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (GET /agents)
+func (_ Unimplemented) ListAgents(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (GET /agents/{agentName})
+func (_ Unimplemented) GetAgent(w http.ResponseWriter, r *http.Request, agentName AgentName) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (GET /agents/{agentName}/runs)
+func (_ Unimplemented) ListAgentRunsForAgent(w http.ResponseWriter, r *http.Request, agentName AgentName) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (POST /agents/{agentName}/runs)
+func (_ Unimplemented) CreateAgentRun(w http.ResponseWriter, r *http.Request, agentName AgentName) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
 
 // (POST /auth/login)
 func (_ Unimplemented) Login(w http.ResponseWriter, r *http.Request) {
@@ -593,6 +1147,11 @@ func (_ Unimplemented) RevokeApiToken(w http.ResponseWriter, r *http.Request, to
 
 // (GET /healthz)
 func (_ Unimplemented) GetHealth(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (GET /models)
+func (_ Unimplemented) GetModelsOverview(w http.ResponseWriter, r *http.Request, params GetModelsOverviewParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -696,6 +1255,36 @@ func (_ Unimplemented) DeleteRepositoryRelationship(w http.ResponseWriter, r *ht
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
+// (POST /runtime/v1/runs/claim)
+func (_ Unimplemented) RuntimeClaimRun(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (POST /runtime/v1/runs/{runId}/complete)
+func (_ Unimplemented) RuntimeCompleteRun(w http.ResponseWriter, r *http.Request, runId RunId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (POST /runtime/v1/runs/{runId}/events)
+func (_ Unimplemented) RuntimeAppendEvents(w http.ResponseWriter, r *http.Request, runId RunId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (POST /runtime/v1/runs/{runId}/fail)
+func (_ Unimplemented) RuntimeFailRun(w http.ResponseWriter, r *http.Request, runId RunId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (POST /runtime/v1/runs/{runId}/heartbeat)
+func (_ Unimplemented) RuntimeHeartbeat(w http.ResponseWriter, r *http.Request, runId RunId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (POST /runtime/v1/runs/{runId}/model-turn)
+func (_ Unimplemented) RuntimeModelTurn(w http.ResponseWriter, r *http.Request, runId RunId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
 // ServerInterfaceWrapper converts contexts to parameters.
 type ServerInterfaceWrapper struct {
 	Handler            ServerInterface
@@ -704,6 +1293,251 @@ type ServerInterfaceWrapper struct {
 }
 
 type MiddlewareFunc func(http.Handler) http.Handler
+
+// ListAgentRuns operation middleware
+func (siw *ServerInterfaceWrapper) ListAgentRuns(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListAgentRunsParams
+
+	// ------------- Optional query parameter "projectId" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "projectId", r.URL.Query(), &params.ProjectId, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "projectId"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "projectId", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListAgentRuns(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetAgentRun operation middleware
+func (siw *ServerInterfaceWrapper) GetAgentRun(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "runId" -------------
+	var runId RunId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "runId", chi.URLParam(r, "runId"), &runId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "runId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetAgentRun(w, r, runId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CancelAgentRun operation middleware
+func (siw *ServerInterfaceWrapper) CancelAgentRun(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "runId" -------------
+	var runId RunId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "runId", chi.URLParam(r, "runId"), &runId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "runId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CancelAgentRun(w, r, runId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListAgentRunEvents operation middleware
+func (siw *ServerInterfaceWrapper) ListAgentRunEvents(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "runId" -------------
+	var runId RunId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "runId", chi.URLParam(r, "runId"), &runId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "runId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListAgentRunEventsParams
+
+	// ------------- Optional query parameter "afterSeq" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "afterSeq", r.URL.Query(), &params.AfterSeq, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "afterSeq"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "afterSeq", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListAgentRunEvents(w, r, runId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListAgentRunModelCalls operation middleware
+func (siw *ServerInterfaceWrapper) ListAgentRunModelCalls(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "runId" -------------
+	var runId RunId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "runId", chi.URLParam(r, "runId"), &runId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "runId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListAgentRunModelCalls(w, r, runId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListAgents operation middleware
+func (siw *ServerInterfaceWrapper) ListAgents(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListAgents(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetAgent operation middleware
+func (siw *ServerInterfaceWrapper) GetAgent(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "agentName" -------------
+	var agentName AgentName
+
+	err = runtime.BindStyledParameterWithOptions("simple", "agentName", chi.URLParam(r, "agentName"), &agentName, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "agentName", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetAgent(w, r, agentName)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListAgentRunsForAgent operation middleware
+func (siw *ServerInterfaceWrapper) ListAgentRunsForAgent(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "agentName" -------------
+	var agentName AgentName
+
+	err = runtime.BindStyledParameterWithOptions("simple", "agentName", chi.URLParam(r, "agentName"), &agentName, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "agentName", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListAgentRunsForAgent(w, r, agentName)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateAgentRun operation middleware
+func (siw *ServerInterfaceWrapper) CreateAgentRun(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "agentName" -------------
+	var agentName AgentName
+
+	err = runtime.BindStyledParameterWithOptions("simple", "agentName", chi.URLParam(r, "agentName"), &agentName, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "agentName", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateAgentRun(w, r, agentName)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
 
 // Login operation middleware
 func (siw *ServerInterfaceWrapper) Login(w http.ResponseWriter, r *http.Request) {
@@ -806,6 +1640,39 @@ func (siw *ServerInterfaceWrapper) GetHealth(w http.ResponseWriter, r *http.Requ
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetHealth(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetModelsOverview operation middleware
+func (siw *ServerInterfaceWrapper) GetModelsOverview(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetModelsOverviewParams
+
+	// ------------- Optional query parameter "days" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "days", r.URL.Query(), &params.Days, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "days"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "days", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetModelsOverview(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1318,6 +2185,150 @@ func (siw *ServerInterfaceWrapper) DeleteRepositoryRelationship(w http.ResponseW
 	handler.ServeHTTP(w, r)
 }
 
+// RuntimeClaimRun operation middleware
+func (siw *ServerInterfaceWrapper) RuntimeClaimRun(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RuntimeClaimRun(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RuntimeCompleteRun operation middleware
+func (siw *ServerInterfaceWrapper) RuntimeCompleteRun(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "runId" -------------
+	var runId RunId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "runId", chi.URLParam(r, "runId"), &runId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "runId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RuntimeCompleteRun(w, r, runId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RuntimeAppendEvents operation middleware
+func (siw *ServerInterfaceWrapper) RuntimeAppendEvents(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "runId" -------------
+	var runId RunId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "runId", chi.URLParam(r, "runId"), &runId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "runId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RuntimeAppendEvents(w, r, runId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RuntimeFailRun operation middleware
+func (siw *ServerInterfaceWrapper) RuntimeFailRun(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "runId" -------------
+	var runId RunId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "runId", chi.URLParam(r, "runId"), &runId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "runId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RuntimeFailRun(w, r, runId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RuntimeHeartbeat operation middleware
+func (siw *ServerInterfaceWrapper) RuntimeHeartbeat(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "runId" -------------
+	var runId RunId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "runId", chi.URLParam(r, "runId"), &runId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "runId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RuntimeHeartbeat(w, r, runId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RuntimeModelTurn operation middleware
+func (siw *ServerInterfaceWrapper) RuntimeModelTurn(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "runId" -------------
+	var runId RunId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "runId", chi.URLParam(r, "runId"), &runId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "runId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RuntimeModelTurn(w, r, runId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 type UnescapedCookieParamError struct {
 	ParamName string
 	Err       error
@@ -1512,11 +2523,542 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	r.Group(func(r chi.Router) {
 		r.Delete(options.BaseURL+"/repository-relationships/{relationshipId}", wrapper.DeleteRepositoryRelationship)
 	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/agents", wrapper.ListAgents)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/agents/{agentName}", wrapper.GetAgent)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/agents/{agentName}/runs", wrapper.ListAgentRunsForAgent)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/agents/{agentName}/runs", wrapper.CreateAgentRun)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/agent-runs", wrapper.ListAgentRuns)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/agent-runs/{runId}", wrapper.GetAgentRun)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/agent-runs/{runId}/events", wrapper.ListAgentRunEvents)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/agent-runs/{runId}/model-calls", wrapper.ListAgentRunModelCalls)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/agent-runs/{runId}/cancel", wrapper.CancelAgentRun)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/models", wrapper.GetModelsOverview)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/runtime/v1/runs/claim", wrapper.RuntimeClaimRun)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/runtime/v1/runs/{runId}/heartbeat", wrapper.RuntimeHeartbeat)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/runtime/v1/runs/{runId}/events", wrapper.RuntimeAppendEvents)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/runtime/v1/runs/{runId}/model-turn", wrapper.RuntimeModelTurn)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/runtime/v1/runs/{runId}/complete", wrapper.RuntimeCompleteRun)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/runtime/v1/runs/{runId}/fail", wrapper.RuntimeFailRun)
+	})
 
 	return r
 }
 
 type ProblemApplicationProblemPlusJSONResponse Problem
+
+type ListAgentRunsRequestObject struct {
+	Params ListAgentRunsParams
+}
+
+type ListAgentRunsResponseObject interface {
+	VisitListAgentRunsResponse(w http.ResponseWriter) error
+}
+
+type ListAgentRuns200JSONResponse AgentRunList
+
+func (response ListAgentRuns200JSONResponse) VisitListAgentRunsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListAgentRuns401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response ListAgentRuns401ApplicationProblemPlusJSONResponse) VisitListAgentRunsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAgentRunRequestObject struct {
+	RunId RunId `json:"runId"`
+}
+
+type GetAgentRunResponseObject interface {
+	VisitGetAgentRunResponse(w http.ResponseWriter) error
+}
+
+type GetAgentRun200JSONResponse AgentRun
+
+func (response GetAgentRun200JSONResponse) VisitGetAgentRunResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAgentRun401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response GetAgentRun401ApplicationProblemPlusJSONResponse) VisitGetAgentRunResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAgentRun404ApplicationProblemPlusJSONResponse Problem
+
+func (response GetAgentRun404ApplicationProblemPlusJSONResponse) VisitGetAgentRunResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CancelAgentRunRequestObject struct {
+	RunId RunId `json:"runId"`
+}
+
+type CancelAgentRunResponseObject interface {
+	VisitCancelAgentRunResponse(w http.ResponseWriter) error
+}
+
+type CancelAgentRun200JSONResponse AgentRun
+
+func (response CancelAgentRun200JSONResponse) VisitCancelAgentRunResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CancelAgentRun401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response CancelAgentRun401ApplicationProblemPlusJSONResponse) VisitCancelAgentRunResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CancelAgentRun404ApplicationProblemPlusJSONResponse Problem
+
+func (response CancelAgentRun404ApplicationProblemPlusJSONResponse) VisitCancelAgentRunResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CancelAgentRun409ApplicationProblemPlusJSONResponse Problem
+
+func (response CancelAgentRun409ApplicationProblemPlusJSONResponse) VisitCancelAgentRunResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListAgentRunEventsRequestObject struct {
+	RunId  RunId `json:"runId"`
+	Params ListAgentRunEventsParams
+}
+
+type ListAgentRunEventsResponseObject interface {
+	VisitListAgentRunEventsResponse(w http.ResponseWriter) error
+}
+
+type ListAgentRunEvents200JSONResponse AgentEventList
+
+func (response ListAgentRunEvents200JSONResponse) VisitListAgentRunEventsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListAgentRunEvents401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response ListAgentRunEvents401ApplicationProblemPlusJSONResponse) VisitListAgentRunEventsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListAgentRunEvents404ApplicationProblemPlusJSONResponse Problem
+
+func (response ListAgentRunEvents404ApplicationProblemPlusJSONResponse) VisitListAgentRunEventsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListAgentRunModelCallsRequestObject struct {
+	RunId RunId `json:"runId"`
+}
+
+type ListAgentRunModelCallsResponseObject interface {
+	VisitListAgentRunModelCallsResponse(w http.ResponseWriter) error
+}
+
+type ListAgentRunModelCalls200JSONResponse ModelCallList
+
+func (response ListAgentRunModelCalls200JSONResponse) VisitListAgentRunModelCallsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListAgentRunModelCalls401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response ListAgentRunModelCalls401ApplicationProblemPlusJSONResponse) VisitListAgentRunModelCallsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListAgentRunModelCalls404ApplicationProblemPlusJSONResponse Problem
+
+func (response ListAgentRunModelCalls404ApplicationProblemPlusJSONResponse) VisitListAgentRunModelCallsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListAgentsRequestObject struct {
+}
+
+type ListAgentsResponseObject interface {
+	VisitListAgentsResponse(w http.ResponseWriter) error
+}
+
+type ListAgents200JSONResponse AgentList
+
+func (response ListAgents200JSONResponse) VisitListAgentsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListAgents401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response ListAgents401ApplicationProblemPlusJSONResponse) VisitListAgentsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAgentRequestObject struct {
+	AgentName AgentName `json:"agentName"`
+}
+
+type GetAgentResponseObject interface {
+	VisitGetAgentResponse(w http.ResponseWriter) error
+}
+
+type GetAgent200JSONResponse AgentDetail
+
+func (response GetAgent200JSONResponse) VisitGetAgentResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAgent401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response GetAgent401ApplicationProblemPlusJSONResponse) VisitGetAgentResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAgent404ApplicationProblemPlusJSONResponse Problem
+
+func (response GetAgent404ApplicationProblemPlusJSONResponse) VisitGetAgentResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListAgentRunsForAgentRequestObject struct {
+	AgentName AgentName `json:"agentName"`
+}
+
+type ListAgentRunsForAgentResponseObject interface {
+	VisitListAgentRunsForAgentResponse(w http.ResponseWriter) error
+}
+
+type ListAgentRunsForAgent200JSONResponse AgentRunList
+
+func (response ListAgentRunsForAgent200JSONResponse) VisitListAgentRunsForAgentResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListAgentRunsForAgent401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response ListAgentRunsForAgent401ApplicationProblemPlusJSONResponse) VisitListAgentRunsForAgentResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListAgentRunsForAgent404ApplicationProblemPlusJSONResponse Problem
+
+func (response ListAgentRunsForAgent404ApplicationProblemPlusJSONResponse) VisitListAgentRunsForAgentResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateAgentRunRequestObject struct {
+	AgentName AgentName `json:"agentName"`
+	Body      *CreateAgentRunJSONRequestBody
+}
+
+type CreateAgentRunResponseObject interface {
+	VisitCreateAgentRunResponse(w http.ResponseWriter) error
+}
+
+type CreateAgentRun202JSONResponse AgentRun
+
+func (response CreateAgentRun202JSONResponse) VisitCreateAgentRunResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(202)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateAgentRun400ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response CreateAgentRun400ApplicationProblemPlusJSONResponse) VisitCreateAgentRunResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateAgentRun401ApplicationProblemPlusJSONResponse Problem
+
+func (response CreateAgentRun401ApplicationProblemPlusJSONResponse) VisitCreateAgentRunResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateAgentRun404ApplicationProblemPlusJSONResponse Problem
+
+func (response CreateAgentRun404ApplicationProblemPlusJSONResponse) VisitCreateAgentRunResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateAgentRun409ApplicationProblemPlusJSONResponse Problem
+
+func (response CreateAgentRun409ApplicationProblemPlusJSONResponse) VisitCreateAgentRunResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
 
 type LoginRequestObject struct {
 	Body *LoginJSONRequestBody
@@ -1804,6 +3346,44 @@ func (response GetHealth200JSONResponse) VisitGetHealthResponse(w http.ResponseW
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetModelsOverviewRequestObject struct {
+	Params GetModelsOverviewParams
+}
+
+type GetModelsOverviewResponseObject interface {
+	VisitGetModelsOverviewResponse(w http.ResponseWriter) error
+}
+
+type GetModelsOverview200JSONResponse ModelsOverview
+
+func (response GetModelsOverview200JSONResponse) VisitGetModelsOverviewResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetModelsOverview401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response GetModelsOverview401ApplicationProblemPlusJSONResponse) VisitGetModelsOverviewResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
 	_, err := buf.WriteTo(w)
 	return err
 }
@@ -2940,8 +4520,397 @@ func (response DeleteRepositoryRelationship404ApplicationProblemPlusJSONResponse
 	return err
 }
 
+type RuntimeClaimRunRequestObject struct {
+	Body *RuntimeClaimRunJSONRequestBody
+}
+
+type RuntimeClaimRunResponseObject interface {
+	VisitRuntimeClaimRunResponse(w http.ResponseWriter) error
+}
+
+type RuntimeClaimRun200JSONResponse RuntimeClaim
+
+func (response RuntimeClaimRun200JSONResponse) VisitRuntimeClaimRunResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RuntimeClaimRun204Response struct {
+}
+
+func (response RuntimeClaimRun204Response) VisitRuntimeClaimRunResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type RuntimeClaimRun401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response RuntimeClaimRun401ApplicationProblemPlusJSONResponse) VisitRuntimeClaimRunResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RuntimeCompleteRunRequestObject struct {
+	RunId RunId `json:"runId"`
+	Body  *RuntimeCompleteRunJSONRequestBody
+}
+
+type RuntimeCompleteRunResponseObject interface {
+	VisitRuntimeCompleteRunResponse(w http.ResponseWriter) error
+}
+
+type RuntimeCompleteRun204Response struct {
+}
+
+func (response RuntimeCompleteRun204Response) VisitRuntimeCompleteRunResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type RuntimeCompleteRun401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response RuntimeCompleteRun401ApplicationProblemPlusJSONResponse) VisitRuntimeCompleteRunResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RuntimeCompleteRun403ApplicationProblemPlusJSONResponse Problem
+
+func (response RuntimeCompleteRun403ApplicationProblemPlusJSONResponse) VisitRuntimeCompleteRunResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RuntimeCompleteRun422ApplicationProblemPlusJSONResponse Problem
+
+func (response RuntimeCompleteRun422ApplicationProblemPlusJSONResponse) VisitRuntimeCompleteRunResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(422)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RuntimeAppendEventsRequestObject struct {
+	RunId RunId `json:"runId"`
+	Body  *RuntimeAppendEventsJSONRequestBody
+}
+
+type RuntimeAppendEventsResponseObject interface {
+	VisitRuntimeAppendEventsResponse(w http.ResponseWriter) error
+}
+
+type RuntimeAppendEvents204Response struct {
+}
+
+func (response RuntimeAppendEvents204Response) VisitRuntimeAppendEventsResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type RuntimeAppendEvents400ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response RuntimeAppendEvents400ApplicationProblemPlusJSONResponse) VisitRuntimeAppendEventsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RuntimeAppendEvents401ApplicationProblemPlusJSONResponse Problem
+
+func (response RuntimeAppendEvents401ApplicationProblemPlusJSONResponse) VisitRuntimeAppendEventsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RuntimeAppendEvents403ApplicationProblemPlusJSONResponse Problem
+
+func (response RuntimeAppendEvents403ApplicationProblemPlusJSONResponse) VisitRuntimeAppendEventsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RuntimeFailRunRequestObject struct {
+	RunId RunId `json:"runId"`
+	Body  *RuntimeFailRunJSONRequestBody
+}
+
+type RuntimeFailRunResponseObject interface {
+	VisitRuntimeFailRunResponse(w http.ResponseWriter) error
+}
+
+type RuntimeFailRun204Response struct {
+}
+
+func (response RuntimeFailRun204Response) VisitRuntimeFailRunResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type RuntimeFailRun401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response RuntimeFailRun401ApplicationProblemPlusJSONResponse) VisitRuntimeFailRunResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RuntimeFailRun403ApplicationProblemPlusJSONResponse Problem
+
+func (response RuntimeFailRun403ApplicationProblemPlusJSONResponse) VisitRuntimeFailRunResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RuntimeHeartbeatRequestObject struct {
+	RunId RunId `json:"runId"`
+}
+
+type RuntimeHeartbeatResponseObject interface {
+	VisitRuntimeHeartbeatResponse(w http.ResponseWriter) error
+}
+
+type RuntimeHeartbeat200JSONResponse RuntimeHeartbeat
+
+func (response RuntimeHeartbeat200JSONResponse) VisitRuntimeHeartbeatResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RuntimeHeartbeat401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response RuntimeHeartbeat401ApplicationProblemPlusJSONResponse) VisitRuntimeHeartbeatResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RuntimeHeartbeat403ApplicationProblemPlusJSONResponse Problem
+
+func (response RuntimeHeartbeat403ApplicationProblemPlusJSONResponse) VisitRuntimeHeartbeatResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RuntimeModelTurnRequestObject struct {
+	RunId RunId `json:"runId"`
+	Body  *RuntimeModelTurnJSONRequestBody
+}
+
+type RuntimeModelTurnResponseObject interface {
+	VisitRuntimeModelTurnResponse(w http.ResponseWriter) error
+}
+
+type RuntimeModelTurn200JSONResponse ModelTurn
+
+func (response RuntimeModelTurn200JSONResponse) VisitRuntimeModelTurnResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RuntimeModelTurn400ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response RuntimeModelTurn400ApplicationProblemPlusJSONResponse) VisitRuntimeModelTurnResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RuntimeModelTurn401ApplicationProblemPlusJSONResponse Problem
+
+func (response RuntimeModelTurn401ApplicationProblemPlusJSONResponse) VisitRuntimeModelTurnResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RuntimeModelTurn403ApplicationProblemPlusJSONResponse Problem
+
+func (response RuntimeModelTurn403ApplicationProblemPlusJSONResponse) VisitRuntimeModelTurnResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RuntimeModelTurn429ApplicationProblemPlusJSONResponse Problem
+
+func (response RuntimeModelTurn429ApplicationProblemPlusJSONResponse) VisitRuntimeModelTurnResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(429)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RuntimeModelTurn502ApplicationProblemPlusJSONResponse Problem
+
+func (response RuntimeModelTurn502ApplicationProblemPlusJSONResponse) VisitRuntimeModelTurnResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(502)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
+
+	// (GET /agent-runs)
+	ListAgentRuns(ctx context.Context, request ListAgentRunsRequestObject) (ListAgentRunsResponseObject, error)
+
+	// (GET /agent-runs/{runId})
+	GetAgentRun(ctx context.Context, request GetAgentRunRequestObject) (GetAgentRunResponseObject, error)
+
+	// (POST /agent-runs/{runId}/cancel)
+	CancelAgentRun(ctx context.Context, request CancelAgentRunRequestObject) (CancelAgentRunResponseObject, error)
+
+	// (GET /agent-runs/{runId}/events)
+	ListAgentRunEvents(ctx context.Context, request ListAgentRunEventsRequestObject) (ListAgentRunEventsResponseObject, error)
+
+	// (GET /agent-runs/{runId}/model-calls)
+	ListAgentRunModelCalls(ctx context.Context, request ListAgentRunModelCallsRequestObject) (ListAgentRunModelCallsResponseObject, error)
+
+	// (GET /agents)
+	ListAgents(ctx context.Context, request ListAgentsRequestObject) (ListAgentsResponseObject, error)
+
+	// (GET /agents/{agentName})
+	GetAgent(ctx context.Context, request GetAgentRequestObject) (GetAgentResponseObject, error)
+
+	// (GET /agents/{agentName}/runs)
+	ListAgentRunsForAgent(ctx context.Context, request ListAgentRunsForAgentRequestObject) (ListAgentRunsForAgentResponseObject, error)
+
+	// (POST /agents/{agentName}/runs)
+	CreateAgentRun(ctx context.Context, request CreateAgentRunRequestObject) (CreateAgentRunResponseObject, error)
 
 	// (POST /auth/login)
 	Login(ctx context.Context, request LoginRequestObject) (LoginResponseObject, error)
@@ -2963,6 +4932,9 @@ type StrictServerInterface interface {
 
 	// (GET /healthz)
 	GetHealth(ctx context.Context, request GetHealthRequestObject) (GetHealthResponseObject, error)
+
+	// (GET /models)
+	GetModelsOverview(ctx context.Context, request GetModelsOverviewRequestObject) (GetModelsOverviewResponseObject, error)
 
 	// (DELETE /project-resources/{resourceId})
 	DeleteProjectResource(ctx context.Context, request DeleteProjectResourceRequestObject) (DeleteProjectResourceResponseObject, error)
@@ -3023,6 +4995,24 @@ type StrictServerInterface interface {
 
 	// (DELETE /repository-relationships/{relationshipId})
 	DeleteRepositoryRelationship(ctx context.Context, request DeleteRepositoryRelationshipRequestObject) (DeleteRepositoryRelationshipResponseObject, error)
+
+	// (POST /runtime/v1/runs/claim)
+	RuntimeClaimRun(ctx context.Context, request RuntimeClaimRunRequestObject) (RuntimeClaimRunResponseObject, error)
+
+	// (POST /runtime/v1/runs/{runId}/complete)
+	RuntimeCompleteRun(ctx context.Context, request RuntimeCompleteRunRequestObject) (RuntimeCompleteRunResponseObject, error)
+
+	// (POST /runtime/v1/runs/{runId}/events)
+	RuntimeAppendEvents(ctx context.Context, request RuntimeAppendEventsRequestObject) (RuntimeAppendEventsResponseObject, error)
+
+	// (POST /runtime/v1/runs/{runId}/fail)
+	RuntimeFailRun(ctx context.Context, request RuntimeFailRunRequestObject) (RuntimeFailRunResponseObject, error)
+
+	// (POST /runtime/v1/runs/{runId}/heartbeat)
+	RuntimeHeartbeat(ctx context.Context, request RuntimeHeartbeatRequestObject) (RuntimeHeartbeatResponseObject, error)
+
+	// (POST /runtime/v1/runs/{runId}/model-turn)
+	RuntimeModelTurn(ctx context.Context, request RuntimeModelTurnRequestObject) (RuntimeModelTurnResponseObject, error)
 }
 
 type StrictHandlerFunc func(ctx context.Context, w http.ResponseWriter, r *http.Request, request any) (any, error)
@@ -3062,6 +5052,246 @@ type strictHandler struct {
 	ssi         StrictServerInterface
 	middlewares []StrictMiddlewareFunc
 	options     StrictHTTPServerOptions
+}
+
+// ListAgentRuns operation middleware
+func (sh *strictHandler) ListAgentRuns(w http.ResponseWriter, r *http.Request, params ListAgentRunsParams) {
+	var request ListAgentRunsRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListAgentRuns(ctx, request.(ListAgentRunsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListAgentRuns")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListAgentRunsResponseObject); ok {
+		if err := validResponse.VisitListAgentRunsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetAgentRun operation middleware
+func (sh *strictHandler) GetAgentRun(w http.ResponseWriter, r *http.Request, runId RunId) {
+	var request GetAgentRunRequestObject
+
+	request.RunId = runId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetAgentRun(ctx, request.(GetAgentRunRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetAgentRun")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetAgentRunResponseObject); ok {
+		if err := validResponse.VisitGetAgentRunResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CancelAgentRun operation middleware
+func (sh *strictHandler) CancelAgentRun(w http.ResponseWriter, r *http.Request, runId RunId) {
+	var request CancelAgentRunRequestObject
+
+	request.RunId = runId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CancelAgentRun(ctx, request.(CancelAgentRunRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CancelAgentRun")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CancelAgentRunResponseObject); ok {
+		if err := validResponse.VisitCancelAgentRunResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListAgentRunEvents operation middleware
+func (sh *strictHandler) ListAgentRunEvents(w http.ResponseWriter, r *http.Request, runId RunId, params ListAgentRunEventsParams) {
+	var request ListAgentRunEventsRequestObject
+
+	request.RunId = runId
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListAgentRunEvents(ctx, request.(ListAgentRunEventsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListAgentRunEvents")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListAgentRunEventsResponseObject); ok {
+		if err := validResponse.VisitListAgentRunEventsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListAgentRunModelCalls operation middleware
+func (sh *strictHandler) ListAgentRunModelCalls(w http.ResponseWriter, r *http.Request, runId RunId) {
+	var request ListAgentRunModelCallsRequestObject
+
+	request.RunId = runId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListAgentRunModelCalls(ctx, request.(ListAgentRunModelCallsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListAgentRunModelCalls")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListAgentRunModelCallsResponseObject); ok {
+		if err := validResponse.VisitListAgentRunModelCallsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListAgents operation middleware
+func (sh *strictHandler) ListAgents(w http.ResponseWriter, r *http.Request) {
+	var request ListAgentsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListAgents(ctx, request.(ListAgentsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListAgents")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListAgentsResponseObject); ok {
+		if err := validResponse.VisitListAgentsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetAgent operation middleware
+func (sh *strictHandler) GetAgent(w http.ResponseWriter, r *http.Request, agentName AgentName) {
+	var request GetAgentRequestObject
+
+	request.AgentName = agentName
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetAgent(ctx, request.(GetAgentRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetAgent")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetAgentResponseObject); ok {
+		if err := validResponse.VisitGetAgentResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListAgentRunsForAgent operation middleware
+func (sh *strictHandler) ListAgentRunsForAgent(w http.ResponseWriter, r *http.Request, agentName AgentName) {
+	var request ListAgentRunsForAgentRequestObject
+
+	request.AgentName = agentName
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListAgentRunsForAgent(ctx, request.(ListAgentRunsForAgentRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListAgentRunsForAgent")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListAgentRunsForAgentResponseObject); ok {
+		if err := validResponse.VisitListAgentRunsForAgentResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CreateAgentRun operation middleware
+func (sh *strictHandler) CreateAgentRun(w http.ResponseWriter, r *http.Request, agentName AgentName) {
+	var request CreateAgentRunRequestObject
+
+	request.AgentName = agentName
+
+	var body CreateAgentRunJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateAgentRun(ctx, request.(CreateAgentRunRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateAgentRun")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CreateAgentRunResponseObject); ok {
+		if err := validResponse.VisitCreateAgentRunResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
 }
 
 // Login operation middleware
@@ -3241,6 +5471,32 @@ func (sh *strictHandler) GetHealth(w http.ResponseWriter, r *http.Request) {
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(GetHealthResponseObject); ok {
 		if err := validResponse.VisitGetHealthResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetModelsOverview operation middleware
+func (sh *strictHandler) GetModelsOverview(w http.ResponseWriter, r *http.Request, params GetModelsOverviewParams) {
+	var request GetModelsOverviewRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetModelsOverview(ctx, request.(GetModelsOverviewRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetModelsOverview")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetModelsOverviewResponseObject); ok {
+		if err := validResponse.VisitGetModelsOverviewResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -3799,6 +6055,195 @@ func (sh *strictHandler) DeleteRepositoryRelationship(w http.ResponseWriter, r *
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(DeleteRepositoryRelationshipResponseObject); ok {
 		if err := validResponse.VisitDeleteRepositoryRelationshipResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RuntimeClaimRun operation middleware
+func (sh *strictHandler) RuntimeClaimRun(w http.ResponseWriter, r *http.Request) {
+	var request RuntimeClaimRunRequestObject
+
+	var body RuntimeClaimRunJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RuntimeClaimRun(ctx, request.(RuntimeClaimRunRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RuntimeClaimRun")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RuntimeClaimRunResponseObject); ok {
+		if err := validResponse.VisitRuntimeClaimRunResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RuntimeCompleteRun operation middleware
+func (sh *strictHandler) RuntimeCompleteRun(w http.ResponseWriter, r *http.Request, runId RunId) {
+	var request RuntimeCompleteRunRequestObject
+
+	request.RunId = runId
+
+	var body RuntimeCompleteRunJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RuntimeCompleteRun(ctx, request.(RuntimeCompleteRunRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RuntimeCompleteRun")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RuntimeCompleteRunResponseObject); ok {
+		if err := validResponse.VisitRuntimeCompleteRunResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RuntimeAppendEvents operation middleware
+func (sh *strictHandler) RuntimeAppendEvents(w http.ResponseWriter, r *http.Request, runId RunId) {
+	var request RuntimeAppendEventsRequestObject
+
+	request.RunId = runId
+
+	var body RuntimeAppendEventsJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RuntimeAppendEvents(ctx, request.(RuntimeAppendEventsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RuntimeAppendEvents")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RuntimeAppendEventsResponseObject); ok {
+		if err := validResponse.VisitRuntimeAppendEventsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RuntimeFailRun operation middleware
+func (sh *strictHandler) RuntimeFailRun(w http.ResponseWriter, r *http.Request, runId RunId) {
+	var request RuntimeFailRunRequestObject
+
+	request.RunId = runId
+
+	var body RuntimeFailRunJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RuntimeFailRun(ctx, request.(RuntimeFailRunRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RuntimeFailRun")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RuntimeFailRunResponseObject); ok {
+		if err := validResponse.VisitRuntimeFailRunResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RuntimeHeartbeat operation middleware
+func (sh *strictHandler) RuntimeHeartbeat(w http.ResponseWriter, r *http.Request, runId RunId) {
+	var request RuntimeHeartbeatRequestObject
+
+	request.RunId = runId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RuntimeHeartbeat(ctx, request.(RuntimeHeartbeatRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RuntimeHeartbeat")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RuntimeHeartbeatResponseObject); ok {
+		if err := validResponse.VisitRuntimeHeartbeatResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RuntimeModelTurn operation middleware
+func (sh *strictHandler) RuntimeModelTurn(w http.ResponseWriter, r *http.Request, runId RunId) {
+	var request RuntimeModelTurnRequestObject
+
+	request.RunId = runId
+
+	var body RuntimeModelTurnJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RuntimeModelTurn(ctx, request.(RuntimeModelTurnRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RuntimeModelTurn")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RuntimeModelTurnResponseObject); ok {
+		if err := validResponse.VisitRuntimeModelTurnResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

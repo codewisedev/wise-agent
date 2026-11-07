@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/getkin/kin-openapi/openapi3"
@@ -60,7 +61,17 @@ func NewRouter(srv *Server, opts RouterOptions) (http.Handler, error) {
 	if len(opts.CORSOrigins) > 0 {
 		r.Use(cors(opts.CORSOrigins))
 	}
-	r.Use(middleware.Timeout(60 * time.Second))
+	r.Use(extendDeadlines)
+	r.Use(func(next http.Handler) http.Handler {
+		timed := middleware.Timeout(60 * time.Second)(next)
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if isLongRunning(r) {
+				next.ServeHTTP(w, r)
+				return
+			}
+			timed.ServeHTTP(w, r)
+		})
+	})
 
 	r.NotFound(func(w http.ResponseWriter, r *http.Request) { pw.write(w, r, apperr.NotFound("no such endpoint")) })
 	r.MethodNotAllowed(func(w http.ResponseWriter, r *http.Request) {
@@ -75,6 +86,7 @@ func NewRouter(srv *Server, opts RouterOptions) (http.Handler, error) {
 	validator := oapimw.OapiRequestValidatorWithOptions(spec, &oapimw.Options{
 		Prefix:               BasePath,
 		DoNotValidateServers: true,
+		Skipper:              func(r *http.Request) bool { return r.URL.Path == wsPath },
 		Options:              openapi3filter.Options{AuthenticationFunc: openapi3filter.NoopAuthenticationFunc, MultiError: true},
 		ErrorHandlerWithOpts: func(_ context.Context, err error, w http.ResponseWriter, r *http.Request, o oapimw.ErrorHandlerOpts) {
 			writeProblem(w, validationError(err, o.StatusCode))
@@ -89,9 +101,21 @@ func NewRouter(srv *Server, opts RouterOptions) (http.Handler, error) {
 	})
 
 	r.Group(func(r chi.Router) {
-		r.Use(srv.Auth.Middleware(publicRoutes, pw.write))
-		r.Use(srv.renewSessionCookie)
+		userAuth := srv.Auth.Middleware(publicRoutes, pw.write)
+		runtimeAuth := srv.runtimeAuth(pw.write)
+		r.Use(func(next http.Handler) http.Handler {
+			u, rt := userAuth(srv.renewSessionCookie(next)), runtimeAuth(next)
+			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				// Runtime routes never accept user credentials and vice versa.
+				if strings.HasPrefix(r.URL.Path, runtimePrefix) {
+					rt.ServeHTTP(w, r)
+					return
+				}
+				u.ServeHTTP(w, r)
+			})
+		})
 		r.Use(validator)
+		r.Get(wsPath, srv.eventsWebSocket)
 		apigen.HandlerWithOptions(strict, apigen.ChiServerOptions{
 			BaseURL:    BasePath,
 			BaseRouter: r,

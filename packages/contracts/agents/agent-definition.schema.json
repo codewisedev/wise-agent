@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://wise.local/contracts/agents/agent-definition.schema.json",
+  "title": "Wise agent definition",
+  "description": "Contract every Wise agent must declare (implementation-plan.md §8).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["name", "version", "description", "responsibilities", "input_schema", "output_schema", "tools", "permissions", "model_config", "execution_limits", "error_handling", "evaluation", "enabled"],
+  "properties": {
+    "name": { "type": "string", "pattern": "^[a-z][a-z0-9-]*-agent$" },
+    "version": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
+    "description": { "type": "string", "minLength": 1 },
+    "enabled": { "type": "boolean", "description": "Whether runs can be created. Agents whose tools arrive in later phases are declared but disabled." },
+    "phase": { "type": "integer", "minimum": 1, "description": "Roadmap phase in which the agent becomes executable." },
+    "responsibilities": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+    "prompt": { "type": "string", "description": "Path of the system prompt relative to packages/prompts." },
+    "input_schema": { "$ref": "#/$defs/jsonSchema" },
+    "output_schema": { "$ref": "#/$defs/jsonSchema" },
+    "tools": { "type": "array", "items": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" }, "uniqueItems": true },
+    "permissions": {
+      "type": "array",
+      "items": { "enum": ["repo:read", "repo:write", "project:read", "network:egress", "git:commit", "git:push"] },
+      "uniqueItems": true
+    },
+    "model_config": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["alias"],
+      "properties": {
+        "alias": { "type": "string", "description": "Model alias from configs/models/models.yaml." },
+        "fallbacks": { "type": "array", "items": { "type": "string" } },
+        "temperature": { "type": "number", "minimum": 0, "maximum": 2 },
+        "max_output_tokens": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "execution_limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["max_turns", "max_tool_calls", "timeout_s"],
+      "properties": {
+        "max_turns": { "type": "integer", "minimum": 1, "maximum": 200 },
+        "max_tool_calls": { "type": "integer", "minimum": 0, "maximum": 1000 },
+        "max_tokens": { "type": "integer", "minimum": 1 },
+        "max_cost_usd": { "type": "number", "minimum": 0 },
+        "timeout_s": { "type": "integer", "minimum": 1, "maximum": 86400 }
+      }
+    },
+    "error_handling": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["max_attempts", "invalid_output_retries"],
+      "properties": {
+        "max_attempts": { "type": "integer", "minimum": 1, "maximum": 10 },
+        "invalid_output_retries": { "type": "integer", "minimum": 0, "maximum": 10 }
+      }
+    },
+    "evaluation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["criteria"],
+      "properties": { "criteria": { "type": "array", "items": { "type": "string" } } }
+    }
+  },
+  "$defs": {
+    "jsonSchema": { "type": "object", "required": ["type"], "properties": { "type": { "const": "object" } } }
+  }
+}

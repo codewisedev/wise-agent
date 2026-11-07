@@ -1,0 +1,45 @@
+# Tool catalog. Implementations live in apps/agent-runtime/wise_runtime/tools.
+# Phase 2 ships read-only tools only; write tools arrive with isolated workspaces (Phase 5).
+- name: get_project_context
+  description: Return the project this run belongs to and its repositories (name, role, branch, HEAD SHA). Call this first when a project is attached.
+  side_effects: none
+  permissions_required: [project:read]
+  input_schema: { type: object, properties: {}, additionalProperties: false }
+- name: list_files
+  description: List files and directories under a path inside one of the project's repositories. Paths are relative to the repository root.
+  side_effects: read
+  permissions_required: [repo:read]
+  input_schema:
+    type: object
+    additionalProperties: false
+    required: [repository]
+    properties:
+      repository: { type: string, description: Repository name from get_project_context. }
+      path: { type: string, description: Directory relative to the repository root. Defaults to the root. }
+      max_depth: { type: integer, minimum: 1, maximum: 4, description: How deep to recurse. Defaults to 2. }
+- name: read_file
+  description: Read a text file from one of the project's repositories. Large files are truncated; use start_line to page.
+  side_effects: read
+  permissions_required: [repo:read]
+  input_schema:
+    type: object
+    additionalProperties: false
+    required: [repository, path]
+    properties:
+      repository: { type: string }
+      path: { type: string, description: File path relative to the repository root. }
+      start_line: { type: integer, minimum: 1 }
+      max_lines: { type: integer, minimum: 1, maximum: 2000 }
+- name: search_code
+  description: Search the project's repositories for a regular expression (ripgrep). Returns matching lines with file paths and line numbers.
+  side_effects: read
+  permissions_required: [repo:read]
+  input_schema:
+    type: object
+    additionalProperties: false
+    required: [pattern]
+    properties:
+      pattern: { type: string, description: Regular expression (Rust regex syntax). }
+      repository: { type: string, description: Limit to one repository. }
+      glob: { type: string, description: 'File glob filter, e.g. "*.go".' }
+      max_results: { type: integer, minimum: 1, maximum: 200 }

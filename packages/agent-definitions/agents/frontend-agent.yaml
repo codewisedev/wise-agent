@@ -1,0 +1,17 @@
+name: frontend-agent
+version: 0.1.0
+description: Implements frontend functionality inside an isolated workspace.
+enabled: false
+phase: 5
+responsibilities:
+  - Implement UI changes
+  - Keep accessibility and design tokens
+  - Report changed files and rationale
+input_schema: { type: object, properties: {} }
+output_schema: { type: object, properties: {} }
+tools: []
+permissions: []
+model_config: { alias: reasoning }
+execution_limits: { max_turns: 1, max_tool_calls: 0, timeout_s: 60 }
+error_handling: { max_attempts: 1, invalid_output_retries: 0 }
+evaluation: { criteria: [] }

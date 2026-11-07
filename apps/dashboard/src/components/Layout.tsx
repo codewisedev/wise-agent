@@ -1,4 +1,4 @@
-import { FolderGit2, LogOut, Monitor, Moon, Settings, Sun } from "lucide-react";
+import { Bot, Cpu, FolderGit2, LogOut, Monitor, Moon, Settings, Sun } from "lucide-react";
 import { useMemo } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router";
 import { useLogout, useSession } from "../auth";
@@ -22,6 +22,8 @@ export function Layout() {
   const bindings = useMemo(
     () => ({
       "g p": () => navigate("/projects"),
+      "g a": () => navigate("/agents"),
+      "g m": () => navigate("/models"),
       "g s": () => navigate("/settings"),
       t: cycle,
     }),
@@ -43,6 +45,12 @@ export function Layout() {
         <nav className="nav" aria-label="Main">
           <NavLink to="/projects">
             <FolderGit2 size={16} aria-hidden /> Projects <Kbd keys={["g", "p"]} />
+          </NavLink>
+          <NavLink to="/agents">
+            <Bot size={16} aria-hidden /> Agents <Kbd keys={["g", "a"]} />
+          </NavLink>
+          <NavLink to="/models">
+            <Cpu size={16} aria-hidden /> Models <Kbd keys={["g", "m"]} />
           </NavLink>
           <NavLink to="/settings">
             <Settings size={16} aria-hidden /> Settings <Kbd keys={["g", "s"]} />

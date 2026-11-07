@@ -61,3 +61,6 @@ func NewDB(t *testing.T) *db.DB {
 	}
 	return d
 }
+
+// DBHandle wraps a test database for helpers shared across packages.
+type DBHandle struct{ DB *db.DB }
