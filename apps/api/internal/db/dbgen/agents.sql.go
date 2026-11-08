@@ -39,6 +39,15 @@ func (q *Queries) AddRunUsage(ctx context.Context, arg AddRunUsageParams) error 
 	return err
 }
 
+const archiveAgent = `-- name: ArchiveAgent :exec
+UPDATE agent_definitions SET archived = true, is_current = false WHERE name = $1
+`
+
+func (q *Queries) ArchiveAgent(ctx context.Context, name string) error {
+	_, err := q.db.Exec(ctx, archiveAgent, name)
+	return err
+}
+
 const claimAgentRun = `-- name: ClaimAgentRun :one
 UPDATE agent_runs SET
     status           = 'running',
@@ -109,6 +118,17 @@ type ClearCurrentAgentDefinitionParams struct {
 func (q *Queries) ClearCurrentAgentDefinition(ctx context.Context, arg ClearCurrentAgentDefinitionParams) error {
 	_, err := q.db.Exec(ctx, clearCurrentAgentDefinition, arg.Name, arg.ID)
 	return err
+}
+
+const countAgentDefinitionsByName = `-- name: CountAgentDefinitionsByName :one
+SELECT count(*) FROM agent_definitions WHERE name = $1 AND NOT archived
+`
+
+func (q *Queries) CountAgentDefinitionsByName(ctx context.Context, name string) (int64, error) {
+	row := q.db.QueryRow(ctx, countAgentDefinitionsByName, name)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
 }
 
 const createAgentRun = `-- name: CreateAgentRun :one
@@ -245,7 +265,7 @@ func (q *Queries) FinishRun(ctx context.Context, arg FinishRunParams) (AgentRun,
 }
 
 const getAgentDefinition = `-- name: GetAgentDefinition :one
-SELECT id, name, version, content_hash, definition, prompt, enabled, is_current, created_at FROM agent_definitions WHERE id = $1
+SELECT id, name, version, content_hash, definition, prompt, enabled, is_current, created_at, source, base_hash, archived, created_by FROM agent_definitions WHERE id = $1
 `
 
 func (q *Queries) GetAgentDefinition(ctx context.Context, id uuid.UUID) (AgentDefinition, error) {
@@ -261,12 +281,16 @@ func (q *Queries) GetAgentDefinition(ctx context.Context, id uuid.UUID) (AgentDe
 		&i.Enabled,
 		&i.IsCurrent,
 		&i.CreatedAt,
+		&i.Source,
+		&i.BaseHash,
+		&i.Archived,
+		&i.CreatedBy,
 	)
 	return i, err
 }
 
 const getAgentDefinitionByHash = `-- name: GetAgentDefinitionByHash :one
-SELECT id, name, version, content_hash, definition, prompt, enabled, is_current, created_at FROM agent_definitions WHERE content_hash = $1
+SELECT id, name, version, content_hash, definition, prompt, enabled, is_current, created_at, source, base_hash, archived, created_by FROM agent_definitions WHERE content_hash = $1
 `
 
 func (q *Queries) GetAgentDefinitionByHash(ctx context.Context, contentHash string) (AgentDefinition, error) {
@@ -282,6 +306,10 @@ func (q *Queries) GetAgentDefinitionByHash(ctx context.Context, contentHash stri
 		&i.Enabled,
 		&i.IsCurrent,
 		&i.CreatedAt,
+		&i.Source,
+		&i.BaseHash,
+		&i.Archived,
+		&i.CreatedBy,
 	)
 	return i, err
 }
@@ -324,7 +352,7 @@ func (q *Queries) GetAgentRun(ctx context.Context, id uuid.UUID) (AgentRun, erro
 }
 
 const getCurrentAgentDefinitionByName = `-- name: GetCurrentAgentDefinitionByName :one
-SELECT id, name, version, content_hash, definition, prompt, enabled, is_current, created_at FROM agent_definitions WHERE name = $1 AND is_current
+SELECT id, name, version, content_hash, definition, prompt, enabled, is_current, created_at, source, base_hash, archived, created_by FROM agent_definitions WHERE name = $1 AND is_current
 `
 
 func (q *Queries) GetCurrentAgentDefinitionByName(ctx context.Context, name string) (AgentDefinition, error) {
@@ -340,6 +368,35 @@ func (q *Queries) GetCurrentAgentDefinitionByName(ctx context.Context, name stri
 		&i.Enabled,
 		&i.IsCurrent,
 		&i.CreatedAt,
+		&i.Source,
+		&i.BaseHash,
+		&i.Archived,
+		&i.CreatedBy,
+	)
+	return i, err
+}
+
+const getLatestShippedAgentDefinition = `-- name: GetLatestShippedAgentDefinition :one
+SELECT id, name, version, content_hash, definition, prompt, enabled, is_current, created_at, source, base_hash, archived, created_by FROM agent_definitions WHERE name = $1 AND source = 'code' ORDER BY created_at DESC LIMIT 1
+`
+
+func (q *Queries) GetLatestShippedAgentDefinition(ctx context.Context, name string) (AgentDefinition, error) {
+	row := q.db.QueryRow(ctx, getLatestShippedAgentDefinition, name)
+	var i AgentDefinition
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Version,
+		&i.ContentHash,
+		&i.Definition,
+		&i.Prompt,
+		&i.Enabled,
+		&i.IsCurrent,
+		&i.CreatedAt,
+		&i.Source,
+		&i.BaseHash,
+		&i.Archived,
+		&i.CreatedBy,
 	)
 	return i, err
 }
@@ -382,9 +439,9 @@ func (q *Queries) GetRunningRunByTokenHash(ctx context.Context, runTokenHash []b
 }
 
 const insertAgentDefinition = `-- name: InsertAgentDefinition :one
-INSERT INTO agent_definitions (id, name, version, content_hash, definition, prompt, enabled, is_current)
-VALUES ($1, $2, $3, $4, $5, $6, $7, false)
-RETURNING id, name, version, content_hash, definition, prompt, enabled, is_current, created_at
+INSERT INTO agent_definitions (id, name, version, content_hash, definition, prompt, enabled, is_current, source, base_hash, created_by)
+VALUES ($1, $2, $3, $4, $5, $6, $7, false, $8, $9, $10)
+RETURNING id, name, version, content_hash, definition, prompt, enabled, is_current, created_at, source, base_hash, archived, created_by
 `
 
 type InsertAgentDefinitionParams struct {
@@ -395,6 +452,9 @@ type InsertAgentDefinitionParams struct {
 	Definition  json.RawMessage
 	Prompt      string
 	Enabled     bool
+	Source      string
+	BaseHash    *string
+	CreatedBy   *uuid.UUID
 }
 
 func (q *Queries) InsertAgentDefinition(ctx context.Context, arg InsertAgentDefinitionParams) (AgentDefinition, error) {
@@ -406,6 +466,9 @@ func (q *Queries) InsertAgentDefinition(ctx context.Context, arg InsertAgentDefi
 		arg.Definition,
 		arg.Prompt,
 		arg.Enabled,
+		arg.Source,
+		arg.BaseHash,
+		arg.CreatedBy,
 	)
 	var i AgentDefinition
 	err := row.Scan(
@@ -418,6 +481,10 @@ func (q *Queries) InsertAgentDefinition(ctx context.Context, arg InsertAgentDefi
 		&i.Enabled,
 		&i.IsCurrent,
 		&i.CreatedAt,
+		&i.Source,
+		&i.BaseHash,
+		&i.Archived,
+		&i.CreatedBy,
 	)
 	return i, err
 }
@@ -477,6 +544,44 @@ func (q *Queries) InsertToolCall(ctx context.Context, arg InsertToolCallParams) 
 		arg.DurationMs,
 	)
 	return err
+}
+
+const listAgentDefinitionVersions = `-- name: ListAgentDefinitionVersions :many
+SELECT id, name, version, content_hash, definition, prompt, enabled, is_current, created_at, source, base_hash, archived, created_by FROM agent_definitions WHERE name = $1 ORDER BY created_at DESC LIMIT 100
+`
+
+func (q *Queries) ListAgentDefinitionVersions(ctx context.Context, name string) ([]AgentDefinition, error) {
+	rows, err := q.db.Query(ctx, listAgentDefinitionVersions, name)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []AgentDefinition{}
+	for rows.Next() {
+		var i AgentDefinition
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Version,
+			&i.ContentHash,
+			&i.Definition,
+			&i.Prompt,
+			&i.Enabled,
+			&i.IsCurrent,
+			&i.CreatedAt,
+			&i.Source,
+			&i.BaseHash,
+			&i.Archived,
+			&i.CreatedBy,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listAgentEvents = `-- name: ListAgentEvents :many
@@ -576,7 +681,7 @@ func (q *Queries) ListAgentRuns(ctx context.Context, arg ListAgentRunsParams) ([
 }
 
 const listCurrentAgentDefinitions = `-- name: ListCurrentAgentDefinitions :many
-SELECT d.id, d.name, d.version, d.content_hash, d.definition, d.prompt, d.enabled, d.is_current, d.created_at, s.run_count, s.last_run_at
+SELECT d.id, d.name, d.version, d.content_hash, d.definition, d.prompt, d.enabled, d.is_current, d.created_at, d.source, d.base_hash, d.archived, d.created_by, s.run_count, s.last_run_at
 FROM agent_definitions d
 LEFT JOIN LATERAL (
     SELECT count(*) AS run_count, max(r.created_at) AS last_run_at
@@ -611,6 +716,10 @@ func (q *Queries) ListCurrentAgentDefinitions(ctx context.Context) ([]ListCurren
 			&i.AgentDefinition.Enabled,
 			&i.AgentDefinition.IsCurrent,
 			&i.AgentDefinition.CreatedAt,
+			&i.AgentDefinition.Source,
+			&i.AgentDefinition.BaseHash,
+			&i.AgentDefinition.Archived,
+			&i.AgentDefinition.CreatedBy,
 			&i.RunCount,
 			&i.LastRunAt,
 		); err != nil {
@@ -800,5 +909,14 @@ UPDATE agent_definitions SET is_current = true WHERE id = $1
 
 func (q *Queries) SetAgentDefinitionCurrent(ctx context.Context, id uuid.UUID) error {
 	_, err := q.db.Exec(ctx, setAgentDefinitionCurrent, id)
+	return err
+}
+
+const unarchiveAgentDefinition = `-- name: UnarchiveAgentDefinition :exec
+UPDATE agent_definitions SET archived = false WHERE id = $1
+`
+
+func (q *Queries) UnarchiveAgentDefinition(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, unarchiveAgentDefinition, id)
 	return err
 }

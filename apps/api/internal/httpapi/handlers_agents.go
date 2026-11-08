@@ -3,6 +3,9 @@ package httpapi
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"sort"
+	"strings"
 	"time"
 
 	"wise/apps/api/internal/agents"
@@ -97,21 +100,189 @@ func (s *Server) ListAgents(ctx context.Context, _ apigen.ListAgentsRequestObjec
 	if err != nil {
 		return nil, err
 	}
-	return apigen.ListAgents200JSONResponse{Items: mapSlice(list, toAgentSummary)}, nil
+	items := make([]apigen.AgentSummary, len(list))
+	for i, a := range list {
+		items[i] = s.withOrigin(ctx, a, toAgentSummary(a))
+	}
+	return apigen.ListAgents200JSONResponse{Items: items}, nil
+}
+
+func (s *Server) agentDetail(ctx context.Context, name string) (apigen.AgentDetail, error) {
+	a, err := s.Agents.Get(ctx, name)
+	if err != nil {
+		return apigen.AgentDetail{}, err
+	}
+	sum := s.withOrigin(ctx, a, toAgentSummary(a))
+	out := apigen.AgentDetail{
+		Id: sum.Id, Name: sum.Name, Version: sum.Version, Description: sum.Description, Enabled: sum.Enabled,
+		Phase: sum.Phase, ModelAlias: sum.ModelAlias, Tools: sum.Tools, RunCount: sum.RunCount, LastRunAt: sum.LastRunAt,
+		Produces: sum.Produces, Consumes: sum.Consumes, UpdateAvailable: sum.UpdateAvailable,
+		Definition: jsonObject(a.Row.Definition), Prompt: a.Row.Prompt, ContentHash: a.Row.ContentHash,
+		CreatedAt: a.Row.CreatedAt, CloudAllowed: s.Gateway.CloudAllowed(a.Def.Name),
+	}
+	if sum.Source != nil {
+		src := apigen.AgentDetailSource(*sum.Source)
+		out.Source = &src
+	}
+	if o, err := s.Agents.Origin(ctx, a.Row); err == nil && o.Shipped != nil {
+		p := o.Shipped.Prompt
+		d := jsonObject(o.Shipped.Definition)
+		out.ShippedPrompt, out.ShippedDefinition = &p, &d
+	}
+	return out, nil
+}
+
+// withOrigin adds where the agent's current definition comes from.
+func (s *Server) withOrigin(ctx context.Context, a agents.Summary, sum apigen.AgentSummary) apigen.AgentSummary {
+	o, err := s.Agents.Origin(ctx, a.Row)
+	if err != nil {
+		return sum
+	}
+	src := apigen.AgentSummarySource(o.Source)
+	upd := o.UpdateAvailable
+	sum.Source, sum.UpdateAvailable = &src, &upd
+	return sum
 }
 
 func (s *Server) GetAgent(ctx context.Context, req apigen.GetAgentRequestObject) (apigen.GetAgentResponseObject, error) {
-	a, err := s.Agents.Get(ctx, req.AgentName)
+	d, err := s.agentDetail(ctx, req.AgentName)
 	if err != nil {
 		return nil, err
 	}
-	sum := toAgentSummary(a)
-	return apigen.GetAgent200JSONResponse{
-		Id: sum.Id, Name: sum.Name, Version: sum.Version, Description: sum.Description, Enabled: sum.Enabled,
-		Phase: sum.Phase, ModelAlias: sum.ModelAlias, Tools: sum.Tools, RunCount: sum.RunCount, LastRunAt: sum.LastRunAt,
-		Definition: jsonObject(a.Row.Definition), Prompt: a.Row.Prompt, ContentHash: a.Row.ContentHash,
-		CreatedAt: a.Row.CreatedAt, CloudAllowed: s.Gateway.CloudAllowed(a.Def.Name),
-	}, nil
+	return apigen.GetAgent200JSONResponse(d), nil
+}
+
+func agentInputRaw(b *apigen.AgentInput) ([]byte, string, error) {
+	raw, err := json.Marshal(b.Definition)
+	return raw, b.Prompt, err
+}
+
+func (s *Server) CreateAgent(ctx context.Context, req apigen.CreateAgentRequestObject) (apigen.CreateAgentResponseObject, error) {
+	p, err := requireSession(ctx, "creating an agent")
+	if err != nil {
+		return nil, err
+	}
+	raw, prompt, err := agentInputRaw(req.Body)
+	if err != nil {
+		return nil, err
+	}
+	userID := p.User.ID
+	row, err := s.Agents.Create(ctx, raw, prompt, &userID)
+	if err != nil {
+		return nil, err
+	}
+	d, err := s.agentDetail(ctx, row.Name)
+	if err != nil {
+		return nil, err
+	}
+	return apigen.CreateAgent201JSONResponse(d), nil
+}
+
+func (s *Server) UpdateAgent(ctx context.Context, req apigen.UpdateAgentRequestObject) (apigen.UpdateAgentResponseObject, error) {
+	p, err := requireSession(ctx, "editing an agent")
+	if err != nil {
+		return nil, err
+	}
+	raw, prompt, err := agentInputRaw(req.Body)
+	if err != nil {
+		return nil, err
+	}
+	userID := p.User.ID
+	if _, err := s.Agents.Save(ctx, req.AgentName, raw, prompt, &userID); err != nil {
+		return nil, err
+	}
+	d, err := s.agentDetail(ctx, req.AgentName)
+	if err != nil {
+		return nil, err
+	}
+	return apigen.UpdateAgent200JSONResponse(d), nil
+}
+
+func (s *Server) DuplicateAgent(ctx context.Context, req apigen.DuplicateAgentRequestObject) (apigen.DuplicateAgentResponseObject, error) {
+	p, err := requireSession(ctx, "creating an agent")
+	if err != nil {
+		return nil, err
+	}
+	userID := p.User.ID
+	row, err := s.Agents.Duplicate(ctx, req.AgentName, req.Body.Name, &userID)
+	if err != nil {
+		return nil, err
+	}
+	d, err := s.agentDetail(ctx, row.Name)
+	if err != nil {
+		return nil, err
+	}
+	return apigen.DuplicateAgent201JSONResponse(d), nil
+}
+
+func (s *Server) ResetAgent(ctx context.Context, req apigen.ResetAgentRequestObject) (apigen.ResetAgentResponseObject, error) {
+	if _, err := requireSession(ctx, "resetting an agent"); err != nil {
+		return nil, err
+	}
+	if _, err := s.Agents.Reset(ctx, req.AgentName); err != nil {
+		return nil, err
+	}
+	d, err := s.agentDetail(ctx, req.AgentName)
+	if err != nil {
+		return nil, err
+	}
+	return apigen.ResetAgent200JSONResponse(d), nil
+}
+
+func (s *Server) DeleteAgent(ctx context.Context, req apigen.DeleteAgentRequestObject) (apigen.DeleteAgentResponseObject, error) {
+	if _, err := requireSession(ctx, "deleting an agent"); err != nil {
+		return nil, err
+	}
+	using, err := s.Tasks.TemplatesUsingAgent(ctx, req.AgentName)
+	if err != nil {
+		return nil, err
+	}
+	if len(using) > 0 {
+		return nil, apperr.Conflict(fmt.Sprintf("used by workflow templates: %s — remove it from them first", strings.Join(using, ", ")))
+	}
+	if err := s.Agents.Archive(ctx, req.AgentName); err != nil {
+		return nil, err
+	}
+	return apigen.DeleteAgent204Response{}, nil
+}
+
+func (s *Server) ListAgentVersions(ctx context.Context, req apigen.ListAgentVersionsRequestObject) (apigen.ListAgentVersionsResponseObject, error) {
+	rows, err := s.Agents.Versions(ctx, req.AgentName)
+	if err != nil {
+		return nil, err
+	}
+	items := make([]apigen.AgentVersion, len(rows))
+	for i, r := range rows {
+		items[i] = apigen.AgentVersion{Id: r.ID, Version: r.Version, ContentHash: r.ContentHash,
+			Source: apigen.AgentVersionSource(r.Source), Current: r.IsCurrent, CreatedAt: r.CreatedAt}
+	}
+	return apigen.ListAgentVersions200JSONResponse{Items: items}, nil
+}
+
+func (s *Server) RestoreAgentVersion(ctx context.Context, req apigen.RestoreAgentVersionRequestObject) (apigen.RestoreAgentVersionResponseObject, error) {
+	if _, err := requireSession(ctx, "restoring an agent version"); err != nil {
+		return nil, err
+	}
+	if _, err := s.Agents.Restore(ctx, req.AgentName, req.VersionId); err != nil {
+		return nil, err
+	}
+	d, err := s.agentDetail(ctx, req.AgentName)
+	if err != nil {
+		return nil, err
+	}
+	return apigen.RestoreAgentVersion200JSONResponse(d), nil
+}
+
+func (s *Server) ListTools(ctx context.Context, _ apigen.ListToolsRequestObject) (apigen.ListToolsResponseObject, error) {
+	var items []apigen.ToolDefinition
+	for _, t := range s.Agents.Tools() {
+		items = append(items, toToolDefinition(t))
+	}
+	sort.Slice(items, func(i, j int) bool { return items[i].Name < items[j].Name })
+	if items == nil {
+		items = []apigen.ToolDefinition{}
+	}
+	return apigen.ListTools200JSONResponse{Items: items}, nil
 }
 
 func (s *Server) ListAgentRunsForAgent(ctx context.Context, req apigen.ListAgentRunsForAgentRequestObject) (apigen.ListAgentRunsForAgentResponseObject, error) {

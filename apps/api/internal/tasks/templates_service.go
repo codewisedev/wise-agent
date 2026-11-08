@@ -340,3 +340,25 @@ func (s *Service) CurrentStep(ctx context.Context, runID uuid.UUID, stepID strin
 func (s *Service) Preview(ctx context.Context, def TemplateDef) (Plan, []Issue) {
 	return Resolve(ctx, def, Overrides{}, false, s.Agents, s.Accounts, s.maxRevisions())
 }
+
+// TemplatesUsingAgent names the templates with a step running the agent.
+func (s *Service) TemplatesUsingAgent(ctx context.Context, agent string) ([]string, error) {
+	rows, err := s.db.ListWorkflowTemplates(ctx)
+	if err != nil {
+		return nil, err
+	}
+	var out []string
+	for _, t := range rows {
+		def, err := ParseTemplate(t.Definition)
+		if err != nil {
+			continue
+		}
+		for _, st := range def.Steps {
+			if st.Agent == agent {
+				out = append(out, t.Name)
+				break
+			}
+		}
+	}
+	return out, nil
+}

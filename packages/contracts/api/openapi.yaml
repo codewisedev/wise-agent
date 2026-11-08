@@ -414,7 +414,38 @@ paths:
         "401": { $ref: "#/components/responses/Problem" }
         "404": { $ref: "#/components/responses/Problem" }
 
+  /tools:
+    get:
+      tags: [agents]
+      operationId: listTools
+      description: The tool catalog agents can use (implemented by the runtime).
+      responses:
+        "200":
+          description: Tools.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ToolList" }
+        "401": { $ref: "#/components/responses/Problem" }
   /agents:
+    post:
+      tags: [agents]
+      operationId: createAgent
+      description: Creates an agent defined in the panel. Signed-in session only.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AgentInput" }
+      responses:
+        "201":
+          description: Created.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AgentDetail" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
     get:
       tags: [agents]
       operationId: listAgents
@@ -428,6 +459,35 @@ paths:
   /agents/{agentName}:
     parameters:
       - $ref: "#/components/parameters/AgentName"
+    put:
+      tags: [agents]
+      operationId: updateAgent
+      description: Saves a new version of the agent's contract and prompt (applies to new runs). Signed-in session only.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AgentInput" }
+      responses:
+        "200":
+          description: Saved.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AgentDetail" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+    delete:
+      tags: [agents]
+      operationId: deleteAgent
+      description: Deletes an agent created in the panel (shipped agents can be disabled instead).
+      responses:
+        "204": { description: Deleted. }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
     get:
       tags: [agents]
       operationId: getAgent
@@ -438,6 +498,82 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/AgentDetail" }
         "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+  /agents/{agentName}/duplicate:
+    parameters:
+      - $ref: "#/components/parameters/AgentName"
+    post:
+      tags: [agents]
+      operationId: duplicateAgent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string, pattern: "^[a-z][a-z0-9-]*-agent$" }
+      responses:
+        "201":
+          description: Created.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AgentDetail" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+  /agents/{agentName}/reset:
+    parameters:
+      - $ref: "#/components/parameters/AgentName"
+    post:
+      tags: [agents]
+      operationId: resetAgent
+      description: Restores the latest shipped definition and prompt.
+      responses:
+        "200":
+          description: Reset.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AgentDetail" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+  /agents/{agentName}/versions:
+    parameters:
+      - $ref: "#/components/parameters/AgentName"
+    get:
+      tags: [agents]
+      operationId: listAgentVersions
+      responses:
+        "200":
+          description: Versions, newest first.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AgentVersionList" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+  /agents/{agentName}/versions/{versionId}/restore:
+    parameters:
+      - $ref: "#/components/parameters/AgentName"
+      - name: versionId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [agents]
+      operationId: restoreAgentVersion
+      responses:
+        "200":
+          description: Restored.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AgentDetail" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
         "404": { $ref: "#/components/responses/Problem" }
   /agents/{agentName}/runs:
     parameters:
@@ -1746,6 +1882,11 @@ components:
         runCount: { type: integer, format: int64 }
         lastRunAt: { type: string, format: date-time, nullable: true }
         produces: { type: string, description: Artifact kind of the agent's output in workflows. }
+        source:
+          type: string
+          enum: [shipped, edited, custom]
+          description: "shipped: unchanged default; edited: changed in the panel; custom: created in the panel."
+        updateAvailable: { type: boolean, description: Edited and a newer shipped version exists. }
         consumes:
           type: object
           description: Input property → artifact kind it is filled from.
@@ -1766,6 +1907,34 @@ components:
             contentHash: { type: string }
             createdAt: { type: string, format: date-time }
             cloudAllowed: { type: boolean }
+            shippedPrompt: { type: string, nullable: true, description: The shipped default prompt (for diffs). }
+            shippedDefinition: { type: object, additionalProperties: true, nullable: true }
+    AgentInput:
+      type: object
+      required: [definition, prompt]
+      properties:
+        definition: { type: object, additionalProperties: true, description: The agent contract (agent-definition.schema.json). }
+        prompt: { type: string, maxLength: 200000 }
+    AgentVersion:
+      type: object
+      required: [id, version, contentHash, source, current, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        version: { type: string }
+        contentHash: { type: string }
+        source: { type: string, enum: [code, panel] }
+        current: { type: boolean }
+        createdAt: { type: string, format: date-time }
+    AgentVersionList:
+      type: object
+      required: [items]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/AgentVersion" } }
+    ToolList:
+      type: object
+      required: [items]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/ToolDefinition" } }
     CreateAgentRunRequest:
       type: object
       required: [input]

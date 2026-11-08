@@ -84,7 +84,7 @@ func setup(t *testing.T) *env {
 		},
 	}, modelgateway.Policy{CloudAllowedAgents: []string{"*"}, MaxRetries: 1}, hub, log).WithProvider(model)
 	queue := runqueue.NewService(d, hub, gw, catalog.Tools, log)
-	agentSvc := agents.NewService(d, hub)
+	agentSvc := agents.NewService(d, hub).WithTools(catalog.Tools)
 	taskSvc := tasks.NewService(d, tasks.DefaultWorkflowConfig())
 	taskSvc.Runs = agentSvc
 	box, err := secrets.New("MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=") // test-only key
@@ -93,7 +93,7 @@ func setup(t *testing.T) *env {
 	}
 	accountSvc := accounts.NewService(d, box, gw, log)
 	gw.WithSecretSaver(accountSvc.SaveSecret)
-	taskSvc.Agents = tasks.LookupFrom(catalog.Lookup(), func(i agents.Info) tasks.AgentInfo { return tasks.AgentInfo(i) })
+	taskSvc.Agents = tasks.LookupFrom(agentSvc.Lookup, func(i agents.Info) tasks.AgentInfo { return tasks.AgentInfo(i) })
 	taskSvc.Accounts = accountSvc.ValidateModelChoice
 	if err := taskSvc.SeedTemplates(context.Background(), log); err != nil {
 		t.Fatal(err)

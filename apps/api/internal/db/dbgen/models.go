@@ -375,6 +375,10 @@ type AgentDefinition struct {
 	Enabled     bool
 	IsCurrent   bool
 	CreatedAt   time.Time
+	Source      string
+	BaseHash    *string
+	Archived    bool
+	CreatedBy   *uuid.UUID
 }
 
 type AgentEvent struct {

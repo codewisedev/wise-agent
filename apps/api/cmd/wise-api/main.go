@@ -171,10 +171,10 @@ func serve(ctx context.Context) error {
 		return err
 	}
 
-	agentSvc := agents.NewService(d, hub)
+	agentSvc := agents.NewService(d, hub).WithTools(catalog.Tools)
 	taskSvc := tasks.NewService(d, wfCfg)
 	taskSvc.Runs = agentSvc
-	taskSvc.Agents = tasks.LookupFrom(catalog.Lookup(), func(i agents.Info) tasks.AgentInfo { return tasks.AgentInfo(i) })
+	taskSvc.Agents = tasks.LookupFrom(agentSvc.Lookup, func(i agents.Info) tasks.AgentInfo { return tasks.AgentInfo(i) })
 	taskSvc.Accounts = accountSvc.ValidateModelChoice
 	// Panel-managed settings: files are defaults; the database wins and edits apply live.
 	settingsSvc := settings.NewService(d, log.With("component", "settings"))

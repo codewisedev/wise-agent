@@ -8,9 +8,24 @@ UPDATE agent_definitions SET is_current = false WHERE name = $1 AND is_current A
 UPDATE agent_definitions SET is_current = true WHERE id = $1;
 
 -- name: InsertAgentDefinition :one
-INSERT INTO agent_definitions (id, name, version, content_hash, definition, prompt, enabled, is_current)
-VALUES ($1, $2, $3, $4, $5, $6, $7, false)
+INSERT INTO agent_definitions (id, name, version, content_hash, definition, prompt, enabled, is_current, source, base_hash, created_by)
+VALUES ($1, $2, $3, $4, $5, $6, $7, false, sqlc.arg(source), sqlc.narg(base_hash), sqlc.narg(created_by))
 RETURNING *;
+
+-- name: GetLatestShippedAgentDefinition :one
+SELECT * FROM agent_definitions WHERE name = $1 AND source = 'code' ORDER BY created_at DESC LIMIT 1;
+
+-- name: ListAgentDefinitionVersions :many
+SELECT * FROM agent_definitions WHERE name = $1 ORDER BY created_at DESC LIMIT 100;
+
+-- name: CountAgentDefinitionsByName :one
+SELECT count(*) FROM agent_definitions WHERE name = $1 AND NOT archived;
+
+-- name: ArchiveAgent :exec
+UPDATE agent_definitions SET archived = true, is_current = false WHERE name = $1;
+
+-- name: UnarchiveAgentDefinition :exec
+UPDATE agent_definitions SET archived = false WHERE id = $1;
 
 -- name: GetAgentDefinition :one
 SELECT * FROM agent_definitions WHERE id = $1;

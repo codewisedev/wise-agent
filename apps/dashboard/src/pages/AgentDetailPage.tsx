@@ -4,8 +4,8 @@ import { useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { api, unwrap } from "../api/client";
 import { AccountSelect } from "../components/AccountSelect";
-import { Json } from "../components/Json";
 import { Badge, ErrorNote, Field, Panel } from "../components/ui";
+import { AgentEditor } from "./AgentEditor";
 import { RunsTable } from "./RunsTable";
 
 type JsonSchema = { properties?: Record<string, { type?: string; description?: string }>; required?: string[] };
@@ -82,7 +82,7 @@ export function AgentDetailPage() {
           <h1 className="mono">{a.name}</h1>
           <div className="meta">
             <span className="mono small">v{a.version}</span>
-            {a.enabled ? <Badge tone="ok">enabled</Badge> : <Badge>phase {a.phase ?? "?"}</Badge>}
+            {a.enabled ? <Badge tone="ok">enabled</Badge> : <Badge>{a.phase ? `phase ${a.phase}` : "disabled"}</Badge>}
             <span className="small">
               model <span className="mono">{a.modelAlias}</span>
             </span>
@@ -137,41 +137,13 @@ export function AgentDetailPage() {
         </Panel>
       )}
 
+      <AgentEditor key={a.name} agent={a} />
+
       <Panel title="Runs" count={runs.data?.items.length}>
         <ErrorNote error={runs.error} />
         <RunsTable runs={runs.data?.items} />
       </Panel>
 
-      <Panel title="Contract" flush={false}>
-        {def?.responsibilities && (
-          <ul className="bullets">
-            {def.responsibilities.map((r) => (
-              <li key={r}>{r}</li>
-            ))}
-          </ul>
-        )}
-        <p className="small muted" style={{ margin: "12px 0 6px" }}>
-          Tools: {a.tools.length ? a.tools.map((t) => <code key={t} style={{ marginRight: 6 }}>{t}</code>) : "none"}
-        </p>
-        <details>
-          <summary>Input schema</summary>
-          <Json value={def?.input_schema} label="input schema" />
-        </details>
-        <details>
-          <summary>Output schema</summary>
-          <Json value={def?.output_schema} label="output schema" />
-        </details>
-        <details>
-          <summary>Execution limits</summary>
-          <Json value={def?.execution_limits} label="limits" />
-        </details>
-        {a.prompt && (
-          <details>
-            <summary>System prompt</summary>
-            <pre className="json prompt">{a.prompt}</pre>
-          </details>
-        )}
-      </Panel>
     </>
   );
 }

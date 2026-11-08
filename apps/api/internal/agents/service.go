@@ -19,8 +19,9 @@ import (
 )
 
 type Service struct {
-	db  *db.DB
-	hub *events.Hub
+	db    *db.DB
+	hub   *events.Hub
+	tools map[string]Tool
 }
 
 func NewService(d *db.DB, hub *events.Hub) *Service { return &Service{db: d, hub: hub} }

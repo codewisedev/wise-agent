@@ -48,6 +48,27 @@ func (e AccountKind) Valid() bool {
 	}
 }
 
+// Defines values for AgentDetailSource.
+const (
+	AgentDetailSourceCustom  AgentDetailSource = "custom"
+	AgentDetailSourceEdited  AgentDetailSource = "edited"
+	AgentDetailSourceShipped AgentDetailSource = "shipped"
+)
+
+// Valid indicates whether the value is a known member of the AgentDetailSource enum.
+func (e AgentDetailSource) Valid() bool {
+	switch e {
+	case AgentDetailSourceCustom:
+		return true
+	case AgentDetailSourceEdited:
+		return true
+	case AgentDetailSourceShipped:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for AgentRunStatus.
 const (
 	AgentRunStatusCancelled AgentRunStatus = "cancelled"
@@ -69,6 +90,45 @@ func (e AgentRunStatus) Valid() bool {
 	case AgentRunStatusRunning:
 		return true
 	case AgentRunStatusSucceeded:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AgentSummarySource.
+const (
+	AgentSummarySourceCustom  AgentSummarySource = "custom"
+	AgentSummarySourceEdited  AgentSummarySource = "edited"
+	AgentSummarySourceShipped AgentSummarySource = "shipped"
+)
+
+// Valid indicates whether the value is a known member of the AgentSummarySource enum.
+func (e AgentSummarySource) Valid() bool {
+	switch e {
+	case AgentSummarySourceCustom:
+		return true
+	case AgentSummarySourceEdited:
+		return true
+	case AgentSummarySourceShipped:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AgentVersionSource.
+const (
+	Code  AgentVersionSource = "code"
+	Panel AgentVersionSource = "panel"
+)
+
+// Valid indicates whether the value is a known member of the AgentVersionSource enum.
+func (e AgentVersionSource) Valid() bool {
+	switch e {
+	case Code:
+		return true
+	case Panel:
 		return true
 	default:
 		return false
@@ -624,12 +684,25 @@ type AgentDetail struct {
 	Phase       *int                   `json:"phase,omitempty"`
 
 	// Produces Artifact kind of the agent's output in workflows.
-	Produces *string  `json:"produces,omitempty"`
-	Prompt   string   `json:"prompt"`
-	RunCount int64    `json:"runCount"`
-	Tools    []string `json:"tools"`
-	Version  string   `json:"version"`
+	Produces          *string                 `json:"produces,omitempty"`
+	Prompt            string                  `json:"prompt"`
+	RunCount          int64                   `json:"runCount"`
+	ShippedDefinition *map[string]interface{} `json:"shippedDefinition,omitempty"`
+
+	// ShippedPrompt The shipped default prompt (for diffs).
+	ShippedPrompt *string `json:"shippedPrompt,omitempty"`
+
+	// Source shipped: unchanged default; edited: changed in the panel; custom: created in the panel.
+	Source *AgentDetailSource `json:"source,omitempty"`
+	Tools  []string           `json:"tools"`
+
+	// UpdateAvailable Edited and a newer shipped version exists.
+	UpdateAvailable *bool  `json:"updateAvailable,omitempty"`
+	Version         string `json:"version"`
 }
+
+// AgentDetailSource shipped: unchanged default; edited: changed in the panel; custom: created in the panel.
+type AgentDetailSource string
 
 // AgentEvent defines model for AgentEvent.
 type AgentEvent struct {
@@ -643,6 +716,13 @@ type AgentEvent struct {
 // AgentEventList defines model for AgentEventList.
 type AgentEventList struct {
 	Items []AgentEvent `json:"items"`
+}
+
+// AgentInput defines model for AgentInput.
+type AgentInput struct {
+	// Definition The agent contract (agent-definition.schema.json).
+	Definition map[string]interface{} `json:"definition"`
+	Prompt     string                 `json:"prompt"`
 }
 
 // AgentList defines model for AgentList.
@@ -693,10 +773,37 @@ type AgentSummary struct {
 	Phase       *int               `json:"phase,omitempty"`
 
 	// Produces Artifact kind of the agent's output in workflows.
-	Produces *string  `json:"produces,omitempty"`
-	RunCount int64    `json:"runCount"`
-	Tools    []string `json:"tools"`
-	Version  string   `json:"version"`
+	Produces *string `json:"produces,omitempty"`
+	RunCount int64   `json:"runCount"`
+
+	// Source shipped: unchanged default; edited: changed in the panel; custom: created in the panel.
+	Source *AgentSummarySource `json:"source,omitempty"`
+	Tools  []string            `json:"tools"`
+
+	// UpdateAvailable Edited and a newer shipped version exists.
+	UpdateAvailable *bool  `json:"updateAvailable,omitempty"`
+	Version         string `json:"version"`
+}
+
+// AgentSummarySource shipped: unchanged default; edited: changed in the panel; custom: created in the panel.
+type AgentSummarySource string
+
+// AgentVersion defines model for AgentVersion.
+type AgentVersion struct {
+	ContentHash string             `json:"contentHash"`
+	CreatedAt   time.Time          `json:"createdAt"`
+	Current     bool               `json:"current"`
+	Id          openapi_types.UUID `json:"id"`
+	Source      AgentVersionSource `json:"source"`
+	Version     string             `json:"version"`
+}
+
+// AgentVersionSource defines model for AgentVersion.Source.
+type AgentVersionSource string
+
+// AgentVersionList defines model for AgentVersionList.
+type AgentVersionList struct {
+	Items []AgentVersion `json:"items"`
 }
 
 // ApiToken defines model for ApiToken.
@@ -1480,6 +1587,11 @@ type ToolDefinition struct {
 // ToolDefinitionSideEffects defines model for ToolDefinition.SideEffects.
 type ToolDefinitionSideEffects string
 
+// ToolList defines model for ToolList.
+type ToolList struct {
+	Items []ToolDefinition `json:"items"`
+}
+
 // TurnMessage defines model for TurnMessage.
 type TurnMessage struct {
 	Content string          `json:"content"`
@@ -1702,6 +1814,11 @@ type ListAgentRunEventsParams struct {
 	AfterSeq *int `form:"afterSeq,omitempty" json:"afterSeq,omitempty"`
 }
 
+// DuplicateAgentJSONBody defines parameters for DuplicateAgent.
+type DuplicateAgentJSONBody struct {
+	Name string `json:"name"`
+}
+
 // ListApprovalsParams defines parameters for ListApprovals.
 type ListApprovalsParams struct {
 	Status *ApprovalStatus `form:"status,omitempty" json:"status,omitempty"`
@@ -1738,6 +1855,15 @@ type CreateAccountJSONRequestBody = CreateAccountRequest
 
 // UpdateAccountJSONRequestBody defines body for UpdateAccount for application/json ContentType.
 type UpdateAccountJSONRequestBody = UpdateAccountRequest
+
+// CreateAgentJSONRequestBody defines body for CreateAgent for application/json ContentType.
+type CreateAgentJSONRequestBody = AgentInput
+
+// UpdateAgentJSONRequestBody defines body for UpdateAgent for application/json ContentType.
+type UpdateAgentJSONRequestBody = AgentInput
+
+// DuplicateAgentJSONRequestBody defines body for DuplicateAgent for application/json ContentType.
+type DuplicateAgentJSONRequestBody DuplicateAgentJSONBody
 
 // CreateAgentRunJSONRequestBody defines body for CreateAgentRun for application/json ContentType.
 type CreateAgentRunJSONRequestBody = CreateAgentRunRequest
@@ -1856,14 +1982,35 @@ type ServerInterface interface {
 	// (GET /agents)
 	ListAgents(w http.ResponseWriter, r *http.Request)
 
+	// (POST /agents)
+	CreateAgent(w http.ResponseWriter, r *http.Request)
+
+	// (DELETE /agents/{agentName})
+	DeleteAgent(w http.ResponseWriter, r *http.Request, agentName AgentName)
+
 	// (GET /agents/{agentName})
 	GetAgent(w http.ResponseWriter, r *http.Request, agentName AgentName)
+
+	// (PUT /agents/{agentName})
+	UpdateAgent(w http.ResponseWriter, r *http.Request, agentName AgentName)
+
+	// (POST /agents/{agentName}/duplicate)
+	DuplicateAgent(w http.ResponseWriter, r *http.Request, agentName AgentName)
+
+	// (POST /agents/{agentName}/reset)
+	ResetAgent(w http.ResponseWriter, r *http.Request, agentName AgentName)
 
 	// (GET /agents/{agentName}/runs)
 	ListAgentRunsForAgent(w http.ResponseWriter, r *http.Request, agentName AgentName)
 
 	// (POST /agents/{agentName}/runs)
 	CreateAgentRun(w http.ResponseWriter, r *http.Request, agentName AgentName)
+
+	// (GET /agents/{agentName}/versions)
+	ListAgentVersions(w http.ResponseWriter, r *http.Request, agentName AgentName)
+
+	// (POST /agents/{agentName}/versions/{versionId}/restore)
+	RestoreAgentVersion(w http.ResponseWriter, r *http.Request, agentName AgentName, versionId openapi_types.UUID)
 
 	// (GET /approvals)
 	ListApprovals(w http.ResponseWriter, r *http.Request, params ListApprovalsParams)
@@ -2039,6 +2186,9 @@ type ServerInterface interface {
 	// (PUT /tasks/{taskId}/workflow)
 	SetTaskWorkflow(w http.ResponseWriter, r *http.Request, taskId TaskId)
 
+	// (GET /tools)
+	ListTools(w http.ResponseWriter, r *http.Request)
+
 	// (GET /workflow-templates)
 	ListWorkflowTemplates(w http.ResponseWriter, r *http.Request)
 
@@ -2129,8 +2279,33 @@ func (_ Unimplemented) ListAgents(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
+// (POST /agents)
+func (_ Unimplemented) CreateAgent(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (DELETE /agents/{agentName})
+func (_ Unimplemented) DeleteAgent(w http.ResponseWriter, r *http.Request, agentName AgentName) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
 // (GET /agents/{agentName})
 func (_ Unimplemented) GetAgent(w http.ResponseWriter, r *http.Request, agentName AgentName) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (PUT /agents/{agentName})
+func (_ Unimplemented) UpdateAgent(w http.ResponseWriter, r *http.Request, agentName AgentName) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (POST /agents/{agentName}/duplicate)
+func (_ Unimplemented) DuplicateAgent(w http.ResponseWriter, r *http.Request, agentName AgentName) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (POST /agents/{agentName}/reset)
+func (_ Unimplemented) ResetAgent(w http.ResponseWriter, r *http.Request, agentName AgentName) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -2141,6 +2316,16 @@ func (_ Unimplemented) ListAgentRunsForAgent(w http.ResponseWriter, r *http.Requ
 
 // (POST /agents/{agentName}/runs)
 func (_ Unimplemented) CreateAgentRun(w http.ResponseWriter, r *http.Request, agentName AgentName) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (GET /agents/{agentName}/versions)
+func (_ Unimplemented) ListAgentVersions(w http.ResponseWriter, r *http.Request, agentName AgentName) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (POST /agents/{agentName}/versions/{versionId}/restore)
+func (_ Unimplemented) RestoreAgentVersion(w http.ResponseWriter, r *http.Request, agentName AgentName, versionId openapi_types.UUID) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -2431,6 +2616,11 @@ func (_ Unimplemented) GetTaskWorkflow(w http.ResponseWriter, r *http.Request, t
 
 // (PUT /tasks/{taskId}/workflow)
 func (_ Unimplemented) SetTaskWorkflow(w http.ResponseWriter, r *http.Request, taskId TaskId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (GET /tools)
+func (_ Unimplemented) ListTools(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -2766,6 +2956,46 @@ func (siw *ServerInterfaceWrapper) ListAgents(w http.ResponseWriter, r *http.Req
 	handler.ServeHTTP(w, r)
 }
 
+// CreateAgent operation middleware
+func (siw *ServerInterfaceWrapper) CreateAgent(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateAgent(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteAgent operation middleware
+func (siw *ServerInterfaceWrapper) DeleteAgent(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "agentName" -------------
+	var agentName AgentName
+
+	err = runtime.BindStyledParameterWithOptions("simple", "agentName", chi.URLParam(r, "agentName"), &agentName, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "agentName", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteAgent(w, r, agentName)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetAgent operation middleware
 func (siw *ServerInterfaceWrapper) GetAgent(w http.ResponseWriter, r *http.Request) {
 
@@ -2783,6 +3013,84 @@ func (siw *ServerInterfaceWrapper) GetAgent(w http.ResponseWriter, r *http.Reque
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetAgent(w, r, agentName)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateAgent operation middleware
+func (siw *ServerInterfaceWrapper) UpdateAgent(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "agentName" -------------
+	var agentName AgentName
+
+	err = runtime.BindStyledParameterWithOptions("simple", "agentName", chi.URLParam(r, "agentName"), &agentName, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "agentName", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateAgent(w, r, agentName)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DuplicateAgent operation middleware
+func (siw *ServerInterfaceWrapper) DuplicateAgent(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "agentName" -------------
+	var agentName AgentName
+
+	err = runtime.BindStyledParameterWithOptions("simple", "agentName", chi.URLParam(r, "agentName"), &agentName, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "agentName", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DuplicateAgent(w, r, agentName)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ResetAgent operation middleware
+func (siw *ServerInterfaceWrapper) ResetAgent(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "agentName" -------------
+	var agentName AgentName
+
+	err = runtime.BindStyledParameterWithOptions("simple", "agentName", chi.URLParam(r, "agentName"), &agentName, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "agentName", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ResetAgent(w, r, agentName)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -2835,6 +3143,67 @@ func (siw *ServerInterfaceWrapper) CreateAgentRun(w http.ResponseWriter, r *http
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.CreateAgentRun(w, r, agentName)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListAgentVersions operation middleware
+func (siw *ServerInterfaceWrapper) ListAgentVersions(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "agentName" -------------
+	var agentName AgentName
+
+	err = runtime.BindStyledParameterWithOptions("simple", "agentName", chi.URLParam(r, "agentName"), &agentName, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "agentName", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListAgentVersions(w, r, agentName)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RestoreAgentVersion operation middleware
+func (siw *ServerInterfaceWrapper) RestoreAgentVersion(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "agentName" -------------
+	var agentName AgentName
+
+	err = runtime.BindStyledParameterWithOptions("simple", "agentName", chi.URLParam(r, "agentName"), &agentName, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "agentName", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "versionId" -------------
+	var versionId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "versionId", chi.URLParam(r, "versionId"), &versionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "versionId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RestoreAgentVersion(w, r, agentName, versionId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -4289,6 +4658,20 @@ func (siw *ServerInterfaceWrapper) SetTaskWorkflow(w http.ResponseWriter, r *htt
 	handler.ServeHTTP(w, r)
 }
 
+// ListTools operation middleware
+func (siw *ServerInterfaceWrapper) ListTools(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListTools(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListWorkflowTemplates operation middleware
 func (siw *ServerInterfaceWrapper) ListWorkflowTemplates(w http.ResponseWriter, r *http.Request) {
 
@@ -4733,10 +5116,34 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 		r.Delete(options.BaseURL+"/repository-relationships/{relationshipId}", wrapper.DeleteRepositoryRelationship)
 	})
 	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/tools", wrapper.ListTools)
+	})
+	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/agents", wrapper.ListAgents)
 	})
 	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/agents", wrapper.CreateAgent)
+	})
+	r.Group(func(r chi.Router) {
+		r.Delete(options.BaseURL+"/agents/{agentName}", wrapper.DeleteAgent)
+	})
+	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/agents/{agentName}", wrapper.GetAgent)
+	})
+	r.Group(func(r chi.Router) {
+		r.Put(options.BaseURL+"/agents/{agentName}", wrapper.UpdateAgent)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/agents/{agentName}/duplicate", wrapper.DuplicateAgent)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/agents/{agentName}/reset", wrapper.ResetAgent)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/agents/{agentName}/versions", wrapper.ListAgentVersions)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/agents/{agentName}/versions/{versionId}/restore", wrapper.RestoreAgentVersion)
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/agents/{agentName}/runs", wrapper.ListAgentRunsForAgent)
@@ -5553,6 +5960,160 @@ func (response ListAgents401ApplicationProblemPlusJSONResponse) VisitListAgentsR
 	return err
 }
 
+type CreateAgentRequestObject struct {
+	Body *CreateAgentJSONRequestBody
+}
+
+type CreateAgentResponseObject interface {
+	VisitCreateAgentResponse(w http.ResponseWriter) error
+}
+
+type CreateAgent201JSONResponse AgentDetail
+
+func (response CreateAgent201JSONResponse) VisitCreateAgentResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateAgent400ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response CreateAgent400ApplicationProblemPlusJSONResponse) VisitCreateAgentResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateAgent401ApplicationProblemPlusJSONResponse Problem
+
+func (response CreateAgent401ApplicationProblemPlusJSONResponse) VisitCreateAgentResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateAgent403ApplicationProblemPlusJSONResponse Problem
+
+func (response CreateAgent403ApplicationProblemPlusJSONResponse) VisitCreateAgentResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateAgent409ApplicationProblemPlusJSONResponse Problem
+
+func (response CreateAgent409ApplicationProblemPlusJSONResponse) VisitCreateAgentResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteAgentRequestObject struct {
+	AgentName AgentName `json:"agentName"`
+}
+
+type DeleteAgentResponseObject interface {
+	VisitDeleteAgentResponse(w http.ResponseWriter) error
+}
+
+type DeleteAgent204Response struct {
+}
+
+func (response DeleteAgent204Response) VisitDeleteAgentResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type DeleteAgent401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response DeleteAgent401ApplicationProblemPlusJSONResponse) VisitDeleteAgentResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteAgent403ApplicationProblemPlusJSONResponse Problem
+
+func (response DeleteAgent403ApplicationProblemPlusJSONResponse) VisitDeleteAgentResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteAgent404ApplicationProblemPlusJSONResponse Problem
+
+func (response DeleteAgent404ApplicationProblemPlusJSONResponse) VisitDeleteAgentResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteAgent409ApplicationProblemPlusJSONResponse Problem
+
+func (response DeleteAgent409ApplicationProblemPlusJSONResponse) VisitDeleteAgentResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type GetAgentRequestObject struct {
 	AgentName AgentName `json:"agentName"`
 }
@@ -5601,6 +6162,262 @@ func (response GetAgent404ApplicationProblemPlusJSONResponse) VisitGetAgentRespo
 	}
 	w.Header().Set("Content-Type", "application/problem+json")
 	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateAgentRequestObject struct {
+	AgentName AgentName `json:"agentName"`
+	Body      *UpdateAgentJSONRequestBody
+}
+
+type UpdateAgentResponseObject interface {
+	VisitUpdateAgentResponse(w http.ResponseWriter) error
+}
+
+type UpdateAgent200JSONResponse AgentDetail
+
+func (response UpdateAgent200JSONResponse) VisitUpdateAgentResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateAgent400ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response UpdateAgent400ApplicationProblemPlusJSONResponse) VisitUpdateAgentResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateAgent401ApplicationProblemPlusJSONResponse Problem
+
+func (response UpdateAgent401ApplicationProblemPlusJSONResponse) VisitUpdateAgentResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateAgent403ApplicationProblemPlusJSONResponse Problem
+
+func (response UpdateAgent403ApplicationProblemPlusJSONResponse) VisitUpdateAgentResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateAgent404ApplicationProblemPlusJSONResponse Problem
+
+func (response UpdateAgent404ApplicationProblemPlusJSONResponse) VisitUpdateAgentResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DuplicateAgentRequestObject struct {
+	AgentName AgentName `json:"agentName"`
+	Body      *DuplicateAgentJSONRequestBody
+}
+
+type DuplicateAgentResponseObject interface {
+	VisitDuplicateAgentResponse(w http.ResponseWriter) error
+}
+
+type DuplicateAgent201JSONResponse AgentDetail
+
+func (response DuplicateAgent201JSONResponse) VisitDuplicateAgentResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DuplicateAgent400ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response DuplicateAgent400ApplicationProblemPlusJSONResponse) VisitDuplicateAgentResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DuplicateAgent401ApplicationProblemPlusJSONResponse Problem
+
+func (response DuplicateAgent401ApplicationProblemPlusJSONResponse) VisitDuplicateAgentResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DuplicateAgent403ApplicationProblemPlusJSONResponse Problem
+
+func (response DuplicateAgent403ApplicationProblemPlusJSONResponse) VisitDuplicateAgentResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DuplicateAgent404ApplicationProblemPlusJSONResponse Problem
+
+func (response DuplicateAgent404ApplicationProblemPlusJSONResponse) VisitDuplicateAgentResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DuplicateAgent409ApplicationProblemPlusJSONResponse Problem
+
+func (response DuplicateAgent409ApplicationProblemPlusJSONResponse) VisitDuplicateAgentResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ResetAgentRequestObject struct {
+	AgentName AgentName `json:"agentName"`
+}
+
+type ResetAgentResponseObject interface {
+	VisitResetAgentResponse(w http.ResponseWriter) error
+}
+
+type ResetAgent200JSONResponse AgentDetail
+
+func (response ResetAgent200JSONResponse) VisitResetAgentResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ResetAgent401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response ResetAgent401ApplicationProblemPlusJSONResponse) VisitResetAgentResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ResetAgent403ApplicationProblemPlusJSONResponse Problem
+
+func (response ResetAgent403ApplicationProblemPlusJSONResponse) VisitResetAgentResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ResetAgent404ApplicationProblemPlusJSONResponse Problem
+
+func (response ResetAgent404ApplicationProblemPlusJSONResponse) VisitResetAgentResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ResetAgent409ApplicationProblemPlusJSONResponse Problem
+
+func (response ResetAgent409ApplicationProblemPlusJSONResponse) VisitResetAgentResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
 	_, err := buf.WriteTo(w)
 	return err
 }
@@ -5734,6 +6551,125 @@ func (response CreateAgentRun409ApplicationProblemPlusJSONResponse) VisitCreateA
 	}
 	w.Header().Set("Content-Type", "application/problem+json")
 	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListAgentVersionsRequestObject struct {
+	AgentName AgentName `json:"agentName"`
+}
+
+type ListAgentVersionsResponseObject interface {
+	VisitListAgentVersionsResponse(w http.ResponseWriter) error
+}
+
+type ListAgentVersions200JSONResponse AgentVersionList
+
+func (response ListAgentVersions200JSONResponse) VisitListAgentVersionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListAgentVersions401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response ListAgentVersions401ApplicationProblemPlusJSONResponse) VisitListAgentVersionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListAgentVersions404ApplicationProblemPlusJSONResponse Problem
+
+func (response ListAgentVersions404ApplicationProblemPlusJSONResponse) VisitListAgentVersionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RestoreAgentVersionRequestObject struct {
+	AgentName AgentName          `json:"agentName"`
+	VersionId openapi_types.UUID `json:"versionId"`
+}
+
+type RestoreAgentVersionResponseObject interface {
+	VisitRestoreAgentVersionResponse(w http.ResponseWriter) error
+}
+
+type RestoreAgentVersion200JSONResponse AgentDetail
+
+func (response RestoreAgentVersion200JSONResponse) VisitRestoreAgentVersionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RestoreAgentVersion401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response RestoreAgentVersion401ApplicationProblemPlusJSONResponse) VisitRestoreAgentVersionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RestoreAgentVersion403ApplicationProblemPlusJSONResponse Problem
+
+func (response RestoreAgentVersion403ApplicationProblemPlusJSONResponse) VisitRestoreAgentVersionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RestoreAgentVersion404ApplicationProblemPlusJSONResponse Problem
+
+func (response RestoreAgentVersion404ApplicationProblemPlusJSONResponse) VisitRestoreAgentVersionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
 	_, err := buf.WriteTo(w)
 	return err
 }
@@ -9105,6 +10041,43 @@ func (response SetTaskWorkflow404ApplicationProblemPlusJSONResponse) VisitSetTas
 	return err
 }
 
+type ListToolsRequestObject struct {
+}
+
+type ListToolsResponseObject interface {
+	VisitListToolsResponse(w http.ResponseWriter) error
+}
+
+type ListTools200JSONResponse ToolList
+
+func (response ListTools200JSONResponse) VisitListToolsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListTools401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response ListTools401ApplicationProblemPlusJSONResponse) VisitListToolsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type ListWorkflowTemplatesRequestObject struct {
 }
 
@@ -9742,14 +10715,35 @@ type StrictServerInterface interface {
 	// (GET /agents)
 	ListAgents(ctx context.Context, request ListAgentsRequestObject) (ListAgentsResponseObject, error)
 
+	// (POST /agents)
+	CreateAgent(ctx context.Context, request CreateAgentRequestObject) (CreateAgentResponseObject, error)
+
+	// (DELETE /agents/{agentName})
+	DeleteAgent(ctx context.Context, request DeleteAgentRequestObject) (DeleteAgentResponseObject, error)
+
 	// (GET /agents/{agentName})
 	GetAgent(ctx context.Context, request GetAgentRequestObject) (GetAgentResponseObject, error)
+
+	// (PUT /agents/{agentName})
+	UpdateAgent(ctx context.Context, request UpdateAgentRequestObject) (UpdateAgentResponseObject, error)
+
+	// (POST /agents/{agentName}/duplicate)
+	DuplicateAgent(ctx context.Context, request DuplicateAgentRequestObject) (DuplicateAgentResponseObject, error)
+
+	// (POST /agents/{agentName}/reset)
+	ResetAgent(ctx context.Context, request ResetAgentRequestObject) (ResetAgentResponseObject, error)
 
 	// (GET /agents/{agentName}/runs)
 	ListAgentRunsForAgent(ctx context.Context, request ListAgentRunsForAgentRequestObject) (ListAgentRunsForAgentResponseObject, error)
 
 	// (POST /agents/{agentName}/runs)
 	CreateAgentRun(ctx context.Context, request CreateAgentRunRequestObject) (CreateAgentRunResponseObject, error)
+
+	// (GET /agents/{agentName}/versions)
+	ListAgentVersions(ctx context.Context, request ListAgentVersionsRequestObject) (ListAgentVersionsResponseObject, error)
+
+	// (POST /agents/{agentName}/versions/{versionId}/restore)
+	RestoreAgentVersion(ctx context.Context, request RestoreAgentVersionRequestObject) (RestoreAgentVersionResponseObject, error)
 
 	// (GET /approvals)
 	ListApprovals(ctx context.Context, request ListApprovalsRequestObject) (ListApprovalsResponseObject, error)
@@ -9924,6 +10918,9 @@ type StrictServerInterface interface {
 
 	// (PUT /tasks/{taskId}/workflow)
 	SetTaskWorkflow(ctx context.Context, request SetTaskWorkflowRequestObject) (SetTaskWorkflowResponseObject, error)
+
+	// (GET /tools)
+	ListTools(ctx context.Context, request ListToolsRequestObject) (ListToolsResponseObject, error)
 
 	// (GET /workflow-templates)
 	ListWorkflowTemplates(ctx context.Context, request ListWorkflowTemplatesRequestObject) (ListWorkflowTemplatesResponseObject, error)
@@ -10290,6 +11287,63 @@ func (sh *strictHandler) ListAgents(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// CreateAgent operation middleware
+func (sh *strictHandler) CreateAgent(w http.ResponseWriter, r *http.Request) {
+	var request CreateAgentRequestObject
+
+	var body CreateAgentJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateAgent(ctx, request.(CreateAgentRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateAgent")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CreateAgentResponseObject); ok {
+		if err := validResponse.VisitCreateAgentResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DeleteAgent operation middleware
+func (sh *strictHandler) DeleteAgent(w http.ResponseWriter, r *http.Request, agentName AgentName) {
+	var request DeleteAgentRequestObject
+
+	request.AgentName = agentName
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteAgent(ctx, request.(DeleteAgentRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteAgent")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DeleteAgentResponseObject); ok {
+		if err := validResponse.VisitDeleteAgentResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // GetAgent operation middleware
 func (sh *strictHandler) GetAgent(w http.ResponseWriter, r *http.Request, agentName AgentName) {
 	var request GetAgentRequestObject
@@ -10309,6 +11363,98 @@ func (sh *strictHandler) GetAgent(w http.ResponseWriter, r *http.Request, agentN
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(GetAgentResponseObject); ok {
 		if err := validResponse.VisitGetAgentResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UpdateAgent operation middleware
+func (sh *strictHandler) UpdateAgent(w http.ResponseWriter, r *http.Request, agentName AgentName) {
+	var request UpdateAgentRequestObject
+
+	request.AgentName = agentName
+
+	var body UpdateAgentJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.UpdateAgent(ctx, request.(UpdateAgentRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UpdateAgent")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(UpdateAgentResponseObject); ok {
+		if err := validResponse.VisitUpdateAgentResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DuplicateAgent operation middleware
+func (sh *strictHandler) DuplicateAgent(w http.ResponseWriter, r *http.Request, agentName AgentName) {
+	var request DuplicateAgentRequestObject
+
+	request.AgentName = agentName
+
+	var body DuplicateAgentJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DuplicateAgent(ctx, request.(DuplicateAgentRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DuplicateAgent")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DuplicateAgentResponseObject); ok {
+		if err := validResponse.VisitDuplicateAgentResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ResetAgent operation middleware
+func (sh *strictHandler) ResetAgent(w http.ResponseWriter, r *http.Request, agentName AgentName) {
+	var request ResetAgentRequestObject
+
+	request.AgentName = agentName
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ResetAgent(ctx, request.(ResetAgentRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ResetAgent")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ResetAgentResponseObject); ok {
+		if err := validResponse.VisitResetAgentResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -10368,6 +11514,59 @@ func (sh *strictHandler) CreateAgentRun(w http.ResponseWriter, r *http.Request, 
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(CreateAgentRunResponseObject); ok {
 		if err := validResponse.VisitCreateAgentRunResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListAgentVersions operation middleware
+func (sh *strictHandler) ListAgentVersions(w http.ResponseWriter, r *http.Request, agentName AgentName) {
+	var request ListAgentVersionsRequestObject
+
+	request.AgentName = agentName
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListAgentVersions(ctx, request.(ListAgentVersionsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListAgentVersions")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListAgentVersionsResponseObject); ok {
+		if err := validResponse.VisitListAgentVersionsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RestoreAgentVersion operation middleware
+func (sh *strictHandler) RestoreAgentVersion(w http.ResponseWriter, r *http.Request, agentName AgentName, versionId openapi_types.UUID) {
+	var request RestoreAgentVersionRequestObject
+
+	request.AgentName = agentName
+	request.VersionId = versionId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RestoreAgentVersion(ctx, request.(RestoreAgentVersionRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RestoreAgentVersion")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RestoreAgentVersionResponseObject); ok {
+		if err := validResponse.VisitRestoreAgentVersionResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -12014,6 +13213,30 @@ func (sh *strictHandler) SetTaskWorkflow(w http.ResponseWriter, r *http.Request,
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(SetTaskWorkflowResponseObject); ok {
 		if err := validResponse.VisitSetTaskWorkflowResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListTools operation middleware
+func (sh *strictHandler) ListTools(w http.ResponseWriter, r *http.Request) {
+	var request ListToolsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListTools(ctx, request.(ListToolsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListTools")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListToolsResponseObject); ok {
+		if err := validResponse.VisitListToolsResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

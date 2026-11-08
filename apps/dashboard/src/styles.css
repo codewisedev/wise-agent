@@ -569,3 +569,7 @@ details[open] > summary { margin-bottom: 6px; }
 .list.history li { padding: 6px 0; }
 .settings-form .form-grid > .btn { margin-top: 0; }
 .settings-form > .form-grid { align-items: center; }
+.agent-editor { display: grid; gap: 12px; }
+.agent-editor textarea.invalid { border-color: var(--danger, #e5484d); }
+pre.diff span.add { color: var(--ok, #3fb950); background: color-mix(in srgb, var(--ok, #3fb950) 10%, transparent); display: inline-block; width: 100%; }
+pre.diff span.del { color: var(--danger, #e5484d); background: color-mix(in srgb, var(--danger, #e5484d) 10%, transparent); display: inline-block; width: 100%; }

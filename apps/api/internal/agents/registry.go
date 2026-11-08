@@ -12,7 +12,9 @@ import (
 	"io/fs"
 	"log/slog"
 	"path"
+	"regexp"
 	"sort"
+	"strings"
 
 	"github.com/google/uuid"
 	"sigs.k8s.io/yaml"
@@ -149,23 +151,45 @@ func loadOne(defs, promptFS fs.FS, file string, tools map[string]Tool) (Loaded, 
 	if err != nil {
 		return Loaded{}, err
 	}
-	if err := schemas.Validate(agentcontract.DefinitionSchema, j, "definition"); err != nil {
+	var head struct {
+		Name   string `json:"name"`
+		Prompt string `json:"prompt"`
+	}
+	_ = json.Unmarshal(j, &head)
+	if path.Base(file) != head.Name+".yaml" {
+		return Loaded{}, fmt.Errorf("file name must be %s.yaml", head.Name)
+	}
+	var prompt string
+	if head.Prompt != "" {
+		b, err := fs.ReadFile(promptFS, head.Prompt)
+		if err != nil {
+			return Loaded{}, fmt.Errorf("prompt: %w", err)
+		}
+		prompt = string(b)
+	}
+	return Validate(j, prompt, tools)
+}
+
+// Validate checks a definition (JSON) and its prompt the same way for shipped
+// and panel-edited agents, and computes the content hash.
+func Validate(raw []byte, prompt string, tools map[string]Tool) (Loaded, error) {
+	if err := schemas.Validate(agentcontract.DefinitionSchema, raw, "definition"); err != nil {
 		return Loaded{}, err
 	}
 	var d Definition
-	if err := json.Unmarshal(j, &d); err != nil {
+	if err := json.Unmarshal(raw, &d); err != nil {
 		return Loaded{}, err
 	}
-	if path.Base(file) != d.Name+".yaml" {
-		return Loaded{}, fmt.Errorf("file name must be %s.yaml", d.Name)
+	if !nameRe.MatchString(d.Name) {
+		return Loaded{}, fmt.Errorf("name must be lowercase letters, digits and dashes ending in -agent (e.g. qa-agent)")
 	}
 	for _, t := range d.Tools {
 		if _, ok := tools[t]; !ok {
 			return Loaded{}, fmt.Errorf("unknown tool %q", t)
 		}
 	}
-	for _, s := range []json.RawMessage{d.InputSchema, d.OutputSchema} {
-		if _, err := schemas.Compile(s); err != nil {
+	for _, sch := range []json.RawMessage{d.InputSchema, d.OutputSchema} {
+		if _, err := schemas.Compile(sch); err != nil {
 			return Loaded{}, err
 		}
 	}
@@ -183,18 +207,14 @@ func loadOne(defs, promptFS fs.FS, file string, tools map[string]Tool) (Loaded, 
 			}
 		}
 	}
-	var prompt string
-	if d.Prompt != "" {
-		b, err := fs.ReadFile(promptFS, d.Prompt)
-		if err != nil {
-			return Loaded{}, fmt.Errorf("prompt: %w", err)
-		}
-		prompt = string(b)
-	} else if d.Enabled {
+	if d.Enabled && strings.TrimSpace(prompt) == "" {
 		return Loaded{}, fmt.Errorf("enabled agents need a prompt")
 	}
+	if len(prompt) > 200_000 {
+		return Loaded{}, fmt.Errorf("prompt is too long (max 200000 characters)")
+	}
 	var canon bytes.Buffer
-	if err := json.Compact(&canon, j); err != nil {
+	if err := json.Compact(&canon, raw); err != nil {
 		return Loaded{}, err
 	}
 	// The hash covers the definition, its prompt and the referenced tool contracts.
@@ -210,8 +230,11 @@ func loadOne(defs, promptFS fs.FS, file string, tools map[string]Tool) (Loaded, 
 	return Loaded{Def: d, Raw: canon.Bytes(), Prompt: prompt, Hash: hex.EncodeToString(h.Sum(nil))}, nil
 }
 
-// Sync registers the catalog: unchanged definitions are kept, changed ones get
-// a new row that becomes current. Old rows stay for runs that reference them.
+var nameRe = regexp.MustCompile(`^[a-z][a-z0-9-]*-agent$`)
+
+// Sync registers the shipped definitions. A changed shipped definition becomes
+// current only while the agent has no panel edit; otherwise it is kept as the
+// default the user can reset to.
 func Sync(ctx context.Context, d *db.DB, cat Catalog, log *slog.Logger) error {
 	return d.InTx(ctx, func(q *dbgen.Queries) error {
 		for _, l := range cat.Agents {
@@ -223,7 +246,7 @@ func Sync(ctx context.Context, d *db.DB, cat Catalog, log *slog.Logger) error {
 				}
 				row, err = q.InsertAgentDefinition(ctx, dbgen.InsertAgentDefinitionParams{
 					ID: id, Name: l.Def.Name, Version: l.Def.Version, ContentHash: l.Hash,
-					Definition: l.Raw, Prompt: l.Prompt, Enabled: l.Def.Enabled,
+					Definition: l.Raw, Prompt: l.Prompt, Enabled: l.Def.Enabled, Source: "code",
 				})
 				if err != nil {
 					return fmt.Errorf("register %s: %w", l.Def.Name, err)
@@ -231,6 +254,27 @@ func Sync(ctx context.Context, d *db.DB, cat Catalog, log *slog.Logger) error {
 				log.Info("agent definition registered", "agent", l.Def.Name, "version", l.Def.Version, "hash", l.Hash[:12])
 			} else if err != nil {
 				return err
+			}
+			cur, err := q.GetCurrentAgentDefinitionByName(ctx, l.Def.Name)
+			switch {
+			case err == nil && cur.Source == "panel":
+				if cur.BaseHash == nil || *cur.BaseHash != l.Hash {
+					log.Info("agent edited in the panel; newer shipped version kept as its default", "agent", l.Def.Name)
+				}
+				continue
+			case err != nil && !db.IsNotFound(err):
+				return err
+			}
+			if err == nil && cur.ID == row.ID {
+				continue
+			}
+			if db.IsNotFound(err) {
+				// No current row: new agent, or every row archived by the user.
+				if n, cerr := q.CountAgentDefinitionsByName(ctx, l.Def.Name); cerr != nil {
+					return cerr
+				} else if n == 0 && row.Archived {
+					continue // the user removed it; do not bring it back
+				}
 			}
 			if err := q.ClearCurrentAgentDefinition(ctx, dbgen.ClearCurrentAgentDefinitionParams{Name: l.Def.Name, ID: row.ID}); err != nil {
 				return err
@@ -263,20 +307,24 @@ type Info struct {
 func (c Catalog) Lookup() func(name string) (Info, bool) {
 	infos := map[string]Info{}
 	for _, l := range c.Agents {
-		var in struct {
-			Required   []string                   `json:"required"`
-			Properties map[string]json.RawMessage `json:"properties"`
-		}
-		_ = json.Unmarshal(l.Def.InputSchema, &in)
-		_, fb := in.Properties["feedback"]
-		_, prev := in.Properties["previous_output"]
-		infos[l.Def.Name] = Info{
-			Enabled: l.Def.Enabled, Produces: l.Def.Produces, Consumes: l.Def.Consumes,
-			RequiredInputs: in.Required, AcceptsFeedback: fb && prev,
-		}
+		infos[l.Def.Name] = infoOf(l.Def)
 	}
 	return func(name string) (Info, bool) {
 		i, ok := infos[name]
 		return i, ok
+	}
+}
+
+func infoOf(d Definition) Info {
+	var in struct {
+		Required   []string                   `json:"required"`
+		Properties map[string]json.RawMessage `json:"properties"`
+	}
+	_ = json.Unmarshal(d.InputSchema, &in)
+	_, fb := in.Properties["feedback"]
+	_, prev := in.Properties["previous_output"]
+	return Info{
+		Enabled: d.Enabled, Produces: d.Produces, Consumes: d.Consumes,
+		RequiredInputs: in.Required, AcceptsFeedback: fb && prev,
 	}
 }

@@ -322,6 +322,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/tools": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The tool catalog agents can use (implemented by the runtime). */
+        get: operations["listTools"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/agents": {
         parameters: {
             query?: never;
@@ -331,7 +348,8 @@ export interface paths {
         };
         get: operations["listAgents"];
         put?: never;
-        post?: never;
+        /** @description Creates an agent defined in the panel. Signed-in session only. */
+        post: operations["createAgent"];
         delete?: never;
         options?: never;
         head?: never;
@@ -348,8 +366,84 @@ export interface paths {
             cookie?: never;
         };
         get: operations["getAgent"];
+        /** @description Saves a new version of the agent's contract and prompt (applies to new runs). Signed-in session only. */
+        put: operations["updateAgent"];
+        post?: never;
+        /** @description Deletes an agent created in the panel (shipped agents can be disabled instead). */
+        delete: operations["deleteAgent"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agents/{agentName}/duplicate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agentName: components["parameters"]["AgentName"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["duplicateAgent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agents/{agentName}/reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agentName: components["parameters"]["AgentName"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Restores the latest shipped definition and prompt. */
+        post: operations["resetAgent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agents/{agentName}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agentName: components["parameters"]["AgentName"];
+            };
+            cookie?: never;
+        };
+        get: operations["listAgentVersions"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agents/{agentName}/versions/{versionId}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agentName: components["parameters"]["AgentName"];
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["restoreAgentVersion"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1423,6 +1517,13 @@ export interface components {
             lastRunAt?: string | null;
             /** @description Artifact kind of the agent's output in workflows. */
             produces?: string;
+            /**
+             * @description shipped: unchanged default; edited: changed in the panel; custom: created in the panel.
+             * @enum {string}
+             */
+            source?: "shipped" | "edited" | "custom";
+            /** @description Edited and a newer shipped version exists. */
+            updateAvailable?: boolean;
             /** @description Input property → artifact kind it is filled from. */
             consumes?: {
                 [key: string]: string;
@@ -1440,6 +1541,35 @@ export interface components {
             /** Format: date-time */
             createdAt: string;
             cloudAllowed: boolean;
+            /** @description The shipped default prompt (for diffs). */
+            shippedPrompt?: string | null;
+            shippedDefinition?: {
+                [key: string]: unknown;
+            } | null;
+        };
+        AgentInput: {
+            /** @description The agent contract (agent-definition.schema.json). */
+            definition: {
+                [key: string]: unknown;
+            };
+            prompt: string;
+        };
+        AgentVersion: {
+            /** Format: uuid */
+            id: string;
+            version: string;
+            contentHash: string;
+            /** @enum {string} */
+            source: "code" | "panel";
+            current: boolean;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        AgentVersionList: {
+            items: components["schemas"]["AgentVersion"][];
+        };
+        ToolList: {
+            items: components["schemas"]["ToolDefinition"][];
         };
         CreateAgentRunRequest: {
             input: {
@@ -2852,6 +2982,27 @@ export interface operations {
             404: components["responses"]["Problem"];
         };
     };
+    listTools: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Tools. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ToolList"];
+                };
+            };
+            401: components["responses"]["Problem"];
+        };
+    };
     listAgents: {
         parameters: {
             query?: never;
@@ -2871,6 +3022,34 @@ export interface operations {
                 };
             };
             401: components["responses"]["Problem"];
+        };
+    };
+    createAgent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentInput"];
+            };
+        };
+        responses: {
+            /** @description Created. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentDetail"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
         };
     };
     getAgent: {
@@ -2894,6 +3073,169 @@ export interface operations {
                 };
             };
             401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    updateAgent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agentName: components["parameters"]["AgentName"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentInput"];
+            };
+        };
+        responses: {
+            /** @description Saved. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentDetail"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    deleteAgent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agentName: components["parameters"]["AgentName"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+        };
+    };
+    duplicateAgent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agentName: components["parameters"]["AgentName"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    name: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Created. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentDetail"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+        };
+    };
+    resetAgent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agentName: components["parameters"]["AgentName"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Reset. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentDetail"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+        };
+    };
+    listAgentVersions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agentName: components["parameters"]["AgentName"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Versions, newest first. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentVersionList"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    restoreAgentVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agentName: components["parameters"]["AgentName"];
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Restored. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentDetail"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
             404: components["responses"]["Problem"];
         };
     };
