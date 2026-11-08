@@ -187,7 +187,7 @@ func (q *Queries) SetDefaultWorkflowTemplate(ctx context.Context, id uuid.UUID) 
 
 const setTaskWorkflow = `-- name: SetTaskWorkflow :one
 UPDATE tasks SET template_id = $2, workflow_overrides = $3, updated_at = now() WHERE id = $1
-RETURNING id, project_id, title, description, status, created_by, created_at, updated_at, template_id, workflow_overrides, position, priority, labels, source, integration_id, external_id, external_url, external_status, synced_at, column_id
+RETURNING id, project_id, title, description, status, created_by, created_at, updated_at, template_id, workflow_overrides, position, priority, labels, source, integration_id, external_id, external_url, external_status, synced_at, column_id, sprint_id, archived_at
 `
 
 type SetTaskWorkflowParams struct {
@@ -220,6 +220,8 @@ func (q *Queries) SetTaskWorkflow(ctx context.Context, arg SetTaskWorkflowParams
 		&i.ExternalStatus,
 		&i.SyncedAt,
 		&i.ColumnID,
+		&i.SprintID,
+		&i.ArchivedAt,
 	)
 	return i, err
 }

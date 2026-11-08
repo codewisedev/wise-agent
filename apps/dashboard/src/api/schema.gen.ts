@@ -619,6 +619,82 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/projects/{projectId}/sprints": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: components["parameters"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        get: operations["listSprints"];
+        put?: never;
+        /** @description Adds a sprint. A project's first sprint becomes its current one. */
+        post: operations["createSprint"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/sprints/{sprintId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sprintId: components["parameters"]["SprintId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["updateSprint"];
+        post?: never;
+        /** @description Deletes a sprint; its tasks stay, without a sprint. A followed sprint comes back on the next sync while the source still has it. */
+        delete: operations["deleteSprint"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/sprints/{sprintId}/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sprintId: components["parameters"]["SprintId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Makes the sprint current. Unfinished tasks created in Wise move to it from the previous sprint. */
+        post: operations["startSprint"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/sprints/{sprintId}/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sprintId: components["parameters"]["SprintId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Closes the sprint. If it was current, the next open sprint takes over and unfinished tasks created in Wise move to it. */
+        post: operations["completeSprint"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/projects/{projectId}/columns": {
         parameters: {
             query?: never;
@@ -1757,6 +1833,13 @@ export interface components {
             externalStatus?: string | null;
             /** Format: uuid */
             templateId?: string | null;
+            /** Format: uuid */
+            sprintId?: string | null;
+            /**
+             * Format: date-time
+             * @description Set when the task's source stopped returning it (e.g. no longer assigned to you); cleared if it returns.
+             */
+            archivedAt?: string | null;
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
@@ -1774,6 +1857,8 @@ export interface components {
              * @description Move to this column of the project's board.
              */
             column?: string;
+            /** @description A sprint id of the project, or "none" to take the task out of its sprint. */
+            sprint?: string;
             /**
              * Format: double
              * @description Order within the column (cards sort ascending); omit to append.
@@ -1809,6 +1894,11 @@ export interface components {
              * @description Board column (default: the backlog column, else the first).
              */
             column?: string;
+            /**
+             * Format: uuid
+             * @description A sprint of the project.
+             */
+            sprintId?: string;
             priority?: components["schemas"]["TaskPriority"];
             labels?: string[];
             /**
@@ -2046,6 +2136,37 @@ export interface components {
             finalReport?: boolean;
             maxRevisions?: number;
         };
+        Sprint: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            projectId: string;
+            name: string;
+            /** Format: date */
+            startsOn?: string | null;
+            /** Format: date */
+            endsOn?: string | null;
+            closed: boolean;
+            /** @description The project's current sprint. */
+            current: boolean;
+            taskCount: number;
+            /** @description Tasks not in a done-role list. */
+            openCount: number;
+            /** @description The task source this sprint is followed from. */
+            sourceName?: string | null;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        SprintList: {
+            items: components["schemas"]["Sprint"][];
+        };
+        SprintInput: {
+            name: string;
+            /** Format: date */
+            startsOn?: string | null;
+            /** Format: date */
+            endsOn?: string | null;
+        };
         /**
          * @description What a column means to workflows: runs move cards to in_progress, then review, then the template's destination role.
          * @enum {string}
@@ -2174,6 +2295,10 @@ export interface components {
             updated: number;
             unchanged: number;
             started: number;
+            /** @description Tasks the source no longer returns (archived). */
+            archived?: number;
+            /** @description Archived tasks the source returned again. */
+            restored?: number;
             errors?: string[];
             /** Format: date-time */
             at: string;
@@ -2197,6 +2322,8 @@ export interface components {
             };
             /** Format: uuid */
             defaultTemplateId?: string | null;
+            /** Format: uuid */
+            sprintId?: string | null;
             autoStart: boolean;
             intervalMinutes: number;
             enabled: boolean;
@@ -2225,6 +2352,11 @@ export interface components {
             };
             /** Format: uuid */
             defaultTemplateId?: string | null;
+            /**
+             * Format: uuid
+             * @description Fixed sprint for this source's tasks (follow modes create their own sprints).
+             */
+            sprintId?: string | null;
             autoStart?: boolean;
             intervalMinutes?: number;
             enabled?: boolean;
@@ -2386,6 +2518,7 @@ export interface components {
         };
     };
     parameters: {
+        SprintId: string;
         ProjectId: string;
         RepositoryId: string;
         ResourceId: string;
@@ -3574,6 +3707,154 @@ export interface operations {
             404: components["responses"]["Problem"];
         };
     };
+    listSprints: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: components["parameters"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The project's sprints (open first, newest first). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SprintList"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    createSprint: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: components["parameters"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SprintInput"];
+            };
+        };
+        responses: {
+            /** @description Created. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Sprint"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    updateSprint: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sprintId: components["parameters"]["SprintId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SprintInput"];
+            };
+        };
+        responses: {
+            /** @description Updated. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Sprint"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    deleteSprint: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sprintId: components["parameters"]["SprintId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    startSprint: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sprintId: components["parameters"]["SprintId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Started. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    completeSprint: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sprintId: components["parameters"]["SprintId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Completed. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
     listColumns: {
         parameters: {
             query?: never;
@@ -3689,6 +3970,8 @@ export interface operations {
             query?: {
                 projectId?: string;
                 status?: components["schemas"]["TaskStatus"];
+                /** @description List archived tasks instead of live ones. */
+                archived?: boolean;
             };
             header?: never;
             path?: never;

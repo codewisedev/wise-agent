@@ -1,3 +1,4 @@
+import { Link } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { api, unwrap } from "../api/client";
@@ -22,8 +23,10 @@ export function ModelsPage() {
         <div>
           <h1>Models</h1>
           <p className="desc">
-            Every model call goes through the Model Gateway. Aliases and policies live in{" "}
-            <code>configs/models/models.yaml</code> and <code>configs/policies/models.yaml</code>.
+            Every model call goes through the Model Gateway. Edit aliases in{" "}
+            <Link to="/settings?tab=models">Settings → Models</Link>, budgets in{" "}
+            <Link to="/settings?tab=policy">Policy &amp; budgets</Link> and add providers (LM Studio, DeepSeek,
+            Google AI Studio…) in <Link to="/settings?tab=accounts">Accounts</Link>.
           </p>
         </div>
       </header>

@@ -46,6 +46,7 @@ type Input struct {
 	AutoStart         bool
 	IntervalMinutes   int
 	Enabled           bool
+	SprintID          *uuid.UUID // fixed sprint for its tasks (follow modes create their own)
 }
 
 // Result summarizes one sync.
@@ -55,6 +56,8 @@ type Result struct {
 	Updated   int       `json:"updated"`
 	Unchanged int       `json:"unchanged"`
 	Started   int       `json:"started"`
+	Archived  int       `json:"archived"` // no longer returned by the source (e.g. unassigned)
+	Restored  int       `json:"restored"` // archived earlier, returned again
 	Errors    []string  `json:"errors,omitempty"`
 	At        time.Time `json:"at"`
 }
@@ -107,6 +110,11 @@ func (s *Service) validate(ctx context.Context, projectID uuid.UUID, in *Input) 
 		}
 	}
 	in.StatusMap = norm
+	if in.SprintID != nil {
+		if sp, err := s.db.GetSprint(ctx, *in.SprintID); err != nil || sp.ProjectID != projectID {
+			errs = append(errs, apperr.FieldError{Field: "sprintId", Message: "not a sprint of this project"})
+		}
+	}
 	if in.Config == nil {
 		in.Config = map[string]any{}
 	}
@@ -150,7 +158,7 @@ func (s *Service) Create(ctx context.Context, projectID uuid.UUID, in Input, use
 		if it, err = q.CreateIntegration(ctx, dbgen.CreateIntegrationParams{
 			ID: id, ProjectID: projectID, Kind: in.Kind, Name: in.Name, AccountID: in.AccountID, Config: cfg, StatusMap: sm,
 			DefaultTemplateID: in.DefaultTemplateID, AutoStart: in.AutoStart, IntervalMinutes: int32(in.IntervalMinutes),
-			Enabled: in.Enabled, CreatedBy: userID,
+			Enabled: in.Enabled, CreatedBy: userID, SprintID: in.SprintID,
 		}); err != nil {
 			return err
 		}
@@ -175,7 +183,7 @@ func (s *Service) Update(ctx context.Context, id uuid.UUID, in Input) (dbgen.Int
 	err = s.db.InTx(ctx, func(q *dbgen.Queries) error {
 		if it, err = q.UpdateIntegration(ctx, dbgen.UpdateIntegrationParams{
 			ID: id, Name: in.Name, AccountID: in.AccountID, Config: cfg, StatusMap: sm, DefaultTemplateID: in.DefaultTemplateID,
-			AutoStart: in.AutoStart, IntervalMinutes: int32(in.IntervalMinutes), Enabled: in.Enabled,
+			AutoStart: in.AutoStart, IntervalMinutes: int32(in.IntervalMinutes), Enabled: in.Enabled, SprintID: in.SprintID,
 		}); err != nil {
 			return err
 		}
@@ -258,7 +266,7 @@ func (s *Service) sync(ctx context.Context, it dbgen.Integration) (Result, error
 	res.Total = len(items)
 	var toStart []uuid.UUID
 	for _, x := range items {
-		created, changed, err := s.upsert(ctx, it, x, statusMap)
+		created, changed, restored, err := s.upsert(ctx, it, x, statusMap)
 		switch {
 		case err != nil:
 			res.Errors = append(res.Errors, fmt.Sprintf("%s: %v", x.Key, err))
@@ -267,6 +275,8 @@ func (s *Service) sync(ctx context.Context, it dbgen.Integration) (Result, error
 			if it.AutoStart {
 				toStart = append(toStart, created)
 			}
+		case restored: // counted once, as restored (even if it also changed)
+			res.Restored++
 		case changed:
 			res.Updated++
 		default:
@@ -275,6 +285,30 @@ func (s *Service) sync(ctx context.Context, it dbgen.Integration) (Result, error
 		if len(res.Errors) > 20 {
 			break
 		}
+	}
+	// Tasks the source no longer returns are archived. Skipped when the fetch was
+	// capped (missing items may just be beyond the cap).
+	if len(items) < MaxItems {
+		seen := make([]string, 0, len(items))
+		for _, x := range items {
+			seen = append(seen, x.ID)
+		}
+		params := dbgen.ArchiveMissingImportedParams{IntegrationID: it.ID, Seen: seen, Sprints: []string{}}
+		if fs, ok := imp.(interface{ FetchedSprints() ([]string, bool) }); ok {
+			if read, following := fs.FetchedSprints(); following {
+				params.Scoped = true
+				params.Sprints = append(params.Sprints, read...)
+			}
+		}
+		n, err := s.db.ArchiveMissingImported(ctx, params)
+		if err != nil {
+			res.Errors = append(res.Errors, fmt.Sprintf("archive: %v", err))
+		}
+		res.Archived = int(n)
+	}
+	// A followed source may have brought a new sprint: advance the project if its sprint ended.
+	if err := s.tasks.RefreshSprints(ctx, it.ProjectID, time.Now()); err != nil {
+		res.Errors = append(res.Errors, fmt.Sprintf("sprints: %v", err))
 	}
 	for _, id := range toStart {
 		if _, err := s.tasks.StartWorkflow(ctx, id, it.CreatedBy, false); err != nil {
@@ -289,10 +323,11 @@ func (s *Service) sync(ctx context.Context, it dbgen.Integration) (Result, error
 // activeTaskStatuses are task states where a workflow owns the card.
 var activeTaskStatuses = []string{"in_progress", "awaiting_approval"}
 
-func (s *Service) upsert(ctx context.Context, it dbgen.Integration, x ExternalTask, statusMap map[string]string) (uuid.UUID, bool, error) {
+func (s *Service) upsert(ctx context.Context, it dbgen.Integration, x ExternalTask, statusMap map[string]string) (uuid.UUID, bool, bool, error) {
 	if x.ID == "" {
-		return uuid.Nil, false, errors.New("missing id")
+		return uuid.Nil, false, false, errors.New("missing id")
 	}
+	restored := false
 	title := clip(strings.TrimSpace(x.Title), 200)
 	if utf8.RuneCountInString(title) < 3 {
 		title = clip(strings.TrimSpace(x.Key+" "+title), 200)
@@ -317,6 +352,17 @@ func (s *Service) upsert(ctx context.Context, it dbgen.Integration, x ExternalTa
 		if err != nil {
 			return err
 		}
+		// The task's sprint: the source's own (follow mode) or the source's fixed sprint.
+		sprint, followed := it.SprintID, false
+		if x.Sprint != nil {
+			id, err := tasks.FollowSprint(ctx, q, it.ProjectID, it.ID, tasks.ExternalSprint{
+				ID: x.Sprint.ID, Name: x.Sprint.Name, StartsOn: x.Sprint.StartsOn, EndsOn: x.Sprint.EndsOn, Closed: x.Sprint.Closed,
+			})
+			if err != nil {
+				return err
+			}
+			sprint, followed = &id, true
+		}
 		cur, err := q.GetTaskByExternal(ctx, dbgen.GetTaskByExternalParams{IntegrationID: &it.ID, ExternalID: &x.ID})
 		if db.IsNotFound(err) {
 			id, err := uuid.NewV7()
@@ -330,7 +376,7 @@ func (s *Service) upsert(ctx context.Context, it dbgen.Integration, x ExternalTa
 			if _, err := q.CreateImportedTask(ctx, dbgen.CreateImportedTaskParams{
 				ID: id, ProjectID: it.ProjectID, Title: title, Description: desc, ColumnID: column, Position: pos,
 				Priority: priority, Labels: labels, Source: it.Kind, IntegrationID: &it.ID, ExternalID: &x.ID,
-				ExternalUrl: strPtr(x.URL), ExternalStatus: strPtr(x.Status), TemplateID: it.DefaultTemplateID,
+				ExternalUrl: strPtr(x.URL), ExternalStatus: strPtr(x.Status), TemplateID: it.DefaultTemplateID, SprintID: sprint,
 			}); err != nil {
 				return err
 			}
@@ -341,6 +387,13 @@ func (s *Service) upsert(ctx context.Context, it dbgen.Integration, x ExternalTa
 		if err != nil {
 			return err
 		}
+		if cur.ArchivedAt != nil {
+			// The source returns it again (e.g. reassigned to you): back on the board.
+			if err := q.RestoreTask(ctx, cur.ID); err != nil {
+				return err
+			}
+			restored = true
+		}
 		col, pos := cur.ColumnID, cur.Position
 		statusChanged := deref(cur.ExternalStatus) != x.Status
 		// Follow the source's status change unless a workflow owns the card now.
@@ -350,18 +403,26 @@ func (s *Service) upsert(ctx context.Context, it dbgen.Integration, x ExternalTa
 			}
 			col = column
 		}
+		// Followed tasks move with their source's sprint (carry-over follows the tool);
+		// otherwise a sprint chosen in Wise is kept.
+		sprintID := cur.SprintID
+		sprintChanged := followed && !sameUUID(cur.SprintID, sprint)
+		if sprintChanged {
+			sprintID = sprint
+		}
 		if cur.Title == title && cur.Description == desc && slices.Equal(cur.Labels, labels) && cur.Priority == priority &&
-			deref(cur.ExternalUrl) == x.URL && !statusChanged {
+			deref(cur.ExternalUrl) == x.URL && !statusChanged && !sprintChanged {
+			changed = restored
 			return nil
 		}
 		changed = true
 		_, err = q.UpdateImportedTask(ctx, dbgen.UpdateImportedTaskParams{
 			ID: cur.ID, Title: title, Description: desc, Labels: labels, Priority: priority,
-			ExternalUrl: strPtr(x.URL), ExternalStatus: strPtr(x.Status), ColumnID: col, Position: pos,
+			ExternalUrl: strPtr(x.URL), ExternalStatus: strPtr(x.Status), ColumnID: col, Position: pos, SprintID: sprintID,
 		})
 		return err
 	})
-	return created, changed, err
+	return created, changed, restored, err
 }
 
 // RunScheduler syncs due integrations every interval until ctx is done.
@@ -373,6 +434,10 @@ func (s *Service) RunScheduler(ctx context.Context, every time.Duration) {
 		case <-ctx.Done():
 			return
 		case <-t.C:
+		}
+		// Sprints roll over by date even without a sync.
+		if err := s.tasks.RefreshAllSprints(ctx, time.Now()); err != nil {
+			s.log.Warn("refresh sprints", "err", err)
 		}
 		ids, err := s.db.ListDueIntegrations(ctx)
 		if err != nil {
@@ -437,4 +502,11 @@ func resolveColumn(ctx context.Context, q *dbgen.Queries, it dbgen.Integration, 
 	}
 	c, err := tasks.DefaultColumn(ctx, q, it.ProjectID)
 	return c.ID, err
+}
+
+func sameUUID(a, b *uuid.UUID) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+	return *a == *b
 }

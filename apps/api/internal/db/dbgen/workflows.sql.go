@@ -174,9 +174,9 @@ func (q *Queries) CreateApproval(ctx context.Context, arg CreateApprovalParams) 
 
 const createTask = `-- name: CreateTask :one
 
-INSERT INTO tasks (id, project_id, title, description, created_by, column_id, position)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
-RETURNING id, project_id, title, description, status, created_by, created_at, updated_at, template_id, workflow_overrides, position, priority, labels, source, integration_id, external_id, external_url, external_status, synced_at, column_id
+INSERT INTO tasks (id, project_id, title, description, created_by, column_id, position, sprint_id)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+RETURNING id, project_id, title, description, status, created_by, created_at, updated_at, template_id, workflow_overrides, position, priority, labels, source, integration_id, external_id, external_url, external_status, synced_at, column_id, sprint_id, archived_at
 `
 
 type CreateTaskParams struct {
@@ -187,6 +187,7 @@ type CreateTaskParams struct {
 	CreatedBy   *uuid.UUID
 	ColumnID    uuid.UUID
 	Position    float64
+	SprintID    *uuid.UUID
 }
 
 // ---------------------------------------------------------------- tasks
@@ -199,6 +200,7 @@ func (q *Queries) CreateTask(ctx context.Context, arg CreateTaskParams) (Task, e
 		arg.CreatedBy,
 		arg.ColumnID,
 		arg.Position,
+		arg.SprintID,
 	)
 	var i Task
 	err := row.Scan(
@@ -222,6 +224,8 @@ func (q *Queries) CreateTask(ctx context.Context, arg CreateTaskParams) (Task, e
 		&i.ExternalStatus,
 		&i.SyncedAt,
 		&i.ColumnID,
+		&i.SprintID,
+		&i.ArchivedAt,
 	)
 	return i, err
 }
@@ -533,7 +537,7 @@ func (q *Queries) GetLatestWorkflowRunForTask(ctx context.Context, taskID uuid.U
 }
 
 const getTask = `-- name: GetTask :one
-SELECT id, project_id, title, description, status, created_by, created_at, updated_at, template_id, workflow_overrides, position, priority, labels, source, integration_id, external_id, external_url, external_status, synced_at, column_id FROM tasks WHERE id = $1
+SELECT id, project_id, title, description, status, created_by, created_at, updated_at, template_id, workflow_overrides, position, priority, labels, source, integration_id, external_id, external_url, external_status, synced_at, column_id, sprint_id, archived_at FROM tasks WHERE id = $1
 `
 
 func (q *Queries) GetTask(ctx context.Context, id uuid.UUID) (Task, error) {
@@ -560,6 +564,8 @@ func (q *Queries) GetTask(ctx context.Context, id uuid.UUID) (Task, error) {
 		&i.ExternalStatus,
 		&i.SyncedAt,
 		&i.ColumnID,
+		&i.SprintID,
+		&i.ArchivedAt,
 	)
 	return i, err
 }
@@ -859,7 +865,7 @@ func (q *Queries) ListArtifacts(ctx context.Context, arg ListArtifactsParams) ([
 
 const listBoardTasks = `-- name: ListBoardTasks :many
 
-SELECT t.id, t.project_id, t.title, t.description, t.status, t.created_by, t.created_at, t.updated_at, t.template_id, t.workflow_overrides, t.position, t.priority, t.labels, t.source, t.integration_id, t.external_id, t.external_url, t.external_status, t.synced_at, t.column_id,
+SELECT t.id, t.project_id, t.title, t.description, t.status, t.created_by, t.created_at, t.updated_at, t.template_id, t.workflow_overrides, t.position, t.priority, t.labels, t.source, t.integration_id, t.external_id, t.external_url, t.external_status, t.synced_at, t.column_id, t.sprint_id, t.archived_at,
        coalesce(w.id, '00000000-0000-0000-0000-000000000000'::uuid) AS workflow_id, -- nil UUID: never ran
        coalesce(w.status, '')::text AS workflow_status,
        w.current_stage AS workflow_stage,
@@ -869,7 +875,7 @@ FROM tasks t
 LEFT JOIN LATERAL (
     SELECT id, task_id, workflow_type, status, current_stage, error, config, temporal_run_id, created_by, created_at, started_at, finished_at, updated_at FROM workflow_runs r WHERE r.task_id = t.id ORDER BY r.created_at DESC LIMIT 1
 ) w ON true
-WHERE t.project_id = $1
+WHERE t.project_id = $1 AND t.archived_at IS NULL
 ORDER BY t.position, t.created_at
 `
 
@@ -894,6 +900,8 @@ type ListBoardTasksRow struct {
 	ExternalStatus    *string
 	SyncedAt          *time.Time
 	ColumnID          uuid.UUID
+	SprintID          *uuid.UUID
+	ArchivedAt        *time.Time
 	WorkflowID        uuid.UUID
 	WorkflowStatus    string
 	WorkflowStage     *string
@@ -932,6 +940,8 @@ func (q *Queries) ListBoardTasks(ctx context.Context, projectID uuid.UUID) ([]Li
 			&i.ExternalStatus,
 			&i.SyncedAt,
 			&i.ColumnID,
+			&i.SprintID,
+			&i.ArchivedAt,
 			&i.WorkflowID,
 			&i.WorkflowStatus,
 			&i.WorkflowStage,
@@ -949,17 +959,19 @@ func (q *Queries) ListBoardTasks(ctx context.Context, projectID uuid.UUID) ([]Li
 }
 
 const listTasks = `-- name: ListTasks :many
-SELECT t.id, t.project_id, t.title, t.description, t.status, t.created_by, t.created_at, t.updated_at, t.template_id, t.workflow_overrides, t.position, t.priority, t.labels, t.source, t.integration_id, t.external_id, t.external_url, t.external_status, t.synced_at, t.column_id, p.name AS project_name, p.slug AS project_slug
+SELECT t.id, t.project_id, t.title, t.description, t.status, t.created_by, t.created_at, t.updated_at, t.template_id, t.workflow_overrides, t.position, t.priority, t.labels, t.source, t.integration_id, t.external_id, t.external_url, t.external_status, t.synced_at, t.column_id, t.sprint_id, t.archived_at, p.name AS project_name, p.slug AS project_slug
 FROM tasks t JOIN projects p ON p.id = t.project_id
 WHERE ($1::uuid IS NULL OR t.project_id = $1)
   AND ($2::text IS NULL OR t.status = $2)
+  AND (t.archived_at IS NOT NULL) = $3::bool
 ORDER BY t.created_at DESC
-LIMIT $3
+LIMIT $4
 `
 
 type ListTasksParams struct {
 	ProjectID *uuid.UUID
 	Status    *string
+	Archived  bool
 	RowLimit  int32
 }
 
@@ -984,12 +996,19 @@ type ListTasksRow struct {
 	ExternalStatus    *string
 	SyncedAt          *time.Time
 	ColumnID          uuid.UUID
+	SprintID          *uuid.UUID
+	ArchivedAt        *time.Time
 	ProjectName       string
 	ProjectSlug       string
 }
 
 func (q *Queries) ListTasks(ctx context.Context, arg ListTasksParams) ([]ListTasksRow, error) {
-	rows, err := q.db.Query(ctx, listTasks, arg.ProjectID, arg.Status, arg.RowLimit)
+	rows, err := q.db.Query(ctx, listTasks,
+		arg.ProjectID,
+		arg.Status,
+		arg.Archived,
+		arg.RowLimit,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -1018,6 +1037,8 @@ func (q *Queries) ListTasks(ctx context.Context, arg ListTasksParams) ([]ListTas
 			&i.ExternalStatus,
 			&i.SyncedAt,
 			&i.ColumnID,
+			&i.SprintID,
+			&i.ArchivedAt,
 			&i.ProjectName,
 			&i.ProjectSlug,
 		); err != nil {
@@ -1167,7 +1188,7 @@ func (q *Queries) LockApproval(ctx context.Context, id uuid.UUID) (Approval, err
 }
 
 const lockTask = `-- name: LockTask :one
-SELECT id, project_id, title, description, status, created_by, created_at, updated_at, template_id, workflow_overrides, position, priority, labels, source, integration_id, external_id, external_url, external_status, synced_at, column_id FROM tasks WHERE id = $1 FOR UPDATE
+SELECT id, project_id, title, description, status, created_by, created_at, updated_at, template_id, workflow_overrides, position, priority, labels, source, integration_id, external_id, external_url, external_status, synced_at, column_id, sprint_id, archived_at FROM tasks WHERE id = $1 FOR UPDATE
 `
 
 func (q *Queries) LockTask(ctx context.Context, id uuid.UUID) (Task, error) {
@@ -1194,6 +1215,8 @@ func (q *Queries) LockTask(ctx context.Context, id uuid.UUID) (Task, error) {
 		&i.ExternalStatus,
 		&i.SyncedAt,
 		&i.ColumnID,
+		&i.SprintID,
+		&i.ArchivedAt,
 	)
 	return i, err
 }
@@ -1381,9 +1404,10 @@ UPDATE tasks SET
     labels       = coalesce($4::text[], labels),
     column_id    = coalesce($5, column_id),
     position     = coalesce($6, position),
+    sprint_id    = CASE WHEN $7::bool THEN $8 ELSE sprint_id END,
     updated_at   = now()
-WHERE id = $7
-RETURNING id, project_id, title, description, status, created_by, created_at, updated_at, template_id, workflow_overrides, position, priority, labels, source, integration_id, external_id, external_url, external_status, synced_at, column_id
+WHERE id = $9
+RETURNING id, project_id, title, description, status, created_by, created_at, updated_at, template_id, workflow_overrides, position, priority, labels, source, integration_id, external_id, external_url, external_status, synced_at, column_id, sprint_id, archived_at
 `
 
 type UpdateTaskCardParams struct {
@@ -1393,6 +1417,8 @@ type UpdateTaskCardParams struct {
 	Labels      []string
 	ColumnID    *uuid.UUID
 	Position    *float64
+	SetSprint   bool
+	SprintID    *uuid.UUID
 	ID          uuid.UUID
 }
 
@@ -1404,6 +1430,8 @@ func (q *Queries) UpdateTaskCard(ctx context.Context, arg UpdateTaskCardParams) 
 		arg.Labels,
 		arg.ColumnID,
 		arg.Position,
+		arg.SetSprint,
+		arg.SprintID,
 		arg.ID,
 	)
 	var i Task
@@ -1428,6 +1456,8 @@ func (q *Queries) UpdateTaskCard(ctx context.Context, arg UpdateTaskCardParams) 
 		&i.ExternalStatus,
 		&i.SyncedAt,
 		&i.ColumnID,
+		&i.SprintID,
+		&i.ArchivedAt,
 	)
 	return i, err
 }

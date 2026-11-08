@@ -746,6 +746,88 @@ paths:
               schema: { $ref: "#/components/schemas/Board" }
         "401": { $ref: "#/components/responses/Problem" }
         "404": { $ref: "#/components/responses/Problem" }
+  /projects/{projectId}/sprints:
+    parameters:
+      - $ref: "#/components/parameters/ProjectId"
+    get:
+      tags: [tasks]
+      operationId: listSprints
+      responses:
+        "200":
+          description: The project's sprints (open first, newest first).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SprintList" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+    post:
+      tags: [tasks]
+      operationId: createSprint
+      description: Adds a sprint. A project's first sprint becomes its current one.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SprintInput" }
+      responses:
+        "201":
+          description: Created.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Sprint" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+  /sprints/{sprintId}:
+    parameters:
+      - $ref: "#/components/parameters/SprintId"
+    put:
+      tags: [tasks]
+      operationId: updateSprint
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SprintInput" }
+      responses:
+        "200":
+          description: Updated.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Sprint" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+    delete:
+      tags: [tasks]
+      operationId: deleteSprint
+      description: Deletes a sprint; its tasks stay, without a sprint. A followed sprint comes back on the next sync while the source still has it.
+      responses:
+        "204": { description: Deleted. }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+  /sprints/{sprintId}/start:
+    parameters:
+      - $ref: "#/components/parameters/SprintId"
+    post:
+      tags: [tasks]
+      operationId: startSprint
+      description: Makes the sprint current. Unfinished tasks created in Wise move to it from the previous sprint.
+      responses:
+        "204": { description: Started. }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+  /sprints/{sprintId}/complete:
+    parameters:
+      - $ref: "#/components/parameters/SprintId"
+    post:
+      tags: [tasks]
+      operationId: completeSprint
+      description: Closes the sprint. If it was current, the next open sprint takes over and unfinished tasks created in Wise move to it.
+      responses:
+        "204": { description: Completed. }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
   /projects/{projectId}/columns:
     parameters:
       - $ref: "#/components/parameters/ProjectId"
@@ -830,6 +912,11 @@ paths:
           in: query
           required: false
           schema: { $ref: "#/components/schemas/TaskStatus" }
+        - name: archived
+          in: query
+          required: false
+          description: List archived tasks instead of live ones.
+          schema: { type: boolean, default: false }
       responses:
         "200":
           description: Tasks, newest first.
@@ -1584,6 +1671,11 @@ components:
         per-run token returned by the claim.
 
   parameters:
+    SprintId:
+      name: sprintId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
     ProjectId:
       name: projectId
       in: path
@@ -2145,6 +2237,8 @@ components:
         externalUrl: { type: string, nullable: true }
         externalStatus: { type: string, nullable: true }
         templateId: { type: string, format: uuid, nullable: true }
+        sprintId: { type: string, format: uuid, nullable: true }
+        archivedAt: { type: string, format: date-time, nullable: true, description: "Set when the task's source stopped returning it (e.g. no longer assigned to you); cleared if it returns." }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
     TaskPriority:
@@ -2158,6 +2252,7 @@ components:
         priority: { $ref: "#/components/schemas/TaskPriority" }
         labels: { type: array, maxItems: 20, items: { type: string, maxLength: 40 } }
         column: { type: string, format: uuid, description: Move to this column of the project's board. }
+        sprint: { type: string, description: "A sprint id of the project, or \"none\" to take the task out of its sprint." }
         position: { type: number, format: double, description: "Order within the column (cards sort ascending); omit to append." }
     BoardCard:
       type: object
@@ -2196,6 +2291,7 @@ components:
         start: { type: boolean, default: true }
         stepByStep: { type: boolean, description: "With start, pause after every step." }
         column: { type: string, format: uuid, description: "Board column (default: the backlog column, else the first)." }
+        sprintId: { type: string, format: uuid, description: A sprint of the project. }
         priority: { $ref: "#/components/schemas/TaskPriority" }
         labels: { type: array, maxItems: 20, items: { type: string, maxLength: 40 } }
         templateId: { type: string, format: uuid, description: Workflow template (default template when omitted). }
@@ -2441,6 +2537,33 @@ components:
             column: { $ref: "#/components/schemas/ColumnRole" }
         finalReport: { type: boolean }
         maxRevisions: { type: integer, minimum: 0, maximum: 50 }
+    Sprint:
+      type: object
+      required: [id, projectId, name, closed, current, taskCount, openCount, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        projectId: { type: string, format: uuid }
+        name: { type: string }
+        startsOn: { type: string, format: date, nullable: true }
+        endsOn: { type: string, format: date, nullable: true }
+        closed: { type: boolean }
+        current: { type: boolean, description: The project's current sprint. }
+        taskCount: { type: integer }
+        openCount: { type: integer, description: Tasks not in a done-role list. }
+        sourceName: { type: string, nullable: true, description: The task source this sprint is followed from. }
+        createdAt: { type: string, format: date-time }
+    SprintList:
+      type: object
+      required: [items]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/Sprint" } }
+    SprintInput:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 100 }
+        startsOn: { type: string, format: date, nullable: true }
+        endsOn: { type: string, format: date, nullable: true }
     ColumnRole:
       type: string
       enum: [backlog, todo, in_progress, review, done]
@@ -2579,6 +2702,8 @@ components:
         updated: { type: integer }
         unchanged: { type: integer }
         started: { type: integer }
+        archived: { type: integer, description: Tasks the source no longer returns (archived). }
+        restored: { type: integer, description: Archived tasks the source returned again. }
         errors: { type: array, items: { type: string } }
         at: { type: string, format: date-time }
     Integration:
@@ -2596,6 +2721,7 @@ components:
           description: External status (lowercase) → board column.
           additionalProperties: { type: string, format: uuid }
         defaultTemplateId: { type: string, format: uuid, nullable: true }
+        sprintId: { type: string, format: uuid, nullable: true }
         autoStart: { type: boolean }
         intervalMinutes: { type: integer }
         enabled: { type: boolean }
@@ -2621,6 +2747,7 @@ components:
           type: object
           additionalProperties: { type: string, format: uuid }
         defaultTemplateId: { type: string, format: uuid, nullable: true }
+        sprintId: { type: string, format: uuid, nullable: true, description: "Fixed sprint for this source's tasks (follow modes create their own sprints)." }
         autoStart: { type: boolean }
         intervalMinutes: { type: integer, minimum: 5, maximum: 1440 }
         enabled: { type: boolean }

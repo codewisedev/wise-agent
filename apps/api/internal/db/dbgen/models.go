@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type AgentRunStatus string
@@ -519,6 +520,7 @@ type Integration struct {
 	CreatedBy         *uuid.UUID
 	CreatedAt         time.Time
 	UpdatedAt         time.Time
+	SprintID          *uuid.UUID
 }
 
 type ModelCache struct {
@@ -546,14 +548,15 @@ type ModelCall struct {
 }
 
 type Project struct {
-	ID          uuid.UUID
-	Slug        string
-	Name        string
-	Description string
-	Metadata    json.RawMessage
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
-	ArchivedAt  *time.Time
+	ID              uuid.UUID
+	Slug            string
+	Name            string
+	Description     string
+	Metadata        json.RawMessage
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+	ArchivedAt      *time.Time
+	CurrentSprintID *uuid.UUID
 }
 
 type ProjectResource struct {
@@ -619,6 +622,19 @@ type Session struct {
 	Ip         string
 }
 
+type Sprint struct {
+	ID            uuid.UUID
+	ProjectID     uuid.UUID
+	Name          string
+	StartsOn      pgtype.Date
+	EndsOn        pgtype.Date
+	Closed        bool
+	IntegrationID *uuid.UUID
+	ExternalID    *string
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
+}
+
 type Task struct {
 	ID                uuid.UUID
 	ProjectID         uuid.UUID
@@ -640,6 +656,8 @@ type Task struct {
 	ExternalStatus    *string
 	SyncedAt          *time.Time
 	ColumnID          uuid.UUID
+	SprintID          *uuid.UUID
+	ArchivedAt        *time.Time
 }
 
 type ToolCall struct {

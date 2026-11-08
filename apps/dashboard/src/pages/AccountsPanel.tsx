@@ -30,6 +30,11 @@ export const PRESETS: Record<string, Preset> = {
     label: "DeepSeek", kind: "openai_compatible", baseUrl: "https://api.deepseek.com/v1", model: "deepseek-chat", needsBaseUrl: true,
     secretLabel: "API key", secretHint: "From platform.deepseek.com → API keys.",
   },
+  gemini: {
+    label: "Google AI Studio (Gemini)", kind: "openai_compatible", baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai",
+    model: "gemini-2.5-flash", needsBaseUrl: true,
+    secretLabel: "API key", secretHint: "From aistudio.google.com → Get API key. Gemini is a cloud model: allow agents in Settings → Policy & budgets.",
+  },
   openai: {
     label: "OpenAI-compatible", kind: "openai_compatible", baseUrl: "https://api.openai.com/v1", needsBaseUrl: true,
     secretLabel: "API key", secretHint: "Any /v1/chat/completions endpoint (OpenAI, OpenRouter, vLLM…).", secretOptional: true,
@@ -254,7 +259,7 @@ export function AccountsPanel() {
       {data && data.items.length > 0 && <ul className="list accounts">{data.items.map((a) => <AccountRow key={a.id} a={a} />)}</ul>}
       {data && data.builtinProviders.length > 0 && (
         <p className="panel-footer small faint">
-          Also available from configs/models/models.yaml: {data.builtinProviders.map((p) => <code key={p} className="chip">{p}</code>)}
+          Also available as built-in providers (Settings → Models): {data.builtinProviders.map((p) => <code key={p} className="chip">{p}</code>)}
         </p>
       )}
     </Panel>

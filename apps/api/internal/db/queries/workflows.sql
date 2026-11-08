@@ -1,8 +1,8 @@
 -- ---------------------------------------------------------------- tasks
 
 -- name: CreateTask :one
-INSERT INTO tasks (id, project_id, title, description, created_by, column_id, position)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
+INSERT INTO tasks (id, project_id, title, description, created_by, column_id, position, sprint_id)
+VALUES ($1, $2, $3, $4, $5, $6, $7, sqlc.narg(sprint_id))
 RETURNING *;
 
 -- name: GetTask :one
@@ -16,6 +16,7 @@ SELECT t.*, p.name AS project_name, p.slug AS project_slug
 FROM tasks t JOIN projects p ON p.id = t.project_id
 WHERE (sqlc.narg(project_id)::uuid IS NULL OR t.project_id = sqlc.narg(project_id))
   AND (sqlc.narg(status)::text IS NULL OR t.status = sqlc.narg(status))
+  AND (t.archived_at IS NOT NULL) = sqlc.arg(archived)::bool
 ORDER BY t.created_at DESC
 LIMIT sqlc.arg(row_limit);
 
@@ -223,7 +224,7 @@ FROM tasks t
 LEFT JOIN LATERAL (
     SELECT * FROM workflow_runs r WHERE r.task_id = t.id ORDER BY r.created_at DESC LIMIT 1
 ) w ON true
-WHERE t.project_id = $1
+WHERE t.project_id = $1 AND t.archived_at IS NULL
 ORDER BY t.position, t.created_at;
 
 -- name: NextBoardPosition :one
@@ -237,6 +238,7 @@ UPDATE tasks SET
     labels       = coalesce(sqlc.narg(labels)::text[], labels),
     column_id    = coalesce(sqlc.narg(column_id), column_id),
     position     = coalesce(sqlc.narg(position), position),
+    sprint_id    = CASE WHEN sqlc.arg(set_sprint)::bool THEN sqlc.narg(sprint_id) ELSE sprint_id END,
     updated_at   = now()
 WHERE id = sqlc.arg(id)
 RETURNING *;

@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ChevronRight, Plug } from "lucide-react";
+import { CalendarRange, ChevronRight, Plug } from "lucide-react";
 import { Link, useParams } from "react-router";
 import { api, unwrap } from "../api/client";
 import { useEventSocket, type WorkflowEvent } from "../api/events";
@@ -38,9 +38,14 @@ export function BoardPage() {
           <h1>{project.data?.name ?? "Board"}</h1>
           <p className="desc">Drag cards and lists. Click a list name to rename it; ⋯ sets its role, color and WIP limit. Runs move cards by role.</p>
         </div>
-        <Link to={`/projects/${projectId}/integrations`} className="btn btn-sm">
-          <Plug size={14} aria-hidden /> Task sources
-        </Link>
+        <div className="actions" style={{ margin: 0 }}>
+          <Link to={`/projects/${projectId}/sprints`} className="btn btn-sm">
+            <CalendarRange size={14} aria-hidden /> Sprints
+          </Link>
+          <Link to={`/projects/${projectId}/integrations`} className="btn btn-sm">
+            <Plug size={14} aria-hidden /> Task sources
+          </Link>
+        </div>
       </header>
       <ErrorNote error={board.error} />
       {board.data && <Board lists={board.data.columns} projectId={projectId} queryKey={["board", projectId]} />}

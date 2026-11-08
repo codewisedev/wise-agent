@@ -1,11 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Archive, ArrowRight, ChevronRight, FileText, GitBranch, KanbanSquare, Link2, Plus, RefreshCw, ScanSearch, Trash2 } from "lucide-react";
+import { Archive, ArrowRight, CalendarRange, ChevronRight, FileText, GitBranch, KanbanSquare, Link2, Plus, RefreshCw, ScanSearch, Trash2 } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { api, unwrap, type Repository, type Schemas } from "../api/client";
 import {
   Badge, CopyText, Empty, ErrorNote, Field, Panel, formatDate, label, relativeTime, shortSha, type Tone,
 } from "../components/ui";
+import { SourcesPanel } from "./IntegrationsPage";
 import { projectsKey } from "./ProjectsPage";
 
 const ROLES: Schemas["RepositoryRole"][] = [
@@ -27,6 +28,7 @@ export function ProjectDetailPage() {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const path = { params: { path: { projectId } } };
+  const [addingSource, setAddingSource] = useState(false);
 
   const project = useQuery({
     queryKey: ["project", projectId],
@@ -74,18 +76,23 @@ export function ProjectDetailPage() {
           </div>
           {p.description && <p className="desc">{p.description}</p>}
         </div>
-        <Link to={`/projects/${p.id}/board`} className="btn btn-primary">
-          <KanbanSquare size={15} aria-hidden /> Board
-        </Link>
-        {!readOnly && (
-          <button
-            className="btn btn-danger"
-            disabled={archive.isPending}
-            onClick={() => confirm(`Archive project "${p.name}"?`) && archive.mutate()}
-          >
-            <Archive size={15} aria-hidden /> Archive
-          </button>
-        )}
+        <div className="actions" style={{ margin: 0 }}>
+          <Link to={`/projects/${p.id}/board`} className="btn btn-primary">
+            <KanbanSquare size={15} aria-hidden /> Board
+          </Link>
+          <Link to={`/projects/${p.id}/sprints`} className="btn">
+            <CalendarRange size={15} aria-hidden /> Sprints
+          </Link>
+          {!readOnly && (
+            <button
+              className="btn btn-danger"
+              disabled={archive.isPending}
+              onClick={() => confirm(`Archive project "${p.name}"?`) && archive.mutate()}
+            >
+              <Archive size={15} aria-hidden /> Archive
+            </button>
+          )}
+        </div>
       </header>
       <ErrorNote error={archive.error} />
 
@@ -130,6 +137,7 @@ export function ProjectDetailPage() {
 
       <RelationshipsPanel projectId={projectId} repos={repoList} readOnly={readOnly} />
       <ResourcesPanel projectId={projectId} readOnly={readOnly} />
+      {!readOnly && <SourcesPanel projectId={projectId} adding={addingSource} setAdding={setAddingSource} />}
     </>
   );
 }

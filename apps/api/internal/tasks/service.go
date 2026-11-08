@@ -57,6 +57,7 @@ type CreateOptions struct {
 	Start      bool
 	StepByStep bool
 	Column     *uuid.UUID // board column; default: the backlog column (a started run moves it)
+	Sprint     *uuid.UUID // optional sprint of the project
 	Priority   string
 	Labels     []string
 }
@@ -92,9 +93,14 @@ func (s *Service) CreateTask(ctx context.Context, projectID uuid.UUID, title, de
 		if err != nil {
 			return err
 		}
+		if opts.Sprint != nil {
+			if err := projectSprint(ctx, q, projectID, *opts.Sprint, "sprintId"); err != nil {
+				return err
+			}
+		}
 		if task, err = q.CreateTask(ctx, dbgen.CreateTaskParams{
 			ID: id, ProjectID: projectID, Title: title, Description: strings.TrimSpace(description), CreatedBy: userID,
-			ColumnID: col.ID, Position: pos,
+			ColumnID: col.ID, Position: pos, SprintID: opts.Sprint,
 		}); err != nil {
 			return err
 		}
@@ -249,8 +255,8 @@ func (s *Service) GetTask(ctx context.Context, id uuid.UUID) (Detail, error) {
 	return d, nil
 }
 
-func (s *Service) ListTasks(ctx context.Context, projectID *uuid.UUID, status *string) ([]dbgen.ListTasksRow, error) {
-	return s.db.ListTasks(ctx, dbgen.ListTasksParams{ProjectID: projectID, Status: status, RowLimit: 200})
+func (s *Service) ListTasks(ctx context.Context, projectID *uuid.UUID, status *string, archived bool) ([]dbgen.ListTasksRow, error) {
+	return s.db.ListTasks(ctx, dbgen.ListTasksParams{ProjectID: projectID, Status: status, Archived: archived, RowLimit: 200})
 }
 
 // CancelTask asks the task's active workflow to stop. A task without an active
@@ -522,6 +528,8 @@ type CardPatch struct {
 	Labels      []string
 	Column      *uuid.UUID
 	Position    *float64
+	SetSprint   bool // change the sprint (Sprint nil = no sprint)
+	Sprint      *uuid.UUID
 }
 
 var priorities = []string{"none", "low", "medium", "high", "urgent"}
@@ -572,6 +580,11 @@ func (s *Service) placeCard(ctx context.Context, q *dbgen.Queries, task *dbgen.T
 			return err
 		}
 	}
+	if p.SetSprint && p.Sprint != nil {
+		if err := projectSprint(ctx, q, task.ProjectID, *p.Sprint, "sprintId"); err != nil {
+			return err
+		}
+	}
 	if p.Column != nil && *p.Column != task.ColumnID && p.Position == nil {
 		pos, err := q.NextBoardPosition(ctx, *p.Column)
 		if err != nil {
@@ -580,7 +593,7 @@ func (s *Service) placeCard(ctx context.Context, q *dbgen.Queries, task *dbgen.T
 		p.Position = &pos
 	}
 	params := dbgen.UpdateTaskCardParams{ID: task.ID, Title: p.Title, Description: p.Description, Priority: p.Priority,
-		ColumnID: p.Column, Position: p.Position}
+		ColumnID: p.Column, Position: p.Position, SetSprint: p.SetSprint, SprintID: p.Sprint}
 	if p.Labels != nil {
 		if labels == nil {
 			labels = []string{}
@@ -614,6 +627,9 @@ func (s *Service) UpdateCard(ctx context.Context, id uuid.UUID, p CardPatch) (db
 		payload := map[string]any{}
 		if p.Column != nil && *p.Column != from {
 			payload["from"], payload["to"] = from, *p.Column
+		}
+		if p.SetSprint {
+			payload["sprint"] = p.Sprint
 		}
 		if p.Title != nil || p.Description != nil || p.Priority != nil || p.Labels != nil {
 			payload["edited"] = true

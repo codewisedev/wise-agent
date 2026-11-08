@@ -62,3 +62,28 @@ func TestOpenAICompat(t *testing.T) {
 		t.Fatal("health should fail when the server is down")
 	}
 }
+
+// Google AI Studio's OpenAI-compatible API lists "models/<id>" but takes "<id>".
+func TestOpenAICompatStripsModelsPrefix(t *testing.T) {
+	var got map[string]any
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v1beta/openai/models":
+			_, _ = w.Write([]byte(`{"data":[{"id":"models/text-embedding-004"},{"id":"models/gemini-2.5-flash"}]}`))
+		case "/v1beta/openai/chat/completions":
+			_ = json.NewDecoder(r.Body).Decode(&got)
+			_, _ = w.Write([]byte(`{"choices":[{"message":{"content":"{}"}}],"usage":{"prompt_tokens":1,"completion_tokens":1}}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+	p := NewOpenAICompat("gemini", ProviderConfig{BaseURL: srv.URL + "/v1beta/openai", Timeout: 5 * time.Second})
+	r, err := p.Complete(context.Background(), ProviderRequest{System: "s", Messages: []Message{{Role: "user", Content: "q"}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got["model"] != "gemini-2.5-flash" || r.Model != "gemini-2.5-flash" {
+		t.Fatalf("model sent %v, reported %v", got["model"], r.Model)
+	}
+}

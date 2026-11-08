@@ -27,7 +27,13 @@ describe("TaskDrawer", () => {
 
   it("edits a card and starts its workflow", async () => {
     const task = { id: "t1", projectId: "p", title: "Ship it", description: "", status: "open", priority: "none", labels: ["ui"], createdAt: "", updatedAt: "" };
-    vi.spyOn(api, "GET").mockResolvedValue({ data: { task, plan: { steps: [] }, issues: [], steps: [], artifacts: [], approvals: [] }, response: new Response(null, { status: 200 }) } as never);
+    const res = (data: unknown) => ({ data, response: new Response(null, { status: 200 }) }) as never;
+    vi.spyOn(api, "GET").mockImplementation(((path: string) => Promise.resolve(
+      path === "/projects/{projectId}/columns" ? res({ items: [{ id: "c1", projectId: "p", name: "Backlog", position: 1 }] })
+        : path === "/projects/{projectId}/board" ? res({ columns: [] })
+          : path === "/projects/{projectId}/sprints" ? res({ items: [] })
+          : res({ task: { ...task, column: "c1" }, plan: { steps: [] }, issues: [], steps: [], artifacts: [], approvals: [] }),
+    )) as never);
     const patch = vi.spyOn(api, "PATCH").mockResolvedValue({ data: task, response: new Response(null, { status: 200 }) } as never);
     const post = vi.spyOn(api, "POST").mockResolvedValue({ data: {}, response: new Response(null, { status: 202 }) } as never);
     const onClose = vi.fn();
@@ -36,9 +42,13 @@ describe("TaskDrawer", () => {
     const title = await screen.findByDisplayValue("Ship it");
     fireEvent.change(title, { target: { value: "Ship it now" } });
     fireEvent.change(screen.getByDisplayValue("none"), { target: { value: "high" } });
+    fireEvent.click(screen.getByRole("button", { name: "Remove label ui" }));
+    const add = screen.getByLabelText("Add label");
+    fireEvent.change(add, { target: { value: "backend" } });
+    fireEvent.keyDown(add, { key: "Enter" });
     fireEvent.click(screen.getByRole("button", { name: /Save/ }));
     await waitFor(() => expect(patch).toHaveBeenCalledTimes(1));
-    expect((patch.mock.calls[0] as unknown as [string, { body: unknown }])[1].body).toEqual({ title: "Ship it now", description: "", priority: "high", labels: ["ui"] });
+    expect((patch.mock.calls[0] as unknown as [string, { body: unknown }])[1].body).toEqual({ title: "Ship it now", description: "", priority: "high", labels: ["backend"] });
 
     fireEvent.click(screen.getByRole("button", { name: /Step by step/ }));
     await waitFor(() => expect(post).toHaveBeenCalledTimes(1));

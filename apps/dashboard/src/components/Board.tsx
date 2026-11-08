@@ -78,12 +78,12 @@ function SortableCard({ card, disabled, project, onOpen }: { card: Card; disable
   );
 }
 
-function QuickAdd({ projectId, column, onAdded }: { projectId: string; column: ColumnMeta; onAdded: () => void }) {
+function QuickAdd({ projectId, column, sprintId, onAdded }: { projectId: string; column: ColumnMeta; sprintId?: string; onAdded: () => void }) {
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const add = useMutation({
     mutationFn: () => unwrap(api.POST("/projects/{projectId}/tasks", {
-      params: { path: { projectId } }, body: { title: title.trim(), column: column.id, start: false },
+      params: { path: { projectId } }, body: { title: title.trim(), column: column.id, start: false, ...(sprintId ? { sprintId } : {}) },
     })),
     onSuccess: () => {
       setTitle("");
@@ -221,8 +221,8 @@ function ColumnTitle({ column, editable, onChanged }: { column: ColumnMeta; edit
   );
 }
 
-function ColumnView({ list, total, projectId, others, editable, dndDisabled, projectNames, onOpen, onChanged }: {
-  list: BoardList; total: number; projectId?: string; others: ColumnMeta[]; editable: boolean; dndDisabled: boolean;
+function ColumnView({ list, total, projectId, sprintId, others, editable, dndDisabled, projectNames, onOpen, onChanged }: {
+  list: BoardList; total: number; projectId?: string; sprintId?: string; others: ColumnMeta[]; editable: boolean; dndDisabled: boolean;
   projectNames?: Record<string, string>; onOpen?: (c: Card) => void; onChanged: () => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: `col:${list.id}`, disabled: dndDisabled });
@@ -261,7 +261,7 @@ function ColumnView({ list, total, projectId, others, editable, dndDisabled, pro
           ))}
         </ul>
       </SortableContext>
-      {projectId && <QuickAdd projectId={projectId} column={list} onAdded={onChanged} />}
+      {projectId && <QuickAdd projectId={projectId} column={list} sprintId={sprintId} onAdded={onChanged} />}
     </section>
   );
 }
@@ -298,9 +298,11 @@ function AddList({ projectId, onChanged }: { projectId: string; onChanged: () =>
  * editable (drag cards and lists, add tasks and lists, list settings);
  * without one (e.g. all projects) it is read-only.
  */
-export function Board({ lists, projectId, queryKey, projectNames, onOpen, filter, toolbar }: {
+export function Board({ lists, projectId, sprintId, queryKey, projectNames, onOpen, filter, toolbar }: {
   lists: BoardList[];
   projectId?: string;
+  /** Sprint for tasks added with "Add task" (the sprint being shown). */
+  sprintId?: string;
   queryKey: QueryKey;
   projectNames?: Record<string, string>;
   onOpen?: (c: Card) => void;
@@ -417,7 +419,7 @@ export function Board({ lists, projectId, queryKey, projectNames, onOpen, filter
           <SortableContext items={cols.map((c) => `colsort:${c.id}`)} strategy={horizontalListSortingStrategy}>
             {shown.map((c, i) => (
               <ColumnView
-                key={c.id} list={c} total={cols[i]!.cards.length} projectId={projectId} others={cols.filter((o) => o.id !== c.id)} editable={editable}
+                key={c.id} list={c} total={cols[i]!.cards.length} projectId={projectId} sprintId={sprintId} others={cols.filter((o) => o.id !== c.id)} editable={editable}
                 dndDisabled={dndDisabled} projectNames={projectNames} onOpen={onOpen} onChanged={refresh}
               />
             ))}

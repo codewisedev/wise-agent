@@ -129,3 +129,96 @@ func TestNewValidatesConfig(t *testing.T) {
 		}
 	}
 }
+
+func TestClickUpResolvesViewsAndFiltersToMe(t *testing.T) {
+	var taskQuery string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/view/6-1200310000008590-1":
+			_, _ = w.Write([]byte(`{"view":{"id":"6-1200310000008590-1","parent":{"id":"901200310","type":6}}}`))
+		case "/user":
+			_, _ = w.Write([]byte(`{"user":{"id":4242}}`))
+		case "/list/901200310/task":
+			taskQuery = r.URL.RawQuery
+			_, _ = w.Write([]byte(`{"tasks":[{"id":"t1","name":"Mine","status":{"status":"to do","type":"open"}}],"last_page":true}`))
+		default:
+			http.Error(w, `{"err":"validateListIDEx List ID invalid"}`, 400)
+		}
+	}))
+	defer srv.Close()
+	old := ClickUpAPI
+	ClickUpAPI = srv.URL
+	defer func() { ClickUpAPI = old }()
+
+	imp, err := New("clickup", map[string]any{"listId": "https://app.clickup.com/9015912090/v/l/6-1200310000008590-1", "assignedToMe": true}, Credentials{Secret: "pk_x"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	items, err := imp.Fetch(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(items) != 1 || !strings.Contains(taskQuery, "assignees%5B%5D=4242") {
+		t.Fatalf("items %v, query %q", items, taskQuery)
+	}
+}
+
+func TestSourceReferencesParse(t *testing.T) {
+	for in, want := range map[string]clickUpRef{
+		"901234567890": {list: "901234567890"},
+		"https://app.clickup.com/9015912090/v/li/901234567890":        {list: "901234567890"},
+		"6-1200310000008590-1":                                        {view: "6-1200310000008590-1"},
+		"https://app.clickup.com/9015912090/v/b/6-1200310000008590-2": {view: "6-1200310000008590-2"},
+	} {
+		if got, err := parseClickUpList(in); err != nil || got != want {
+			t.Errorf("%s: %+v %v", in, got, err)
+		}
+	}
+	if _, err := parseClickUpList("https://trello.com/b/UFZjbuXF/cooperative"); err == nil {
+		t.Error("garbage must be rejected")
+	}
+	if got := parseTrelloBoard("https://trello.com/b/UFZjbuXF/cooperative"); got != "UFZjbuXF" {
+		t.Errorf("trello board: %s", got)
+	}
+	if got := assignedJQL("project = ABC ORDER BY created DESC"); got != "assignee = currentUser() AND (project = ABC) ORDER BY created DESC" {
+		t.Errorf("jql: %s", got)
+	}
+}
+
+func TestTrelloOnlyMyCards(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/members/me":
+			_, _ = w.Write([]byte(`{"id":"me1"}`))
+		case strings.HasSuffix(r.URL.Path, "/lists"):
+			_, _ = w.Write([]byte(`[{"id":"l1","name":"To Do"}]`))
+		case strings.HasSuffix(r.URL.Path, "/cards/open"):
+			_, _ = w.Write([]byte(`[{"id":"c1","name":"Mine","idList":"l1","idMembers":["me1"]},{"id":"c2","name":"Theirs","idList":"l1","idMembers":["x"]}]`))
+		}
+	}))
+	defer srv.Close()
+	old := TrelloAPI
+	TrelloAPI = srv.URL
+	defer func() { TrelloAPI = old }()
+	imp, err := New("trello", map[string]any{"boardId": "https://trello.com/b/UFZjbuXF/cooperative", "assignedToMe": true}, Credentials{Secret: "tok", Meta: map[string]any{"apiKey": "k"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	items, err := imp.Fetch(context.Background())
+	if err != nil || len(items) != 1 || items[0].Title != "Mine" {
+		t.Fatalf("%v %v", items, err)
+	}
+}
+
+func TestClickUpFolderLinks(t *testing.T) {
+	for in, want := range map[string]clickUpRef{
+		"https://app.clickup.com/9015912090/v/o/f/901515922889":       {folder: "901515922889"},
+		"https://app.clickup.com/9015912090/v/f/901515922889/9015123": {folder: "901515922889"},
+		"901515922889": {folder: "901515922889"},
+		"https://app.clickup.com/9015912090/v/l/6-1200310000008590-1": {view: "6-1200310000008590-1"},
+	} {
+		if got, err := parseClickUpFolder(in); err != nil || got != want {
+			t.Errorf("%s: %+v %v", in, got, err)
+		}
+	}
+}

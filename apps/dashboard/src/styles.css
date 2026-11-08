@@ -155,7 +155,7 @@ kbd {
 .sidebar-foot > .btn { justify-content: flex-start; }
 .user-chip { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-1) var(--space-2); font-size: 13px; }
 .avatar { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--surface-2); border: 1px solid var(--border-strong); font-family: var(--font-mono); font-size: 11px; text-transform: uppercase; }
-.content { width: 100%; max-width: 1280px; padding: var(--space-5) var(--space-6) 64px; }
+.content { width: 100%; min-width: 0; padding: var(--space-5) var(--space-6) 64px; }
 
 /* ---------- page structure ---------- */
 .page-header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-4); margin-bottom: var(--space-5); }
@@ -561,7 +561,9 @@ button.card-title:focus-visible { outline: 2px solid var(--ring); border-radius:
 .flow-step-agent, .flow-step-acct { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--text-muted); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .flow-step-kind { font-size: 11px; color: var(--text-faint); }
 .flow-step-off { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--warn); }
-.flow-gate { display: grid; justify-items: center; gap: 1px; color: var(--warn); font-size: 10.5px; width: 52px; }
+.flow-gate { position: relative; display: grid; place-items: center; color: var(--warn); font-size: 10.5px; width: 52px; height: 30px; }
+/* The caption hangs below the diamond so the node (and its handles) centre on the diamond. */
+.flow-gate > span { position: absolute; top: 100%; left: 0; right: 0; text-align: center; }
 .flow-end {
   display: grid; justify-items: center; gap: 2px; min-width: 110px; padding: 8px 10px; font-size: 12px;
   color: var(--text-muted); background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px;
@@ -569,7 +571,7 @@ button.card-title:focus-visible { outline: 2px solid var(--ring); border-radius:
 .flow-end-title { font-weight: 600; color: var(--text); }
 .flow-end-sub { font-size: 10.5px; color: var(--text-faint); }
 .flow-insert {
-  position: absolute; pointer-events: all; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center;
+  position: absolute; top: 0; left: 0; box-sizing: border-box; pointer-events: all; width: 19px; height: 19px; padding: 0; border-radius: 50%;
   color: var(--text-muted); background: var(--surface); border: 1px solid var(--border-strong); cursor: pointer;
 }
 .flow-insert:hover, .flow-insert:focus-visible { color: var(--on-accent); background: var(--accent); border-color: var(--accent); outline: none; }
@@ -639,3 +641,27 @@ pre.diff span.del { color: var(--danger, #e5484d); background: color-mix(in srgb
   .tasks-toolbar .search input { width: 120px; }
   .project-pick { min-width: 0; flex: 1; }
 }
+
+/* Workflow step nodes: React Flow disables pointer events on non-selectable nodes; the button opts back in. */
+.flow .flow-step { pointer-events: all; cursor: pointer; }
+.wf-options { align-items: center; gap: 10px 22px; }
+.inline-field { display: inline-flex; align-items: center; gap: 8px; font-size: 13.5px; }
+.inline-field select { height: 30px; width: auto; }
+/* A 9px plus of 1px bars on the centre pixel of the 17px inner box: exactly centred at 100% zoom. */
+.flow-insert-plus::before, .flow-insert-plus::after { content: ""; position: absolute; background: currentColor; }
+.flow-insert-plus::before { left: 4px; top: 8px; width: 9px; height: 1px; }
+.flow-insert-plus::after { left: 8px; top: 4px; width: 1px; height: 9px; }
+
+/* ---------- task fields ---------- */
+.task-fields { display: grid; gap: 12px; }
+.task-fields .actions { margin: 0; }
+.label-input {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 4px; min-height: 34px; padding: 3px 6px;
+  background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius);
+}
+.label-input:focus-within { border-color: var(--ring); }
+.label-input .chip { display: inline-flex; align-items: center; gap: 3px; margin: 0; }
+.label-input .chip button { all: unset; display: inline-flex; cursor: pointer; color: var(--text-faint); border-radius: 3px; }
+.label-input .chip button:hover, .label-input .chip button:focus-visible { color: var(--danger); outline: 1px solid var(--border); }
+.label-input input { flex: 1; min-width: 120px; border: 0; background: transparent; height: 26px; padding: 0 4px; outline: none; box-shadow: none; }
+.source-edit { flex-basis: 100%; border: 1px solid var(--border); border-radius: var(--radius); margin-top: 6px; }

@@ -37,7 +37,8 @@ function StepNode({ data }: NodeProps<Node<StepData>>) {
   return (
     <button
       type="button"
-      className={`flow-step${selected ? " selected" : ""}${view.enabled ? "" : " disabled"}${issues.length ? " invalid" : ""}`}
+      // nodrag/nopan: a click selects the step instead of starting a pan.
+      className={`flow-step nodrag nopan${selected ? " selected" : ""}${view.enabled ? "" : " disabled"}${issues.length ? " invalid" : ""}`}
       onClick={data.onSelect}
       aria-pressed={selected}
       title={issues.join("\n") || undefined}
@@ -88,12 +89,13 @@ function InsertEdge({ id, sourceX, sourceY, targetX, targetY, data }: EdgeProps<
           <button
             type="button"
             className="flow-insert nodrag nopan"
-            style={{ transform: `translate(-50%, -50%) translate(${lx}px, ${ly}px)` }}
+            // Snapped to whole pixels: the 19px circle's centre pixel sits on the 1px connection line.
+            style={{ transform: `translate(${Math.floor(lx) - 9}px, ${Math.floor(ly) - 9}px)` }}
             onClick={data.onInsert}
             aria-label="Insert a step here"
             title="Insert a step here"
           >
-            <Plus size={12} aria-hidden />
+            <span className="flow-insert-plus" aria-hidden />
           </button>
         </EdgeLabelRenderer>
       )}
@@ -139,9 +141,9 @@ export function WorkflowFlow({ def, views, issues, agents, selected, onSelect, o
     const nodes: Node[] = [];
     const edges: Edge[] = [];
     let x = 0;
-    const y = 40;
+    const y = 80.5; // vertical centre (on a pixel row, so lines stay crisp) of every node (nodeOrigin [0, 0.5]), so connections are straight
     let prev = "source";
-    nodes.push({ id: "source", type: "end", position: { x, y: y + 18 }, data: { icon: <Inbox size={16} aria-hidden />, title: "Tasks", sub: sourceLabel }, selectable: false });
+    nodes.push({ id: "source", type: "end", position: { x, y }, data: { icon: <Inbox size={16} aria-hidden />, title: "Tasks", sub: sourceLabel }, selectable: false });
     x += 170;
     const link = (to: string, insertAt?: number) => {
       edges.push({
@@ -160,18 +162,18 @@ export function WorkflowFlow({ def, views, issues, agents, selected, onSelect, o
       x += 230;
       if (viewFor(s).review && viewFor(s).enabled) {
         const gid = `gate:${s.id}:${i}`;
-        nodes.push({ id: gid, type: "gate", position: { x: x - 20, y: y + 22 }, data: {}, selectable: false });
+        nodes.push({ id: gid, type: "gate", position: { x: x - 20, y }, data: {}, selectable: false });
         edges.push({ id: `${prev}->${gid}`, source: prev, target: gid, type: "insert" });
         prev = gid;
         x += 90;
       }
     });
     if (finalReport) {
-      nodes.push({ id: "report", type: "end", position: { x, y: y + 18 }, data: { icon: <FileText size={16} aria-hidden />, title: "Final report" }, selectable: false });
+      nodes.push({ id: "report", type: "end", position: { x, y }, data: { icon: <FileText size={16} aria-hidden />, title: "Final report" }, selectable: false });
       link("report", def.steps.length);
       x += 170;
     }
-    nodes.push({ id: "dest", type: "end", position: { x, y: y + 18 }, data: { icon: <Flag size={16} aria-hidden />, title: dest, sub: "board column" }, selectable: false });
+    nodes.push({ id: "dest", type: "end", position: { x, y }, data: { icon: <Flag size={16} aria-hidden />, title: dest, sub: "board column" }, selectable: false });
     link("dest", finalReport ? undefined : def.steps.length);
     return { nodes, edges };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -207,12 +209,12 @@ export function WorkflowFlow({ def, views, issues, agents, selected, onSelect, o
       <ReactFlow
         nodes={nodes} edges={edges} nodeTypes={nodeTypes} edgeTypes={edgeTypes}
         colorMode={pref === "system" ? "system" : pref}
-        nodesDraggable={false} nodesConnectable={false} elementsSelectable={false}
+        nodesDraggable={false} nodesConnectable={false} elementsSelectable={false} nodeOrigin={[0, 0.5]}
         zoomOnScroll={false} panOnScroll panOnScrollMode={PanOnScrollMode.Horizontal} preventScrolling={false}
         minZoom={0.5} maxZoom={1.4}
-        // Readable first and read from the source: start left-aligned at 90%;
+        // Readable first and read from the source: start left-aligned at 100% (keeps the + buttons pixel-exact);
         // wide flows pan sideways (scroll or drag).
-        defaultViewport={{ x: 16, y: 32, zoom: 0.9 }}
+        defaultViewport={{ x: 16, y: 32, zoom: 1 }}
       />
     </div>
   );

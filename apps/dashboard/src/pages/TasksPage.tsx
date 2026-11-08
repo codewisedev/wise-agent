@@ -1,11 +1,13 @@
 import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Columns3, List, ListChecks, Plus, Search } from "lucide-react";
+import { CalendarRange, Columns3, List, ListChecks, Plus, Search } from "lucide-react";
 import { useCallback, useMemo, useState, type FormEvent } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { api, unwrap, type Schemas } from "../api/client";
 import { useEventSocket, type WorkflowEvent } from "../api/events";
 import { Board, type BoardList, type Card } from "../components/Board";
+import { LabelInput, PRIORITIES, useColumns, useProjectLabels, type Priority } from "../components/TaskFields";
 import { Empty, ErrorNote, Field, Panel, label, relativeTime } from "../components/ui";
+import { useSprints } from "./SprintsPage";
 import { TaskDrawer } from "./TaskDrawer";
 import { TaskStatus } from "./workflowUi";
 
@@ -20,12 +22,19 @@ function NewTaskForm({ defaultProject }: { defaultProject?: string }) {
   const [description, setDescription] = useState("");
   const [templateId, setTemplateId] = useState("");
   const [mode, setMode] = useState<"run" | "step" | "later">("later");
+  const [priority, setPriority] = useState<Priority>("none");
+  const [labels, setLabels] = useState<string[]>([]);
+  const [column, setColumn] = useState("");
+  const [sprintId, setSprintId] = useState<string | null>(null); // null = the project's current sprint
   const templates = useQuery({ queryKey: ["workflow-templates"], queryFn: () => unwrap(api.GET("/workflow-templates")) });
   const create = useMutation({
     mutationFn: (pid: string) =>
       unwrap(api.POST("/projects/{projectId}/tasks", {
         params: { path: { projectId: pid } },
-        body: { title, description, start: mode !== "later", stepByStep: mode === "step", ...(templateId ? { templateId } : {}) },
+        body: {
+          title, description, start: mode !== "later", stepByStep: mode === "step", priority, labels,
+          ...(templateId ? { templateId } : {}), ...(column ? { column } : {}), ...(sprint ? { sprintId: sprint } : {}),
+        },
       })),
     onSuccess: (d) => {
       void qc.invalidateQueries({ queryKey: ["tasks"] });
@@ -33,6 +42,11 @@ function NewTaskForm({ defaultProject }: { defaultProject?: string }) {
     },
   });
   const project = projectId || projects.data?.items[0]?.id || "";
+  const columns = useColumns(project || undefined);
+  const suggestions = useProjectLabels(project || undefined);
+  const sprints = useSprints(project || undefined);
+  const openSprints = sprints.data?.items.filter((s) => !s.closed) ?? [];
+  const sprint = sprintId ?? sprints.data?.items.find((s) => s.current)?.id ?? "";
   const submit = (e: FormEvent) => {
     e.preventDefault();
     create.mutate(project);
@@ -43,7 +57,7 @@ function NewTaskForm({ defaultProject }: { defaultProject?: string }) {
       <form onSubmit={submit}>
         <div className="form-grid">
           <Field label="Project">
-            <select value={project} onChange={(e) => setProjectId(e.target.value)} required>
+            <select value={project} onChange={(e) => { setProjectId(e.target.value); setColumn(""); setSprintId(null); }} required>
               {projects.data?.items.map((p) => (
                 <option key={p.id} value={p.id}>{p.name}</option>
               ))}
@@ -56,6 +70,30 @@ function NewTaskForm({ defaultProject }: { defaultProject?: string }) {
         <div className="form-grid" style={{ marginTop: 12 }}>
           <Field label="Description" hint="What you want and why. The product and requirements agents start from this." grow>
             <textarea rows={4} value={description} onChange={(e) => setDescription(e.target.value)} maxLength={20000} />
+          </Field>
+        </div>
+        <div className="form-grid" style={{ marginTop: 12 }}>
+          <Field label="List" hint="Default: the backlog list">
+            <select value={column} onChange={(e) => setColumn(e.target.value)}>
+              <option value="">default</option>
+              {columns.data?.items.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          </Field>
+          {openSprints.length > 0 && (
+            <Field label="Sprint">
+              <select value={sprint} onChange={(e) => setSprintId(e.target.value)}>
+                <option value="">no sprint</option>
+                {openSprints.map((s) => <option key={s.id} value={s.id}>{s.name}{s.current ? " (current)" : ""}</option>)}
+              </select>
+            </Field>
+          )}
+          <Field label="Priority">
+            <select value={priority} onChange={(e) => setPriority(e.target.value as Priority)}>
+              {PRIORITIES.map((p) => <option key={p} value={p}>{p}</option>)}
+            </select>
+          </Field>
+          <Field label="Labels" grow>
+            <LabelInput id="new-task-labels" value={labels} onChange={setLabels} suggestions={suggestions} />
           </Field>
         </div>
         <div className="form-grid" style={{ marginTop: 12 }}>
@@ -126,6 +164,18 @@ export function TasksPage() {
     store.set("wise.tasks.project", v);
     const next = new URLSearchParams(params);
     next.delete("projectId");
+    next.delete("sprint"); // a sprint belongs to the previous project
+    setParams(next, { replace: true });
+  };
+  // Sprint scope: "current" (default), "all", "none" (no sprint) or a sprint id; remembered per project.
+  const sprintKey = `wise.tasks.sprint.${selected}`;
+  const [sprintPick, setSprintPick] = useState<Record<string, string>>({});
+  const rawSprintChoice = params.get("sprint") ?? sprintPick[selected] ?? (store.get(sprintKey) || "current");
+  const chooseSprint = (v: string) => {
+    setSprintPick((m) => ({ ...m, [selected]: v }));
+    store.set(sprintKey, v);
+    const next = new URLSearchParams(params);
+    next.delete("sprint");
     setParams(next, { replace: true });
   };
   const [view, setViewState] = useState<"board" | "list">(() => (store.get("wise.tasks.view") === "list" ? "list" : "board"));
@@ -142,6 +192,32 @@ export function TasksPage() {
       enabled: view === "board",
     })),
   });
+  const sprintQs = useQueries({
+    queries: boardIds.map((id) => ({
+      queryKey: ["sprints", id],
+      queryFn: () => unwrap(api.GET("/projects/{projectId}/sprints", { params: { path: { projectId: id } } })),
+    })),
+  });
+  const sprintKeyData = sprintQs.map((q) => q.dataUpdatedAt).join(",");
+  const sprintInfo = useMemo(() => {
+    const current: Record<string, string> = {};
+    const hasSprints: Record<string, boolean> = {};
+    const all: Schemas["Sprint"][] = [];
+    sprintQs.forEach((q, i) => {
+      const items = q.data?.items ?? [];
+      hasSprints[boardIds[i]!] = items.length > 0;
+      for (const sp of items) {
+        all.push(sp);
+        if (sp.current) current[sp.projectId] = sp.id;
+      }
+    });
+    return { current, hasSprints, all };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sprintKeyData, selected]);
+  // A sprint id that is not one of the shown project's sprints (deleted, or from another project) falls back to "current".
+  const sprintsLoaded = sprintQs.length > 0 && sprintQs.every((q) => q.data);
+  const sprintChoice = ["current", "all", "none"].includes(rawSprintChoice) || !sprintsLoaded || sprintInfo.all.some((sp) => sp.id === rawSprintChoice)
+    ? rawSprintChoice : "current";
   const boardErr = boards.find((b) => b.error)?.error;
   const boardsReady = boards.length > 0 && boards.every((b) => b.data);
   // A fixed-size key of every board's data version (hook deps must not change length).
@@ -152,8 +228,24 @@ export function TasksPage() {
     return selected === ALL ? mergeBoards(ready) : (ready[0]?.columns ?? []);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dataKey]);
+  // Cards in the chosen sprint scope. "Current" shows everything on a project without sprints.
+  const scoped = useMemo(() => {
+    if (sprintChoice === "all") return lists;
+    const keep = (c: Card) => {
+      const sid = c.task.sprintId ?? null;
+      if (sprintChoice === "none") return sid === null;
+      if (sprintChoice === "current") {
+        const cur = sprintInfo.current[c.task.projectId];
+        // No sprint running: show the backlog (tasks without a sprint), or everything on a project without sprints.
+        if (!cur) return !sprintInfo.hasSprints[c.task.projectId] || sid === null;
+        return sid === cur;
+      }
+      return sid === sprintChoice;
+    };
+    return lists.map((l) => ({ ...l, cards: l.cards.filter(keep) }));
+  }, [lists, sprintChoice, sprintInfo]);
   const projectNames = useMemo(() => Object.fromEntries(projectList.map((p) => [p.id, p.name])), [projectList]);
-  const allCards = useMemo(() => lists.flatMap((c) => c.cards), [lists]);
+  const allCards = useMemo(() => scoped.flatMap((c) => c.cards), [scoped]);
   const labels = useMemo(() => [...new Set(allCards.flatMap((c) => c.task.labels ?? []))].sort(), [allCards]);
 
   const active = f.q || f.label || f.priority || f.source || f.review;
@@ -175,10 +267,13 @@ export function TasksPage() {
     }
   });
 
-  const status = (params.get("status") ?? undefined) as Schemas["TaskStatus"] | undefined;
+  // "archived" lists tasks their source no longer returns; anything else is a task status.
+  const statusParam = params.get("status") ?? undefined;
+  const archivedView = statusParam === "archived";
+  const status = (archivedView ? undefined : statusParam) as Schemas["TaskStatus"] | undefined;
   const tasks = useQuery({
-    queryKey: ["tasks", selected === ALL ? undefined : selected, status],
-    queryFn: () => unwrap(api.GET("/tasks", { params: { query: { projectId: selected === ALL ? undefined : selected || undefined, status } } })),
+    queryKey: ["tasks", selected === ALL ? undefined : selected, status, archivedView],
+    queryFn: () => unwrap(api.GET("/tasks", { params: { query: { projectId: selected === ALL ? undefined : selected || undefined, status, archived: archivedView } } })),
     enabled: view === "list" && !!selected,
     refetchInterval: 15000,
   });
@@ -228,6 +323,21 @@ export function TasksPage() {
             <option value={ALL}>All projects</option>
             {projectList.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>
+          <select aria-label="Sprint" value={sprintChoice} onChange={(e) => chooseSprint(e.target.value)} className="project-pick">
+            <option value="current">{selected === ALL ? "Current sprints" : "Current sprint"}</option>
+            <option value="all">All tasks</option>
+            <option value="none">No sprint (backlog)</option>
+            {selected !== ALL && sprintInfo.all.length > 0 && (
+              <optgroup label="Sprints">
+                {sprintInfo.all.map((sp) => (
+                  <option key={sp.id} value={sp.id}>{sp.name}{sp.current ? " (current)" : sp.closed ? " (completed)" : ""}</option>
+                ))}
+              </optgroup>
+            )}
+          </select>
+          {selected && selected !== ALL && (
+            <Link to={`/projects/${selected}/sprints`} className="btn btn-sm"><CalendarRange size={14} aria-hidden /> Sprints</Link>
+          )}
           <div className="seg" role="radiogroup" aria-label="View">
             <button type="button" role="radio" aria-checked={view === "board"} className={`btn btn-sm${view === "board" ? " btn-primary" : ""}`} onClick={() => setView("board")}>
               <Columns3 size={14} aria-hidden /> Board
@@ -249,8 +359,9 @@ export function TasksPage() {
 
       {view === "board" && boardsReady && (
         <Board
-          lists={lists}
+          lists={scoped}
           projectId={selected === ALL ? undefined : selected}
+          sprintId={sprintChoice === "current" ? sprintInfo.current[selected] : ["all", "none"].includes(sprintChoice) ? undefined : sprintChoice}
           queryKey={["board"]}
           projectNames={selected === ALL ? projectNames : undefined}
           onOpen={(c) => setOpen(c.task.id)}
@@ -265,8 +376,9 @@ export function TasksPage() {
           title="Tasks"
           count={tasks.data?.items.length}
           actions={
-            <select aria-label="Filter by status" value={status ?? ""} onChange={(e) => setStatus(e.target.value)}>
+            <select aria-label="Filter by status" value={statusParam ?? ""} onChange={(e) => setStatus(e.target.value)}>
               <option value="">all statuses</option>
+              <option value="archived">archived (no longer in the source)</option>
               {STATUSES.map((s) => <option key={s} value={s}>{label(s)}</option>)}
             </select>
           }

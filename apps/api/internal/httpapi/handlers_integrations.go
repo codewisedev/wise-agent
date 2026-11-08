@@ -17,7 +17,7 @@ func toIntegration(it dbgen.Integration) apigen.Integration {
 	out := apigen.Integration{
 		Id: it.ID, ProjectId: it.ProjectID, Kind: apigen.IntegrationKind(it.Kind), Name: it.Name, AccountId: it.AccountID,
 		Config: jsonObject(it.Config), StatusMap: map[string]openapi_types.UUID{}, DefaultTemplateId: it.DefaultTemplateID,
-		AutoStart: it.AutoStart, IntervalMinutes: int(it.IntervalMinutes), Enabled: it.Enabled, LastSyncedAt: it.LastSyncedAt,
+		AutoStart: it.AutoStart, IntervalMinutes: int(it.IntervalMinutes), SprintId: it.SprintID, Enabled: it.Enabled, LastSyncedAt: it.LastSyncedAt,
 		LastError: it.LastError, CreatedAt: it.CreatedAt, UpdatedAt: it.UpdatedAt,
 	}
 	_ = json.Unmarshal(it.StatusMap, &out.StatusMap)
@@ -32,6 +32,7 @@ func integrationInput(b *apigen.IntegrationInput) integrations.Input {
 	in := integrations.Input{
 		Name: b.Name, Kind: string(b.Kind), AccountID: b.AccountId, DefaultTemplateID: b.DefaultTemplateId,
 		AutoStart: deref(b.AutoStart), Enabled: b.Enabled == nil || *b.Enabled,
+		SprintID: b.SprintId,
 	}
 	if b.IntervalMinutes != nil {
 		in.IntervalMinutes = *b.IntervalMinutes

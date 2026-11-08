@@ -1084,7 +1084,10 @@ type CreateTaskRequest struct {
 	Description *string             `json:"description,omitempty"`
 	Labels      *[]string           `json:"labels,omitempty"`
 	Priority    *TaskPriority       `json:"priority,omitempty"`
-	Start       *bool               `json:"start,omitempty"`
+
+	// SprintId A sprint of the project.
+	SprintId *openapi_types.UUID `json:"sprintId,omitempty"`
+	Start    *bool               `json:"start,omitempty"`
 
 	// StepByStep With start, pause after every step.
 	StepByStep *bool `json:"stepByStep,omitempty"`
@@ -1137,6 +1140,7 @@ type Integration struct {
 	LastSyncedAt      *time.Time             `json:"lastSyncedAt,omitempty"`
 	Name              string                 `json:"name"`
 	ProjectId         openapi_types.UUID     `json:"projectId"`
+	SprintId          *openapi_types.UUID    `json:"sprintId,omitempty"`
 
 	// StatusMap External status (lowercase) → board column.
 	StatusMap map[string]openapi_types.UUID `json:"statusMap"`
@@ -1145,15 +1149,18 @@ type Integration struct {
 
 // IntegrationInput defines model for IntegrationInput.
 type IntegrationInput struct {
-	AccountId         openapi_types.UUID             `json:"accountId"`
-	AutoStart         *bool                          `json:"autoStart,omitempty"`
-	Config            *map[string]interface{}        `json:"config,omitempty"`
-	DefaultTemplateId *openapi_types.UUID            `json:"defaultTemplateId,omitempty"`
-	Enabled           *bool                          `json:"enabled,omitempty"`
-	IntervalMinutes   *int                           `json:"intervalMinutes,omitempty"`
-	Kind              IntegrationKind                `json:"kind"`
-	Name              string                         `json:"name"`
-	StatusMap         *map[string]openapi_types.UUID `json:"statusMap,omitempty"`
+	AccountId         openapi_types.UUID      `json:"accountId"`
+	AutoStart         *bool                   `json:"autoStart,omitempty"`
+	Config            *map[string]interface{} `json:"config,omitempty"`
+	DefaultTemplateId *openapi_types.UUID     `json:"defaultTemplateId,omitempty"`
+	Enabled           *bool                   `json:"enabled,omitempty"`
+	IntervalMinutes   *int                    `json:"intervalMinutes,omitempty"`
+	Kind              IntegrationKind         `json:"kind"`
+	Name              string                  `json:"name"`
+
+	// SprintId Fixed sprint for this source's tasks (follow modes create their own sprints).
+	SprintId  *openapi_types.UUID            `json:"sprintId,omitempty"`
+	StatusMap *map[string]openapi_types.UUID `json:"statusMap,omitempty"`
 }
 
 // IntegrationKind defines model for IntegrationKind.
@@ -1532,6 +1539,39 @@ type SettingList struct {
 	Items []Setting `json:"items"`
 }
 
+// Sprint defines model for Sprint.
+type Sprint struct {
+	Closed    bool      `json:"closed"`
+	CreatedAt time.Time `json:"createdAt"`
+
+	// Current The project's current sprint.
+	Current bool                `json:"current"`
+	EndsOn  *openapi_types.Date `json:"endsOn,omitempty"`
+	Id      openapi_types.UUID  `json:"id"`
+	Name    string              `json:"name"`
+
+	// OpenCount Tasks not in a done-role list.
+	OpenCount int                `json:"openCount"`
+	ProjectId openapi_types.UUID `json:"projectId"`
+
+	// SourceName The task source this sprint is followed from.
+	SourceName *string             `json:"sourceName,omitempty"`
+	StartsOn   *openapi_types.Date `json:"startsOn,omitempty"`
+	TaskCount  int                 `json:"taskCount"`
+}
+
+// SprintInput defines model for SprintInput.
+type SprintInput struct {
+	EndsOn   *openapi_types.Date `json:"endsOn,omitempty"`
+	Name     string              `json:"name"`
+	StartsOn *openapi_types.Date `json:"startsOn,omitempty"`
+}
+
+// SprintList defines model for SprintList.
+type SprintList struct {
+	Items []Sprint `json:"items"`
+}
+
 // StepOverride defines model for StepOverride.
 type StepOverride struct {
 	Account *string `json:"account,omitempty"`
@@ -1542,17 +1582,25 @@ type StepOverride struct {
 
 // SyncResult defines model for SyncResult.
 type SyncResult struct {
-	At        time.Time `json:"at"`
-	Created   int       `json:"created"`
-	Errors    *[]string `json:"errors,omitempty"`
-	Started   int       `json:"started"`
-	Total     int       `json:"total"`
-	Unchanged int       `json:"unchanged"`
-	Updated   int       `json:"updated"`
+	// Archived Tasks the source no longer returns (archived).
+	Archived *int      `json:"archived,omitempty"`
+	At       time.Time `json:"at"`
+	Created  int       `json:"created"`
+	Errors   *[]string `json:"errors,omitempty"`
+
+	// Restored Archived tasks the source returned again.
+	Restored  *int `json:"restored,omitempty"`
+	Started   int  `json:"started"`
+	Total     int  `json:"total"`
+	Unchanged int  `json:"unchanged"`
+	Updated   int  `json:"updated"`
 }
 
 // Task defines model for Task.
 type Task struct {
+	// ArchivedAt Set when the task's source stopped returning it (e.g. no longer assigned to you); cleared if it returns.
+	ArchivedAt *time.Time `json:"archivedAt,omitempty"`
+
 	// Column The board column the card is in.
 	Column         *openapi_types.UUID `json:"column,omitempty"`
 	CreatedAt      time.Time           `json:"createdAt"`
@@ -1567,6 +1615,7 @@ type Task struct {
 	ProjectId      openapi_types.UUID  `json:"projectId"`
 	ProjectName    *string             `json:"projectName,omitempty"`
 	Source         *TaskSource         `json:"source,omitempty"`
+	SprintId       *openapi_types.UUID `json:"sprintId,omitempty"`
 	Status         TaskStatus          `json:"status"`
 	TemplateId     *openapi_types.UUID `json:"templateId,omitempty"`
 	Title          string              `json:"title"`
@@ -1730,7 +1779,10 @@ type UpdateTaskRequest struct {
 	// Position Order within the column (cards sort ascending); omit to append.
 	Position *float64      `json:"position,omitempty"`
 	Priority *TaskPriority `json:"priority,omitempty"`
-	Title    *string       `json:"title,omitempty"`
+
+	// Sprint A sprint id of the project, or "none" to take the task out of its sprint.
+	Sprint *string `json:"sprint,omitempty"`
+	Title  *string `json:"title,omitempty"`
 }
 
 // User defines model for User.
@@ -1869,6 +1921,9 @@ type RunId = openapi_types.UUID
 // SettingKey defines model for SettingKey.
 type SettingKey = string
 
+// SprintId defines model for SprintId.
+type SprintId = openapi_types.UUID
+
 // TaskId defines model for TaskId.
 type TaskId = openapi_types.UUID
 
@@ -1920,6 +1975,9 @@ type ListProjectsParams struct {
 type ListTasksParams struct {
 	ProjectId *openapi_types.UUID `form:"projectId,omitempty" json:"projectId,omitempty"`
 	Status    *TaskStatus         `form:"status,omitempty" json:"status,omitempty"`
+
+	// Archived List archived tasks instead of live ones.
+	Archived *bool `form:"archived,omitempty" json:"archived,omitempty"`
 }
 
 // ListTaskArtifactsParams defines parameters for ListTaskArtifacts.
@@ -1989,6 +2047,9 @@ type CreateRepositoryRelationshipJSONRequestBody = CreateRepositoryRelationshipR
 // CreateProjectResourceJSONRequestBody defines body for CreateProjectResource for application/json ContentType.
 type CreateProjectResourceJSONRequestBody = CreateProjectResourceRequest
 
+// CreateSprintJSONRequestBody defines body for CreateSprint for application/json ContentType.
+type CreateSprintJSONRequestBody = SprintInput
+
 // CreateTaskJSONRequestBody defines body for CreateTask for application/json ContentType.
 type CreateTaskJSONRequestBody = CreateTaskRequest
 
@@ -2012,6 +2073,9 @@ type RuntimeModelTurnJSONRequestBody = ModelTurnRequest
 
 // UpdateSettingJSONRequestBody defines body for UpdateSetting for application/json ContentType.
 type UpdateSettingJSONRequestBody = UpdateSettingRequest
+
+// UpdateSprintJSONRequestBody defines body for UpdateSprint for application/json ContentType.
+type UpdateSprintJSONRequestBody = SprintInput
 
 // UpdateTaskJSONRequestBody defines body for UpdateTask for application/json ContentType.
 type UpdateTaskJSONRequestBody = UpdateTaskRequest
@@ -2205,6 +2269,12 @@ type ServerInterface interface {
 	// (POST /projects/{projectId}/resources)
 	CreateProjectResource(w http.ResponseWriter, r *http.Request, projectId ProjectId)
 
+	// (GET /projects/{projectId}/sprints)
+	ListSprints(w http.ResponseWriter, r *http.Request, projectId ProjectId)
+
+	// (POST /projects/{projectId}/sprints)
+	CreateSprint(w http.ResponseWriter, r *http.Request, projectId ProjectId)
+
 	// (POST /projects/{projectId}/tasks)
 	CreateTask(w http.ResponseWriter, r *http.Request, projectId ProjectId)
 
@@ -2261,6 +2331,18 @@ type ServerInterface interface {
 
 	// (POST /settings/{settingKey}/reset)
 	ResetSetting(w http.ResponseWriter, r *http.Request, settingKey SettingKey)
+
+	// (DELETE /sprints/{sprintId})
+	DeleteSprint(w http.ResponseWriter, r *http.Request, sprintId SprintId)
+
+	// (PUT /sprints/{sprintId})
+	UpdateSprint(w http.ResponseWriter, r *http.Request, sprintId SprintId)
+
+	// (POST /sprints/{sprintId}/complete)
+	CompleteSprint(w http.ResponseWriter, r *http.Request, sprintId SprintId)
+
+	// (POST /sprints/{sprintId}/start)
+	StartSprint(w http.ResponseWriter, r *http.Request, sprintId SprintId)
 
 	// (GET /tasks)
 	ListTasks(w http.ResponseWriter, r *http.Request, params ListTasksParams)
@@ -2604,6 +2686,16 @@ func (_ Unimplemented) CreateProjectResource(w http.ResponseWriter, r *http.Requ
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
+// (GET /projects/{projectId}/sprints)
+func (_ Unimplemented) ListSprints(w http.ResponseWriter, r *http.Request, projectId ProjectId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (POST /projects/{projectId}/sprints)
+func (_ Unimplemented) CreateSprint(w http.ResponseWriter, r *http.Request, projectId ProjectId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
 // (POST /projects/{projectId}/tasks)
 func (_ Unimplemented) CreateTask(w http.ResponseWriter, r *http.Request, projectId ProjectId) {
 	w.WriteHeader(http.StatusNotImplemented)
@@ -2696,6 +2788,26 @@ func (_ Unimplemented) ListSettingHistory(w http.ResponseWriter, r *http.Request
 
 // (POST /settings/{settingKey}/reset)
 func (_ Unimplemented) ResetSetting(w http.ResponseWriter, r *http.Request, settingKey SettingKey) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (DELETE /sprints/{sprintId})
+func (_ Unimplemented) DeleteSprint(w http.ResponseWriter, r *http.Request, sprintId SprintId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (PUT /sprints/{sprintId})
+func (_ Unimplemented) UpdateSprint(w http.ResponseWriter, r *http.Request, sprintId SprintId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (POST /sprints/{sprintId}/complete)
+func (_ Unimplemented) CompleteSprint(w http.ResponseWriter, r *http.Request, sprintId SprintId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (POST /sprints/{sprintId}/start)
+func (_ Unimplemented) StartSprint(w http.ResponseWriter, r *http.Request, sprintId SprintId) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -4196,6 +4308,58 @@ func (siw *ServerInterfaceWrapper) CreateProjectResource(w http.ResponseWriter, 
 	handler.ServeHTTP(w, r)
 }
 
+// ListSprints operation middleware
+func (siw *ServerInterfaceWrapper) ListSprints(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "projectId" -------------
+	var projectId ProjectId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "projectId", chi.URLParam(r, "projectId"), &projectId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "projectId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListSprints(w, r, projectId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateSprint operation middleware
+func (siw *ServerInterfaceWrapper) CreateSprint(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "projectId" -------------
+	var projectId ProjectId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "projectId", chi.URLParam(r, "projectId"), &projectId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "projectId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateSprint(w, r, projectId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // CreateTask operation middleware
 func (siw *ServerInterfaceWrapper) CreateTask(w http.ResponseWriter, r *http.Request) {
 
@@ -4654,6 +4818,110 @@ func (siw *ServerInterfaceWrapper) ResetSetting(w http.ResponseWriter, r *http.R
 	handler.ServeHTTP(w, r)
 }
 
+// DeleteSprint operation middleware
+func (siw *ServerInterfaceWrapper) DeleteSprint(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "sprintId" -------------
+	var sprintId SprintId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "sprintId", chi.URLParam(r, "sprintId"), &sprintId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "sprintId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteSprint(w, r, sprintId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateSprint operation middleware
+func (siw *ServerInterfaceWrapper) UpdateSprint(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "sprintId" -------------
+	var sprintId SprintId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "sprintId", chi.URLParam(r, "sprintId"), &sprintId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "sprintId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateSprint(w, r, sprintId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CompleteSprint operation middleware
+func (siw *ServerInterfaceWrapper) CompleteSprint(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "sprintId" -------------
+	var sprintId SprintId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "sprintId", chi.URLParam(r, "sprintId"), &sprintId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "sprintId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CompleteSprint(w, r, sprintId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// StartSprint operation middleware
+func (siw *ServerInterfaceWrapper) StartSprint(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "sprintId" -------------
+	var sprintId SprintId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "sprintId", chi.URLParam(r, "sprintId"), &sprintId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "sprintId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.StartSprint(w, r, sprintId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListTasks operation middleware
 func (siw *ServerInterfaceWrapper) ListTasks(w http.ResponseWriter, r *http.Request) {
 
@@ -4685,6 +4953,19 @@ func (siw *ServerInterfaceWrapper) ListTasks(w http.ResponseWriter, r *http.Requ
 			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "status"})
 		} else {
 			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "status", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "archived" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "archived", r.URL.Query(), &params.Archived, runtime.BindQueryParameterOptions{Type: "boolean", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "archived"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "archived", Err: err})
 		}
 		return
 	}
@@ -5414,6 +5695,24 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/projects/{projectId}/board", wrapper.GetBoard)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/projects/{projectId}/sprints", wrapper.ListSprints)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/projects/{projectId}/sprints", wrapper.CreateSprint)
+	})
+	r.Group(func(r chi.Router) {
+		r.Delete(options.BaseURL+"/sprints/{sprintId}", wrapper.DeleteSprint)
+	})
+	r.Group(func(r chi.Router) {
+		r.Put(options.BaseURL+"/sprints/{sprintId}", wrapper.UpdateSprint)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/sprints/{sprintId}/start", wrapper.StartSprint)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/sprints/{sprintId}/complete", wrapper.CompleteSprint)
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/projects/{projectId}/columns", wrapper.ListColumns)
@@ -8967,6 +9266,125 @@ func (response CreateProjectResource404ApplicationProblemPlusJSONResponse) Visit
 	return err
 }
 
+type ListSprintsRequestObject struct {
+	ProjectId ProjectId `json:"projectId"`
+}
+
+type ListSprintsResponseObject interface {
+	VisitListSprintsResponse(w http.ResponseWriter) error
+}
+
+type ListSprints200JSONResponse SprintList
+
+func (response ListSprints200JSONResponse) VisitListSprintsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListSprints401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response ListSprints401ApplicationProblemPlusJSONResponse) VisitListSprintsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListSprints404ApplicationProblemPlusJSONResponse Problem
+
+func (response ListSprints404ApplicationProblemPlusJSONResponse) VisitListSprintsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateSprintRequestObject struct {
+	ProjectId ProjectId `json:"projectId"`
+	Body      *CreateSprintJSONRequestBody
+}
+
+type CreateSprintResponseObject interface {
+	VisitCreateSprintResponse(w http.ResponseWriter) error
+}
+
+type CreateSprint201JSONResponse Sprint
+
+func (response CreateSprint201JSONResponse) VisitCreateSprintResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateSprint400ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response CreateSprint400ApplicationProblemPlusJSONResponse) VisitCreateSprintResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateSprint401ApplicationProblemPlusJSONResponse Problem
+
+func (response CreateSprint401ApplicationProblemPlusJSONResponse) VisitCreateSprintResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateSprint404ApplicationProblemPlusJSONResponse Problem
+
+func (response CreateSprint404ApplicationProblemPlusJSONResponse) VisitCreateSprintResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type CreateTaskRequestObject struct {
 	ProjectId ProjectId `json:"projectId"`
 	Body      *CreateTaskJSONRequestBody
@@ -10081,6 +10499,211 @@ func (response ResetSetting403ApplicationProblemPlusJSONResponse) VisitResetSett
 type ResetSetting404ApplicationProblemPlusJSONResponse Problem
 
 func (response ResetSetting404ApplicationProblemPlusJSONResponse) VisitResetSettingResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteSprintRequestObject struct {
+	SprintId SprintId `json:"sprintId"`
+}
+
+type DeleteSprintResponseObject interface {
+	VisitDeleteSprintResponse(w http.ResponseWriter) error
+}
+
+type DeleteSprint204Response struct {
+}
+
+func (response DeleteSprint204Response) VisitDeleteSprintResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type DeleteSprint401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response DeleteSprint401ApplicationProblemPlusJSONResponse) VisitDeleteSprintResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteSprint404ApplicationProblemPlusJSONResponse Problem
+
+func (response DeleteSprint404ApplicationProblemPlusJSONResponse) VisitDeleteSprintResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateSprintRequestObject struct {
+	SprintId SprintId `json:"sprintId"`
+	Body     *UpdateSprintJSONRequestBody
+}
+
+type UpdateSprintResponseObject interface {
+	VisitUpdateSprintResponse(w http.ResponseWriter) error
+}
+
+type UpdateSprint200JSONResponse Sprint
+
+func (response UpdateSprint200JSONResponse) VisitUpdateSprintResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateSprint400ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response UpdateSprint400ApplicationProblemPlusJSONResponse) VisitUpdateSprintResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateSprint401ApplicationProblemPlusJSONResponse Problem
+
+func (response UpdateSprint401ApplicationProblemPlusJSONResponse) VisitUpdateSprintResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateSprint404ApplicationProblemPlusJSONResponse Problem
+
+func (response UpdateSprint404ApplicationProblemPlusJSONResponse) VisitUpdateSprintResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CompleteSprintRequestObject struct {
+	SprintId SprintId `json:"sprintId"`
+}
+
+type CompleteSprintResponseObject interface {
+	VisitCompleteSprintResponse(w http.ResponseWriter) error
+}
+
+type CompleteSprint204Response struct {
+}
+
+func (response CompleteSprint204Response) VisitCompleteSprintResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type CompleteSprint401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response CompleteSprint401ApplicationProblemPlusJSONResponse) VisitCompleteSprintResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CompleteSprint404ApplicationProblemPlusJSONResponse Problem
+
+func (response CompleteSprint404ApplicationProblemPlusJSONResponse) VisitCompleteSprintResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type StartSprintRequestObject struct {
+	SprintId SprintId `json:"sprintId"`
+}
+
+type StartSprintResponseObject interface {
+	VisitStartSprintResponse(w http.ResponseWriter) error
+}
+
+type StartSprint204Response struct {
+}
+
+func (response StartSprint204Response) VisitStartSprintResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type StartSprint401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response StartSprint401ApplicationProblemPlusJSONResponse) VisitStartSprintResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type StartSprint404ApplicationProblemPlusJSONResponse Problem
+
+func (response StartSprint404ApplicationProblemPlusJSONResponse) VisitStartSprintResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -11391,6 +12014,12 @@ type StrictServerInterface interface {
 	// (POST /projects/{projectId}/resources)
 	CreateProjectResource(ctx context.Context, request CreateProjectResourceRequestObject) (CreateProjectResourceResponseObject, error)
 
+	// (GET /projects/{projectId}/sprints)
+	ListSprints(ctx context.Context, request ListSprintsRequestObject) (ListSprintsResponseObject, error)
+
+	// (POST /projects/{projectId}/sprints)
+	CreateSprint(ctx context.Context, request CreateSprintRequestObject) (CreateSprintResponseObject, error)
+
 	// (POST /projects/{projectId}/tasks)
 	CreateTask(ctx context.Context, request CreateTaskRequestObject) (CreateTaskResponseObject, error)
 
@@ -11447,6 +12076,18 @@ type StrictServerInterface interface {
 
 	// (POST /settings/{settingKey}/reset)
 	ResetSetting(ctx context.Context, request ResetSettingRequestObject) (ResetSettingResponseObject, error)
+
+	// (DELETE /sprints/{sprintId})
+	DeleteSprint(ctx context.Context, request DeleteSprintRequestObject) (DeleteSprintResponseObject, error)
+
+	// (PUT /sprints/{sprintId})
+	UpdateSprint(ctx context.Context, request UpdateSprintRequestObject) (UpdateSprintResponseObject, error)
+
+	// (POST /sprints/{sprintId}/complete)
+	CompleteSprint(ctx context.Context, request CompleteSprintRequestObject) (CompleteSprintResponseObject, error)
+
+	// (POST /sprints/{sprintId}/start)
+	StartSprint(ctx context.Context, request StartSprintRequestObject) (StartSprintResponseObject, error)
 
 	// (GET /tasks)
 	ListTasks(ctx context.Context, request ListTasksRequestObject) (ListTasksResponseObject, error)
@@ -13115,6 +13756,65 @@ func (sh *strictHandler) CreateProjectResource(w http.ResponseWriter, r *http.Re
 	}
 }
 
+// ListSprints operation middleware
+func (sh *strictHandler) ListSprints(w http.ResponseWriter, r *http.Request, projectId ProjectId) {
+	var request ListSprintsRequestObject
+
+	request.ProjectId = projectId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListSprints(ctx, request.(ListSprintsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListSprints")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListSprintsResponseObject); ok {
+		if err := validResponse.VisitListSprintsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CreateSprint operation middleware
+func (sh *strictHandler) CreateSprint(w http.ResponseWriter, r *http.Request, projectId ProjectId) {
+	var request CreateSprintRequestObject
+
+	request.ProjectId = projectId
+
+	var body CreateSprintJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateSprint(ctx, request.(CreateSprintRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateSprint")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CreateSprintResponseObject); ok {
+		if err := validResponse.VisitCreateSprintResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // CreateTask operation middleware
 func (sh *strictHandler) CreateTask(w http.ResponseWriter, r *http.Request, projectId ProjectId) {
 	var request CreateTaskRequestObject
@@ -13652,6 +14352,117 @@ func (sh *strictHandler) ResetSetting(w http.ResponseWriter, r *http.Request, se
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(ResetSettingResponseObject); ok {
 		if err := validResponse.VisitResetSettingResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DeleteSprint operation middleware
+func (sh *strictHandler) DeleteSprint(w http.ResponseWriter, r *http.Request, sprintId SprintId) {
+	var request DeleteSprintRequestObject
+
+	request.SprintId = sprintId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteSprint(ctx, request.(DeleteSprintRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteSprint")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DeleteSprintResponseObject); ok {
+		if err := validResponse.VisitDeleteSprintResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UpdateSprint operation middleware
+func (sh *strictHandler) UpdateSprint(w http.ResponseWriter, r *http.Request, sprintId SprintId) {
+	var request UpdateSprintRequestObject
+
+	request.SprintId = sprintId
+
+	var body UpdateSprintJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.UpdateSprint(ctx, request.(UpdateSprintRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UpdateSprint")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(UpdateSprintResponseObject); ok {
+		if err := validResponse.VisitUpdateSprintResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CompleteSprint operation middleware
+func (sh *strictHandler) CompleteSprint(w http.ResponseWriter, r *http.Request, sprintId SprintId) {
+	var request CompleteSprintRequestObject
+
+	request.SprintId = sprintId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CompleteSprint(ctx, request.(CompleteSprintRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CompleteSprint")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CompleteSprintResponseObject); ok {
+		if err := validResponse.VisitCompleteSprintResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// StartSprint operation middleware
+func (sh *strictHandler) StartSprint(w http.ResponseWriter, r *http.Request, sprintId SprintId) {
+	var request StartSprintRequestObject
+
+	request.SprintId = sprintId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.StartSprint(ctx, request.(StartSprintRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "StartSprint")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(StartSprintResponseObject); ok {
+		if err := validResponse.VisitStartSprintResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

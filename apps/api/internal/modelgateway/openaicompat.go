@@ -107,7 +107,8 @@ func (p *OpenAICompat) models(ctx context.Context) ([]string, error) {
 	}
 	ids := make([]string, 0, len(out.Data))
 	for _, d := range out.Data {
-		ids = append(ids, d.ID)
+		// Google AI Studio lists "models/gemini-2.5-flash" but expects "gemini-2.5-flash" in requests.
+		ids = append(ids, strings.TrimPrefix(d.ID, "models/"))
 	}
 	return ids, nil
 }

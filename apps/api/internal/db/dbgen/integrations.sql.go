@@ -12,11 +12,43 @@ import (
 	"github.com/google/uuid"
 )
 
+const archiveMissingImported = `-- name: ArchiveMissingImported :execrows
+UPDATE tasks t SET archived_at = now(), updated_at = now()
+WHERE t.integration_id = $1::uuid AND t.archived_at IS NULL
+  AND NOT (t.external_id = ANY ($2::text[]))
+  AND t.status NOT IN ('in_progress', 'awaiting_approval')
+  AND (NOT $3::bool OR t.sprint_id IN (
+        SELECT sp.id FROM sprints sp WHERE sp.integration_id = t.integration_id AND sp.external_id = ANY ($4::text[])))
+`
+
+type ArchiveMissingImportedParams struct {
+	IntegrationID uuid.UUID
+	Seen          []string
+	Scoped        bool
+	Sprints       []string
+}
+
+// Tasks of this source it no longer returns are archived, except while a
+// workflow owns them. In follow mode only tasks of the sprints just fetched
+// are considered (older sprints are not re-read).
+func (q *Queries) ArchiveMissingImported(ctx context.Context, arg ArchiveMissingImportedParams) (int64, error) {
+	result, err := q.db.Exec(ctx, archiveMissingImported,
+		arg.IntegrationID,
+		arg.Seen,
+		arg.Scoped,
+		arg.Sprints,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const createImportedTask = `-- name: CreateImportedTask :one
 INSERT INTO tasks (id, project_id, title, description, column_id, position, priority, labels, source,
-                   integration_id, external_id, external_url, external_status, template_id, synced_at)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, now())
-RETURNING id, project_id, title, description, status, created_by, created_at, updated_at, template_id, workflow_overrides, position, priority, labels, source, integration_id, external_id, external_url, external_status, synced_at, column_id
+                   integration_id, external_id, external_url, external_status, template_id, sprint_id, synced_at)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, now())
+RETURNING id, project_id, title, description, status, created_by, created_at, updated_at, template_id, workflow_overrides, position, priority, labels, source, integration_id, external_id, external_url, external_status, synced_at, column_id, sprint_id, archived_at
 `
 
 type CreateImportedTaskParams struct {
@@ -34,6 +66,7 @@ type CreateImportedTaskParams struct {
 	ExternalUrl    *string
 	ExternalStatus *string
 	TemplateID     *uuid.UUID
+	SprintID       *uuid.UUID
 }
 
 func (q *Queries) CreateImportedTask(ctx context.Context, arg CreateImportedTaskParams) (Task, error) {
@@ -52,6 +85,7 @@ func (q *Queries) CreateImportedTask(ctx context.Context, arg CreateImportedTask
 		arg.ExternalUrl,
 		arg.ExternalStatus,
 		arg.TemplateID,
+		arg.SprintID,
 	)
 	var i Task
 	err := row.Scan(
@@ -75,15 +109,17 @@ func (q *Queries) CreateImportedTask(ctx context.Context, arg CreateImportedTask
 		&i.ExternalStatus,
 		&i.SyncedAt,
 		&i.ColumnID,
+		&i.SprintID,
+		&i.ArchivedAt,
 	)
 	return i, err
 }
 
 const createIntegration = `-- name: CreateIntegration :one
 INSERT INTO integrations (id, project_id, kind, name, account_id, config, status_map, default_template_id,
-                          auto_start, interval_minutes, enabled, created_by)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-RETURNING id, project_id, kind, name, account_id, config, status_map, default_template_id, auto_start, interval_minutes, enabled, last_synced_at, last_result, last_error, sync_started_at, created_by, created_at, updated_at
+                          auto_start, interval_minutes, enabled, created_by, sprint_id)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+RETURNING id, project_id, kind, name, account_id, config, status_map, default_template_id, auto_start, interval_minutes, enabled, last_synced_at, last_result, last_error, sync_started_at, created_by, created_at, updated_at, sprint_id
 `
 
 type CreateIntegrationParams struct {
@@ -99,6 +135,7 @@ type CreateIntegrationParams struct {
 	IntervalMinutes   int32
 	Enabled           bool
 	CreatedBy         *uuid.UUID
+	SprintID          *uuid.UUID
 }
 
 func (q *Queries) CreateIntegration(ctx context.Context, arg CreateIntegrationParams) (Integration, error) {
@@ -115,6 +152,7 @@ func (q *Queries) CreateIntegration(ctx context.Context, arg CreateIntegrationPa
 		arg.IntervalMinutes,
 		arg.Enabled,
 		arg.CreatedBy,
+		arg.SprintID,
 	)
 	var i Integration
 	err := row.Scan(
@@ -136,6 +174,7 @@ func (q *Queries) CreateIntegration(ctx context.Context, arg CreateIntegrationPa
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.SprintID,
 	)
 	return i, err
 }
@@ -169,7 +208,7 @@ func (q *Queries) FinishIntegrationSync(ctx context.Context, arg FinishIntegrati
 }
 
 const getIntegration = `-- name: GetIntegration :one
-SELECT id, project_id, kind, name, account_id, config, status_map, default_template_id, auto_start, interval_minutes, enabled, last_synced_at, last_result, last_error, sync_started_at, created_by, created_at, updated_at FROM integrations WHERE id = $1
+SELECT id, project_id, kind, name, account_id, config, status_map, default_template_id, auto_start, interval_minutes, enabled, last_synced_at, last_result, last_error, sync_started_at, created_by, created_at, updated_at, sprint_id FROM integrations WHERE id = $1
 `
 
 func (q *Queries) GetIntegration(ctx context.Context, id uuid.UUID) (Integration, error) {
@@ -194,12 +233,13 @@ func (q *Queries) GetIntegration(ctx context.Context, id uuid.UUID) (Integration
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.SprintID,
 	)
 	return i, err
 }
 
 const getTaskByExternal = `-- name: GetTaskByExternal :one
-SELECT id, project_id, title, description, status, created_by, created_at, updated_at, template_id, workflow_overrides, position, priority, labels, source, integration_id, external_id, external_url, external_status, synced_at, column_id FROM tasks WHERE integration_id = $1 AND external_id = $2
+SELECT id, project_id, title, description, status, created_by, created_at, updated_at, template_id, workflow_overrides, position, priority, labels, source, integration_id, external_id, external_url, external_status, synced_at, column_id, sprint_id, archived_at FROM tasks WHERE integration_id = $1 AND external_id = $2
 `
 
 type GetTaskByExternalParams struct {
@@ -231,6 +271,8 @@ func (q *Queries) GetTaskByExternal(ctx context.Context, arg GetTaskByExternalPa
 		&i.ExternalStatus,
 		&i.SyncedAt,
 		&i.ColumnID,
+		&i.SprintID,
+		&i.ArchivedAt,
 	)
 	return i, err
 }
@@ -238,7 +280,7 @@ func (q *Queries) GetTaskByExternal(ctx context.Context, arg GetTaskByExternalPa
 const leaseIntegrationSync = `-- name: LeaseIntegrationSync :one
 UPDATE integrations SET sync_started_at = now()
 WHERE id = $1 AND (sync_started_at IS NULL OR sync_started_at < now() - interval '10 minutes')
-RETURNING id, project_id, kind, name, account_id, config, status_map, default_template_id, auto_start, interval_minutes, enabled, last_synced_at, last_result, last_error, sync_started_at, created_by, created_at, updated_at
+RETURNING id, project_id, kind, name, account_id, config, status_map, default_template_id, auto_start, interval_minutes, enabled, last_synced_at, last_result, last_error, sync_started_at, created_by, created_at, updated_at, sprint_id
 `
 
 // Lease an integration for one sync; a lease older than 10 minutes is considered dead.
@@ -264,6 +306,7 @@ func (q *Queries) LeaseIntegrationSync(ctx context.Context, id uuid.UUID) (Integ
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.SprintID,
 	)
 	return i, err
 }
@@ -297,7 +340,7 @@ func (q *Queries) ListDueIntegrations(ctx context.Context) ([]uuid.UUID, error) 
 }
 
 const listIntegrations = `-- name: ListIntegrations :many
-SELECT id, project_id, kind, name, account_id, config, status_map, default_template_id, auto_start, interval_minutes, enabled, last_synced_at, last_result, last_error, sync_started_at, created_by, created_at, updated_at FROM integrations WHERE project_id = $1 ORDER BY created_at
+SELECT id, project_id, kind, name, account_id, config, status_map, default_template_id, auto_start, interval_minutes, enabled, last_synced_at, last_result, last_error, sync_started_at, created_by, created_at, updated_at, sprint_id FROM integrations WHERE project_id = $1 ORDER BY created_at
 `
 
 func (q *Queries) ListIntegrations(ctx context.Context, projectID uuid.UUID) ([]Integration, error) {
@@ -328,6 +371,7 @@ func (q *Queries) ListIntegrations(ctx context.Context, projectID uuid.UUID) ([]
 			&i.CreatedBy,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.SprintID,
 		); err != nil {
 			return nil, err
 		}
@@ -339,12 +383,21 @@ func (q *Queries) ListIntegrations(ctx context.Context, projectID uuid.UUID) ([]
 	return items, nil
 }
 
+const restoreTask = `-- name: RestoreTask :exec
+UPDATE tasks SET archived_at = NULL, updated_at = now() WHERE id = $1
+`
+
+func (q *Queries) RestoreTask(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, restoreTask, id)
+	return err
+}
+
 const updateImportedTask = `-- name: UpdateImportedTask :one
 UPDATE tasks SET
     title = $2, description = $3, labels = $4, priority = $5, external_url = $6, external_status = $7,
-    column_id = $8, position = $9, synced_at = now(), updated_at = now()
+    column_id = $8, position = $9, sprint_id = $10, synced_at = now(), updated_at = now()
 WHERE id = $1
-RETURNING id, project_id, title, description, status, created_by, created_at, updated_at, template_id, workflow_overrides, position, priority, labels, source, integration_id, external_id, external_url, external_status, synced_at, column_id
+RETURNING id, project_id, title, description, status, created_by, created_at, updated_at, template_id, workflow_overrides, position, priority, labels, source, integration_id, external_id, external_url, external_status, synced_at, column_id, sprint_id, archived_at
 `
 
 type UpdateImportedTaskParams struct {
@@ -357,6 +410,7 @@ type UpdateImportedTaskParams struct {
 	ExternalStatus *string
 	ColumnID       uuid.UUID
 	Position       float64
+	SprintID       *uuid.UUID
 }
 
 func (q *Queries) UpdateImportedTask(ctx context.Context, arg UpdateImportedTaskParams) (Task, error) {
@@ -370,6 +424,7 @@ func (q *Queries) UpdateImportedTask(ctx context.Context, arg UpdateImportedTask
 		arg.ExternalStatus,
 		arg.ColumnID,
 		arg.Position,
+		arg.SprintID,
 	)
 	var i Task
 	err := row.Scan(
@@ -393,6 +448,8 @@ func (q *Queries) UpdateImportedTask(ctx context.Context, arg UpdateImportedTask
 		&i.ExternalStatus,
 		&i.SyncedAt,
 		&i.ColumnID,
+		&i.SprintID,
+		&i.ArchivedAt,
 	)
 	return i, err
 }
@@ -400,9 +457,9 @@ func (q *Queries) UpdateImportedTask(ctx context.Context, arg UpdateImportedTask
 const updateIntegration = `-- name: UpdateIntegration :one
 UPDATE integrations SET
     name = $2, account_id = $3, config = $4, status_map = $5, default_template_id = $6,
-    auto_start = $7, interval_minutes = $8, enabled = $9, updated_at = now()
+    auto_start = $7, interval_minutes = $8, enabled = $9, sprint_id = $10, updated_at = now()
 WHERE id = $1
-RETURNING id, project_id, kind, name, account_id, config, status_map, default_template_id, auto_start, interval_minutes, enabled, last_synced_at, last_result, last_error, sync_started_at, created_by, created_at, updated_at
+RETURNING id, project_id, kind, name, account_id, config, status_map, default_template_id, auto_start, interval_minutes, enabled, last_synced_at, last_result, last_error, sync_started_at, created_by, created_at, updated_at, sprint_id
 `
 
 type UpdateIntegrationParams struct {
@@ -415,6 +472,7 @@ type UpdateIntegrationParams struct {
 	AutoStart         bool
 	IntervalMinutes   int32
 	Enabled           bool
+	SprintID          *uuid.UUID
 }
 
 func (q *Queries) UpdateIntegration(ctx context.Context, arg UpdateIntegrationParams) (Integration, error) {
@@ -428,6 +486,7 @@ func (q *Queries) UpdateIntegration(ctx context.Context, arg UpdateIntegrationPa
 		arg.AutoStart,
 		arg.IntervalMinutes,
 		arg.Enabled,
+		arg.SprintID,
 	)
 	var i Integration
 	err := row.Scan(
@@ -449,6 +508,7 @@ func (q *Queries) UpdateIntegration(ctx context.Context, arg UpdateIntegrationPa
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.SprintID,
 	)
 	return i, err
 }

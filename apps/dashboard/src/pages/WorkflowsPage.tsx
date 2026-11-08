@@ -131,16 +131,18 @@ function Editor({ template, agents, onSaved }: { template: Template | null; agen
             <input value={description} onChange={(e) => { setDescription(e.target.value); setDirty(true); }} maxLength={2000} />
           </Field>
         </div>
-        <div className="form-grid" style={{ marginTop: 10 }}>
+        <div className="form-grid wf-options" style={{ marginTop: 10 }}>
           <label className="checkbox">
             <input type="checkbox" checked={def.source?.autoStart ?? false} onChange={(e) => update({ ...def, source: { ...def.source, autoStart: e.target.checked } })} />
             <span>Run automatically when a task is imported</span>
           </label>
-          <Field label="Finished tasks go to">
+          <label className="inline-field">
+            <span>Finished tasks go to the</span>
             <select value={def.destination?.column ?? "done"} onChange={(e) => update({ ...def, destination: { column: e.target.value as Schemas["ColumnRole"] } })}>
-              {ROLES.map((c) => <option key={c} value={c}>{c.replace("_", " ")} column</option>)}
+              {ROLES.map((c) => <option key={c} value={c}>{c.replace("_", " ")}</option>)}
             </select>
-          </Field>
+            <span>list</span>
+          </label>
           <label className="checkbox">
             <input type="checkbox" checked={def.finalReport ?? true} onChange={(e) => update({ ...def, finalReport: e.target.checked })} />
             <span>Write a final report</span>

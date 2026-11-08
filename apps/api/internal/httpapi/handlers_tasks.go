@@ -113,6 +113,7 @@ func (s *Server) CreateTask(ctx context.Context, req apigen.CreateTaskRequestObj
 		col := *req.Body.Column
 		opts.Column = &col
 	}
+	opts.Sprint = req.Body.SprintId
 	if req.Body.Priority != nil {
 		opts.Priority = string(*req.Body.Priority)
 	}
@@ -137,7 +138,7 @@ func (s *Server) ListTasks(ctx context.Context, req apigen.ListTasksRequestObjec
 		v := string(*req.Params.Status)
 		status = &v
 	}
-	rows, err := s.Tasks.ListTasks(ctx, req.Params.ProjectId, status)
+	rows, err := s.Tasks.ListTasks(ctx, req.Params.ProjectId, status, req.Params.Archived != nil && *req.Params.Archived)
 	if err != nil {
 		return nil, err
 	}
@@ -147,7 +148,7 @@ func (s *Server) ListTasks(ctx context.Context, req apigen.ListTasksRequestObjec
 		items[i] = toTask(dbgen.Task{
 			ID: r.ID, ProjectID: r.ProjectID, Title: r.Title, Description: r.Description, Status: r.Status,
 			CreatedBy: r.CreatedBy, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt, TemplateID: r.TemplateID,
-			ColumnID: r.ColumnID, Position: r.Position, Priority: r.Priority, Labels: r.Labels, Source: r.Source,
+			ColumnID: r.ColumnID, Position: r.Position, SprintID: r.SprintID, ArchivedAt: r.ArchivedAt, Priority: r.Priority, Labels: r.Labels, Source: r.Source,
 			ExternalID: r.ExternalID, ExternalUrl: r.ExternalUrl, ExternalStatus: r.ExternalStatus,
 		}, &name)
 	}
@@ -308,6 +309,7 @@ func taskFields(out *apigen.Task, t dbgen.Task) {
 	pos := t.Position
 	out.Column, out.Priority, out.Source, out.Labels, out.Position = &col, &pri, &src, &labels, &pos
 	out.ExternalId, out.ExternalUrl, out.ExternalStatus, out.TemplateId = t.ExternalID, t.ExternalUrl, t.ExternalStatus, t.TemplateID
+	out.SprintId, out.ArchivedAt = t.SprintID, t.ArchivedAt
 }
 
 func (s *Server) GetBoard(ctx context.Context, req apigen.GetBoardRequestObject) (apigen.GetBoardResponseObject, error) {
@@ -324,7 +326,7 @@ func (s *Server) GetBoard(ctx context.Context, req apigen.GetBoardRequestObject)
 		card := apigen.BoardCard{PendingApproval: r.PendingApproval, Task: toTask(dbgen.Task{
 			ID: r.ID, ProjectID: r.ProjectID, Title: r.Title, Description: r.Description, Status: r.Status,
 			CreatedBy: r.CreatedBy, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt, TemplateID: r.TemplateID,
-			ColumnID: r.ColumnID, Position: r.Position, Priority: r.Priority, Labels: r.Labels, Source: r.Source,
+			ColumnID: r.ColumnID, Position: r.Position, SprintID: r.SprintID, ArchivedAt: r.ArchivedAt, Priority: r.Priority, Labels: r.Labels, Source: r.Source,
 			IntegrationID: r.IntegrationID, ExternalID: r.ExternalID, ExternalUrl: r.ExternalUrl, ExternalStatus: r.ExternalStatus,
 		}, nil)}
 		if r.WorkflowID != uuid.Nil {
@@ -377,6 +379,16 @@ func (s *Server) UpdateTask(ctx context.Context, req apigen.UpdateTaskRequestObj
 	if b.Column != nil {
 		v := *b.Column
 		p.Column = &v
+	}
+	if b.Sprint != nil {
+		p.SetSprint = true
+		if *b.Sprint != "none" && *b.Sprint != "" {
+			id, err := uuid.Parse(*b.Sprint)
+			if err != nil {
+				return nil, apperr.Validation(apperr.FieldError{Field: "sprint", Message: "a sprint id or \"none\""})
+			}
+			p.Sprint = &id
+		}
 	}
 	if b.Labels != nil {
 		p.Labels = *b.Labels

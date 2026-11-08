@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  AlertTriangle, Bot, CheckCircle2, ChevronRight, CircleSlash, FileText, Flag, Hourglass, Play, RotateCcw, Square, XCircle,
+  AlertTriangle, Bot, CheckCircle2, ChevronRight, CircleSlash, FileText, Flag, Hourglass, Pencil, Play, RotateCcw, Square, XCircle,
 } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { Link, useParams } from "react-router";
@@ -14,6 +14,7 @@ import {
 } from "./workflowUi";
 import { TaskWorkflowPanel } from "./TaskWorkflowPanel";
 import { AccountSelect } from "../components/AccountSelect";
+import { TaskDetailsForm } from "../components/TaskFields";
 
 type P = Record<string, unknown>;
 const str = (v: unknown) => (typeof v === "string" ? v : v == null ? "" : JSON.stringify(v));
@@ -148,6 +149,7 @@ export function TaskPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["task", taskId] }),
   });
   const [retryAccount, setRetryAccount] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
   const retry = useMutation({
     mutationFn: async ({ workflowId, stepId }: { workflowId: string; stepId: string }) => {
       // Optionally switch the failed step to another account before retrying it.
@@ -184,12 +186,18 @@ export function TaskPage() {
             {wf ? <WorkflowStatus wf={wf} /> : <TaskStatus status={task.status} />}
             <Link to={`/projects/${task.projectId}`} className="small">project</Link>
             {wf?.temporalWorkflowId && <CopyText value={wf.temporalWorkflowId} display={wf.temporalWorkflowId.slice(0, 11)} label="Temporal workflow id" />}
+            {task.archivedAt && <Badge tone="warn" dot={false}>archived · no longer in its source</Badge>}
+            {task.priority && task.priority !== "none" && <span className={`chip prio-${task.priority}`}>{task.priority}</span>}
+            {task.labels?.map((l) => <span key={l} className="chip">{l}</span>)}
             <span className="small faint" title={formatDate(task.createdAt)}>created {relativeTime(task.createdAt)}</span>
             {wf && live && <Badge tone={connected ? "ok" : "neutral"} pulse={connected}>{connected ? "live" : "connecting"}</Badge>}
           </div>
           {task.description && <p className="desc">{task.description}</p>}
         </div>
         <div className="actions" style={{ marginTop: 0 }}>
+          <button className="btn" onClick={() => setEditing((v) => !v)} aria-expanded={editing}>
+            <Pencil size={14} aria-hidden /> {editing ? "Close editor" : "Edit"}
+          </button>
           {wf && isActiveWorkflow(wf) && (
             <button className="btn btn-danger" onClick={() => cancel.mutate()} disabled={cancel.isPending}>
               <Square size={14} aria-hidden /> Cancel
@@ -198,6 +206,11 @@ export function TaskPage() {
         </div>
       </header>
       <ErrorNote error={cancel.error} />
+      {editing && (
+        <Panel title="Edit task" flush={false}>
+          <TaskDetailsForm task={task} onSaved={() => setEditing(false)} />
+        </Panel>
+      )}
 
       <Pipeline plan={plan} steps={steps} wf={wf} />
 
