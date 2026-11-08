@@ -52,6 +52,7 @@ Wise will follow these principles:
 9. **Replaceable runtime:** Agent frameworks and external coding agents (Claude Code, Codex) can be added, replaced, or removed without redesigning the platform.
 10. **Controlled self-improvement:** Wise can propose improvements but cannot silently change its own security boundaries.
 11. **Containerized dependencies:** Wise builds and runs with only Docker on the host. Every tool a service or task needs lives in a pinned container image.
+12. **Customizable from the panel:** Every behavioural setting — system prompts, agents, workflow templates, model providers and aliases, policies and budgets, limits, board columns, task sources, accounts — is configurable in the dashboard, never only in code or files. Code and files ship defaults that are seeded into the database and can be reset; the database is the source of truth. Each feature ships with its API, panel editor, validation, audit trail and reset-to-default. Only secrets, infrastructure wiring and security boundaries stay outside the panel (see `CLAUDE.md`).
 
 ---
 
@@ -1478,6 +1479,8 @@ The Execution Worker needs to create runner containers. It must reach the contai
 
 # 20. Implementation Roadmap
 
+Every phase follows principle 12 (*Customizable from the panel*): a feature is not done until everything a user may want to change about it is editable in the dashboard, with validation, audit and reset-to-default.
+
 ## Phase 1 — Foundation
 
 Build:
@@ -1525,6 +1528,21 @@ Build:
 - Audit logs
 
 **Goal:** Wise can coordinate a complete engineering workflow.
+
+## Phase 3b — Board, Accounts and Configurable Workflows
+
+Built: Kanban board per project; task import from Jira, ClickUp and Trello; multiple encrypted accounts per model provider (Claude Code, Codex, LM Studio, DeepSeek, OpenAI-compatible) chosen per workflow step; workflow templates edited as a flowchart, per-task step overrides and step-by-step runs.
+
+## Phase 3c — Customization
+
+Build:
+
+- Panel-managed settings (model providers and aliases, policies and budgets, workflow defaults, board defaults) with live reload, history and reset
+- Agent editor: edit every agent's prompt and contract, create and duplicate agents, versions and reset to the shipped default
+- Custom board columns per project with workflow roles (in progress, review, done)
+- Tasks section as Trello-style lists across projects
+
+**Goal:** Wise is fully customizable from the dashboard; code and files only provide defaults.
 
 ## Phase 4 — Context and Memory
 
