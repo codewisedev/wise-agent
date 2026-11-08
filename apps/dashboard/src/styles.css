@@ -606,3 +606,36 @@ button.card-title:focus-visible { outline: 2px solid var(--ring); border-radius:
 .agent-editor textarea.invalid { border-color: var(--danger, #e5484d); }
 pre.diff span.add { color: var(--ok, #3fb950); background: color-mix(in srgb, var(--ok, #3fb950) 10%, transparent); display: inline-block; width: 100%; }
 pre.diff span.del { color: var(--danger, #e5484d); background: color-mix(in srgb, var(--danger, #e5484d) 10%, transparent); display: inline-block; width: 100%; }
+
+/* ---------- tasks board ---------- */
+.project-pick { min-width: 180px; }
+.seg { display: inline-flex; }
+.seg .btn { border-radius: 0; }
+.seg .btn:first-child { border-radius: var(--radius) 0 0 var(--radius); }
+.seg .btn:last-child { border-radius: 0 var(--radius) var(--radius) 0; margin-left: -1px; }
+.tasks-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin: 0 0 var(--space-3); }
+.tasks-toolbar select { height: 32px; }
+.tasks-toolbar .search { display: inline-flex; align-items: center; gap: 6px; padding: 0 8px; height: 32px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--text-faint); }
+.tasks-toolbar .search input { border: 0; background: transparent; height: 30px; padding: 0; width: 180px; outline: none; }
+.tasks-toolbar .search:focus-within { border-color: var(--ring); }
+.linkish { all: unset; cursor: pointer; }
+.linkish:hover { text-decoration: underline; }
+.linkish:focus-visible { outline: 2px solid var(--ring); border-radius: 3px; }
+.drawer-scrim { position: fixed; inset: 0; background: rgb(0 0 0 / 0.35); z-index: 40; }
+.drawer {
+  position: fixed; top: 0; right: 0; bottom: 0; width: min(460px, 100vw); z-index: 41; overflow-y: auto;
+  background: var(--surface); border-left: 1px solid var(--border-strong); box-shadow: var(--shadow);
+  animation: drawer-in 160ms ease-out;
+}
+@keyframes drawer-in { from { transform: translateX(24px); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .drawer { animation: none; } }
+.drawer-head { position: sticky; top: 0; display: flex; align-items: center; gap: 6px; padding: 10px 14px; background: var(--surface); border-bottom: 1px solid var(--border); }
+.drawer-head .spacer { flex: 1; }
+.drawer-body { display: grid; gap: 12px; padding: 14px; }
+.drawer-body .actions { margin: 0; }
+.drawer-section { border-top: 1px solid var(--border); padding-top: 12px; display: grid; gap: 8px; }
+.drawer-section h3 { margin: 0; font-size: 12px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-muted); }
+@media (max-width: 640px) {
+  .tasks-toolbar .search input { width: 120px; }
+  .project-pick { min-width: 0; flex: 1; }
+}
