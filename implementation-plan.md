@@ -1539,10 +1539,12 @@ Build:
 
 - Panel-managed settings (model providers and aliases, policies and budgets, workflow defaults, board defaults) with live reload, history and reset
 - Agent editor: edit every agent's prompt and contract, create and duplicate agents, versions and reset to the shipped default
-- Custom board columns per project with workflow roles (in progress, review, done)
+- Custom board columns per project with workflow roles (backlog, to do, in progress, review, done)
 - Tasks section as Trello-style lists across projects
 
 **Goal:** Wise is fully customizable from the dashboard; code and files only provide defaults.
+
+**Status:** done — see `docs/decisions/0005-panel-configuration.md`. Lists also gained a `todo` role (where unmapped imports land).
 
 ## Phase 4 — Context and Memory
 

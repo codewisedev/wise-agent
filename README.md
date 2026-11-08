@@ -2,7 +2,7 @@
 
 Personal, local-first AI engineering platform. See [`implementation-plan.md`](implementation-plan.md) for the full vision and roadmap.
 
-**Status: Phase 3b — Board and configurable workflows.** Wise manages projects and repositories behind a login, keeps tasks on a Kanban board (by hand or imported from Jira, ClickUp and Trello), and runs them through configurable agent workflows on Temporal — any step on any of your accounts (Claude Code, Codex, LM Studio, DeepSeek…), with review gates or fully step by step. Context indexing and the coding pipeline arrive in later phases.
+**Status: Phase 3c — Everything configurable from the panel.** Wise manages projects and repositories behind a login, keeps tasks on Trello-style boards with your own lists (by hand or imported from Jira, ClickUp and Trello), and runs them through configurable agent workflows on Temporal — any step on any of your accounts (Claude Code, Codex, LM Studio, DeepSeek…), with review gates or fully step by step. Agents, prompts, models, policies and limits are all edited in the dashboard. Context indexing and the coding pipeline arrive in later phases.
 
 ## What's here
 
@@ -15,7 +15,7 @@ Personal, local-first AI engineering platform. See [`implementation-plan.md`](im
 | `apps/agent-runtime` | Python agent runtime (WiseLoop, read-only repository tools) |
 | `packages/agent-definitions`, `packages/prompts` | Agent contracts (YAML) and versioned system prompts |
 | `packages/contracts/{agents,events}` | JSON Schemas for agent/tool definitions and agent events |
-| `configs/models`, `configs/policies` | Model aliases/providers and usage policy (cloud allow-list, budgets) |
+| `configs/models`, `configs/policies`, `configs/board` | Shipped *defaults* for models, usage policy and board lists (edited afterwards in Settings) |
 | `apps/api/internal/{workflow,tasks}` | Temporal workflow, activities, outbox dispatcher; tasks, artifacts, approvals |
 | `configs/workflows`, `infrastructure/temporal` | Approval gates; Temporal DB/schema setup and dynamic config |
 | `apps/execution-worker` | Placeholder for later phases |
@@ -58,13 +58,16 @@ For `make dev`, `.env` must also set `WISE_DATABASE_URL` (pointing at `127.0.0.1
 
 ## Agents and models
 
-Agents are declared in `packages/agent-definitions/agents/*.yaml` and validated against
-`packages/contracts/agents/agent-definition.schema.json` at startup. Executable now: **product-agent**
+Agents ship as defaults in `packages/agent-definitions/agents/*.yaml` (validated against
+`packages/contracts/agents/agent-definition.schema.json`). On an agent's page, **Configure** edits its prompt
+(with a diff against the shipped one), its whole contract, model and limits; every save is a version you can
+restore, and **Reset** returns to the shipped default. **New agent** and **Duplicate** create your own. Executable now: **product-agent**
 and **requirements-agent**; the other nine are declared for later phases. Start a run from **Agents** in
 the dashboard (optionally attaching a project so the agent can read its repositories) and watch the live
 timeline of model calls, tool calls and the validated output.
 
-Every model call goes through the **Model Gateway** (`configs/models/models.yaml`):
+Every model call goes through the **Model Gateway**; its aliases, providers and cache are edited in
+**Settings → Models** (shipped defaults: `configs/models/models.yaml`):
 
 | Alias | Default target | Use |
 | --- | --- | --- |
@@ -77,20 +80,23 @@ Network* so Docker can reach it. Set `WISE_LMSTUDIO_MODEL` to pin a model; empty
 
 **Claude Code:** run `claude setup-token` once and put the token in `.env` as `CLAUDE_CODE_OAUTH_TOKEN`
 (`make dev` uses your existing login instead). Claude Code reports API-equivalent cost; the daily budgets
-in `configs/policies/models.yaml` still bound usage. That file also lists which agents may use cloud
-models at all — Wise never edits it itself.
+in **Settings → Policy & budgets** still bound usage, and that page lists which agents may use cloud models
+at all. Every setting has a JSON mode, history and **Reset** to the shipped default; changes apply at once.
 
 If a provider fails for good (e.g. not logged in), the gateway skips it for 60 s and uses the alias's
 fallbacks. The **Models** page shows provider status, aliases and token/cost usage per agent.
 
 ## Board, workflows and accounts
 
-**Board** — every project has a board (Projects → a project → Board): Backlog, To do, In progress, Review,
-Done. Add cards in any column, drag them (mouse or keyboard: focus a card, Space, arrows, Space). Running a
-task's workflow moves its card; a step waiting for your review puts it in Review.
+**Board** — **Tasks** (`g t`) shows a project's lists like Trello (or all projects combined, read-only);
+each project's board is also under Projects → a project → Board. Add cards and lists, drag both (mouse or
+keyboard: focus, Space, arrows, Space), click a list name to rename it, and use ⋯ for its color, WIP limit
+and **role**. Roles tell workflows where cards go: a run moves its card to the *in progress* list, a step
+waiting for you to *review*, a finished task to the template's destination role. Click a card for a quick
+view to edit it or run its workflow. New projects get the lists from Settings → Board.
 
 **Task sources** — Board → Task sources imports Jira issues (JQL), ClickUp list tasks or Trello cards on a
-schedule or with *Sync now*. Import only: Wise never writes back. Map source statuses to columns, pick the
+schedule or with *Sync now*. Import only: Wise never writes back. Map source statuses to lists, pick the
 workflow imported tasks use, and optionally run it automatically.
 
 **Workflows** (`g w`) — templates of agent steps drawn as a flowchart. For each step choose the agent, the
@@ -107,7 +113,8 @@ and Codex run in the isolated `wise-cli-runner` container.
 
 Temporal's UI (http://127.0.0.1:8233, namespace `wise`) shows every workflow's history. Commands to Temporal go
 through a Postgres outbox, so decisions made while Temporal or the orchestrator is down are delivered later.
-See `docs/decisions/0003-workflow-engine.md` and `0004-board-accounts-templates.md`.
+See `docs/decisions/0003-workflow-engine.md`, `0004-board-accounts-templates.md` and
+`0005-panel-configuration.md`.
 
 ## API
 
