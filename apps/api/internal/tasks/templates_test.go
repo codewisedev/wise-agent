@@ -89,7 +89,7 @@ func TestResolveReportsProblems(t *testing.T) {
 	for _, want := range []string{
 		"Bad ID: step id must be", "plan: planner-agent needs requirements", "qa: agent \"qa-agent\" is not executable",
 		"x: unknown agent", "plan: duplicate step id", "r: no account named missing", "m: a model can only be chosen",
-		"v: reviewIncludes \"later\"", "v: reviseFrom \"zzz\"", ": destination column \"nowhere\"", "ghost: override for a step",
+		"v: reviewIncludes \"later\"", "v: reviseFrom \"zzz\"", ": destination \"nowhere\"", "ghost: override for a step",
 	} {
 		if !strings.Contains(got, want) {
 			t.Errorf("missing issue %q in:\n%s", want, got)

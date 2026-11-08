@@ -619,6 +619,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/projects/{projectId}/columns": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: components["parameters"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        get: operations["listColumns"];
+        put?: never;
+        post: operations["createColumn"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/columns/{columnId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                columnId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["updateColumn"];
+        post?: never;
+        /** @description Deletes a column. Its cards (and status mappings) move to moveTo, which is required when it has cards. */
+        delete: operations["deleteColumn"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/tasks": {
         parameters: {
             query?: never;
@@ -1704,7 +1741,11 @@ export interface components {
             title: string;
             description: string;
             status: components["schemas"]["TaskStatus"];
-            column?: components["schemas"]["BoardColumn"];
+            /**
+             * Format: uuid
+             * @description The board column the card is in.
+             */
+            column?: string;
             /** Format: double */
             position?: number;
             priority?: components["schemas"]["TaskPriority"];
@@ -1728,7 +1769,11 @@ export interface components {
             description?: string;
             priority?: components["schemas"]["TaskPriority"];
             labels?: string[];
-            column?: components["schemas"]["BoardColumn"];
+            /**
+             * Format: uuid
+             * @description Move to this column of the project's board.
+             */
+            column?: string;
             /**
              * Format: double
              * @description Order within the column (cards sort ascending); omit to append.
@@ -1745,10 +1790,9 @@ export interface components {
             pendingApproval: boolean;
         };
         Board: {
-            columns: {
-                id: components["schemas"]["BoardColumn"];
+            columns: (components["schemas"]["BoardColumn"] & {
                 cards: components["schemas"]["BoardCard"][];
-            }[];
+            })[];
         };
         TaskList: {
             items: components["schemas"]["Task"][];
@@ -1760,7 +1804,11 @@ export interface components {
             start: boolean;
             /** @description With start, pause after every step. */
             stepByStep?: boolean;
-            column?: components["schemas"]["BoardColumn"];
+            /**
+             * Format: uuid
+             * @description Board column (default: the backlog column, else the first).
+             */
+            column?: string;
             priority?: components["schemas"]["TaskPriority"];
             labels?: string[];
             /**
@@ -1993,13 +2041,47 @@ export interface components {
                 autoStart?: boolean;
             };
             destination?: {
-                column?: components["schemas"]["BoardColumn"];
+                column?: components["schemas"]["ColumnRole"];
             };
             finalReport?: boolean;
             maxRevisions?: number;
         };
-        /** @enum {string} */
-        BoardColumn: "backlog" | "todo" | "in_progress" | "review" | "done";
+        /**
+         * @description What a column means to workflows: runs move cards to in_progress, then review, then the template's destination role.
+         * @enum {string}
+         */
+        ColumnRole: "backlog" | "todo" | "in_progress" | "review" | "done";
+        BoardColumn: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            projectId: string;
+            name: string;
+            /** Format: double */
+            position: number;
+            role?: components["schemas"]["ColumnRole"];
+            color?: string | null;
+            wipLimit?: number | null;
+        };
+        BoardColumnList: {
+            items: components["schemas"]["BoardColumn"][];
+        };
+        ColumnInput: {
+            name: string;
+            /**
+             * @description Empty = no role. Taking a role moves it from the column that had it.
+             * @enum {string}
+             */
+            role?: "" | "backlog" | "todo" | "in_progress" | "review" | "done";
+            /** @description #rrggbb or empty. */
+            color?: string;
+            wipLimit?: number | null;
+            /**
+             * Format: double
+             * @description Order on the board (columns sort ascending).
+             */
+            position?: number;
+        };
         WorkflowTemplate: {
             /** Format: uuid */
             id: string;
@@ -2111,7 +2193,7 @@ export interface components {
             };
             /** @description External status (lowercase) → board column. */
             statusMap: {
-                [key: string]: components["schemas"]["BoardColumn"];
+                [key: string]: string;
             };
             /** Format: uuid */
             defaultTemplateId?: string | null;
@@ -2139,7 +2221,7 @@ export interface components {
                 [key: string]: unknown;
             };
             statusMap?: {
-                [key: string]: components["schemas"]["BoardColumn"];
+                [key: string]: string;
             };
             /** Format: uuid */
             defaultTemplateId?: string | null;
@@ -3490,6 +3572,116 @@ export interface operations {
             };
             401: components["responses"]["Problem"];
             404: components["responses"]["Problem"];
+        };
+    };
+    listColumns: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: components["parameters"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The project's board columns in order. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BoardColumnList"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    createColumn: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: components["parameters"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ColumnInput"];
+            };
+        };
+        responses: {
+            /** @description Created. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BoardColumn"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+        };
+    };
+    updateColumn: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                columnId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ColumnInput"];
+            };
+        };
+        responses: {
+            /** @description Updated. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BoardColumn"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+        };
+    };
+    deleteColumn: {
+        parameters: {
+            query?: {
+                moveTo?: string;
+            };
+            header?: never;
+            path: {
+                columnId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
         };
     };
     listTasks: {

@@ -746,6 +746,77 @@ paths:
               schema: { $ref: "#/components/schemas/Board" }
         "401": { $ref: "#/components/responses/Problem" }
         "404": { $ref: "#/components/responses/Problem" }
+  /projects/{projectId}/columns:
+    parameters:
+      - $ref: "#/components/parameters/ProjectId"
+    get:
+      tags: [tasks]
+      operationId: listColumns
+      responses:
+        "200":
+          description: The project's board columns in order.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BoardColumnList" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+    post:
+      tags: [tasks]
+      operationId: createColumn
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ColumnInput" }
+      responses:
+        "201":
+          description: Created.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BoardColumn" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+  /columns/{columnId}:
+    parameters:
+      - name: columnId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    put:
+      tags: [tasks]
+      operationId: updateColumn
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ColumnInput" }
+      responses:
+        "200":
+          description: Updated.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BoardColumn" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+    delete:
+      tags: [tasks]
+      operationId: deleteColumn
+      description: Deletes a column. Its cards (and status mappings) move to moveTo, which is required when it has cards.
+      parameters:
+        - name: moveTo
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+      responses:
+        "204": { description: Deleted. }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
   /tasks:
     get:
       tags: [tasks]
@@ -2065,7 +2136,7 @@ components:
         title: { type: string }
         description: { type: string }
         status: { $ref: "#/components/schemas/TaskStatus" }
-        column: { $ref: "#/components/schemas/BoardColumn" }
+        column: { type: string, format: uuid, description: The board column the card is in. }
         position: { type: number, format: double }
         priority: { $ref: "#/components/schemas/TaskPriority" }
         labels: { type: array, items: { type: string } }
@@ -2086,7 +2157,7 @@ components:
         description: { type: string, maxLength: 20000 }
         priority: { $ref: "#/components/schemas/TaskPriority" }
         labels: { type: array, maxItems: 20, items: { type: string, maxLength: 40 } }
-        column: { $ref: "#/components/schemas/BoardColumn" }
+        column: { type: string, format: uuid, description: Move to this column of the project's board. }
         position: { type: number, format: double, description: "Order within the column (cards sort ascending); omit to append." }
     BoardCard:
       type: object
@@ -2105,11 +2176,12 @@ components:
         columns:
           type: array
           items:
-            type: object
-            required: [id, cards]
-            properties:
-              id: { $ref: "#/components/schemas/BoardColumn" }
-              cards: { type: array, items: { $ref: "#/components/schemas/BoardCard" } }
+            allOf:
+              - $ref: "#/components/schemas/BoardColumn"
+              - type: object
+                required: [cards]
+                properties:
+                  cards: { type: array, items: { $ref: "#/components/schemas/BoardCard" } }
     TaskList:
       type: object
       required: [items]
@@ -2123,7 +2195,7 @@ components:
         description: { type: string, maxLength: 20000 }
         start: { type: boolean, default: true }
         stepByStep: { type: boolean, description: "With start, pause after every step." }
-        column: { $ref: "#/components/schemas/BoardColumn" }
+        column: { type: string, format: uuid, description: "Board column (default: the backlog column, else the first)." }
         priority: { $ref: "#/components/schemas/TaskPriority" }
         labels: { type: array, maxItems: 20, items: { type: string, maxLength: 40 } }
         templateId: { type: string, format: uuid, description: Workflow template (default template when omitted). }
@@ -2366,12 +2438,38 @@ components:
         destination:
           type: object
           properties:
-            column: { $ref: "#/components/schemas/BoardColumn" }
+            column: { $ref: "#/components/schemas/ColumnRole" }
         finalReport: { type: boolean }
         maxRevisions: { type: integer, minimum: 0, maximum: 50 }
-    BoardColumn:
+    ColumnRole:
       type: string
       enum: [backlog, todo, in_progress, review, done]
+      description: "What a column means to workflows: runs move cards to in_progress, then review, then the template's destination role."
+    BoardColumn:
+      type: object
+      required: [id, projectId, name, position]
+      properties:
+        id: { type: string, format: uuid }
+        projectId: { type: string, format: uuid }
+        name: { type: string }
+        position: { type: number, format: double }
+        role: { $ref: "#/components/schemas/ColumnRole" }
+        color: { type: string, nullable: true }
+        wipLimit: { type: integer, nullable: true }
+    BoardColumnList:
+      type: object
+      required: [items]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/BoardColumn" } }
+    ColumnInput:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 40 }
+        role: { type: string, enum: ["", backlog, todo, in_progress, review, done], description: "Empty = no role. Taking a role moves it from the column that had it." }
+        color: { type: string, description: "#rrggbb or empty." }
+        wipLimit: { type: integer, minimum: 1, maximum: 1000, nullable: true }
+        position: { type: number, format: double, description: Order on the board (columns sort ascending). }
     WorkflowTemplate:
       type: object
       required: [id, name, description, definition, version, isDefault, createdAt, updatedAt]
@@ -2496,7 +2594,7 @@ components:
         statusMap:
           type: object
           description: External status (lowercase) → board column.
-          additionalProperties: { $ref: "#/components/schemas/BoardColumn" }
+          additionalProperties: { type: string, format: uuid }
         defaultTemplateId: { type: string, format: uuid, nullable: true }
         autoStart: { type: boolean }
         intervalMinutes: { type: integer }
@@ -2521,7 +2619,7 @@ components:
         config: { type: object, additionalProperties: true }
         statusMap:
           type: object
-          additionalProperties: { $ref: "#/components/schemas/BoardColumn" }
+          additionalProperties: { type: string, format: uuid }
         defaultTemplateId: { type: string, format: uuid, nullable: true }
         autoStart: { type: boolean }
         intervalMinutes: { type: integer, minimum: 5, maximum: 1440 }

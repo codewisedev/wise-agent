@@ -123,13 +123,14 @@ func ParseWorkflowConfig(raw []byte) (WorkflowConfig, error) {
 // Column roles let workflows move cards on any board layout.
 const (
 	RoleBacklog    = "backlog"
+	RoleTodo       = "todo"
 	RoleInProgress = "in_progress"
 	RoleReview     = "review"
 	RoleDone       = "done"
 )
 
 // Roles lists the workflow roles a column may have.
-var Roles = []string{RoleBacklog, RoleInProgress, RoleReview, RoleDone}
+var Roles = []string{RoleBacklog, RoleTodo, RoleInProgress, RoleReview, RoleDone}
 
 // ColumnDef is one column of a board layout.
 type ColumnDef struct {

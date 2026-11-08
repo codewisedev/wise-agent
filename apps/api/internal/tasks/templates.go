@@ -125,9 +125,6 @@ type Issue struct {
 
 var stepIDRe = regexp.MustCompile(`^[a-z][a-z0-9_-]{0,40}$`)
 
-// Columns of the task board.
-var Columns = []string{"backlog", "todo", "in_progress", "review", "done"}
-
 // Resolve applies overrides to a template and checks the result: known,
 // enabled agents; unique step ids; every required agent input produced by an
 // earlier enabled step; review references pointing backwards; valid accounts.
@@ -141,8 +138,8 @@ func Resolve(ctx context.Context, def TemplateDef, ov Overrides, stepByStep bool
 		plan.Destination = "done"
 	}
 	var issues []Issue
-	if !slices.Contains(Columns, plan.Destination) {
-		issues = append(issues, Issue{Message: fmt.Sprintf("destination column %q is not a board column", plan.Destination)})
+	if !slices.Contains(Roles, plan.Destination) {
+		issues = append(issues, Issue{Message: fmt.Sprintf("destination %q is not a column role (%s)", plan.Destination, strings.Join(Roles, ", "))})
 	}
 	if plan.MaxRevisions < 0 || plan.MaxRevisions > 50 {
 		issues = append(issues, Issue{Message: "maxRevisions must be between 0 and 50"})

@@ -488,6 +488,18 @@ type AuditLog struct {
 	CreatedAt  time.Time
 }
 
+type BoardColumn struct {
+	ID        uuid.UUID
+	ProjectID uuid.UUID
+	Name      string
+	Position  float64
+	Role      *string
+	Color     *string
+	WipLimit  *int32
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
 type Integration struct {
 	ID                uuid.UUID
 	ProjectID         uuid.UUID
@@ -618,7 +630,6 @@ type Task struct {
 	UpdatedAt         time.Time
 	TemplateID        *uuid.UUID
 	WorkflowOverrides json.RawMessage
-	BoardColumn       string
 	Position          float64
 	Priority          string
 	Labels            []string
@@ -628,6 +639,7 @@ type Task struct {
 	ExternalUrl       *string
 	ExternalStatus    *string
 	SyncedAt          *time.Time
+	ColumnID          uuid.UUID
 }
 
 type ToolCall struct {

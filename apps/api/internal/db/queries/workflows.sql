@@ -1,8 +1,8 @@
 -- ---------------------------------------------------------------- tasks
 
 -- name: CreateTask :one
-INSERT INTO tasks (id, project_id, title, description, created_by)
-VALUES ($1, $2, $3, $4, $5)
+INSERT INTO tasks (id, project_id, title, description, created_by, column_id, position)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
 RETURNING *;
 
 -- name: GetTask :one
@@ -224,10 +224,10 @@ LEFT JOIN LATERAL (
     SELECT * FROM workflow_runs r WHERE r.task_id = t.id ORDER BY r.created_at DESC LIMIT 1
 ) w ON true
 WHERE t.project_id = $1
-ORDER BY t.board_column, t.position, t.created_at;
+ORDER BY t.position, t.created_at;
 
 -- name: NextBoardPosition :one
-SELECT (coalesce(max(position), 0) + 1)::double precision FROM tasks WHERE project_id = $1 AND board_column = $2;
+SELECT (coalesce(max(position), 0) + 1)::double precision FROM tasks WHERE column_id = $1;
 
 -- name: UpdateTaskCard :one
 UPDATE tasks SET
@@ -235,11 +235,11 @@ UPDATE tasks SET
     description  = coalesce(sqlc.narg(description), description),
     priority     = coalesce(sqlc.narg(priority), priority),
     labels       = coalesce(sqlc.narg(labels)::text[], labels),
-    board_column = coalesce(sqlc.narg(board_column), board_column),
+    column_id    = coalesce(sqlc.narg(column_id), column_id),
     position     = coalesce(sqlc.narg(position), position),
     updated_at   = now()
 WHERE id = sqlc.arg(id)
 RETURNING *;
 
 -- name: MoveTaskCard :exec
-UPDATE tasks SET board_column = $2, position = $3, updated_at = now() WHERE id = $1;
+UPDATE tasks SET column_id = $2, position = $3, updated_at = now() WHERE id = $1;

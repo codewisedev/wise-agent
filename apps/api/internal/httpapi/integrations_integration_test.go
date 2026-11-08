@@ -48,7 +48,7 @@ func TestTaskSourceImportIsIdempotentAndFollowsTheSource(t *testing.T) {
 	e.expect(e.do("POST", "/projects/"+pid+"/integrations", map[string]any{"name": "x", "kind": "jira", "accountId": trello, "config": map[string]any{"jql": "a"}}), 400)
 	e.expect(e.do("POST", "/projects/"+pid+"/integrations", map[string]any{"name": "x", "kind": "jira", "accountId": jira}), 400)
 	e.expect(e.do("POST", "/projects/"+pid+"/integrations", map[string]any{"name": "x", "kind": "jira", "accountId": jira,
-		"config": map[string]any{"jql": "a"}, "statusMap": map[string]any{"ready for qa": "nowhere"}}), 400)
+		"config": map[string]any{"jql": "a"}, "statusMap": map[string]any{"ready for qa": uuid.NewString()}}), 400)
 
 	quick := e.expect(e.do("GET", "/workflow-templates", nil), 200)["items"].([]any)
 	var quickID string
@@ -59,7 +59,7 @@ func TestTaskSourceImportIsIdempotentAndFollowsTheSource(t *testing.T) {
 	}
 	it := e.expect(e.do("POST", "/projects/"+pid+"/integrations", map[string]any{
 		"name": "ABC board", "kind": "jira", "accountId": jira, "config": map[string]any{"jql": "project = ABC"},
-		"statusMap": map[string]any{"Ready for QA": "review"}, "defaultTemplateId": quickID, "autoStart": false,
+		"statusMap": map[string]any{"Ready for QA": columnIDs(t, e, pid)["review"]}, "defaultTemplateId": quickID, "autoStart": false,
 	}), 201)
 	iid := it["id"].(string)
 

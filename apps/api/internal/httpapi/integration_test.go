@@ -86,6 +86,8 @@ func setup(t *testing.T) *env {
 	queue := runqueue.NewService(d, hub, gw, catalog.Tools, log)
 	agentSvc := agents.NewService(d, hub).WithTools(catalog.Tools)
 	taskSvc := tasks.NewService(d, tasks.DefaultWorkflowConfig())
+	projectSvc := projects.NewService(d)
+	projectSvc.OnCreate = taskSvc.SeedColumns
 	taskSvc.Runs = agentSvc
 	box, err := secrets.New("MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=") // test-only key
 	if err != nil {
@@ -105,7 +107,7 @@ func setup(t *testing.T) *env {
 		t.Fatal(err)
 	}
 	server := &httpapi.Server{
-		DB: d, Auth: authSvc, Projects: projects.NewService(d),
+		DB: d, Auth: authSvc, Projects: projectSvc,
 		Repositories: repositories.NewService(d, gitinspect.New([]string{root})),
 		Agents:       agentSvc, RunQueue: queue, Gateway: gw, Hub: hub, Tasks: taskSvc, Accounts: accountSvc, Integrations: integrationSvc, Settings: settingsSvc,
 		Cookie:       httpapi.CookieConfig{TTL: time.Hour},

@@ -291,8 +291,8 @@ function WorkflowEditor({ value, set }: { value: WorkflowValue; set: (v: Workflo
   );
 }
 
-const ROLES = [
-  { v: "", l: "no role" }, { v: "backlog", l: "backlog" }, { v: "in_progress", l: "in progress (runs start here)" },
+export const ROLES = [
+  { v: "", l: "no role" }, { v: "backlog", l: "backlog" }, { v: "todo", l: "to do (unmapped imports)" }, { v: "in_progress", l: "in progress (runs start here)" },
   { v: "review", l: "review (waiting for you)" }, { v: "done", l: "done" },
 ];
 

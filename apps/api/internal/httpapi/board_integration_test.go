@@ -9,6 +9,7 @@ import (
 	"wise/apps/api/internal/tasks"
 )
 
+// boardColumns maps each column's role (or name, without one) to its card titles.
 func boardColumns(t *testing.T, e *env, pid string) map[string][]string {
 	t.Helper()
 	b := e.expect(e.do("GET", "/projects/"+pid+"/board", nil), 200)
@@ -19,7 +20,26 @@ func boardColumns(t *testing.T, e *env, pid string) map[string][]string {
 		for _, card := range col["cards"].([]any) {
 			ids = append(ids, card.(map[string]any)["task"].(map[string]any)["title"].(string))
 		}
-		out[col["id"].(string)] = ids
+		key, _ := col["role"].(string)
+		if key == "" {
+			key = col["name"].(string)
+		}
+		out[key] = ids
+	}
+	return out
+}
+
+// columnIDs maps each column's role (or name) to its id.
+func columnIDs(t *testing.T, e *env, pid string) map[string]string {
+	t.Helper()
+	out := map[string]string{}
+	for _, c := range e.expect(e.do("GET", "/projects/"+pid+"/columns", nil), 200)["items"].([]any) {
+		col := c.(map[string]any)
+		key, _ := col["role"].(string)
+		if key == "" {
+			key = col["name"].(string)
+		}
+		out[key] = col["id"].(string)
 	}
 	return out
 }
@@ -32,9 +52,10 @@ func TestBoardCardsMoveByHandAndWithWorkflows(t *testing.T) {
 		body["title"], body["start"] = title, false
 		return e.expect(e.do("POST", "/projects/"+pid+"/tasks", body), 201)["task"].(map[string]any)["id"].(string)
 	}
+	ids := columnIDs(t, e, pid)
 	a := mk("Alpha", map[string]any{})
-	b := mk("Bravo", map[string]any{"column": "todo", "priority": "high", "labels": []string{"ui", "ui", " api "}})
-	c := mk("Charlie", map[string]any{"column": "todo"})
+	b := mk("Bravo", map[string]any{"column": ids["todo"], "priority": "high", "labels": []string{"ui", "ui", " api "}})
+	c := mk("Charlie", map[string]any{"column": ids["todo"]})
 
 	cols := boardColumns(t, e, pid)
 	if len(cols) != 5 || cols["backlog"][0] != "Alpha" || len(cols["todo"]) != 2 || cols["todo"][0] != "Bravo" {
@@ -47,11 +68,11 @@ func TestBoardCardsMoveByHandAndWithWorkflows(t *testing.T) {
 
 	// Reorder within a column by position, and move across columns (appended).
 	e.expect(e.do("PATCH", "/tasks/"+c, map[string]any{"position": -1}), 200)
-	e.expect(e.do("PATCH", "/tasks/"+a, map[string]any{"column": "todo"}), 200)
+	e.expect(e.do("PATCH", "/tasks/"+a, map[string]any{"column": ids["todo"]}), 200)
 	if got := boardColumns(t, e, pid)["todo"]; len(got) != 3 || got[0] != "Charlie" || got[2] != "Alpha" {
 		t.Fatalf("reorder/move: %v", got)
 	}
-	e.expect(e.do("PATCH", "/tasks/"+a, map[string]any{"column": "nowhere"}), 400)
+	e.expect(e.do("PATCH", "/tasks/"+a, map[string]any{"column": uuid.NewString()}), 400)
 	e.expect(e.do("PATCH", "/tasks/"+a, map[string]any{"title": "x"}), 400)
 	e.expect(e.do("PATCH", "/tasks/"+a, map[string]any{"title": "Alpha renamed", "description": "d"}), 200)
 

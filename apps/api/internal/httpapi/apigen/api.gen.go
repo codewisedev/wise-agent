@@ -162,27 +162,57 @@ func (e ApprovalStatus) Valid() bool {
 	}
 }
 
-// Defines values for BoardColumn.
+// Defines values for ColumnInputRole.
 const (
-	BoardColumnBacklog    BoardColumn = "backlog"
-	BoardColumnDone       BoardColumn = "done"
-	BoardColumnInProgress BoardColumn = "in_progress"
-	BoardColumnReview     BoardColumn = "review"
-	BoardColumnTodo       BoardColumn = "todo"
+	ColumnInputRoleBacklog    ColumnInputRole = "backlog"
+	ColumnInputRoleDone       ColumnInputRole = "done"
+	ColumnInputRoleEmpty      ColumnInputRole = ""
+	ColumnInputRoleInProgress ColumnInputRole = "in_progress"
+	ColumnInputRoleReview     ColumnInputRole = "review"
+	ColumnInputRoleTodo       ColumnInputRole = "todo"
 )
 
-// Valid indicates whether the value is a known member of the BoardColumn enum.
-func (e BoardColumn) Valid() bool {
+// Valid indicates whether the value is a known member of the ColumnInputRole enum.
+func (e ColumnInputRole) Valid() bool {
 	switch e {
-	case BoardColumnBacklog:
+	case ColumnInputRoleBacklog:
 		return true
-	case BoardColumnDone:
+	case ColumnInputRoleDone:
 		return true
-	case BoardColumnInProgress:
+	case ColumnInputRoleEmpty:
 		return true
-	case BoardColumnReview:
+	case ColumnInputRoleInProgress:
 		return true
-	case BoardColumnTodo:
+	case ColumnInputRoleReview:
+		return true
+	case ColumnInputRoleTodo:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ColumnRole.
+const (
+	ColumnRoleBacklog    ColumnRole = "backlog"
+	ColumnRoleDone       ColumnRole = "done"
+	ColumnRoleInProgress ColumnRole = "in_progress"
+	ColumnRoleReview     ColumnRole = "review"
+	ColumnRoleTodo       ColumnRole = "todo"
+)
+
+// Valid indicates whether the value is a known member of the ColumnRole enum.
+func (e ColumnRole) Valid() bool {
+	switch e {
+	case ColumnRoleBacklog:
+		return true
+	case ColumnRoleDone:
+		return true
+	case ColumnRoleInProgress:
+		return true
+	case ColumnRoleReview:
+		return true
+	case ColumnRoleTodo:
 		return true
 	default:
 		return false
@@ -909,8 +939,16 @@ type ArtifactRef struct {
 // Board defines model for Board.
 type Board struct {
 	Columns []struct {
-		Cards []BoardCard `json:"cards"`
-		Id    BoardColumn `json:"id"`
+		Cards     []BoardCard        `json:"cards"`
+		Color     *string            `json:"color,omitempty"`
+		Id        openapi_types.UUID `json:"id"`
+		Name      string             `json:"name"`
+		Position  float64            `json:"position"`
+		ProjectId openapi_types.UUID `json:"projectId"`
+
+		// Role What a column means to workflows: runs move cards to in_progress, then review, then the template's destination role.
+		Role     *ColumnRole `json:"role,omitempty"`
+		WipLimit *int        `json:"wipLimit,omitempty"`
 	} `json:"columns"`
 }
 
@@ -925,7 +963,22 @@ type BoardCard struct {
 }
 
 // BoardColumn defines model for BoardColumn.
-type BoardColumn string
+type BoardColumn struct {
+	Color     *string            `json:"color,omitempty"`
+	Id        openapi_types.UUID `json:"id"`
+	Name      string             `json:"name"`
+	Position  float64            `json:"position"`
+	ProjectId openapi_types.UUID `json:"projectId"`
+
+	// Role What a column means to workflows: runs move cards to in_progress, then review, then the template's destination role.
+	Role     *ColumnRole `json:"role,omitempty"`
+	WipLimit *int        `json:"wipLimit,omitempty"`
+}
+
+// BoardColumnList defines model for BoardColumnList.
+type BoardColumnList struct {
+	Items []BoardColumn `json:"items"`
+}
 
 // ChangeStepRequest defines model for ChangeStepRequest.
 type ChangeStepRequest struct {
@@ -933,6 +986,26 @@ type ChangeStepRequest struct {
 	Account *string `json:"account,omitempty"`
 	Model   *string `json:"model,omitempty"`
 }
+
+// ColumnInput defines model for ColumnInput.
+type ColumnInput struct {
+	// Color #rrggbb or empty.
+	Color *string `json:"color,omitempty"`
+	Name  string  `json:"name"`
+
+	// Position Order on the board (columns sort ascending).
+	Position *float64 `json:"position,omitempty"`
+
+	// Role Empty = no role. Taking a role moves it from the column that had it.
+	Role     *ColumnInputRole `json:"role,omitempty"`
+	WipLimit *int             `json:"wipLimit,omitempty"`
+}
+
+// ColumnInputRole Empty = no role. Taking a role moves it from the column that had it.
+type ColumnInputRole string
+
+// ColumnRole What a column means to workflows: runs move cards to in_progress, then review, then the template's destination role.
+type ColumnRole string
 
 // CreateAccountRequest defines model for CreateAccountRequest.
 type CreateAccountRequest struct {
@@ -1006,11 +1079,12 @@ type CreateRepositoryRequest struct {
 
 // CreateTaskRequest defines model for CreateTaskRequest.
 type CreateTaskRequest struct {
-	Column      *BoardColumn  `json:"column,omitempty"`
-	Description *string       `json:"description,omitempty"`
-	Labels      *[]string     `json:"labels,omitempty"`
-	Priority    *TaskPriority `json:"priority,omitempty"`
-	Start       *bool         `json:"start,omitempty"`
+	// Column Board column (default: the backlog column, else the first).
+	Column      *openapi_types.UUID `json:"column,omitempty"`
+	Description *string             `json:"description,omitempty"`
+	Labels      *[]string           `json:"labels,omitempty"`
+	Priority    *TaskPriority       `json:"priority,omitempty"`
+	Start       *bool               `json:"start,omitempty"`
 
 	// StepByStep With start, pause after every step.
 	StepByStep *bool `json:"stepByStep,omitempty"`
@@ -1065,21 +1139,21 @@ type Integration struct {
 	ProjectId         openapi_types.UUID     `json:"projectId"`
 
 	// StatusMap External status (lowercase) → board column.
-	StatusMap map[string]BoardColumn `json:"statusMap"`
-	UpdatedAt time.Time              `json:"updatedAt"`
+	StatusMap map[string]openapi_types.UUID `json:"statusMap"`
+	UpdatedAt time.Time                     `json:"updatedAt"`
 }
 
 // IntegrationInput defines model for IntegrationInput.
 type IntegrationInput struct {
-	AccountId         openapi_types.UUID      `json:"accountId"`
-	AutoStart         *bool                   `json:"autoStart,omitempty"`
-	Config            *map[string]interface{} `json:"config,omitempty"`
-	DefaultTemplateId *openapi_types.UUID     `json:"defaultTemplateId,omitempty"`
-	Enabled           *bool                   `json:"enabled,omitempty"`
-	IntervalMinutes   *int                    `json:"intervalMinutes,omitempty"`
-	Kind              IntegrationKind         `json:"kind"`
-	Name              string                  `json:"name"`
-	StatusMap         *map[string]BoardColumn `json:"statusMap,omitempty"`
+	AccountId         openapi_types.UUID             `json:"accountId"`
+	AutoStart         *bool                          `json:"autoStart,omitempty"`
+	Config            *map[string]interface{}        `json:"config,omitempty"`
+	DefaultTemplateId *openapi_types.UUID            `json:"defaultTemplateId,omitempty"`
+	Enabled           *bool                          `json:"enabled,omitempty"`
+	IntervalMinutes   *int                           `json:"intervalMinutes,omitempty"`
+	Kind              IntegrationKind                `json:"kind"`
+	Name              string                         `json:"name"`
+	StatusMap         *map[string]openapi_types.UUID `json:"statusMap,omitempty"`
 }
 
 // IntegrationKind defines model for IntegrationKind.
@@ -1479,7 +1553,8 @@ type SyncResult struct {
 
 // Task defines model for Task.
 type Task struct {
-	Column         *BoardColumn        `json:"column,omitempty"`
+	// Column The board column the card is in.
+	Column         *openapi_types.UUID `json:"column,omitempty"`
 	CreatedAt      time.Time           `json:"createdAt"`
 	Description    string              `json:"description"`
 	ExternalId     *string             `json:"externalId,omitempty"`
@@ -1538,7 +1613,8 @@ type TaskWorkflow struct {
 // TemplateDefinition defines model for TemplateDefinition.
 type TemplateDefinition struct {
 	Destination *struct {
-		Column *BoardColumn `json:"column,omitempty"`
+		// Column What a column means to workflows: runs move cards to in_progress, then review, then the template's destination role.
+		Column *ColumnRole `json:"column,omitempty"`
 	} `json:"destination,omitempty"`
 	FinalReport  *bool `json:"finalReport,omitempty"`
 	MaxRevisions *int  `json:"maxRevisions,omitempty"`
@@ -1646,9 +1722,10 @@ type UpdateSettingRequest struct {
 
 // UpdateTaskRequest defines model for UpdateTaskRequest.
 type UpdateTaskRequest struct {
-	Column      *BoardColumn `json:"column,omitempty"`
-	Description *string      `json:"description,omitempty"`
-	Labels      *[]string    `json:"labels,omitempty"`
+	// Column Move to this column of the project's board.
+	Column      *openapi_types.UUID `json:"column,omitempty"`
+	Description *string             `json:"description,omitempty"`
+	Labels      *[]string           `json:"labels,omitempty"`
 
 	// Position Order within the column (cards sort ascending); omit to append.
 	Position *float64      `json:"position,omitempty"`
@@ -1824,6 +1901,11 @@ type ListApprovalsParams struct {
 	Status *ApprovalStatus `form:"status,omitempty" json:"status,omitempty"`
 }
 
+// DeleteColumnParams defines parameters for DeleteColumn.
+type DeleteColumnParams struct {
+	MoveTo *openapi_types.UUID `form:"moveTo,omitempty" json:"moveTo,omitempty"`
+}
+
 // GetModelsOverviewParams defines parameters for GetModelsOverview.
 type GetModelsOverviewParams struct {
 	Days *int `form:"days,omitempty" json:"days,omitempty"`
@@ -1880,6 +1962,9 @@ type LoginJSONRequestBody = LoginRequest
 // CreateApiTokenJSONRequestBody defines body for CreateApiToken for application/json ContentType.
 type CreateApiTokenJSONRequestBody = CreateApiTokenRequest
 
+// UpdateColumnJSONRequestBody defines body for UpdateColumn for application/json ContentType.
+type UpdateColumnJSONRequestBody = ColumnInput
+
 // UpdateIntegrationJSONRequestBody defines body for UpdateIntegration for application/json ContentType.
 type UpdateIntegrationJSONRequestBody = IntegrationInput
 
@@ -1888,6 +1973,9 @@ type CreateProjectJSONRequestBody = CreateProjectRequest
 
 // UpdateProjectJSONRequestBody defines body for UpdateProject for application/json ContentType.
 type UpdateProjectJSONRequestBody = UpdateProjectRequest
+
+// CreateColumnJSONRequestBody defines body for CreateColumn for application/json ContentType.
+type CreateColumnJSONRequestBody = ColumnInput
 
 // CreateIntegrationJSONRequestBody defines body for CreateIntegration for application/json ContentType.
 type CreateIntegrationJSONRequestBody = IntegrationInput
@@ -2045,6 +2133,12 @@ type ServerInterface interface {
 	// (DELETE /auth/tokens/{tokenId})
 	RevokeApiToken(w http.ResponseWriter, r *http.Request, tokenId TokenId)
 
+	// (DELETE /columns/{columnId})
+	DeleteColumn(w http.ResponseWriter, r *http.Request, columnId openapi_types.UUID, params DeleteColumnParams)
+
+	// (PUT /columns/{columnId})
+	UpdateColumn(w http.ResponseWriter, r *http.Request, columnId openapi_types.UUID)
+
 	// (GET /healthz)
 	GetHealth(w http.ResponseWriter, r *http.Request)
 
@@ -2080,6 +2174,12 @@ type ServerInterface interface {
 
 	// (GET /projects/{projectId}/board)
 	GetBoard(w http.ResponseWriter, r *http.Request, projectId ProjectId)
+
+	// (GET /projects/{projectId}/columns)
+	ListColumns(w http.ResponseWriter, r *http.Request, projectId ProjectId)
+
+	// (POST /projects/{projectId}/columns)
+	CreateColumn(w http.ResponseWriter, r *http.Request, projectId ProjectId)
 
 	// (GET /projects/{projectId}/integrations)
 	ListIntegrations(w http.ResponseWriter, r *http.Request, projectId ProjectId)
@@ -2384,6 +2484,16 @@ func (_ Unimplemented) RevokeApiToken(w http.ResponseWriter, r *http.Request, to
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
+// (DELETE /columns/{columnId})
+func (_ Unimplemented) DeleteColumn(w http.ResponseWriter, r *http.Request, columnId openapi_types.UUID, params DeleteColumnParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (PUT /columns/{columnId})
+func (_ Unimplemented) UpdateColumn(w http.ResponseWriter, r *http.Request, columnId openapi_types.UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
 // (GET /healthz)
 func (_ Unimplemented) GetHealth(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
@@ -2441,6 +2551,16 @@ func (_ Unimplemented) UpdateProject(w http.ResponseWriter, r *http.Request, pro
 
 // (GET /projects/{projectId}/board)
 func (_ Unimplemented) GetBoard(w http.ResponseWriter, r *http.Request, projectId ProjectId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (GET /projects/{projectId}/columns)
+func (_ Unimplemented) ListColumns(w http.ResponseWriter, r *http.Request, projectId ProjectId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (POST /projects/{projectId}/columns)
+func (_ Unimplemented) CreateColumn(w http.ResponseWriter, r *http.Request, projectId ProjectId) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -3446,6 +3566,74 @@ func (siw *ServerInterfaceWrapper) RevokeApiToken(w http.ResponseWriter, r *http
 	handler.ServeHTTP(w, r)
 }
 
+// DeleteColumn operation middleware
+func (siw *ServerInterfaceWrapper) DeleteColumn(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "columnId" -------------
+	var columnId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "columnId", chi.URLParam(r, "columnId"), &columnId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "columnId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params DeleteColumnParams
+
+	// ------------- Optional query parameter "moveTo" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "moveTo", r.URL.Query(), &params.MoveTo, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "moveTo"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "moveTo", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteColumn(w, r, columnId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateColumn operation middleware
+func (siw *ServerInterfaceWrapper) UpdateColumn(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "columnId" -------------
+	var columnId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "columnId", chi.URLParam(r, "columnId"), &columnId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "columnId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateColumn(w, r, columnId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetHealth operation middleware
 func (siw *ServerInterfaceWrapper) GetHealth(w http.ResponseWriter, r *http.Request) {
 
@@ -3739,6 +3927,58 @@ func (siw *ServerInterfaceWrapper) GetBoard(w http.ResponseWriter, r *http.Reque
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetBoard(w, r, projectId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListColumns operation middleware
+func (siw *ServerInterfaceWrapper) ListColumns(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "projectId" -------------
+	var projectId ProjectId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "projectId", chi.URLParam(r, "projectId"), &projectId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "projectId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListColumns(w, r, projectId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateColumn operation middleware
+func (siw *ServerInterfaceWrapper) CreateColumn(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "projectId" -------------
+	var projectId ProjectId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "projectId", chi.URLParam(r, "projectId"), &projectId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "projectId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateColumn(w, r, projectId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -5174,6 +5414,18 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/projects/{projectId}/board", wrapper.GetBoard)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/projects/{projectId}/columns", wrapper.ListColumns)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/projects/{projectId}/columns", wrapper.CreateColumn)
+	})
+	r.Group(func(r chi.Router) {
+		r.Delete(options.BaseURL+"/columns/{columnId}", wrapper.DeleteColumn)
+	})
+	r.Group(func(r chi.Router) {
+		r.Put(options.BaseURL+"/columns/{columnId}", wrapper.UpdateColumn)
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/tasks", wrapper.ListTasks)
@@ -7275,6 +7527,162 @@ func (response RevokeApiToken404ApplicationProblemPlusJSONResponse) VisitRevokeA
 	return err
 }
 
+type DeleteColumnRequestObject struct {
+	ColumnId openapi_types.UUID `json:"columnId"`
+	Params   DeleteColumnParams
+}
+
+type DeleteColumnResponseObject interface {
+	VisitDeleteColumnResponse(w http.ResponseWriter) error
+}
+
+type DeleteColumn204Response struct {
+}
+
+func (response DeleteColumn204Response) VisitDeleteColumnResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type DeleteColumn400ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response DeleteColumn400ApplicationProblemPlusJSONResponse) VisitDeleteColumnResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteColumn401ApplicationProblemPlusJSONResponse Problem
+
+func (response DeleteColumn401ApplicationProblemPlusJSONResponse) VisitDeleteColumnResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteColumn404ApplicationProblemPlusJSONResponse Problem
+
+func (response DeleteColumn404ApplicationProblemPlusJSONResponse) VisitDeleteColumnResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteColumn409ApplicationProblemPlusJSONResponse Problem
+
+func (response DeleteColumn409ApplicationProblemPlusJSONResponse) VisitDeleteColumnResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateColumnRequestObject struct {
+	ColumnId openapi_types.UUID `json:"columnId"`
+	Body     *UpdateColumnJSONRequestBody
+}
+
+type UpdateColumnResponseObject interface {
+	VisitUpdateColumnResponse(w http.ResponseWriter) error
+}
+
+type UpdateColumn200JSONResponse BoardColumn
+
+func (response UpdateColumn200JSONResponse) VisitUpdateColumnResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateColumn400ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response UpdateColumn400ApplicationProblemPlusJSONResponse) VisitUpdateColumnResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateColumn401ApplicationProblemPlusJSONResponse Problem
+
+func (response UpdateColumn401ApplicationProblemPlusJSONResponse) VisitUpdateColumnResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateColumn404ApplicationProblemPlusJSONResponse Problem
+
+func (response UpdateColumn404ApplicationProblemPlusJSONResponse) VisitUpdateColumnResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateColumn409ApplicationProblemPlusJSONResponse Problem
+
+func (response UpdateColumn409ApplicationProblemPlusJSONResponse) VisitUpdateColumnResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type GetHealthRequestObject struct {
 }
 
@@ -7918,6 +8326,139 @@ func (response GetBoard404ApplicationProblemPlusJSONResponse) VisitGetBoardRespo
 	}
 	w.Header().Set("Content-Type", "application/problem+json")
 	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListColumnsRequestObject struct {
+	ProjectId ProjectId `json:"projectId"`
+}
+
+type ListColumnsResponseObject interface {
+	VisitListColumnsResponse(w http.ResponseWriter) error
+}
+
+type ListColumns200JSONResponse BoardColumnList
+
+func (response ListColumns200JSONResponse) VisitListColumnsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListColumns401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response ListColumns401ApplicationProblemPlusJSONResponse) VisitListColumnsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListColumns404ApplicationProblemPlusJSONResponse Problem
+
+func (response ListColumns404ApplicationProblemPlusJSONResponse) VisitListColumnsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateColumnRequestObject struct {
+	ProjectId ProjectId `json:"projectId"`
+	Body      *CreateColumnJSONRequestBody
+}
+
+type CreateColumnResponseObject interface {
+	VisitCreateColumnResponse(w http.ResponseWriter) error
+}
+
+type CreateColumn201JSONResponse BoardColumn
+
+func (response CreateColumn201JSONResponse) VisitCreateColumnResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateColumn400ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response CreateColumn400ApplicationProblemPlusJSONResponse) VisitCreateColumnResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateColumn401ApplicationProblemPlusJSONResponse Problem
+
+func (response CreateColumn401ApplicationProblemPlusJSONResponse) VisitCreateColumnResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateColumn404ApplicationProblemPlusJSONResponse Problem
+
+func (response CreateColumn404ApplicationProblemPlusJSONResponse) VisitCreateColumnResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateColumn409ApplicationProblemPlusJSONResponse Problem
+
+func (response CreateColumn409ApplicationProblemPlusJSONResponse) VisitCreateColumnResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
 	_, err := buf.WriteTo(w)
 	return err
 }
@@ -10778,6 +11319,12 @@ type StrictServerInterface interface {
 	// (DELETE /auth/tokens/{tokenId})
 	RevokeApiToken(ctx context.Context, request RevokeApiTokenRequestObject) (RevokeApiTokenResponseObject, error)
 
+	// (DELETE /columns/{columnId})
+	DeleteColumn(ctx context.Context, request DeleteColumnRequestObject) (DeleteColumnResponseObject, error)
+
+	// (PUT /columns/{columnId})
+	UpdateColumn(ctx context.Context, request UpdateColumnRequestObject) (UpdateColumnResponseObject, error)
+
 	// (GET /healthz)
 	GetHealth(ctx context.Context, request GetHealthRequestObject) (GetHealthResponseObject, error)
 
@@ -10813,6 +11360,12 @@ type StrictServerInterface interface {
 
 	// (GET /projects/{projectId}/board)
 	GetBoard(ctx context.Context, request GetBoardRequestObject) (GetBoardResponseObject, error)
+
+	// (GET /projects/{projectId}/columns)
+	ListColumns(ctx context.Context, request ListColumnsRequestObject) (ListColumnsResponseObject, error)
+
+	// (POST /projects/{projectId}/columns)
+	CreateColumn(ctx context.Context, request CreateColumnRequestObject) (CreateColumnResponseObject, error)
 
 	// (GET /projects/{projectId}/integrations)
 	ListIntegrations(ctx context.Context, request ListIntegrationsRequestObject) (ListIntegrationsResponseObject, error)
@@ -11878,6 +12431,66 @@ func (sh *strictHandler) RevokeApiToken(w http.ResponseWriter, r *http.Request, 
 	}
 }
 
+// DeleteColumn operation middleware
+func (sh *strictHandler) DeleteColumn(w http.ResponseWriter, r *http.Request, columnId openapi_types.UUID, params DeleteColumnParams) {
+	var request DeleteColumnRequestObject
+
+	request.ColumnId = columnId
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteColumn(ctx, request.(DeleteColumnRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteColumn")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DeleteColumnResponseObject); ok {
+		if err := validResponse.VisitDeleteColumnResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UpdateColumn operation middleware
+func (sh *strictHandler) UpdateColumn(w http.ResponseWriter, r *http.Request, columnId openapi_types.UUID) {
+	var request UpdateColumnRequestObject
+
+	request.ColumnId = columnId
+
+	var body UpdateColumnJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.UpdateColumn(ctx, request.(UpdateColumnRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UpdateColumn")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(UpdateColumnResponseObject); ok {
+		if err := validResponse.VisitUpdateColumnResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // GetHealth operation middleware
 func (sh *strictHandler) GetHealth(w http.ResponseWriter, r *http.Request) {
 	var request GetHealthRequestObject
@@ -12200,6 +12813,65 @@ func (sh *strictHandler) GetBoard(w http.ResponseWriter, r *http.Request, projec
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(GetBoardResponseObject); ok {
 		if err := validResponse.VisitGetBoardResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListColumns operation middleware
+func (sh *strictHandler) ListColumns(w http.ResponseWriter, r *http.Request, projectId ProjectId) {
+	var request ListColumnsRequestObject
+
+	request.ProjectId = projectId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListColumns(ctx, request.(ListColumnsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListColumns")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListColumnsResponseObject); ok {
+		if err := validResponse.VisitListColumnsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CreateColumn operation middleware
+func (sh *strictHandler) CreateColumn(w http.ResponseWriter, r *http.Request, projectId ProjectId) {
+	var request CreateColumnRequestObject
+
+	request.ProjectId = projectId
+
+	var body CreateColumnJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateColumn(ctx, request.(CreateColumnRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateColumn")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CreateColumnResponseObject); ok {
+		if err := validResponse.VisitCreateColumnResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

@@ -56,7 +56,7 @@ type CreateOptions struct {
 	TemplateID *uuid.UUID
 	Start      bool
 	StepByStep bool
-	Column     string // board column; default backlog (in_progress when started)
+	Column     *uuid.UUID // board column; default: the backlog column (a started run moves it)
 	Priority   string
 	Labels     []string
 }
@@ -77,22 +77,28 @@ func (s *Service) CreateTask(ctx context.Context, projectID uuid.UUID, title, de
 		if err := projects.LockActive(ctx, q, projectID); err != nil {
 			return err
 		}
-		if task, err = q.CreateTask(ctx, dbgen.CreateTaskParams{
-			ID: id, ProjectID: projectID, Title: title, Description: strings.TrimSpace(description), CreatedBy: userID,
-		}); err != nil {
-			return err
+		var col dbgen.BoardColumn
+		var err error
+		if opts.Column != nil {
+			col, err = projectColumn(ctx, q, projectID, *opts.Column, "column")
+		} else {
+			col, err = DefaultColumn(ctx, q, projectID)
 		}
-		column := opts.Column
-		if column == "" {
-			column = "backlog"
-		}
-		// Every new card goes to the bottom of its column (the column default
-		// alone would leave all new backlog cards at position 0).
-		pos, err := q.NextBoardPosition(ctx, dbgen.NextBoardPositionParams{ProjectID: projectID, BoardColumn: column})
 		if err != nil {
 			return err
 		}
-		if err := s.placeCard(ctx, q, &task, CardPatch{Column: &column, Position: &pos, Priority: strPtrOrNil(opts.Priority), Labels: opts.Labels}); err != nil {
+		// Every new card goes to the bottom of its column.
+		pos, err := q.NextBoardPosition(ctx, col.ID)
+		if err != nil {
+			return err
+		}
+		if task, err = q.CreateTask(ctx, dbgen.CreateTaskParams{
+			ID: id, ProjectID: projectID, Title: title, Description: strings.TrimSpace(description), CreatedBy: userID,
+			ColumnID: col.ID, Position: pos,
+		}); err != nil {
+			return err
+		}
+		if err := s.placeCard(ctx, q, &task, CardPatch{Priority: strPtrOrNil(opts.Priority), Labels: opts.Labels}); err != nil {
 			return err
 		}
 		if opts.TemplateID != nil {
@@ -514,7 +520,7 @@ type CardPatch struct {
 	Description *string
 	Priority    *string
 	Labels      []string
-	Column      *string
+	Column      *uuid.UUID
 	Position    *float64
 }
 
@@ -544,9 +550,6 @@ func (s *Service) placeCard(ctx context.Context, q *dbgen.Queries, task *dbgen.T
 	if p.Priority != nil && !slices.Contains(priorities, *p.Priority) {
 		errs = append(errs, apperr.FieldError{Field: "priority", Message: "none, low, medium, high or urgent"})
 	}
-	if p.Column != nil && !slices.Contains(Columns, *p.Column) {
-		errs = append(errs, apperr.FieldError{Field: "column", Message: "unknown board column"})
-	}
 	var labels []string
 	for _, l := range p.Labels {
 		l = strings.TrimSpace(l)
@@ -564,15 +567,20 @@ func (s *Service) placeCard(ctx context.Context, q *dbgen.Queries, task *dbgen.T
 	if len(errs) > 0 {
 		return apperr.Validation(errs...)
 	}
-	if p.Column != nil && *p.Column != task.BoardColumn && p.Position == nil {
-		pos, err := q.NextBoardPosition(ctx, dbgen.NextBoardPositionParams{ProjectID: task.ProjectID, BoardColumn: *p.Column})
+	if p.Column != nil {
+		if _, err := projectColumn(ctx, q, task.ProjectID, *p.Column, "column"); err != nil {
+			return err
+		}
+	}
+	if p.Column != nil && *p.Column != task.ColumnID && p.Position == nil {
+		pos, err := q.NextBoardPosition(ctx, *p.Column)
 		if err != nil {
 			return err
 		}
 		p.Position = &pos
 	}
 	params := dbgen.UpdateTaskCardParams{ID: task.ID, Title: p.Title, Description: p.Description, Priority: p.Priority,
-		BoardColumn: p.Column, Position: p.Position}
+		ColumnID: p.Column, Position: p.Position}
 	if p.Labels != nil {
 		if labels == nil {
 			labels = []string{}
@@ -599,7 +607,7 @@ func (s *Service) UpdateCard(ctx context.Context, id uuid.UUID, p CardPatch) (db
 		if err != nil {
 			return err
 		}
-		from := task.BoardColumn
+		from := task.ColumnID
 		if err := s.placeCard(ctx, q, &task, p); err != nil {
 			return err
 		}
@@ -628,16 +636,16 @@ func (s *Service) Board(ctx context.Context, projectID uuid.UUID) ([]dbgen.ListB
 	return s.db.ListBoardTasks(ctx, projectID)
 }
 
-// columnFor is where a workflow state moves its card ("" = leave it).
-func columnFor(status, destination string) string {
+// roleFor is the column role a workflow state moves its card to ("" = leave it).
+func roleFor(status, destination string) string {
 	switch status {
 	case RunPending, RunRunning:
-		return "in_progress"
+		return RoleInProgress
 	case RunAwaitingApproval:
-		return "review"
+		return RoleReview
 	case RunCompleted:
 		if destination == "" {
-			return "done"
+			return RoleDone
 		}
 		return destination
 	}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	openapi_types "github.com/oapi-codegen/runtime/types"
 	"net/http"
 
 	"wise/apps/api/internal/apperr"
@@ -15,7 +16,7 @@ import (
 func toIntegration(it dbgen.Integration) apigen.Integration {
 	out := apigen.Integration{
 		Id: it.ID, ProjectId: it.ProjectID, Kind: apigen.IntegrationKind(it.Kind), Name: it.Name, AccountId: it.AccountID,
-		Config: jsonObject(it.Config), StatusMap: map[string]apigen.BoardColumn{}, DefaultTemplateId: it.DefaultTemplateID,
+		Config: jsonObject(it.Config), StatusMap: map[string]openapi_types.UUID{}, DefaultTemplateId: it.DefaultTemplateID,
 		AutoStart: it.AutoStart, IntervalMinutes: int(it.IntervalMinutes), Enabled: it.Enabled, LastSyncedAt: it.LastSyncedAt,
 		LastError: it.LastError, CreatedAt: it.CreatedAt, UpdatedAt: it.UpdatedAt,
 	}
@@ -41,7 +42,7 @@ func integrationInput(b *apigen.IntegrationInput) integrations.Input {
 	if b.StatusMap != nil {
 		in.StatusMap = map[string]string{}
 		for k, v := range *b.StatusMap {
-			in.StatusMap[k] = string(v)
+			in.StatusMap[k] = v.String()
 		}
 	}
 	return in

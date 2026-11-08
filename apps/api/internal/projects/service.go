@@ -43,7 +43,11 @@ type CreateResourceInput struct {
 	Metadata map[string]any
 }
 
-type Service struct{ db *db.DB }
+type Service struct {
+	db *db.DB
+	// OnCreate runs inside the project's creation transaction (e.g. to seed its board columns).
+	OnCreate func(ctx context.Context, q *dbgen.Queries, projectID uuid.UUID) error
+}
 
 func NewService(d *db.DB) *Service { return &Service{db: d} }
 
@@ -124,6 +128,11 @@ func (s *Service) insert(ctx context.Context, id uuid.UUID, slug string, in Crea
 		}
 		if err != nil {
 			return err
+		}
+		if s.OnCreate != nil {
+			if err := s.OnCreate(ctx, q, id); err != nil {
+				return err
+			}
 		}
 		return audit.Record(ctx, q, audit.Entry{
 			Action: "project.create", EntityType: "project", EntityID: audit.Ptr(id),

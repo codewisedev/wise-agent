@@ -173,6 +173,8 @@ func serve(ctx context.Context) error {
 
 	agentSvc := agents.NewService(d, hub).WithTools(catalog.Tools)
 	taskSvc := tasks.NewService(d, wfCfg)
+	projectSvc := projects.NewService(d)
+	projectSvc.OnCreate = taskSvc.SeedColumns
 	taskSvc.Runs = agentSvc
 	taskSvc.Agents = tasks.LookupFrom(agentSvc.Lookup, func(i agents.Info) tasks.AgentInfo { return tasks.AgentInfo(i) })
 	taskSvc.Accounts = accountSvc.ValidateModelChoice
@@ -194,7 +196,7 @@ func serve(ctx context.Context) error {
 	srv := &httpapi.Server{
 		DB:               d,
 		Auth:             authSvc,
-		Projects:         projects.NewService(d),
+		Projects:         projectSvc,
 		Repositories:     repositories.NewService(d, inspector),
 		Agents:           agentSvc,
 		RunQueue:         runQueue,

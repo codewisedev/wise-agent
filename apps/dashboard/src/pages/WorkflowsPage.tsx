@@ -7,7 +7,7 @@ import { StepInspector, WorkflowFlow, type TemplateDef, type TemplateStep } from
 import { Badge, Empty, ErrorNote, Field, Panel } from "../components/ui";
 
 type Template = Schemas["WorkflowTemplate"];
-const COLUMNS: Schemas["BoardColumn"][] = ["backlog", "todo", "in_progress", "review", "done"];
+const ROLES: Schemas["ColumnRole"][] = ["backlog", "todo", "in_progress", "review", "done"];
 
 const BLANK: TemplateDef = {
   steps: [{ id: "analysis", name: "Product analysis", agent: "product-agent", review: true }],
@@ -137,8 +137,8 @@ function Editor({ template, agents, onSaved }: { template: Template | null; agen
             <span>Run automatically when a task is imported</span>
           </label>
           <Field label="Finished tasks go to">
-            <select value={def.destination?.column ?? "done"} onChange={(e) => update({ ...def, destination: { column: e.target.value as Schemas["BoardColumn"] } })}>
-              {COLUMNS.map((c) => <option key={c} value={c}>{c.replace("_", " ")}</option>)}
+            <select value={def.destination?.column ?? "done"} onChange={(e) => update({ ...def, destination: { column: e.target.value as Schemas["ColumnRole"] } })}>
+              {ROLES.map((c) => <option key={c} value={c}>{c.replace("_", " ")} column</option>)}
             </select>
           </Field>
           <label className="checkbox">

@@ -71,7 +71,7 @@ func (s *Service) Get(ctx context.Context, id uuid.UUID) (dbgen.Integration, err
 	return it, err
 }
 
-func (s *Service) validate(ctx context.Context, in *Input) error {
+func (s *Service) validate(ctx context.Context, projectID uuid.UUID, in *Input) error {
 	var errs []apperr.FieldError
 	in.Name = strings.TrimSpace(in.Name)
 	if in.Name == "" || len(in.Name) > 100 {
@@ -92,8 +92,14 @@ func (s *Service) validate(ctx context.Context, in *Input) error {
 	}
 	norm := map[string]string{}
 	for k, v := range in.StatusMap {
-		if !slices.Contains(tasks.Columns, v) {
-			errs = append(errs, apperr.FieldError{Field: "statusMap", Message: fmt.Sprintf("%q maps to unknown column %q", k, v)})
+		colID, perr := uuid.Parse(v)
+		if perr == nil {
+			if c, err := s.db.GetBoardColumn(ctx, colID); err != nil || c.ProjectID != projectID {
+				perr = errors.New("not a column of this project")
+			}
+		}
+		if perr != nil {
+			errs = append(errs, apperr.FieldError{Field: "statusMap", Message: fmt.Sprintf("%q maps to %q, which is not a column of this project's board", k, v)})
 			continue
 		}
 		if k = strings.ToLower(strings.TrimSpace(k)); k != "" {
@@ -127,7 +133,7 @@ func (s *Service) Create(ctx context.Context, projectID uuid.UUID, in Input, use
 	default:
 		return dbgen.Integration{}, apperr.Validation(apperr.FieldError{Field: "kind", Message: "jira, clickup or trello"})
 	}
-	if err := s.validate(ctx, &in); err != nil {
+	if err := s.validate(ctx, projectID, &in); err != nil {
 		return dbgen.Integration{}, err
 	}
 	cfg, _ := json.Marshal(in.Config)
@@ -160,7 +166,7 @@ func (s *Service) Update(ctx context.Context, id uuid.UUID, in Input) (dbgen.Int
 		return cur, err
 	}
 	in.Kind = cur.Kind
-	if err := s.validate(ctx, &in); err != nil {
+	if err := s.validate(ctx, cur.ProjectID, &in); err != nil {
 		return dbgen.Integration{}, err
 	}
 	cfg, _ := json.Marshal(in.Config)
@@ -303,25 +309,26 @@ func (s *Service) upsert(ctx context.Context, it dbgen.Integration, x ExternalTa
 	if priority == "" {
 		priority = "none"
 	}
-	column := statusMap[strings.ToLower(x.Status)]
-	if column == "" {
-		column = DefaultColumn(it.Kind, x)
-	}
+	mapped := statusMap[strings.ToLower(x.Status)]
 	var created uuid.UUID
 	changed := false
 	err := s.db.InTx(ctx, func(q *dbgen.Queries) error {
+		column, err := resolveColumn(ctx, q, it, mapped, DefaultColumn(it.Kind, x))
+		if err != nil {
+			return err
+		}
 		cur, err := q.GetTaskByExternal(ctx, dbgen.GetTaskByExternalParams{IntegrationID: &it.ID, ExternalID: &x.ID})
 		if db.IsNotFound(err) {
 			id, err := uuid.NewV7()
 			if err != nil {
 				return err
 			}
-			pos, err := q.NextBoardPosition(ctx, dbgen.NextBoardPositionParams{ProjectID: it.ProjectID, BoardColumn: column})
+			pos, err := q.NextBoardPosition(ctx, column)
 			if err != nil {
 				return err
 			}
 			if _, err := q.CreateImportedTask(ctx, dbgen.CreateImportedTaskParams{
-				ID: id, ProjectID: it.ProjectID, Title: title, Description: desc, BoardColumn: column, Position: pos,
+				ID: id, ProjectID: it.ProjectID, Title: title, Description: desc, ColumnID: column, Position: pos,
 				Priority: priority, Labels: labels, Source: it.Kind, IntegrationID: &it.ID, ExternalID: &x.ID,
 				ExternalUrl: strPtr(x.URL), ExternalStatus: strPtr(x.Status), TemplateID: it.DefaultTemplateID,
 			}); err != nil {
@@ -334,11 +341,11 @@ func (s *Service) upsert(ctx context.Context, it dbgen.Integration, x ExternalTa
 		if err != nil {
 			return err
 		}
-		col, pos := cur.BoardColumn, cur.Position
+		col, pos := cur.ColumnID, cur.Position
 		statusChanged := deref(cur.ExternalStatus) != x.Status
 		// Follow the source's status change unless a workflow owns the card now.
 		if statusChanged && column != col && !slices.Contains(activeTaskStatuses, cur.Status) {
-			if pos, err = q.NextBoardPosition(ctx, dbgen.NextBoardPositionParams{ProjectID: it.ProjectID, BoardColumn: column}); err != nil {
+			if pos, err = q.NextBoardPosition(ctx, column); err != nil {
 				return err
 			}
 			col = column
@@ -350,7 +357,7 @@ func (s *Service) upsert(ctx context.Context, it dbgen.Integration, x ExternalTa
 		changed = true
 		_, err = q.UpdateImportedTask(ctx, dbgen.UpdateImportedTaskParams{
 			ID: cur.ID, Title: title, Description: desc, Labels: labels, Priority: priority,
-			ExternalUrl: strPtr(x.URL), ExternalStatus: strPtr(x.Status), BoardColumn: col, Position: pos,
+			ExternalUrl: strPtr(x.URL), ExternalStatus: strPtr(x.Status), ColumnID: col, Position: pos,
 		})
 		return err
 	})
@@ -412,4 +419,22 @@ func deref(p *string) string {
 func (s *Service) WithImporter(fn func(kind string, cfg map[string]any, cred Credentials) (Importer, error)) *Service {
 	s.newImporter = fn
 	return s
+}
+
+// resolveColumn picks the column for an imported item: the status map's
+// column, else the project's column for the default role, else the backlog
+// (or first) column.
+func resolveColumn(ctx context.Context, q *dbgen.Queries, it dbgen.Integration, mapped, role string) (uuid.UUID, error) {
+	if id, err := uuid.Parse(mapped); err == nil {
+		if c, err := q.GetBoardColumn(ctx, id); err == nil && c.ProjectID == it.ProjectID {
+			return c.ID, nil
+		}
+	}
+	if c, ok, err := tasks.ColumnForRole(ctx, q, it.ProjectID, role); err != nil {
+		return uuid.Nil, err
+	} else if ok {
+		return c.ID, nil
+	}
+	c, err := tasks.DefaultColumn(ctx, q, it.ProjectID)
+	return c.ID, err
 }

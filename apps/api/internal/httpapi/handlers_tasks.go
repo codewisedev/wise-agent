@@ -3,6 +3,7 @@ package httpapi
 import (
 	"context"
 	"encoding/json"
+	openapi_types "github.com/oapi-codegen/runtime/types"
 
 	"github.com/google/uuid"
 
@@ -109,7 +110,8 @@ func (s *Server) CreateTask(ctx context.Context, req apigen.CreateTaskRequestObj
 		Start: req.Body.Start == nil || *req.Body.Start, StepByStep: deref(req.Body.StepByStep), TemplateID: req.Body.TemplateId,
 	}
 	if req.Body.Column != nil {
-		opts.Column = string(*req.Body.Column)
+		col := *req.Body.Column
+		opts.Column = &col
 	}
 	if req.Body.Priority != nil {
 		opts.Priority = string(*req.Body.Priority)
@@ -145,7 +147,7 @@ func (s *Server) ListTasks(ctx context.Context, req apigen.ListTasksRequestObjec
 		items[i] = toTask(dbgen.Task{
 			ID: r.ID, ProjectID: r.ProjectID, Title: r.Title, Description: r.Description, Status: r.Status,
 			CreatedBy: r.CreatedBy, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt, TemplateID: r.TemplateID,
-			BoardColumn: r.BoardColumn, Position: r.Position, Priority: r.Priority, Labels: r.Labels, Source: r.Source,
+			ColumnID: r.ColumnID, Position: r.Position, Priority: r.Priority, Labels: r.Labels, Source: r.Source,
 			ExternalID: r.ExternalID, ExternalUrl: r.ExternalUrl, ExternalStatus: r.ExternalStatus,
 		}, &name)
 	}
@@ -296,7 +298,7 @@ func (s *Server) RejectApproval(ctx context.Context, req apigen.RejectApprovalRe
 // ---- board ----
 
 func taskFields(out *apigen.Task, t dbgen.Task) {
-	col := apigen.BoardColumn(t.BoardColumn)
+	col := t.ColumnID
 	pri := apigen.TaskPriority(t.Priority)
 	src := apigen.TaskSource(t.Source)
 	labels := t.Labels
@@ -313,12 +315,16 @@ func (s *Server) GetBoard(ctx context.Context, req apigen.GetBoardRequestObject)
 	if err != nil {
 		return nil, err
 	}
-	byCol := map[string][]apigen.BoardCard{}
+	cols, err := s.Tasks.Columns(ctx, req.ProjectId)
+	if err != nil {
+		return nil, err
+	}
+	byCol := map[uuid.UUID][]apigen.BoardCard{}
 	for _, r := range rows {
 		card := apigen.BoardCard{PendingApproval: r.PendingApproval, Task: toTask(dbgen.Task{
 			ID: r.ID, ProjectID: r.ProjectID, Title: r.Title, Description: r.Description, Status: r.Status,
 			CreatedBy: r.CreatedBy, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt, TemplateID: r.TemplateID,
-			BoardColumn: r.BoardColumn, Position: r.Position, Priority: r.Priority, Labels: r.Labels, Source: r.Source,
+			ColumnID: r.ColumnID, Position: r.Position, Priority: r.Priority, Labels: r.Labels, Source: r.Source,
 			IntegrationID: r.IntegrationID, ExternalID: r.ExternalID, ExternalUrl: r.ExternalUrl, ExternalStatus: r.ExternalStatus,
 		}, nil)}
 		if r.WorkflowID != uuid.Nil {
@@ -329,18 +335,34 @@ func (s *Server) GetBoard(ctx context.Context, req apigen.GetBoardRequestObject)
 				card.TemplateName = &name
 			}
 		}
-		byCol[r.BoardColumn] = append(byCol[r.BoardColumn], card)
+		byCol[r.ColumnID] = append(byCol[r.ColumnID], card)
 	}
-	out := apigen.GetBoard200JSONResponse{}
-	for _, c := range tasks.Columns {
-		cards := byCol[c]
+	out := apigen.GetBoard200JSONResponse{Columns: []struct {
+		Cards     []apigen.BoardCard `json:"cards"`
+		Color     *string            `json:"color,omitempty"`
+		Id        openapi_types.UUID `json:"id"`
+		Name      string             `json:"name"`
+		Position  float64            `json:"position"`
+		ProjectId openapi_types.UUID `json:"projectId"`
+		Role      *apigen.ColumnRole `json:"role,omitempty"`
+		WipLimit  *int               `json:"wipLimit,omitempty"`
+	}{}}
+	for _, c := range cols {
+		bc := toBoardColumn(c)
+		cards := byCol[c.ID]
 		if cards == nil {
 			cards = []apigen.BoardCard{}
 		}
 		out.Columns = append(out.Columns, struct {
-			Cards []apigen.BoardCard `json:"cards"`
-			Id    apigen.BoardColumn `json:"id"`
-		}{Cards: cards, Id: apigen.BoardColumn(c)})
+			Cards     []apigen.BoardCard `json:"cards"`
+			Color     *string            `json:"color,omitempty"`
+			Id        openapi_types.UUID `json:"id"`
+			Name      string             `json:"name"`
+			Position  float64            `json:"position"`
+			ProjectId openapi_types.UUID `json:"projectId"`
+			Role      *apigen.ColumnRole `json:"role,omitempty"`
+			WipLimit  *int               `json:"wipLimit,omitempty"`
+		}{Cards: cards, Color: bc.Color, Id: bc.Id, Name: bc.Name, Position: bc.Position, ProjectId: bc.ProjectId, Role: bc.Role, WipLimit: bc.WipLimit})
 	}
 	return out, nil
 }
@@ -353,7 +375,7 @@ func (s *Server) UpdateTask(ctx context.Context, req apigen.UpdateTaskRequestObj
 		p.Priority = &v
 	}
 	if b.Column != nil {
-		v := string(*b.Column)
+		v := *b.Column
 		p.Column = &v
 	}
 	if b.Labels != nil {
@@ -367,4 +389,63 @@ func (s *Server) UpdateTask(ctx context.Context, req apigen.UpdateTaskRequestObj
 		return nil, err
 	}
 	return apigen.UpdateTask200JSONResponse(toTask(t, nil)), nil
+}
+
+// ---- board columns ----
+
+func toBoardColumn(c dbgen.BoardColumn) apigen.BoardColumn {
+	out := apigen.BoardColumn{Id: c.ID, ProjectId: c.ProjectID, Name: c.Name, Position: c.Position, Color: c.Color}
+	if c.Role != nil {
+		r := apigen.ColumnRole(*c.Role)
+		out.Role = &r
+	}
+	if c.WipLimit != nil {
+		w := int(*c.WipLimit)
+		out.WipLimit = &w
+	}
+	return out
+}
+
+func columnInput(b *apigen.ColumnInput) tasks.ColumnInput {
+	in := tasks.ColumnInput{Name: b.Name, Color: b.Color, Position: b.Position}
+	if b.Role != nil {
+		r := string(*b.Role)
+		in.Role = &r
+	}
+	if b.WipLimit != nil {
+		w := int32(*b.WipLimit)
+		in.WIPLimit = &w
+	}
+	return in
+}
+
+func (s *Server) ListColumns(ctx context.Context, req apigen.ListColumnsRequestObject) (apigen.ListColumnsResponseObject, error) {
+	cols, err := s.Tasks.Columns(ctx, req.ProjectId)
+	if err != nil {
+		return nil, err
+	}
+	return apigen.ListColumns200JSONResponse{Items: mapSlice(cols, toBoardColumn)}, nil
+}
+
+func (s *Server) CreateColumn(ctx context.Context, req apigen.CreateColumnRequestObject) (apigen.CreateColumnResponseObject, error) {
+	c, err := s.Tasks.CreateColumn(ctx, req.ProjectId, columnInput(req.Body))
+	if err != nil {
+		return nil, err
+	}
+	return apigen.CreateColumn201JSONResponse(toBoardColumn(c)), nil
+}
+
+func (s *Server) UpdateColumn(ctx context.Context, req apigen.UpdateColumnRequestObject) (apigen.UpdateColumnResponseObject, error) {
+	c, err := s.Tasks.UpdateColumn(ctx, req.ColumnId, columnInput(req.Body))
+	if err != nil {
+		return nil, err
+	}
+	return apigen.UpdateColumn200JSONResponse(toBoardColumn(c)), nil
+}
+
+func (s *Server) DeleteColumn(ctx context.Context, req apigen.DeleteColumnRequestObject) (apigen.DeleteColumnResponseObject, error) {
+	if err := s.Tasks.DeleteColumn(ctx, req.ColumnId, req.Params.MoveTo); err != nil {
+		return nil, err
+	}
+	return apigen.DeleteColumn204Response{}, nil
 }

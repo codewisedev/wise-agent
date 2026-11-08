@@ -41,7 +41,7 @@ LIMIT 20;
 SELECT * FROM tasks WHERE integration_id = $1 AND external_id = $2;
 
 -- name: CreateImportedTask :one
-INSERT INTO tasks (id, project_id, title, description, board_column, position, priority, labels, source,
+INSERT INTO tasks (id, project_id, title, description, column_id, position, priority, labels, source,
                    integration_id, external_id, external_url, external_status, template_id, synced_at)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, now())
 RETURNING *;
@@ -49,6 +49,6 @@ RETURNING *;
 -- name: UpdateImportedTask :one
 UPDATE tasks SET
     title = $2, description = $3, labels = $4, priority = $5, external_url = $6, external_status = $7,
-    board_column = $8, position = $9, synced_at = now(), updated_at = now()
+    column_id = $8, position = $9, synced_at = now(), updated_at = now()
 WHERE id = $1
 RETURNING *;

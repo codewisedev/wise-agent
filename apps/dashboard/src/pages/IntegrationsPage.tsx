@@ -4,14 +4,11 @@ import { useState, type FormEvent } from "react";
 import { Link, useParams } from "react-router";
 import { api, unwrap, type Schemas } from "../api/client";
 import { Badge, Empty, ErrorNote, Field, Panel, formatDate, relativeTime } from "../components/ui";
-import { COLUMN_LABEL } from "./BoardPage";
 
 type Integration = Schemas["Integration"];
 type Kind = Schemas["IntegrationKind"];
-type Column = Schemas["BoardColumn"];
 
 const KIND_LABEL: Record<Kind, string> = { jira: "Jira", clickup: "ClickUp", trello: "Trello" };
-const COLUMNS = Object.keys(COLUMN_LABEL) as Column[];
 
 const CONFIG_HELP: Record<Kind, { key: string; label: string; hint: string; placeholder: string }> = {
   jira: { key: "jql", label: "JQL filter", hint: "Which issues to import, e.g. project = ABC AND statusCategory != Done", placeholder: "project = ABC" },
@@ -23,12 +20,17 @@ function SourceForm({ projectId, onDone }: { projectId: string; onDone: () => vo
   const qc = useQueryClient();
   const accounts = useQuery({ queryKey: ["accounts"], queryFn: () => unwrap(api.GET("/accounts")) });
   const templates = useQuery({ queryKey: ["workflow-templates"], queryFn: () => unwrap(api.GET("/workflow-templates")) });
+  const columns = useQuery({
+    queryKey: ["columns", projectId],
+    queryFn: () => unwrap(api.GET("/projects/{projectId}/columns", { params: { path: { projectId } } })),
+  });
+  const cols = columns.data?.items ?? [];
   const [kind, setKind] = useState<Kind>("jira");
   const [name, setName] = useState("");
   const [accountId, setAccountId] = useState("");
   const [configValue, setConfigValue] = useState("");
   const [lists, setLists] = useState("");
-  const [rows, setRows] = useState<{ status: string; column: Column }[]>([]);
+  const [rows, setRows] = useState<{ status: string; column: string }[]>([]);
   const [templateId, setTemplateId] = useState("");
   const [autoStart, setAutoStart] = useState(false);
   const [interval, setIntervalMin] = useState(15);
@@ -91,17 +93,17 @@ function SourceForm({ projectId, onDone }: { projectId: string; onDone: () => vo
         )}
       </div>
       <fieldset className="status-map">
-        <legend className="small">Status → column <span className="faint">(unlisted statuses use sensible defaults: done → Done, in progress → In progress…)</span></legend>
+        <legend className="small">Status → column <span className="faint">(unlisted statuses go to the list with the matching role: done, in progress… else the “to do” list)</span></legend>
         {rows.map((r, i) => (
           <div key={i} className="form-grid">
             <input aria-label="External status" value={r.status} onChange={(e) => setRows(rows.map((x, j) => (j === i ? { ...x, status: e.target.value } : x)))} placeholder="e.g. Ready for QA" />
-            <select aria-label="Board column" value={r.column} onChange={(e) => setRows(rows.map((x, j) => (j === i ? { ...x, column: e.target.value as Column } : x)))}>
-              {COLUMNS.map((c) => <option key={c} value={c}>{COLUMN_LABEL[c]}</option>)}
+            <select aria-label="Board column" value={r.column} onChange={(e) => setRows(rows.map((x, j) => (j === i ? { ...x, column: e.target.value } : x)))}>
+              {cols.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
             <button type="button" className="btn btn-ghost btn-icon" aria-label="Remove mapping" onClick={() => setRows(rows.filter((_, j) => j !== i))}><X size={14} aria-hidden /></button>
           </div>
         ))}
-        <button type="button" className="btn btn-ghost btn-sm" onClick={() => setRows([...rows, { status: "", column: "todo" }])}>
+        <button type="button" className="btn btn-ghost btn-sm" onClick={() => setRows([...rows, { status: "", column: (cols.find((c) => c.role === "todo") ?? cols[0])?.id ?? "" }])} disabled={cols.length === 0}>
           <Plus size={13} aria-hidden /> Add mapping
         </button>
       </fieldset>
