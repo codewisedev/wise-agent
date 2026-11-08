@@ -31,6 +31,7 @@ tags:
   - name: accounts
   - name: templates
   - name: integrations
+  - name: settings
 
 paths:
   /healthz:
@@ -1178,6 +1179,74 @@ paths:
         "409": { $ref: "#/components/responses/Problem" }
         "502": { $ref: "#/components/responses/Problem" }
 
+  /settings:
+    get:
+      tags: [settings]
+      operationId: listSettings
+      description: Every panel-managed setting with its current value, version and shipped default.
+      responses:
+        "200":
+          description: Settings.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SettingList" }
+        "401": { $ref: "#/components/responses/Problem" }
+  /settings/{settingKey}:
+    parameters:
+      - $ref: "#/components/parameters/SettingKey"
+    put:
+      tags: [settings]
+      operationId: updateSetting
+      description: |
+        Validates and stores a new value, applied immediately. `version` must be the version the editor
+        loaded; a concurrent change returns 409. Signed-in session only.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateSettingRequest" }
+      responses:
+        "200":
+          description: Saved and applied.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Setting" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+  /settings/{settingKey}/reset:
+    parameters:
+      - $ref: "#/components/parameters/SettingKey"
+    post:
+      tags: [settings]
+      operationId: resetSetting
+      description: Restores the shipped default (the previous value stays in the history).
+      responses:
+        "200":
+          description: Reset.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Setting" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+  /settings/{settingKey}/history:
+    parameters:
+      - $ref: "#/components/parameters/SettingKey"
+    get:
+      tags: [settings]
+      operationId: listSettingHistory
+      responses:
+        "200":
+          description: Earlier versions, newest first.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SettingHistory" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+
   /runtime/v1/runs/claim:
     post:
       tags: [runtime]
@@ -1358,6 +1427,11 @@ components:
       in: path
       required: true
       schema: { type: string, format: uuid }
+    SettingKey:
+      name: settingKey
+      in: path
+      required: true
+      schema: { type: string, pattern: "^[a-z][a-z0-9_]{1,62}$" }
     IntegrationId:
       name: integrationId
       in: path
@@ -2283,6 +2357,43 @@ components:
         autoStart: { type: boolean }
         intervalMinutes: { type: integer, minimum: 5, maximum: 1440 }
         enabled: { type: boolean }
+    Setting:
+      type: object
+      required: [key, title, description, value, version, updatedAt]
+      properties:
+        key: { type: string }
+        title: { type: string }
+        description: { type: string }
+        value: { description: The current value (JSON). }
+        default: { description: "The shipped default (JSON), when available." }
+        version: { type: integer }
+        updatedAt: { type: string, format: date-time }
+        updatedBy: { type: string, format: uuid, nullable: true }
+    SettingList:
+      type: object
+      required: [items]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/Setting" } }
+    UpdateSettingRequest:
+      type: object
+      required: [value, version]
+      properties:
+        value: { description: The new value (JSON). }
+        version: { type: integer, description: The version the editor loaded. }
+    SettingHistory:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            required: [version, value, createdAt]
+            properties:
+              version: { type: integer }
+              value: {}
+              updatedBy: { type: string, format: uuid, nullable: true }
+              createdAt: { type: string, format: date-time }
     RuntimeClaimRequest:
       type: object
       required: [runtimeId]

@@ -1321,6 +1321,36 @@ type SetTaskWorkflowRequest struct {
 	TemplateId *openapi_types.UUID      `json:"templateId,omitempty"`
 }
 
+// Setting defines model for Setting.
+type Setting struct {
+	// Default The shipped default (JSON), when available.
+	Default     interface{}         `json:"default,omitempty"`
+	Description string              `json:"description"`
+	Key         string              `json:"key"`
+	Title       string              `json:"title"`
+	UpdatedAt   time.Time           `json:"updatedAt"`
+	UpdatedBy   *openapi_types.UUID `json:"updatedBy,omitempty"`
+
+	// Value The current value (JSON).
+	Value   interface{} `json:"value"`
+	Version int         `json:"version"`
+}
+
+// SettingHistory defines model for SettingHistory.
+type SettingHistory struct {
+	Items []struct {
+		CreatedAt time.Time           `json:"createdAt"`
+		UpdatedBy *openapi_types.UUID `json:"updatedBy,omitempty"`
+		Value     interface{}         `json:"value"`
+		Version   int                 `json:"version"`
+	} `json:"items"`
+}
+
+// SettingList defines model for SettingList.
+type SettingList struct {
+	Items []Setting `json:"items"`
+}
+
 // StepOverride defines model for StepOverride.
 type StepOverride struct {
 	Account *string `json:"account,omitempty"`
@@ -1493,6 +1523,15 @@ type UpdateRepositoryRequest struct {
 	Settings      *map[string]interface{} `json:"settings,omitempty"`
 }
 
+// UpdateSettingRequest defines model for UpdateSettingRequest.
+type UpdateSettingRequest struct {
+	// Value The new value (JSON).
+	Value interface{} `json:"value"`
+
+	// Version The version the editor loaded.
+	Version int `json:"version"`
+}
+
 // UpdateTaskRequest defines model for UpdateTaskRequest.
 type UpdateTaskRequest struct {
 	Column      *BoardColumn `json:"column,omitempty"`
@@ -1638,6 +1677,9 @@ type ResourceId = openapi_types.UUID
 // RunId defines model for RunId.
 type RunId = openapi_types.UUID
 
+// SettingKey defines model for SettingKey.
+type SettingKey = string
+
 // TaskId defines model for TaskId.
 type TaskId = openapi_types.UUID
 
@@ -1753,6 +1795,9 @@ type RuntimeFailRunJSONRequestBody = RuntimeFailRequest
 
 // RuntimeModelTurnJSONRequestBody defines body for RuntimeModelTurn for application/json ContentType.
 type RuntimeModelTurnJSONRequestBody = ModelTurnRequest
+
+// UpdateSettingJSONRequestBody defines body for UpdateSetting for application/json ContentType.
+type UpdateSettingJSONRequestBody = UpdateSettingRequest
 
 // UpdateTaskJSONRequestBody defines body for UpdateTask for application/json ContentType.
 type UpdateTaskJSONRequestBody = UpdateTaskRequest
@@ -1957,6 +2002,18 @@ type ServerInterface interface {
 
 	// (POST /runtime/v1/runs/{runId}/model-turn)
 	RuntimeModelTurn(w http.ResponseWriter, r *http.Request, runId RunId)
+
+	// (GET /settings)
+	ListSettings(w http.ResponseWriter, r *http.Request)
+
+	// (PUT /settings/{settingKey})
+	UpdateSetting(w http.ResponseWriter, r *http.Request, settingKey SettingKey)
+
+	// (GET /settings/{settingKey}/history)
+	ListSettingHistory(w http.ResponseWriter, r *http.Request, settingKey SettingKey)
+
+	// (POST /settings/{settingKey}/reset)
+	ResetSetting(w http.ResponseWriter, r *http.Request, settingKey SettingKey)
 
 	// (GET /tasks)
 	ListTasks(w http.ResponseWriter, r *http.Request, params ListTasksParams)
@@ -2314,6 +2371,26 @@ func (_ Unimplemented) RuntimeHeartbeat(w http.ResponseWriter, r *http.Request, 
 
 // (POST /runtime/v1/runs/{runId}/model-turn)
 func (_ Unimplemented) RuntimeModelTurn(w http.ResponseWriter, r *http.Request, runId RunId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (GET /settings)
+func (_ Unimplemented) ListSettings(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (PUT /settings/{settingKey})
+func (_ Unimplemented) UpdateSetting(w http.ResponseWriter, r *http.Request, settingKey SettingKey) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (GET /settings/{settingKey}/history)
+func (_ Unimplemented) ListSettingHistory(w http.ResponseWriter, r *http.Request, settingKey SettingKey) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (POST /settings/{settingKey}/reset)
+func (_ Unimplemented) ResetSetting(w http.ResponseWriter, r *http.Request, settingKey SettingKey) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -3876,6 +3953,98 @@ func (siw *ServerInterfaceWrapper) RuntimeModelTurn(w http.ResponseWriter, r *ht
 	handler.ServeHTTP(w, r)
 }
 
+// ListSettings operation middleware
+func (siw *ServerInterfaceWrapper) ListSettings(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListSettings(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateSetting operation middleware
+func (siw *ServerInterfaceWrapper) UpdateSetting(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "settingKey" -------------
+	var settingKey SettingKey
+
+	err = runtime.BindStyledParameterWithOptions("simple", "settingKey", chi.URLParam(r, "settingKey"), &settingKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "settingKey", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateSetting(w, r, settingKey)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListSettingHistory operation middleware
+func (siw *ServerInterfaceWrapper) ListSettingHistory(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "settingKey" -------------
+	var settingKey SettingKey
+
+	err = runtime.BindStyledParameterWithOptions("simple", "settingKey", chi.URLParam(r, "settingKey"), &settingKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "settingKey", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListSettingHistory(w, r, settingKey)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ResetSetting operation middleware
+func (siw *ServerInterfaceWrapper) ResetSetting(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "settingKey" -------------
+	var settingKey SettingKey
+
+	err = runtime.BindStyledParameterWithOptions("simple", "settingKey", chi.URLParam(r, "settingKey"), &settingKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "settingKey", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ResetSetting(w, r, settingKey)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListTasks operation middleware
 func (siw *ServerInterfaceWrapper) ListTasks(w http.ResponseWriter, r *http.Request) {
 
@@ -4697,6 +4866,18 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/integrations/{integrationId}/sync", wrapper.SyncIntegration)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/settings", wrapper.ListSettings)
+	})
+	r.Group(func(r chi.Router) {
+		r.Put(options.BaseURL+"/settings/{settingKey}", wrapper.UpdateSetting)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/settings/{settingKey}/reset", wrapper.ResetSetting)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/settings/{settingKey}/history", wrapper.ListSettingHistory)
 	})
 	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/runtime/v1/runs/claim", wrapper.RuntimeClaimRun)
@@ -8184,6 +8365,256 @@ func (response RuntimeModelTurn502ApplicationProblemPlusJSONResponse) VisitRunti
 	return err
 }
 
+type ListSettingsRequestObject struct {
+}
+
+type ListSettingsResponseObject interface {
+	VisitListSettingsResponse(w http.ResponseWriter) error
+}
+
+type ListSettings200JSONResponse SettingList
+
+func (response ListSettings200JSONResponse) VisitListSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListSettings401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response ListSettings401ApplicationProblemPlusJSONResponse) VisitListSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateSettingRequestObject struct {
+	SettingKey SettingKey `json:"settingKey"`
+	Body       *UpdateSettingJSONRequestBody
+}
+
+type UpdateSettingResponseObject interface {
+	VisitUpdateSettingResponse(w http.ResponseWriter) error
+}
+
+type UpdateSetting200JSONResponse Setting
+
+func (response UpdateSetting200JSONResponse) VisitUpdateSettingResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateSetting400ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response UpdateSetting400ApplicationProblemPlusJSONResponse) VisitUpdateSettingResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateSetting401ApplicationProblemPlusJSONResponse Problem
+
+func (response UpdateSetting401ApplicationProblemPlusJSONResponse) VisitUpdateSettingResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateSetting403ApplicationProblemPlusJSONResponse Problem
+
+func (response UpdateSetting403ApplicationProblemPlusJSONResponse) VisitUpdateSettingResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateSetting404ApplicationProblemPlusJSONResponse Problem
+
+func (response UpdateSetting404ApplicationProblemPlusJSONResponse) VisitUpdateSettingResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateSetting409ApplicationProblemPlusJSONResponse Problem
+
+func (response UpdateSetting409ApplicationProblemPlusJSONResponse) VisitUpdateSettingResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListSettingHistoryRequestObject struct {
+	SettingKey SettingKey `json:"settingKey"`
+}
+
+type ListSettingHistoryResponseObject interface {
+	VisitListSettingHistoryResponse(w http.ResponseWriter) error
+}
+
+type ListSettingHistory200JSONResponse SettingHistory
+
+func (response ListSettingHistory200JSONResponse) VisitListSettingHistoryResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListSettingHistory401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response ListSettingHistory401ApplicationProblemPlusJSONResponse) VisitListSettingHistoryResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListSettingHistory404ApplicationProblemPlusJSONResponse Problem
+
+func (response ListSettingHistory404ApplicationProblemPlusJSONResponse) VisitListSettingHistoryResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ResetSettingRequestObject struct {
+	SettingKey SettingKey `json:"settingKey"`
+}
+
+type ResetSettingResponseObject interface {
+	VisitResetSettingResponse(w http.ResponseWriter) error
+}
+
+type ResetSetting200JSONResponse Setting
+
+func (response ResetSetting200JSONResponse) VisitResetSettingResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ResetSetting401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response ResetSetting401ApplicationProblemPlusJSONResponse) VisitResetSettingResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ResetSetting403ApplicationProblemPlusJSONResponse Problem
+
+func (response ResetSetting403ApplicationProblemPlusJSONResponse) VisitResetSettingResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ResetSetting404ApplicationProblemPlusJSONResponse Problem
+
+func (response ResetSetting404ApplicationProblemPlusJSONResponse) VisitResetSettingResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type ListTasksRequestObject struct {
 	Params ListTasksParams
 }
@@ -9457,6 +9888,18 @@ type StrictServerInterface interface {
 
 	// (POST /runtime/v1/runs/{runId}/model-turn)
 	RuntimeModelTurn(ctx context.Context, request RuntimeModelTurnRequestObject) (RuntimeModelTurnResponseObject, error)
+
+	// (GET /settings)
+	ListSettings(ctx context.Context, request ListSettingsRequestObject) (ListSettingsResponseObject, error)
+
+	// (PUT /settings/{settingKey})
+	UpdateSetting(ctx context.Context, request UpdateSettingRequestObject) (UpdateSettingResponseObject, error)
+
+	// (GET /settings/{settingKey}/history)
+	ListSettingHistory(ctx context.Context, request ListSettingHistoryRequestObject) (ListSettingHistoryResponseObject, error)
+
+	// (POST /settings/{settingKey}/reset)
+	ResetSetting(ctx context.Context, request ResetSettingRequestObject) (ResetSettingResponseObject, error)
 
 	// (GET /tasks)
 	ListTasks(ctx context.Context, request ListTasksRequestObject) (ListTasksResponseObject, error)
@@ -11229,6 +11672,115 @@ func (sh *strictHandler) RuntimeModelTurn(w http.ResponseWriter, r *http.Request
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(RuntimeModelTurnResponseObject); ok {
 		if err := validResponse.VisitRuntimeModelTurnResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListSettings operation middleware
+func (sh *strictHandler) ListSettings(w http.ResponseWriter, r *http.Request) {
+	var request ListSettingsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListSettings(ctx, request.(ListSettingsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListSettings")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListSettingsResponseObject); ok {
+		if err := validResponse.VisitListSettingsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UpdateSetting operation middleware
+func (sh *strictHandler) UpdateSetting(w http.ResponseWriter, r *http.Request, settingKey SettingKey) {
+	var request UpdateSettingRequestObject
+
+	request.SettingKey = settingKey
+
+	var body UpdateSettingJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.UpdateSetting(ctx, request.(UpdateSettingRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UpdateSetting")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(UpdateSettingResponseObject); ok {
+		if err := validResponse.VisitUpdateSettingResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListSettingHistory operation middleware
+func (sh *strictHandler) ListSettingHistory(w http.ResponseWriter, r *http.Request, settingKey SettingKey) {
+	var request ListSettingHistoryRequestObject
+
+	request.SettingKey = settingKey
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListSettingHistory(ctx, request.(ListSettingHistoryRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListSettingHistory")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListSettingHistoryResponseObject); ok {
+		if err := validResponse.VisitListSettingHistoryResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ResetSetting operation middleware
+func (sh *strictHandler) ResetSetting(w http.ResponseWriter, r *http.Request, settingKey SettingKey) {
+	var request ResetSettingRequestObject
+
+	request.SettingKey = settingKey
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ResetSetting(ctx, request.(ResetSettingRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ResetSetting")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ResetSettingResponseObject); ok {
+		if err := validResponse.VisitResetSettingResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

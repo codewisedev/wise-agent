@@ -29,6 +29,7 @@ import (
 	"wise/apps/api/internal/repositories"
 	"wise/apps/api/internal/runqueue"
 	"wise/apps/api/internal/secrets"
+	"wise/apps/api/internal/settings"
 	"wise/apps/api/internal/tasks"
 	"wise/apps/api/internal/testutil"
 )
@@ -54,6 +55,7 @@ type env struct {
 	accounts *accounts.Service
 	gw       *modelgateway.Gateway
 	sources  *integrations.Service
+	settings *settings.Service
 }
 
 func setup(t *testing.T) *env {
@@ -97,10 +99,15 @@ func setup(t *testing.T) *env {
 		t.Fatal(err)
 	}
 	integrationSvc := integrations.NewService(d, accountSvc, taskSvc, log)
+	settingsSvc := settings.NewService(d, log)
+	settings.RegisterDefaults(settingsSvc, testSettingFiles(t), gw, accountSvc, taskSvc)
+	if err := settingsSvc.Start(context.Background()); err != nil {
+		t.Fatal(err)
+	}
 	server := &httpapi.Server{
 		DB: d, Auth: authSvc, Projects: projects.NewService(d),
 		Repositories: repositories.NewService(d, gitinspect.New([]string{root})),
-		Agents:       agentSvc, RunQueue: queue, Gateway: gw, Hub: hub, Tasks: taskSvc, Accounts: accountSvc, Integrations: integrationSvc,
+		Agents:       agentSvc, RunQueue: queue, Gateway: gw, Hub: hub, Tasks: taskSvc, Accounts: accountSvc, Integrations: integrationSvc, Settings: settingsSvc,
 		Cookie:       httpapi.CookieConfig{TTL: time.Hour},
 		RuntimeToken: runtimeToken,
 	}
@@ -112,7 +119,7 @@ func setup(t *testing.T) *env {
 	t.Cleanup(ts.Close)
 	jar, _ := cookiejar.New(nil)
 	return &env{t: t, db: d, srv: ts, client: &http.Client{Jar: jar}, repoRoot: root, queue: queue, model: model,
-		tasks: taskSvc, agents: agentSvc, hub: hub, accounts: accountSvc, gw: gw, sources: integrationSvc}
+		tasks: taskSvc, agents: agentSvc, hub: hub, accounts: accountSvc, gw: gw, sources: integrationSvc, settings: settingsSvc}
 }
 
 type resp struct {
@@ -423,5 +430,27 @@ func TestSessionRenewalReissuesCookie(t *testing.T) {
 	}
 	if res.StatusCode != 200 || renewed == nil || renewed.MaxAge < int((50*time.Minute).Seconds()) {
 		t.Fatalf("expected renewed cookie with ~1h max-age, got status %d cookie %+v", res.StatusCode, renewed)
+	}
+}
+
+// testSettingFiles are the shipped defaults for tests: the scripted provider
+// serves both aliases; workflow and board defaults come from the repo.
+func testSettingFiles(t *testing.T) settings.Files {
+	t.Helper()
+	dir := t.TempDir()
+	write := func(name, body string) string {
+		p := filepath.Join(dir, name)
+		if err := os.WriteFile(p, []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		return p
+	}
+	repo := filepath.Join("..", "..", "..", "..", "configs")
+	return settings.Files{
+		Models: write("models.yaml", "providers: {}\naliases:\n  reasoning: {targets: [{provider: scripted, model: test-model}]}\n"+
+			"  local: {targets: [{provider: scripted, model: test-model}]}\n"),
+		Policy:    write("policy.yaml", "cloud_allowed_agents: [\"*\"]\nmax_retries: 1\n"),
+		Workflows: filepath.Join(repo, "workflows", "engineering.yaml"),
+		Board:     filepath.Join(repo, "board", "defaults.yaml"),
 	}
 }

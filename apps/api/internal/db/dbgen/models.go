@@ -427,6 +427,23 @@ type ApiToken struct {
 	RevokedAt  *time.Time
 }
 
+type AppSetting struct {
+	Key       string
+	Value     json.RawMessage
+	Version   int32
+	UpdatedBy *uuid.UUID
+	UpdatedAt time.Time
+}
+
+type AppSettingsHistory struct {
+	ID        int64
+	Key       string
+	Version   int32
+	Value     json.RawMessage
+	UpdatedBy *uuid.UUID
+	CreatedAt time.Time
+}
+
 type Approval struct {
 	ID            uuid.UUID
 	WorkflowRunID uuid.UUID

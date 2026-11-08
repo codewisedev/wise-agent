@@ -18,6 +18,7 @@ import (
 	"wise/apps/api/internal/projects"
 	"wise/apps/api/internal/repositories"
 	"wise/apps/api/internal/runqueue"
+	"wise/apps/api/internal/settings"
 	"wise/apps/api/internal/tasks"
 )
 
@@ -34,6 +35,7 @@ type Server struct {
 	Tasks        *tasks.Service
 	Accounts     *accounts.Service
 	Integrations *integrations.Service
+	Settings     *settings.Service
 	Cookie       CookieConfig
 	// RuntimeToken authenticates agent runtimes claiming runs (empty disables the runtime API).
 	RuntimeToken string

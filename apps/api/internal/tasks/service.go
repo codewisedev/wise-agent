@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"sync"
 
 	"github.com/google/uuid"
 
@@ -23,8 +24,10 @@ type RunCanceller interface {
 }
 
 type Service struct {
-	db  *db.DB
-	cfg WorkflowConfig
+	db    *db.DB
+	cfgMu sync.RWMutex
+	cfg   WorkflowConfig
+	board BoardDefaults
 	// Runs, when set, lets CancelTask stop running agents immediately instead of
 	// waiting for the workflow's activity to notice the cancellation.
 	Runs RunCanceller
@@ -639,4 +642,31 @@ func columnFor(status, destination string) string {
 		return destination
 	}
 	return "" // awaiting retry, failed, cancelled: the card stays where it is
+}
+
+// SetWorkflowConfig applies panel-edited workflow defaults.
+func (s *Service) SetWorkflowConfig(c WorkflowConfig) {
+	s.cfgMu.Lock()
+	s.cfg = c
+	s.cfgMu.Unlock()
+}
+
+func (s *Service) maxRevisions() int {
+	s.cfgMu.RLock()
+	defer s.cfgMu.RUnlock()
+	return s.cfg.MaxRevisions
+}
+
+// SetBoardDefaults applies the panel-edited column set for new projects.
+func (s *Service) SetBoardDefaults(b BoardDefaults) {
+	s.cfgMu.Lock()
+	s.board = b
+	s.cfgMu.Unlock()
+}
+
+// BoardDefaultColumns is the column set new projects start with.
+func (s *Service) BoardDefaultColumns() []ColumnDef {
+	s.cfgMu.RLock()
+	defer s.cfgMu.RUnlock()
+	return append([]ColumnDef(nil), s.board.Columns...)
 }

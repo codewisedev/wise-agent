@@ -1,0 +1,10 @@
+# Default board columns for new projects (editable in Settings → Board; each
+# project can then add, rename, reorder and remove its own columns).
+# Roles let workflows move cards: in_progress when a run starts, review when it
+# waits for you, done (or the template's destination) when it completes.
+columns:
+  - { name: Backlog, role: backlog }
+  - { name: To do }
+  - { name: In progress, role: in_progress }
+  - { name: Review, role: review }
+  - { name: Done, role: done }

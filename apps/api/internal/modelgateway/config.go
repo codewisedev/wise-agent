@@ -74,28 +74,53 @@ func (p Policy) dailyBudget(agent string) (float64, bool) {
 
 // LoadConfig reads both files, expanding ${ENV} references.
 func LoadConfig(modelsPath, policyPath string) (Config, Policy, error) {
-	var cfg Config
-	var pol Policy
-	if err := readYAML(modelsPath, &cfg); err != nil {
-		return cfg, pol, err
+	mb, err := os.ReadFile(modelsPath)
+	if err != nil {
+		return Config{}, Policy{}, fmt.Errorf("read %s: %w", modelsPath, err)
 	}
-	if err := readYAML(policyPath, &pol); err != nil {
-		return cfg, pol, err
+	pb, err := os.ReadFile(policyPath)
+	if err != nil {
+		return Config{}, Policy{}, fmt.Errorf("read %s: %w", policyPath, err)
+	}
+	cfg, err := ParseModels(mb, nil)
+	if err != nil {
+		return cfg, Policy{}, fmt.Errorf("%s: %w", modelsPath, err)
+	}
+	pol, err := ParsePolicy(pb)
+	if err != nil {
+		return cfg, pol, fmt.Errorf("%s: %w", policyPath, err)
+	}
+	return cfg, pol, nil
+}
+
+// ParseModels decodes and validates a models configuration (YAML or JSON),
+// expanding ${ENV} references. Alias targets must name a provider in the
+// configuration or, when isAccount is given, a stored model account.
+func ParseModels(raw []byte, isAccount func(string) bool) (Config, error) {
+	var cfg Config
+	if err := yaml.Unmarshal([]byte(os.ExpandEnv(string(raw))), &cfg); err != nil {
+		return cfg, fmt.Errorf("parse: %w", err)
+	}
+	if cfg.Providers == nil {
+		cfg.Providers = map[string]ProviderConfig{}
 	}
 	for name, p := range cfg.Providers {
 		switch p.Type {
 		case "openai-compatible":
 			if p.BaseURL == "" {
-				return cfg, pol, fmt.Errorf("provider %q: base_url is required", name)
+				return cfg, fmt.Errorf("provider %q: base_url is required", name)
 			}
 		case "claude-code":
 			if p.Binary == "" {
 				p.Binary = "claude"
 			}
 		case "codex-cli":
-			return cfg, pol, fmt.Errorf("provider %q: codex-cli needs an auth.json; add a Codex account in Settings → Accounts instead", name)
+			return cfg, fmt.Errorf("provider %q: codex-cli needs an auth.json; add a Codex account in Settings → Accounts instead", name)
 		default:
-			return cfg, pol, fmt.Errorf("provider %q: unknown type %q", name, p.Type)
+			return cfg, fmt.Errorf("provider %q: unknown type %q (openai-compatible or claude-code)", name, p.Type)
+		}
+		if p.TimeoutS < 0 || p.InputPerMTok < 0 || p.OutputPerMTok < 0 {
+			return cfg, fmt.Errorf("provider %q: timeout and prices must not be negative", name)
 		}
 		p.Timeout = 5 * time.Minute
 		if p.TimeoutS > 0 {
@@ -105,27 +130,44 @@ func LoadConfig(modelsPath, policyPath string) (Config, Policy, error) {
 	}
 	for alias, a := range cfg.Aliases {
 		if len(a.Targets) == 0 {
-			return cfg, pol, fmt.Errorf("alias %q has no targets", alias)
+			return cfg, fmt.Errorf("alias %q has no targets", alias)
 		}
 		for _, t := range a.Targets {
-			if _, ok := cfg.Providers[t.Provider]; !ok {
-				return cfg, pol, fmt.Errorf("alias %q: unknown provider %q", alias, t.Provider)
+			if _, ok := cfg.Providers[t.Provider]; ok {
+				continue
 			}
+			if isAccount != nil && isAccount(t.Provider) {
+				continue
+			}
+			return cfg, fmt.Errorf("alias %q: unknown provider or account %q", alias, t.Provider)
 		}
 	}
-	if pol.MaxRetries <= 0 {
-		pol.MaxRetries = 2
+	if cfg.Cache.TTLH < 0 {
+		return cfg, fmt.Errorf("cache ttl_hours must not be negative")
 	}
-	return cfg, pol, nil
+	return cfg, nil
 }
 
-func readYAML(path string, v any) error {
-	b, err := os.ReadFile(path)
-	if err != nil {
-		return fmt.Errorf("read %s: %w", path, err)
+// ParsePolicy decodes and validates a model policy (YAML or JSON).
+func ParsePolicy(raw []byte) (Policy, error) {
+	var pol Policy
+	if err := yaml.Unmarshal(raw, &pol); err != nil {
+		return pol, fmt.Errorf("parse: %w", err)
 	}
-	if err := yaml.Unmarshal([]byte(os.ExpandEnv(string(b))), v); err != nil {
-		return fmt.Errorf("parse %s: %w", path, err)
+	var probe struct {
+		MaxRetries *int `json:"max_retries"`
 	}
-	return nil
+	_ = yaml.Unmarshal(raw, &probe)
+	for agent, v := range pol.DailyBudgetUSD {
+		if v < 0 {
+			return pol, fmt.Errorf("daily budget for %q must not be negative", agent)
+		}
+	}
+	if pol.MaxRetries < 0 || pol.MaxRetries > 10 {
+		return pol, fmt.Errorf("max_retries must be between 0 and 10")
+	}
+	if probe.MaxRetries == nil {
+		pol.MaxRetries = 2 // default when unset; an explicit 0 means no retries
+	}
+	return pol, nil
 }

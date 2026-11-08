@@ -32,6 +32,7 @@ import (
 	"wise/apps/api/internal/repositories"
 	"wise/apps/api/internal/runqueue"
 	"wise/apps/api/internal/secrets"
+	"wise/apps/api/internal/settings"
 	"wise/apps/api/internal/tasks"
 	"wise/apps/api/internal/workflow"
 )
@@ -175,6 +176,14 @@ func serve(ctx context.Context) error {
 	taskSvc.Runs = agentSvc
 	taskSvc.Agents = tasks.LookupFrom(catalog.Lookup(), func(i agents.Info) tasks.AgentInfo { return tasks.AgentInfo(i) })
 	taskSvc.Accounts = accountSvc.ValidateModelChoice
+	// Panel-managed settings: files are defaults; the database wins and edits apply live.
+	settingsSvc := settings.NewService(d, log.With("component", "settings"))
+	settings.RegisterDefaults(settingsSvc, settings.Files{
+		Models: cfg.ModelsConfig, Policy: cfg.ModelsPolicy, Workflows: cfg.WorkflowsConfig, Board: cfg.BoardDefaults,
+	}, gateway, accountSvc, taskSvc)
+	if err := settingsSvc.Start(ctx); err != nil {
+		return fmt.Errorf("settings: %w", err)
+	}
 	if err := taskSvc.SeedTemplates(ctx, log); err != nil {
 		return fmt.Errorf("seed workflow templates: %w", err)
 	}
@@ -194,6 +203,7 @@ func serve(ctx context.Context) error {
 		Tasks:            taskSvc,
 		Accounts:         accountSvc,
 		Integrations:     integrationSvc,
+		Settings:         settingsSvc,
 		Cookie:           httpapi.CookieConfig{Secure: cfg.CookieSecure, TTL: cfg.SessionTTL},
 		RuntimeToken:     cfg.RuntimeToken,
 		WSOriginPatterns: wsOriginPatterns(cfg.CORSOrigins),

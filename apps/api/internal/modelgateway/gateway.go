@@ -69,6 +69,7 @@ type Gateway struct {
 	// providers holds the models.yaml providers; accounts the stored ones.
 	mu          sync.RWMutex
 	providers   map[string]Provider
+	custom      map[string]Provider // added with WithProvider (tests, adapters); survive Reconfigure
 	accounts    map[string]accountEntry
 	saveSecret  SecretSaver
 	runnerURL   string
@@ -103,15 +104,29 @@ func New(d *db.DB, cfg Config, pol Policy, events EventSink, log *slog.Logger) *
 		}
 	}
 	g.accounts = map[string]accountEntry{}
+	g.custom = map[string]Provider{}
 	return g
 }
 
 // WithProvider replaces or adds a provider (tests, custom adapters).
 func (g *Gateway) WithProvider(p Provider) *Gateway {
 	g.mu.Lock()
-	g.providers[p.Name()] = p
+	g.custom[p.Name()] = p
 	g.mu.Unlock()
 	return g
+}
+
+// Has reports whether name is a provider that survives any Reconfigure: an
+// adapter added in code or a stored account (built-in providers are not, since
+// a new configuration may remove them).
+func (g *Gateway) Has(name string) bool {
+	g.mu.RLock()
+	defer g.mu.RUnlock()
+	if _, ok := g.custom[name]; ok {
+		return true
+	}
+	_, ok := g.accounts[name]
+	return ok
 }
 
 // AccountSpec is a stored account the gateway can route to.
@@ -195,6 +210,9 @@ func (g *Gateway) buildAccountProvider(sp AccountSpec) Provider {
 func (g *Gateway) provider(name string) (Provider, bool) {
 	g.mu.RLock()
 	defer g.mu.RUnlock()
+	if p, ok := g.custom[name]; ok {
+		return p, true
+	}
 	if p, ok := g.providers[name]; ok {
 		return p, true
 	}
@@ -248,6 +266,9 @@ func (g *Gateway) candidates(req TurnRequest) ([]candidate, error) {
 		g.mu.RLock()
 		a, ok := g.accounts[req.Account]
 		_, builtin := g.providers[req.Account]
+		if _, ok := g.custom[req.Account]; ok {
+			builtin = true
+		}
 		g.mu.RUnlock()
 		model := req.Model
 		switch {
@@ -263,7 +284,7 @@ func (g *Gateway) candidates(req TurnRequest) ([]candidate, error) {
 	}
 	var out []candidate
 	for _, alias := range append([]string{req.Alias}, req.Fallbacks...) {
-		acfg, ok := g.cfg.Aliases[alias]
+		acfg, ok := g.curCfg().Aliases[alias]
 		if !ok {
 			continue
 		}
@@ -303,7 +324,7 @@ func (g *Gateway) Complete(ctx context.Context, req TurnRequest) (TurnResponse, 
 			if !ok {
 				continue
 			}
-			if prov.Cloud() && !g.policy.cloudAllowed(req.AgentName) {
+			if prov.Cloud() && !g.curPolicy().cloudAllowed(req.AgentName) {
 				g.reject(ctx, req, alias, t, "cloud models are not allowed for this agent (configs/policies/models.yaml)")
 				continue
 			}
@@ -351,7 +372,7 @@ func (g *Gateway) Complete(ctx context.Context, req TurnRequest) (TurnResponse, 
 }
 
 func (g *Gateway) callTarget(ctx context.Context, req TurnRequest, alias string, t Target, prov Provider, preq ProviderRequest) (TurnResponse, error) {
-	cacheable := g.cfg.Cache.Enabled && req.Temperature != nil && *req.Temperature == 0
+	cacheable := g.curCfg().Cache.Enabled && req.Temperature != nil && *req.Temperature == 0
 	var key []byte
 	if cacheable {
 		key = cacheKey(prov.Name(), preq)
@@ -367,7 +388,7 @@ func (g *Gateway) callTarget(ctx context.Context, req TurnRequest, alias string,
 	}
 
 	var lastErr error
-	for attempt := 0; attempt <= g.policy.MaxRetries; attempt++ {
+	for attempt := 0; attempt <= g.curPolicy().MaxRetries; attempt++ {
 		g.emit(ctx, req, "model.request", map[string]any{
 			"alias": alias, "provider": prov.Name(), "model": t.Model, "attempt": attempt + 1,
 			"messages": len(req.Messages), "cloud": prov.Cloud(),
@@ -390,7 +411,7 @@ func (g *Gateway) callTarget(ctx context.Context, req TurnRequest, alias string,
 				"alias": alias, "provider": prov.Name(), "model": t.Model, "attempt": attempt + 1,
 				"error": err.Error(), "transient": transient(err),
 			})
-			if !transient(err) || attempt == g.policy.MaxRetries {
+			if !transient(err) || attempt == g.curPolicy().MaxRetries {
 				break
 			}
 			if serr := g.sleep(ctx, time.Duration(1<<attempt)*time.Second); serr != nil {
@@ -423,7 +444,7 @@ func (g *Gateway) callTarget(ctx context.Context, req TurnRequest, alias string,
 			out.Envelope = env
 			if cacheable {
 				if b, err := json.Marshal(out); err == nil {
-					ttl := time.Duration(max(g.cfg.Cache.TTLH, 1)) * time.Hour
+					ttl := time.Duration(max(g.curCfg().Cache.TTLH, 1)) * time.Hour
 					_ = g.db.PutModelCache(ctx, dbgen.PutModelCacheParams{Key: key, Response: b, ExpiresAt: g.now().Add(ttl)})
 				}
 			}
@@ -454,7 +475,7 @@ func (g *Gateway) budgetState(ctx context.Context, req TurnRequest) (bool, float
 			}
 		}
 	}
-	if limit, ok := g.policy.dailyBudget(req.AgentName); ok {
+	if limit, ok := g.curPolicy().dailyBudget(req.AgentName); ok {
 		y, m, d := g.now().UTC().Date()
 		spent, err := g.db.AgentCostSince(ctx, dbgen.AgentCostSinceParams{
 			AgentName: req.AgentName, CreatedAt: time.Date(y, m, d, 0, 0, 0, 0, time.UTC),
@@ -587,8 +608,8 @@ type ProviderStatus struct {
 }
 
 func (g *Gateway) Aliases() []AliasInfo {
-	out := make([]AliasInfo, 0, len(g.cfg.Aliases))
-	for name, a := range g.cfg.Aliases {
+	out := make([]AliasInfo, 0, len(g.curCfg().Aliases))
+	for name, a := range g.curCfg().Aliases {
 		out = append(out, AliasInfo{Name: name, Description: a.Description, Targets: a.Targets})
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
@@ -604,6 +625,9 @@ func (g *Gateway) Health(ctx context.Context) []ProviderStatus {
 	items := make([]item, 0, len(g.providers)+len(g.accounts))
 	for name, p := range g.providers {
 		items = append(items, item{name, g.cfg.Providers[name].Type, p})
+	}
+	for name, p := range g.custom {
+		items = append(items, item{name, "custom", p})
 	}
 	for name, a := range g.accounts {
 		items = append(items, item{name, "account:" + a.spec.Kind, a.prov})
@@ -629,7 +653,7 @@ func (g *Gateway) Health(ctx context.Context) []ProviderStatus {
 }
 
 // CloudAllowed reports the policy for an agent.
-func (g *Gateway) CloudAllowed(agent string) bool { return g.policy.cloudAllowed(agent) }
+func (g *Gateway) CloudAllowed(agent string) bool { return g.curPolicy().cloudAllowed(agent) }
 
 // HealthOf checks one provider or account by name.
 func (g *Gateway) HealthOf(ctx context.Context, name string) error {
@@ -645,10 +669,52 @@ func (g *Gateway) HealthOf(ctx context.Context, name string) error {
 // ProviderNames lists the built-in (models.yaml) provider names, which stored
 // accounts may not reuse.
 func (g *Gateway) ProviderNames() []string {
-	out := make([]string, 0, len(g.cfg.Providers))
+	g.mu.RLock()
+	defer g.mu.RUnlock()
+	out := make([]string, 0, len(g.cfg.Providers)+len(g.custom))
 	for name := range g.cfg.Providers {
+		out = append(out, name)
+	}
+	for name := range g.custom {
 		out = append(out, name)
 	}
 	sort.Strings(out)
 	return out
+}
+
+func (g *Gateway) curCfg() Config {
+	g.mu.RLock()
+	defer g.mu.RUnlock()
+	return g.cfg
+}
+
+func (g *Gateway) curPolicy() Policy {
+	g.mu.RLock()
+	defer g.mu.RUnlock()
+	return g.policy
+}
+
+// Reconfigure swaps the provider/alias configuration and the policy live
+// (settings edited in the panel). Built-in providers are rebuilt; stored
+// accounts, cooldowns and providers added with WithProvider are kept.
+func (g *Gateway) Reconfigure(cfg Config, pol Policy) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	next := map[string]Provider{}
+	for name, pc := range cfg.Providers {
+		switch pc.Type {
+		case "openai-compatible":
+			next[name] = NewOpenAICompat(name, pc)
+		case "claude-code":
+			if g.runnerURL != "" {
+				if pc.Secret == "" {
+					pc.Secret = os.Getenv("CLAUDE_CODE_OAUTH_TOKEN")
+				}
+				next[name] = NewRemoteCLI(name, pc.Type, g.runnerURL, g.runnerToken, pc)
+			} else {
+				next[name] = NewClaudeCode(name, pc)
+			}
+		}
+	}
+	g.cfg, g.policy, g.providers = cfg, pol, next
 }

@@ -84,7 +84,7 @@ func (s *Service) validateTemplate(ctx context.Context, in TemplateInput) ([]byt
 	if n := strings.TrimSpace(in.Name); n == "" || len(n) > 100 {
 		return nil, apperr.Validation(apperr.FieldError{Field: "name", Message: "must be 1-100 characters"})
 	}
-	if _, issues := Resolve(ctx, in.Definition, Overrides{}, false, s.Agents, s.Accounts, s.cfg.MaxRevisions); len(issues) > 0 {
+	if _, issues := Resolve(ctx, in.Definition, Overrides{}, false, s.Agents, s.Accounts, s.maxRevisions()); len(issues) > 0 {
 		return nil, issuesError(issues)
 	}
 	return json.Marshal(in.Definition)
@@ -202,7 +202,7 @@ func (s *Service) planFor(ctx context.Context, q *dbgen.Queries, task dbgen.Task
 		return TaskWorkflow{}, err
 	}
 	ov := ParseOverrides(task.WorkflowOverrides)
-	plan, issues := Resolve(ctx, def, ov, stepByStep, s.Agents, s.Accounts, s.cfg.MaxRevisions)
+	plan, issues := Resolve(ctx, def, ov, stepByStep, s.Agents, s.Accounts, s.maxRevisions())
 	plan.TemplateID, plan.TemplateName, plan.TemplateVersion = tmpl.ID.String(), tmpl.Name, tmpl.Version
 	return TaskWorkflow{Template: tmpl, Overrides: ov, Plan: plan, Issues: issues}, nil
 }
@@ -338,5 +338,5 @@ func (s *Service) CurrentStep(ctx context.Context, runID uuid.UUID, stepID strin
 
 // Preview resolves an unsaved template definition.
 func (s *Service) Preview(ctx context.Context, def TemplateDef) (Plan, []Issue) {
-	return Resolve(ctx, def, Overrides{}, false, s.Agents, s.Accounts, s.cfg.MaxRevisions)
+	return Resolve(ctx, def, Overrides{}, false, s.Agents, s.Accounts, s.maxRevisions())
 }

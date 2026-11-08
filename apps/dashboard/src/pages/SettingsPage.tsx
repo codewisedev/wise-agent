@@ -2,8 +2,10 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { KeyRound, Monitor, Moon, Plus, ShieldAlert, Sun } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { api, unwrap } from "../api/client";
+import { Link, useSearchParams } from "react-router";
 import { useSession } from "../auth";
 import { AccountsPanel } from "./AccountsPanel";
+import { SettingsPanels } from "./SettingsPanels";
 import { Badge, CopyText, Empty, ErrorNote, Field, Panel, formatDate, relativeTime } from "../components/ui";
 import { useTheme, type ThemePreference } from "../theme";
 
@@ -13,6 +15,15 @@ const THEMES: { value: ThemePreference; label: string; icon: typeof Moon }[] = [
   { value: "light", label: "Light", icon: Sun },
   { value: "system", label: "System", icon: Monitor },
 ];
+
+const TABS = [
+  { id: "general", label: "General" },
+  { id: "accounts", label: "Accounts" },
+  { id: "models", label: "Models" },
+  { id: "policy", label: "Policy & budgets" },
+  { id: "workflows", label: "Workflows" },
+  { id: "board", label: "Board" },
+] as const;
 
 export function SettingsPage() {
   const { data: session } = useSession();
@@ -42,6 +53,9 @@ export function SettingsPage() {
     create.mutate();
   };
   const items = tokens.data?.items ?? [];
+  const [params, setParams] = useSearchParams();
+  const tab = (params.get("tab") ?? "general") as (typeof TABS)[number]["id"];
+  const setTab = (t: string) => setParams(t === "general" ? {} : { tab: t }, { replace: true });
 
   return (
     <>
@@ -56,6 +70,27 @@ export function SettingsPage() {
         </div>
       </header>
 
+      <div className="tabs settings-tabs" role="tablist" aria-label="Settings sections">
+        {TABS.map((t) => (
+          <button key={t.id} type="button" role="tab" className="tab" aria-selected={tab === t.id} onClick={() => setTab(t.id)}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {tab === "accounts" && <AccountsPanel />}
+      {tab === "models" && <SettingsPanels only={["models"]} />}
+      {tab === "policy" && <SettingsPanels only={["model_policy"]} />}
+      {tab === "workflows" && (
+        <>
+          <SettingsPanels only={["workflow_defaults"]} />
+          <p className="small muted">Steps, agents, accounts and review gates are edited per workflow on the <Link to="/workflows">Workflows</Link> page.</p>
+        </>
+      )}
+      {tab === "board" && <SettingsPanels only={["board_defaults"]} />}
+
+      {tab === "general" && (
+      <>
       <Panel title="Appearance" flush={false}>
         <div className="form-grid" role="radiogroup" aria-label="Theme">
           {THEMES.map(({ value, label, icon: Icon }) => (
@@ -156,8 +191,6 @@ export function SettingsPage() {
         )}
       </Panel>
 
-      <AccountsPanel />
-
       <Panel title="Workflow engine" flush={false}>
         <p className="small muted">
           Workflows run on Temporal. Its UI shows every workflow's full history (namespace <span className="mono">wise</span>):{" "}
@@ -167,6 +200,8 @@ export function SettingsPage() {
           . Steps, accounts and review gates are set per workflow template; <span className="mono">configs/workflows/engineering.yaml</span> holds global limits.
         </p>
       </Panel>
+      </>
+      )}
     </>
   );
 }

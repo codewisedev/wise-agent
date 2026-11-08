@@ -9,8 +9,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"regexp"
+	"slices"
 	"sort"
 	"strings"
+	"unicode/utf8"
 
 	"sigs.k8s.io/yaml"
 )
@@ -85,27 +88,101 @@ func DefaultWorkflowConfig() WorkflowConfig { return WorkflowConfig{MaxRevisions
 
 // LoadWorkflowConfig reads the workflow config; a missing file means defaults.
 func LoadWorkflowConfig(path string) (WorkflowConfig, error) {
-	cfg := DefaultWorkflowConfig()
 	b, err := os.ReadFile(path)
 	if os.IsNotExist(err) {
-		return cfg, nil
+		return DefaultWorkflowConfig(), nil
 	}
 	if err != nil {
-		return cfg, err
+		return DefaultWorkflowConfig(), err
 	}
+	cfg, err := ParseWorkflowConfig(b)
+	if err != nil {
+		return cfg, fmt.Errorf("%s: %w", path, err)
+	}
+	return cfg, nil
+}
+
+// ParseWorkflowConfig decodes workflow defaults (YAML or JSON).
+func ParseWorkflowConfig(raw []byte) (WorkflowConfig, error) {
+	cfg := DefaultWorkflowConfig()
 	var file struct {
 		MaxRevisions *int `json:"max_revisions"`
 	}
-	if err := yaml.UnmarshalStrict(b, &file); err != nil {
-		return cfg, fmt.Errorf("parse %s: %w", path, err)
+	if err := yaml.UnmarshalStrict(raw, &file); err != nil {
+		return cfg, fmt.Errorf("parse: %w", err)
 	}
 	if file.MaxRevisions != nil {
 		if *file.MaxRevisions < 0 || *file.MaxRevisions > 50 {
-			return cfg, fmt.Errorf("%s: max_revisions must be between 0 and 50", path)
+			return cfg, fmt.Errorf("max_revisions must be between 0 and 50")
 		}
 		cfg.MaxRevisions = *file.MaxRevisions // 0 = the first rejection fails the workflow
 	}
 	return cfg, nil
+}
+
+// Column roles let workflows move cards on any board layout.
+const (
+	RoleBacklog    = "backlog"
+	RoleInProgress = "in_progress"
+	RoleReview     = "review"
+	RoleDone       = "done"
+)
+
+// Roles lists the workflow roles a column may have.
+var Roles = []string{RoleBacklog, RoleInProgress, RoleReview, RoleDone}
+
+// ColumnDef is one column of a board layout.
+type ColumnDef struct {
+	Name  string `json:"name"`
+	Role  string `json:"role,omitempty"`
+	Color string `json:"color,omitempty"`
+}
+
+// BoardDefaults is the column set new projects get.
+type BoardDefaults struct {
+	Columns []ColumnDef `json:"columns"`
+}
+
+var colorRe = regexp.MustCompile(`^(#[0-9a-fA-F]{6})?$`)
+
+// ParseBoardDefaults decodes and validates a column set (YAML or JSON).
+func ParseBoardDefaults(raw []byte) (BoardDefaults, error) {
+	var b BoardDefaults
+	if err := yaml.UnmarshalStrict(raw, &b); err != nil {
+		return b, fmt.Errorf("parse: %w", err)
+	}
+	return b, ValidateColumns(b.Columns)
+}
+
+// ValidateColumns checks names (1-40 chars, unique), roles (known, unique) and colors.
+func ValidateColumns(cols []ColumnDef) error {
+	if len(cols) == 0 || len(cols) > 20 {
+		return fmt.Errorf("a board needs 1 to 20 columns")
+	}
+	names, roles := map[string]bool{}, map[string]bool{}
+	for i, c := range cols {
+		n := strings.TrimSpace(c.Name)
+		if n == "" || utf8.RuneCountInString(n) > 40 {
+			return fmt.Errorf("column %d: name must be 1-40 characters", i+1)
+		}
+		if names[strings.ToLower(n)] {
+			return fmt.Errorf("column %q appears twice", n)
+		}
+		names[strings.ToLower(n)] = true
+		if c.Role != "" {
+			if !slices.Contains(Roles, c.Role) {
+				return fmt.Errorf("column %q: unknown role %q", n, c.Role)
+			}
+			if roles[c.Role] {
+				return fmt.Errorf("only one column can have the %s role", c.Role)
+			}
+			roles[c.Role] = true
+		}
+		if !colorRe.MatchString(c.Color) {
+			return fmt.Errorf("column %q: color must be #rrggbb", n)
+		}
+	}
+	return nil
 }
 
 // HashContent returns the sha256 of the canonical JSON form of raw (object keys

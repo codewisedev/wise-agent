@@ -554,3 +554,18 @@ details[open] > summary { margin-bottom: 6px; }
 .inspector .field { min-width: 0; }
 .inspector-hint { align-content: center; }
 .flow-issues { margin: 0; padding: 10px 16px 12px 32px; color: var(--danger); border-top: 1px solid var(--border); }
+
+/* ---------- settings ---------- */
+.settings-tabs { margin: 0 0 var(--space-4); padding: 0; }
+.settings-form { display: grid; gap: 10px; }
+.settings-form h3 { margin: 10px 0 0; font-size: 12px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-muted); }
+.settings-group { margin: 0; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius); display: grid; gap: 8px; }
+.settings-group legend { padding: 0 4px; }
+.settings-row { align-items: center; }
+.settings-row > input:not([type]) , .settings-row > input[type="text"] { flex: 1 1 180px; }
+.settings-row > .btn { margin-top: 0; }
+.checks { display: flex; flex-wrap: wrap; gap: 8px 18px; }
+.field.budget { min-width: 160px; }
+.list.history li { padding: 6px 0; }
+.settings-form .form-grid > .btn { margin-top: 0; }
+.settings-form > .form-grid { align-items: center; }

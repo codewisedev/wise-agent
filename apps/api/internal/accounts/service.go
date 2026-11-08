@@ -436,3 +436,10 @@ func (s *Service) Credential(ctx context.Context, id uuid.UUID) (dbgen.Account, 
 	_ = json.Unmarshal(a.Metadata, &meta)
 	return a, secret, meta, nil
 }
+
+// IsModelAccount reports whether name is an enabled stored model account
+// (built-in providers excluded).
+func (s *Service) IsModelAccount(ctx context.Context, name string) bool {
+	a, err := s.db.GetAccountByName(ctx, name)
+	return err == nil && a.Enabled && IsModelKind(a.Kind)
+}

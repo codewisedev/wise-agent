@@ -983,6 +983,82 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Every panel-managed setting with its current value, version and shipped default. */
+        get: operations["listSettings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/settings/{settingKey}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                settingKey: components["parameters"]["SettingKey"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * @description Validates and stores a new value, applied immediately. `version` must be the version the editor
+         *     loaded; a concurrent change returns 409. Signed-in session only.
+         */
+        put: operations["updateSetting"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/settings/{settingKey}/reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                settingKey: components["parameters"]["SettingKey"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Restores the shipped default (the previous value stays in the history). */
+        post: operations["resetSetting"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/settings/{settingKey}/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                settingKey: components["parameters"]["SettingKey"];
+            };
+            cookie?: never;
+        };
+        get: operations["listSettingHistory"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/runtime/v1/runs/claim": {
         parameters: {
             query?: never;
@@ -1941,6 +2017,39 @@ export interface components {
             intervalMinutes?: number;
             enabled?: boolean;
         };
+        Setting: {
+            key: string;
+            title: string;
+            description: string;
+            /** @description The current value (JSON). */
+            value: unknown;
+            /** @description The shipped default (JSON), when available. */
+            default?: unknown;
+            version: number;
+            /** Format: date-time */
+            updatedAt: string;
+            /** Format: uuid */
+            updatedBy?: string | null;
+        };
+        SettingList: {
+            items: components["schemas"]["Setting"][];
+        };
+        UpdateSettingRequest: {
+            /** @description The new value (JSON). */
+            value: unknown;
+            /** @description The version the editor loaded. */
+            version: number;
+        };
+        SettingHistory: {
+            items: {
+                version: number;
+                value: unknown;
+                /** Format: uuid */
+                updatedBy?: string | null;
+                /** Format: date-time */
+                createdAt: string;
+            }[];
+        };
         RuntimeClaimRequest: {
             runtimeId: string;
         };
@@ -2075,6 +2184,7 @@ export interface components {
         TaskId: string;
         WorkflowId: string;
         ApprovalId: string;
+        SettingKey: string;
         IntegrationId: string;
         TemplateId: string;
         AccountId: string;
@@ -3901,6 +4011,107 @@ export interface operations {
             404: components["responses"]["Problem"];
             409: components["responses"]["Problem"];
             502: components["responses"]["Problem"];
+        };
+    };
+    listSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Settings. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SettingList"];
+                };
+            };
+            401: components["responses"]["Problem"];
+        };
+    };
+    updateSetting: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                settingKey: components["parameters"]["SettingKey"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateSettingRequest"];
+            };
+        };
+        responses: {
+            /** @description Saved and applied. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Setting"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+        };
+    };
+    resetSetting: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                settingKey: components["parameters"]["SettingKey"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Reset. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Setting"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    listSettingHistory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                settingKey: components["parameters"]["SettingKey"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Earlier versions, newest first. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SettingHistory"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
         };
     };
     runtimeClaimRun: {
