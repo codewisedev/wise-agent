@@ -76,6 +76,56 @@ func (q *Queries) CountMemoryCandidates(ctx context.Context) (int64, error) {
 	return count, err
 }
 
+const developerProfile = `-- name: DeveloperProfile :many
+SELECT id, scope, project_id, kind, category, title, body, status, source, source_refs, rationale, duplicate_of, version, tsv, embedding, embedding_model, created_by, decided_by, decided_at, created_at, updated_at FROM memories
+WHERE status IN ('active', 'candidate') AND scope = 'developer' AND kind IN ('rule', 'preference', 'convention', 'example')
+ORDER BY category, kind, title
+LIMIT 200
+`
+
+// The developer's active profile (what inference must not re-propose).
+func (q *Queries) DeveloperProfile(ctx context.Context) ([]Memory, error) {
+	rows, err := q.db.Query(ctx, developerProfile)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Memory{}
+	for rows.Next() {
+		var i Memory
+		if err := rows.Scan(
+			&i.ID,
+			&i.Scope,
+			&i.ProjectID,
+			&i.Kind,
+			&i.Category,
+			&i.Title,
+			&i.Body,
+			&i.Status,
+			&i.Source,
+			&i.SourceRefs,
+			&i.Rationale,
+			&i.DuplicateOf,
+			&i.Version,
+			&i.Tsv,
+			&i.Embedding,
+			&i.EmbeddingModel,
+			&i.CreatedBy,
+			&i.DecidedBy,
+			&i.DecidedAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const finishMemoryExtraction = `-- name: FinishMemoryExtraction :exec
 UPDATE memory_extractions SET processed_at = now(), candidates = $2 WHERE run_id = $1
 `
@@ -488,6 +538,35 @@ func (q *Queries) ListMemoryVersions(ctx context.Context, memoryID uuid.UUID) ([
 	return items, nil
 }
 
+const listProjectIndexedShas = `-- name: ListProjectIndexedShas :many
+SELECT name, indexed_sha FROM repositories WHERE project_id = $1 AND indexed_sha IS NOT NULL ORDER BY name
+`
+
+type ListProjectIndexedShasRow struct {
+	Name       string
+	IndexedSha *string
+}
+
+func (q *Queries) ListProjectIndexedShas(ctx context.Context, projectID uuid.UUID) ([]ListProjectIndexedShasRow, error) {
+	rows, err := q.db.Query(ctx, listProjectIndexedShas, projectID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListProjectIndexedShasRow{}
+	for rows.Next() {
+		var i ListProjectIndexedShasRow
+		if err := rows.Scan(&i.Name, &i.IndexedSha); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const lockMemory = `-- name: LockMemory :one
 SELECT id, scope, project_id, kind, category, title, body, status, source, source_refs, rationale, duplicate_of, version, tsv, embedding, embedding_model, created_by, decided_by, decided_at, created_at, updated_at FROM memories WHERE id = $1 FOR UPDATE
 `
@@ -573,6 +652,120 @@ func (q *Queries) PendingMemoryEmbeddings(ctx context.Context, arg PendingMemory
 			&i.Title,
 			&i.Body,
 		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const profileConfigChunks = `-- name: ProfileConfigChunks :many
+SELECT r.name AS repository_name, f.path, c.start_line, c.content
+FROM code_chunks c
+JOIN code_files f ON f.id = c.file_id
+JOIN repositories r ON r.id = c.repository_id
+WHERE r.project_id = $1 AND f.skipped_reason IS NULL
+  AND f.path ~* '(^|/)(package\.json|tsconfig[^/]*\.json|\.eslintrc[^/]*|eslint\.config\.[cm]?[jt]s|\.prettierrc[^/]*|prettier\.config\.[cm]?js|biome\.jsonc?|go\.mod|\.golangci\.ya?ml|pyproject\.toml|ruff\.toml|setup\.cfg|Cargo\.toml|rustfmt\.toml|clippy\.toml|\.editorconfig|Makefile|vitest\.config\.[cm]?[jt]s|jest\.config\.[cm]?[jt]s|playwright\.config\.[cm]?[jt]s|\.pre-commit-config\.yaml|CONTRIBUTING\.md)$'
+ORDER BY r.name, f.path, c.start_line
+LIMIT 300
+`
+
+type ProfileConfigChunksRow struct {
+	RepositoryName string
+	Path           string
+	StartLine      int32
+	Content        string
+}
+
+// Tooling and convention files of a project's repositories (already secret-guarded by the indexer).
+func (q *Queries) ProfileConfigChunks(ctx context.Context, projectID uuid.UUID) ([]ProfileConfigChunksRow, error) {
+	rows, err := q.db.Query(ctx, profileConfigChunks, projectID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ProfileConfigChunksRow{}
+	for rows.Next() {
+		var i ProfileConfigChunksRow
+		if err := rows.Scan(
+			&i.RepositoryName,
+			&i.Path,
+			&i.StartLine,
+			&i.Content,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const profileNamingSamples = `-- name: ProfileNamingSamples :many
+SELECT DISTINCT ON (s.kind, s.name) s.kind, s.name, f.language
+FROM code_symbols s JOIN code_files f ON f.id = s.file_id JOIN repositories r ON r.id = s.repository_id
+WHERE r.project_id = $1 AND s.exported AND f.path !~* '(^|/)(tests?|__tests__)/|[._-](test|spec)\.[a-z]+$|_test\.go$'
+ORDER BY s.kind, s.name
+LIMIT 120
+`
+
+type ProfileNamingSamplesRow struct {
+	Kind     string
+	Name     string
+	Language string
+}
+
+func (q *Queries) ProfileNamingSamples(ctx context.Context, projectID uuid.UUID) ([]ProfileNamingSamplesRow, error) {
+	rows, err := q.db.Query(ctx, profileNamingSamples, projectID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ProfileNamingSamplesRow{}
+	for rows.Next() {
+		var i ProfileNamingSamplesRow
+		if err := rows.Scan(&i.Kind, &i.Name, &i.Language); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const profileTestLayout = `-- name: ProfileTestLayout :many
+SELECT f.language,
+       count(*) FILTER (WHERE f.path ~* '(^|/)(tests?|__tests__|spec)/|[._-](test|spec)\.[a-z]+$|_test\.go$') AS tests,
+       count(*) AS files
+FROM code_files f JOIN repositories r ON r.id = f.repository_id
+WHERE r.project_id = $1 AND f.skipped_reason IS NULL AND f.language <> ''
+GROUP BY f.language
+ORDER BY files DESC
+`
+
+type ProfileTestLayoutRow struct {
+	Language string
+	Tests    int64
+	Files    int64
+}
+
+func (q *Queries) ProfileTestLayout(ctx context.Context, projectID uuid.UUID) ([]ProfileTestLayoutRow, error) {
+	rows, err := q.db.Query(ctx, profileTestLayout, projectID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ProfileTestLayoutRow{}
+	for rows.Next() {
+		var i ProfileTestLayoutRow
+		if err := rows.Scan(&i.Language, &i.Tests, &i.Files); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

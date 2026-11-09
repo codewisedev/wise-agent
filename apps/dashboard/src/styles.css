@@ -698,3 +698,14 @@ pre.diff span.del { color: var(--danger, #e5484d); background: color-mix(in srgb
 .memory-filters .search input { border: 0; background: transparent; height: 28px; padding: 0; width: 160px; outline: none; }
 .warn-text { color: var(--warn); }
 .tab .nav-count { margin-left: 6px; }
+
+/* ---------- profile ---------- */
+.profile-sections { display: grid; gap: 4px; padding: 4px 16px 12px; }
+.profile-sections h3 { margin: 10px 0 0; font-size: 12px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-muted); display: flex; align-items: center; gap: 6px; }
+.profile-sections > section > p { margin: 2px 0 4px; }
+.list.profile-list li.profile-item { display: flex; align-items: flex-start; gap: 12px; padding: 8px 0; }
+.profile-text { flex: 1; min-width: 0; }
+.profile-text p { margin: 2px 0 0; white-space: pre-wrap; }
+.profile-actions { display: flex; gap: 4px; flex-shrink: 0; }
+.example-form { display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.example-form input { height: 28px; width: 200px; }

@@ -231,3 +231,30 @@ func runContext(raw []byte) *apigen.RunContext {
 	}
 	return &c
 }
+
+func (s *Server) InferProfile(ctx context.Context, req apigen.InferProfileRequestObject) (apigen.InferProfileResponseObject, error) {
+	uid, err := sessionUser(ctx, "inferring the engineering profile")
+	if err != nil {
+		return nil, err
+	}
+	run, err := s.Memory.InferProfile(ctx, req.ProjectId, uid)
+	if err != nil {
+		return nil, err
+	}
+	return apigen.InferProfile202JSONResponse(toAgentRun(run)), nil
+}
+
+func (s *Server) CreateExample(ctx context.Context, req apigen.CreateExampleRequestObject) (apigen.CreateExampleResponseObject, error) {
+	uid, err := sessionUser(ctx, "saving an approved example")
+	if err != nil {
+		return nil, err
+	}
+	b := req.Body
+	in := memory.ExampleInput{RepositoryID: req.RepositoryId, Path: b.Path, StartLine: b.StartLine, EndLine: b.EndLine,
+		Title: deref(b.Title), Note: deref(b.Note), Category: strOf(b.Category)}
+	m, err := s.Memory.CreateExample(ctx, s.Repositories, in, uid)
+	if err != nil {
+		return nil, err
+	}
+	return apigen.CreateExample201JSONResponse(s.memoryView(ctx, m)), nil
+}

@@ -1,0 +1,71 @@
+name: profile-agent
+version: 1.0.0
+description: Proposes engineering-profile preferences (style, tooling, testing, architecture) from what a project's indexed repositories show, for the user to approve.
+enabled: true
+phase: 4
+prompt: profile-agent/system.md
+produces: profile_candidates
+responsibilities:
+  - Infer the developer's coding, tooling, testing and architecture preferences from configuration and code
+  - Propose preferences and conventions only — never mandatory rules
+  - Avoid proposing what the profile already contains
+input_schema:
+  type: object
+  additionalProperties: false
+  required: [project]
+  properties:
+    project:
+      type: object
+      additionalProperties: false
+      required: [name]
+      properties:
+        name: { type: string }
+        description: { type: string }
+    dependencies: { type: array, items: { type: string }, description: "ecosystem name version (dev)" }
+    configuration: { type: string, description: Contents of tooling, lint, formatting, test and build configuration files. }
+    test_layout: { type: string, description: Files and test files per language. }
+    naming_samples: { type: string, description: Exported symbol names with kinds. }
+    existing_memories:
+      type: array
+      description: The profile as it is; do not propose these again.
+      items: { type: object, additionalProperties: true }
+output_schema:
+  type: object
+  additionalProperties: false
+  required: [memories]
+  properties:
+    memories:
+      type: array
+      maxItems: 8
+      items:
+        type: object
+        additionalProperties: false
+        required: [scope, kind, category, title, body, rationale]
+        properties:
+          scope: { enum: [developer] }
+          kind: { enum: [preference, convention, example] }
+          category: { enum: [coding, architecture, testing, api, database, security, tooling, product, other] }
+          title: { type: string, maxLength: 120 }
+          body: { type: string, maxLength: 1500 }
+          rationale: { type: string, maxLength: 500, description: The evidence, naming the file or setting it comes from. }
+tools: []
+permissions: []
+model_config:
+  alias: reasoning
+  fallbacks: [local]
+  temperature: 0.1
+  max_output_tokens: 3072
+execution_limits:
+  max_turns: 3
+  max_tool_calls: 0
+  max_tokens: 80000
+  max_cost_usd: 0.3
+  timeout_s: 300
+error_handling:
+  max_attempts: 2
+  invalid_output_retries: 2
+evaluation:
+  criteria:
+    - Every proposal cites concrete evidence (a config setting, dependency or consistent naming)
+    - No mandatory rules; no duplicates of the existing profile
+    - Specific enough to act on (not generic best practice)

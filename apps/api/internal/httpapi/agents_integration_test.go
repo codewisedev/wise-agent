@@ -99,8 +99,8 @@ func TestAgentRunLifecycle(t *testing.T) {
 	e.login()
 
 	list := e.expect(e.do("GET", "/agents", nil), 200)["items"].([]any)
-	if len(list) != 12 {
-		t.Fatalf("want 12 agents, got %d", len(list))
+	if len(list) != 13 {
+		t.Fatalf("want 13 agents, got %d", len(list))
 	}
 	detail := e.expect(e.do("GET", "/agents/product-agent", nil), 200)
 	if detail["prompt"] == "" || detail["enabled"] != true || len(detail["tools"].([]any)) != 7 {

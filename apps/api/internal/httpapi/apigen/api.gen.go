@@ -1408,6 +1408,18 @@ type EmbeddingStatus struct {
 	Provider *string `json:"provider,omitempty"`
 }
 
+// ExampleInput defines model for ExampleInput.
+type ExampleInput struct {
+	Category *MemoryCategory `json:"category,omitempty"`
+	EndLine  int             `json:"endLine"`
+
+	// Note Why this is a good example.
+	Note      *string `json:"note,omitempty"`
+	Path      string  `json:"path"`
+	StartLine int     `json:"startLine"`
+	Title     *string `json:"title,omitempty"`
+}
+
 // FieldError defines model for FieldError.
 type FieldError struct {
 	Field   string `json:"field"`
@@ -2659,6 +2671,9 @@ type CreateTaskJSONRequestBody = CreateTaskRequest
 // UpdateRepositoryJSONRequestBody defines body for UpdateRepository for application/json ContentType.
 type UpdateRepositoryJSONRequestBody = UpdateRepositoryRequest
 
+// CreateExampleJSONRequestBody defines body for CreateExample for application/json ContentType.
+type CreateExampleJSONRequestBody = ExampleInput
+
 // RuntimeClaimIndexJobJSONRequestBody defines body for RuntimeClaimIndexJob for application/json ContentType.
 type RuntimeClaimIndexJobJSONRequestBody = RuntimeClaimRequest
 
@@ -2905,6 +2920,9 @@ type ServerInterface interface {
 	// (GET /projects/{projectId}/context/symbols)
 	ListContextSymbols(w http.ResponseWriter, r *http.Request, projectId ProjectId, params ListContextSymbolsParams)
 
+	// (POST /projects/{projectId}/infer-profile)
+	InferProfile(w http.ResponseWriter, r *http.Request, projectId ProjectId)
+
 	// (GET /projects/{projectId}/integrations)
 	ListIntegrations(w http.ResponseWriter, r *http.Request, projectId ProjectId)
 
@@ -2949,6 +2967,9 @@ type ServerInterface interface {
 
 	// (PATCH /repositories/{repositoryId})
 	UpdateRepository(w http.ResponseWriter, r *http.Request, repositoryId RepositoryId)
+
+	// (POST /repositories/{repositoryId}/examples)
+	CreateExample(w http.ResponseWriter, r *http.Request, repositoryId RepositoryId)
 
 	// (GET /repositories/{repositoryId}/file)
 	ReadRepositoryFile(w http.ResponseWriter, r *http.Request, repositoryId RepositoryId, params ReadRepositoryFileParams)
@@ -3417,6 +3438,11 @@ func (_ Unimplemented) ListContextSymbols(w http.ResponseWriter, r *http.Request
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
+// (POST /projects/{projectId}/infer-profile)
+func (_ Unimplemented) InferProfile(w http.ResponseWriter, r *http.Request, projectId ProjectId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
 // (GET /projects/{projectId}/integrations)
 func (_ Unimplemented) ListIntegrations(w http.ResponseWriter, r *http.Request, projectId ProjectId) {
 	w.WriteHeader(http.StatusNotImplemented)
@@ -3489,6 +3515,11 @@ func (_ Unimplemented) GetRepository(w http.ResponseWriter, r *http.Request, rep
 
 // (PATCH /repositories/{repositoryId})
 func (_ Unimplemented) UpdateRepository(w http.ResponseWriter, r *http.Request, repositoryId RepositoryId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (POST /repositories/{repositoryId}/examples)
+func (_ Unimplemented) CreateExample(w http.ResponseWriter, r *http.Request, repositoryId RepositoryId) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -5492,6 +5523,32 @@ func (siw *ServerInterfaceWrapper) ListContextSymbols(w http.ResponseWriter, r *
 	handler.ServeHTTP(w, r)
 }
 
+// InferProfile operation middleware
+func (siw *ServerInterfaceWrapper) InferProfile(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "projectId" -------------
+	var projectId ProjectId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "projectId", chi.URLParam(r, "projectId"), &projectId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "projectId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.InferProfile(w, r, projectId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListIntegrations operation middleware
 func (siw *ServerInterfaceWrapper) ListIntegrations(w http.ResponseWriter, r *http.Request) {
 
@@ -5861,6 +5918,32 @@ func (siw *ServerInterfaceWrapper) UpdateRepository(w http.ResponseWriter, r *ht
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.UpdateRepository(w, r, repositoryId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateExample operation middleware
+func (siw *ServerInterfaceWrapper) CreateExample(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "repositoryId" -------------
+	var repositoryId RepositoryId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "repositoryId", chi.URLParam(r, "repositoryId"), &repositoryId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "repositoryId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateExample(w, r, repositoryId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -7715,6 +7798,12 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/runtime/v1/runs/{runId}/context/dependencies", wrapper.RuntimeContextDependencies)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/projects/{projectId}/infer-profile", wrapper.InferProfile)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/repositories/{repositoryId}/examples", wrapper.CreateExample)
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/memories", wrapper.ListMemories)
@@ -11702,6 +11791,86 @@ func (response ListContextSymbols404ApplicationProblemPlusJSONResponse) VisitLis
 	return err
 }
 
+type InferProfileRequestObject struct {
+	ProjectId ProjectId `json:"projectId"`
+}
+
+type InferProfileResponseObject interface {
+	VisitInferProfileResponse(w http.ResponseWriter) error
+}
+
+type InferProfile202JSONResponse AgentRun
+
+func (response InferProfile202JSONResponse) VisitInferProfileResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(202)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type InferProfile401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response InferProfile401ApplicationProblemPlusJSONResponse) VisitInferProfileResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type InferProfile403ApplicationProblemPlusJSONResponse Problem
+
+func (response InferProfile403ApplicationProblemPlusJSONResponse) VisitInferProfileResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type InferProfile404ApplicationProblemPlusJSONResponse Problem
+
+func (response InferProfile404ApplicationProblemPlusJSONResponse) VisitInferProfileResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type InferProfile409ApplicationProblemPlusJSONResponse Problem
+
+func (response InferProfile409ApplicationProblemPlusJSONResponse) VisitInferProfileResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type ListIntegrationsRequestObject struct {
 	ProjectId ProjectId `json:"projectId"`
 }
@@ -12618,6 +12787,87 @@ func (response UpdateRepository409ApplicationProblemPlusJSONResponse) VisitUpdat
 	}
 	w.Header().Set("Content-Type", "application/problem+json")
 	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateExampleRequestObject struct {
+	RepositoryId RepositoryId `json:"repositoryId"`
+	Body         *CreateExampleJSONRequestBody
+}
+
+type CreateExampleResponseObject interface {
+	VisitCreateExampleResponse(w http.ResponseWriter) error
+}
+
+type CreateExample201JSONResponse Memory
+
+func (response CreateExample201JSONResponse) VisitCreateExampleResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateExample400ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response CreateExample400ApplicationProblemPlusJSONResponse) VisitCreateExampleResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateExample401ApplicationProblemPlusJSONResponse Problem
+
+func (response CreateExample401ApplicationProblemPlusJSONResponse) VisitCreateExampleResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateExample403ApplicationProblemPlusJSONResponse Problem
+
+func (response CreateExample403ApplicationProblemPlusJSONResponse) VisitCreateExampleResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateExample404ApplicationProblemPlusJSONResponse Problem
+
+func (response CreateExample404ApplicationProblemPlusJSONResponse) VisitCreateExampleResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
 	_, err := buf.WriteTo(w)
 	return err
 }
@@ -15773,6 +16023,9 @@ type StrictServerInterface interface {
 	// (GET /projects/{projectId}/context/symbols)
 	ListContextSymbols(ctx context.Context, request ListContextSymbolsRequestObject) (ListContextSymbolsResponseObject, error)
 
+	// (POST /projects/{projectId}/infer-profile)
+	InferProfile(ctx context.Context, request InferProfileRequestObject) (InferProfileResponseObject, error)
+
 	// (GET /projects/{projectId}/integrations)
 	ListIntegrations(ctx context.Context, request ListIntegrationsRequestObject) (ListIntegrationsResponseObject, error)
 
@@ -15817,6 +16070,9 @@ type StrictServerInterface interface {
 
 	// (PATCH /repositories/{repositoryId})
 	UpdateRepository(ctx context.Context, request UpdateRepositoryRequestObject) (UpdateRepositoryResponseObject, error)
+
+	// (POST /repositories/{repositoryId}/examples)
+	CreateExample(ctx context.Context, request CreateExampleRequestObject) (CreateExampleResponseObject, error)
 
 	// (GET /repositories/{repositoryId}/file)
 	ReadRepositoryFile(ctx context.Context, request ReadRepositoryFileRequestObject) (ReadRepositoryFileResponseObject, error)
@@ -17751,6 +18007,32 @@ func (sh *strictHandler) ListContextSymbols(w http.ResponseWriter, r *http.Reque
 	}
 }
 
+// InferProfile operation middleware
+func (sh *strictHandler) InferProfile(w http.ResponseWriter, r *http.Request, projectId ProjectId) {
+	var request InferProfileRequestObject
+
+	request.ProjectId = projectId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.InferProfile(ctx, request.(InferProfileRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "InferProfile")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(InferProfileResponseObject); ok {
+		if err := validResponse.VisitInferProfileResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // ListIntegrations operation middleware
 func (sh *strictHandler) ListIntegrations(w http.ResponseWriter, r *http.Request, projectId ProjectId) {
 	var request ListIntegrationsRequestObject
@@ -18181,6 +18463,39 @@ func (sh *strictHandler) UpdateRepository(w http.ResponseWriter, r *http.Request
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(UpdateRepositoryResponseObject); ok {
 		if err := validResponse.VisitUpdateRepositoryResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CreateExample operation middleware
+func (sh *strictHandler) CreateExample(w http.ResponseWriter, r *http.Request, repositoryId RepositoryId) {
+	var request CreateExampleRequestObject
+
+	request.RepositoryId = repositoryId
+
+	var body CreateExampleJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateExample(ctx, request.(CreateExampleRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateExample")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CreateExampleResponseObject); ok {
+		if err := validResponse.VisitCreateExampleResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

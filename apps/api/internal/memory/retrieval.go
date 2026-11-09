@@ -268,6 +268,9 @@ func (s *Service) ForRun(ctx context.Context, run dbgen.AgentRun) (Pack, error) 
 		err := json.Unmarshal(run.Context, &p)
 		return p, err
 	}
+	if extractorAgents[run.AgentName] {
+		return Pack{}, nil // the agents that produce memory never get it
+	}
 	for _, a := range s.Settings().SkipAgents {
 		if a == run.AgentName {
 			return Pack{}, nil

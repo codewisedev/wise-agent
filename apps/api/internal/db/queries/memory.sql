@@ -123,3 +123,40 @@ LIMIT 10;
 
 -- name: GetMemoryExtraction :one
 SELECT * FROM memory_extractions WHERE run_id = $1;
+
+-- name: ProfileConfigChunks :many
+-- Tooling and convention files of a project's repositories (already secret-guarded by the indexer).
+SELECT r.name AS repository_name, f.path, c.start_line, c.content
+FROM code_chunks c
+JOIN code_files f ON f.id = c.file_id
+JOIN repositories r ON r.id = c.repository_id
+WHERE r.project_id = $1 AND f.skipped_reason IS NULL
+  AND f.path ~* '(^|/)(package\.json|tsconfig[^/]*\.json|\.eslintrc[^/]*|eslint\.config\.[cm]?[jt]s|\.prettierrc[^/]*|prettier\.config\.[cm]?js|biome\.jsonc?|go\.mod|\.golangci\.ya?ml|pyproject\.toml|ruff\.toml|setup\.cfg|Cargo\.toml|rustfmt\.toml|clippy\.toml|\.editorconfig|Makefile|vitest\.config\.[cm]?[jt]s|jest\.config\.[cm]?[jt]s|playwright\.config\.[cm]?[jt]s|\.pre-commit-config\.yaml|CONTRIBUTING\.md)$'
+ORDER BY r.name, f.path, c.start_line
+LIMIT 300;
+
+-- name: ProfileTestLayout :many
+SELECT f.language,
+       count(*) FILTER (WHERE f.path ~* '(^|/)(tests?|__tests__|spec)/|[._-](test|spec)\.[a-z]+$|_test\.go$') AS tests,
+       count(*) AS files
+FROM code_files f JOIN repositories r ON r.id = f.repository_id
+WHERE r.project_id = $1 AND f.skipped_reason IS NULL AND f.language <> ''
+GROUP BY f.language
+ORDER BY files DESC;
+
+-- name: ProfileNamingSamples :many
+SELECT DISTINCT ON (s.kind, s.name) s.kind, s.name, f.language
+FROM code_symbols s JOIN code_files f ON f.id = s.file_id JOIN repositories r ON r.id = s.repository_id
+WHERE r.project_id = $1 AND s.exported AND f.path !~* '(^|/)(tests?|__tests__)/|[._-](test|spec)\.[a-z]+$|_test\.go$'
+ORDER BY s.kind, s.name
+LIMIT 120;
+
+-- name: DeveloperProfile :many
+-- The developer's active profile (what inference must not re-propose).
+SELECT * FROM memories
+WHERE status IN ('active', 'candidate') AND scope = 'developer' AND kind IN ('rule', 'preference', 'convention', 'example')
+ORDER BY category, kind, title
+LIMIT 200;
+
+-- name: ListProjectIndexedShas :many
+SELECT name, indexed_sha FROM repositories WHERE project_id = $1 AND indexed_sha IS NOT NULL ORDER BY name;

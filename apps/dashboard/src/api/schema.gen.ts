@@ -1502,6 +1502,44 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/projects/{projectId}/infer-profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: components["parameters"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Runs the profile agent over the project's indexed repositories; its proposals (preferences and conventions, never rules) arrive in the memory inbox. One run per set of indexed commits. */
+        post: operations["inferProfile"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/repositories/{repositoryId}/examples": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                repositoryId: components["parameters"]["RepositoryId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Saves lines of a repository file as an approved example (a project memory with the snippet, location and commit). Files the secret guard protects are refused. */
+        post: operations["createExample"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/memories": {
         parameters: {
             query?: never;
@@ -2650,6 +2688,15 @@ export interface components {
         };
         MemoryList: {
             items: components["schemas"]["Memory"][];
+        };
+        ExampleInput: {
+            path: string;
+            startLine: number;
+            endLine: number;
+            title?: string;
+            /** @description Why this is a good example. */
+            note?: string;
+            category?: components["schemas"]["MemoryCategory"];
         };
         MemoryInbox: {
             /** Format: int64 */
@@ -6010,6 +6057,62 @@ export interface operations {
             401: components["responses"]["Problem"];
             403: components["responses"]["Problem"];
             409: components["responses"]["Problem"];
+        };
+    };
+    inferProfile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: components["parameters"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Inference queued (or the existing run for these commits). */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentRun"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+        };
+    };
+    createExample: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                repositoryId: components["parameters"]["RepositoryId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExampleInput"];
+            };
+        };
+        responses: {
+            /** @description Created. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Memory"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
         };
     };
     listMemories: {

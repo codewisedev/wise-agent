@@ -1788,6 +1788,45 @@ paths:
         "401": { $ref: "#/components/responses/Problem" }
         "403": { $ref: "#/components/responses/Problem" }
         "409": { $ref: "#/components/responses/Problem" }
+  /projects/{projectId}/infer-profile:
+    parameters:
+      - $ref: "#/components/parameters/ProjectId"
+    post:
+      tags: [memory]
+      operationId: inferProfile
+      description: Runs the profile agent over the project's indexed repositories; its proposals (preferences and conventions, never rules) arrive in the memory inbox. One run per set of indexed commits.
+      responses:
+        "202":
+          description: Inference queued (or the existing run for these commits).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AgentRun" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+  /repositories/{repositoryId}/examples:
+    parameters:
+      - $ref: "#/components/parameters/RepositoryId"
+    post:
+      tags: [memory]
+      operationId: createExample
+      description: Saves lines of a repository file as an approved example (a project memory with the snippet, location and commit). Files the secret guard protects are refused.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ExampleInput" }
+      responses:
+        "201":
+          description: Created.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Memory" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
   /memories:
     get:
       tags: [memory]
@@ -3078,6 +3117,16 @@ components:
       required: [items]
       properties:
         items: { type: array, items: { $ref: "#/components/schemas/Memory" } }
+    ExampleInput:
+      type: object
+      required: [path, startLine, endLine]
+      properties:
+        path: { type: string, minLength: 1, maxLength: 1024 }
+        startLine: { type: integer, minimum: 1 }
+        endLine: { type: integer, minimum: 1 }
+        title: { type: string, maxLength: 200 }
+        note: { type: string, maxLength: 2000, description: Why this is a good example. }
+        category: { $ref: "#/components/schemas/MemoryCategory" }
     MemoryInbox:
       type: object
       required: [candidates]

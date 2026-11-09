@@ -197,6 +197,9 @@ func (s *Service) process(ctx context.Context, runID uuid.UUID) error {
 			cands = out.Memories
 		}
 	}
+	if ext.Source == "profile_inference" {
+		cands = downgradeInferred(cands) // inference proposes preferences, never rules
+	}
 	refs := map[string]any{}
 	_ = json.Unmarshal(ext.SourceRefs, &refs)
 	refs["runId"] = runID

@@ -1,5 +1,5 @@
-import { useQuery } from "@tanstack/react-query";
-import { AlertTriangle, ChevronRight, Code2, FileText, Package, ScanSearch, Search, Settings2, X } from "lucide-react";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { AlertTriangle, ChevronRight, Code2, FileText, Package, ScanSearch, Search, Settings2, Star, X } from "lucide-react";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link, useParams, useSearchParams } from "react-router";
 import { api, unwrap, type Schemas } from "../api/client";
@@ -9,6 +9,33 @@ type Hit = Schemas["ContextHit"];
 type Kind = Schemas["ContextKind"] | "";
 
 const KIND_ICON: Record<string, typeof Code2> = { symbol: Code2, code: Code2, doc: FileText, config: Settings2 };
+
+/** Saves the hit's lines as an approved example (a project memory with the snippet). */
+function SaveExample({ hit }: { hit: Hit }) {
+  const [open, setOpen] = useState(false);
+  const [title, setTitle] = useState(hit.title || hit.path);
+  const [note, setNote] = useState("");
+  const save = useMutation({
+    mutationFn: () => unwrap(api.POST("/repositories/{repositoryId}/examples", {
+      params: { path: { repositoryId: hit.repositoryId } },
+      body: { path: hit.path, startLine: hit.startLine, endLine: hit.endLine, title: title.trim(), note: note.trim() },
+    })),
+    onSuccess: () => setOpen(false),
+  });
+  if (save.isSuccess) return <Badge tone="ok" dot={false}>saved as example</Badge>;
+  if (!open) {
+    return <button type="button" className="btn btn-ghost btn-sm" onClick={() => setOpen(true)}><Star size={13} aria-hidden /> Save as approved example</button>;
+  }
+  return (
+    <form className="example-form" onSubmit={(e) => { e.preventDefault(); save.mutate(); }}>
+      <input aria-label="Example title" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={200} />
+      <input aria-label="Why it is a good example" placeholder="why it is a good example" value={note} onChange={(e) => setNote(e.target.value)} maxLength={2000} />
+      <button type="submit" className="btn btn-primary btn-sm" disabled={save.isPending}>Save</button>
+      <button type="button" className="btn btn-ghost btn-icon" aria-label="Cancel" onClick={() => setOpen(false)}><X size={13} aria-hidden /></button>
+      <ErrorNote error={save.error} />
+    </form>
+  );
+}
 
 /** A file from the working tree, scrolled to the hit's lines. */
 function FileViewer({ hit, onClose }: { hit: Hit; onClose: () => void }) {
@@ -35,6 +62,7 @@ function FileViewer({ hit, onClose }: { hit: Hit; onClose: () => void }) {
           <span className="small faint">lines {hit.startLine}–{hit.endLine}</span>
           {file.data?.headSha && <span className="mono small faint" title="Working tree at this commit">{file.data.headSha.slice(0, 10)}</span>}
           {hit.stale && <Badge tone="warn" dot={false}>index older than HEAD</Badge>}
+          <SaveExample hit={hit} />
           <span className="spacer" />
           <button type="button" className="btn btn-ghost btn-icon" aria-label="Close" onClick={onClose} autoFocus><X size={15} aria-hidden /></button>
         </header>
