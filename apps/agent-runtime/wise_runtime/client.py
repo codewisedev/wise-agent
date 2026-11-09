@@ -91,3 +91,20 @@ class ControlPlane:
             token,
             {"error": error[:10000], "retryable": retryable, "cancelled": cancelled},
         )
+
+    def context(self, run_id: str, token: str, kind: str, params: dict[str, Any]) -> dict[str, Any]:
+        """Index queries for a run (search, symbols, dependencies)."""
+        res = self._http.get(
+            f"{self._base}/runs/{run_id}/context/{kind}",
+            params=params,
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=self._timeout,
+        )
+        try:
+            data = res.json()
+        except ValueError:
+            data = {}
+        if res.status_code >= 300:
+            detail = data.get("detail") or data.get("title") or res.text[:300]
+            raise ApiError(res.status_code, detail, data)
+        return data

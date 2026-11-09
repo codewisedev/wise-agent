@@ -3,6 +3,7 @@ package settings
 import (
 	"context"
 	"encoding/json"
+	"wise/apps/api/internal/codeindex"
 
 	"wise/apps/api/internal/accounts"
 	"wise/apps/api/internal/modelgateway"
@@ -87,6 +88,29 @@ func RegisterDefaults(s *Service, files Files, gw *modelgateway.Gateway, acc *ac
 			b, err := tasks.ParseBoardDefaults(v)
 			if err == nil {
 				t.SetBoardDefaults(b)
+			}
+			return err
+		},
+	})
+}
+
+// RegisterIndexing declares the "indexing" setting (globs, caps, auto-index, secret patterns).
+func RegisterIndexing(s *Service, file string, idx *codeindex.Service) {
+	s.Register(Def{
+		Key: "indexing", Title: "Indexing",
+		Description: "What the code indexer reads: exclude/include globs, documentation globs, size caps, chunk size, automatic re-indexing when HEAD moves, and extra secret patterns (the built-in secret guard always applies).",
+		Default:     FileDefault(file),
+		Validate: func(_ context.Context, v json.RawMessage) (json.RawMessage, error) {
+			st, err := codeindex.ParseSettings(v)
+			if err != nil {
+				return nil, err
+			}
+			return json.Marshal(st)
+		},
+		Apply: func(_ context.Context, v json.RawMessage) error {
+			st, err := codeindex.ParseSettings(v)
+			if err == nil {
+				idx.SetSettings(st)
 			}
 			return err
 		},

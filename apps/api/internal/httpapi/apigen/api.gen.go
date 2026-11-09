@@ -119,16 +119,16 @@ func (e AgentSummarySource) Valid() bool {
 
 // Defines values for AgentVersionSource.
 const (
-	Code  AgentVersionSource = "code"
-	Panel AgentVersionSource = "panel"
+	AgentVersionSourceCode  AgentVersionSource = "code"
+	AgentVersionSourcePanel AgentVersionSource = "panel"
 )
 
 // Valid indicates whether the value is a known member of the AgentVersionSource enum.
 func (e AgentVersionSource) Valid() bool {
 	switch e {
-	case Code:
+	case AgentVersionSourceCode:
 		return true
-	case Panel:
+	case AgentVersionSourcePanel:
 		return true
 	default:
 		return false
@@ -213,6 +213,105 @@ func (e ColumnRole) Valid() bool {
 	case ColumnRoleReview:
 		return true
 	case ColumnRoleTodo:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ContextKind.
+const (
+	ContextKindCode   ContextKind = "code"
+	ContextKindConfig ContextKind = "config"
+	ContextKindDoc    ContextKind = "doc"
+	ContextKindSymbol ContextKind = "symbol"
+)
+
+// Valid indicates whether the value is a known member of the ContextKind enum.
+func (e ContextKind) Valid() bool {
+	switch e {
+	case ContextKindCode:
+		return true
+	case ContextKindConfig:
+		return true
+	case ContextKindDoc:
+		return true
+	case ContextKindSymbol:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for IndexChunkKind.
+const (
+	IndexChunkKindCode   IndexChunkKind = "code"
+	IndexChunkKindConfig IndexChunkKind = "config"
+	IndexChunkKindDoc    IndexChunkKind = "doc"
+)
+
+// Valid indicates whether the value is a known member of the IndexChunkKind enum.
+func (e IndexChunkKind) Valid() bool {
+	switch e {
+	case IndexChunkKindCode:
+		return true
+	case IndexChunkKindConfig:
+		return true
+	case IndexChunkKindDoc:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for IndexFileSkippedReason.
+const (
+	IndexFileSkippedReasonBinary     IndexFileSkippedReason = "binary"
+	IndexFileSkippedReasonEmpty      IndexFileSkippedReason = ""
+	IndexFileSkippedReasonSecret     IndexFileSkippedReason = "secret"
+	IndexFileSkippedReasonTooLarge   IndexFileSkippedReason = "too_large"
+	IndexFileSkippedReasonUnreadable IndexFileSkippedReason = "unreadable"
+)
+
+// Valid indicates whether the value is a known member of the IndexFileSkippedReason enum.
+func (e IndexFileSkippedReason) Valid() bool {
+	switch e {
+	case IndexFileSkippedReasonBinary:
+		return true
+	case IndexFileSkippedReasonEmpty:
+		return true
+	case IndexFileSkippedReasonSecret:
+		return true
+	case IndexFileSkippedReasonTooLarge:
+		return true
+	case IndexFileSkippedReasonUnreadable:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for IndexJobStatus.
+const (
+	IndexJobStatusCancelled IndexJobStatus = "cancelled"
+	IndexJobStatusDone      IndexJobStatus = "done"
+	IndexJobStatusFailed    IndexJobStatus = "failed"
+	IndexJobStatusQueued    IndexJobStatus = "queued"
+	IndexJobStatusRunning   IndexJobStatus = "running"
+)
+
+// Valid indicates whether the value is a known member of the IndexJobStatus enum.
+func (e IndexJobStatus) Valid() bool {
+	switch e {
+	case IndexJobStatusCancelled:
+		return true
+	case IndexJobStatusDone:
+		return true
+	case IndexJobStatusFailed:
+		return true
+	case IndexJobStatusQueued:
+		return true
+	case IndexJobStatusRunning:
 		return true
 	default:
 		return false
@@ -1007,6 +1106,36 @@ type ColumnInputRole string
 // ColumnRole What a column means to workflows: runs move cards to in_progress, then review, then the template's destination role.
 type ColumnRole string
 
+// ContextHit defines model for ContextHit.
+type ContextHit struct {
+	EndLine    int     `json:"endLine"`
+	IndexedSha *string `json:"indexedSha,omitempty"`
+
+	// Kind symbol, code, doc or config
+	Kind         string             `json:"kind"`
+	Language     *string            `json:"language,omitempty"`
+	Path         string             `json:"path"`
+	Repository   string             `json:"repository"`
+	RepositoryId openapi_types.UUID `json:"repositoryId"`
+	Score        float64            `json:"score"`
+	Snippet      string             `json:"snippet"`
+
+	// Stale HEAD moved since this was indexed; read the file to be sure.
+	Stale     bool   `json:"stale"`
+	StartLine int    `json:"startLine"`
+	Title     string `json:"title"`
+	Why       string `json:"why"`
+}
+
+// ContextHits defines model for ContextHits.
+type ContextHits struct {
+	Items []ContextHit `json:"items"`
+	Note  *string      `json:"note,omitempty"`
+}
+
+// ContextKind defines model for ContextKind.
+type ContextKind string
+
 // CreateAccountRequest defines model for CreateAccountRequest.
 type CreateAccountRequest struct {
 	BaseUrl      *string                 `json:"baseUrl,omitempty"`
@@ -1104,6 +1233,21 @@ type CreatedApiToken struct {
 	Token  ApiToken `json:"token"`
 }
 
+// Dependency defines model for Dependency.
+type Dependency struct {
+	Dev        bool   `json:"dev"`
+	Ecosystem  string `json:"ecosystem"`
+	Manifest   string `json:"manifest"`
+	Name       string `json:"name"`
+	Repository string `json:"repository"`
+	Version    string `json:"version"`
+}
+
+// DependencyList defines model for DependencyList.
+type DependencyList struct {
+	Items []Dependency `json:"items"`
+}
+
 // FieldError defines model for FieldError.
 type FieldError struct {
 	Field   string `json:"field"`
@@ -1120,6 +1264,107 @@ type GitRemote struct {
 type Health struct {
 	// Status Example: ok
 	Status string `json:"status"`
+}
+
+// IndexChunk defines model for IndexChunk.
+type IndexChunk struct {
+	Content   string         `json:"content"`
+	EndLine   int            `json:"endLine"`
+	Heading   *string        `json:"heading,omitempty"`
+	Kind      IndexChunkKind `json:"kind"`
+	StartLine int            `json:"startLine"`
+}
+
+// IndexChunkKind defines model for IndexChunk.Kind.
+type IndexChunkKind string
+
+// IndexClaim defines model for IndexClaim.
+type IndexClaim struct {
+	JobId        openapi_types.UUID `json:"jobId"`
+	LeaseSeconds int                `json:"leaseSeconds"`
+
+	// Manifest path -> content hash already stored
+	Manifest   map[string]string `json:"manifest"`
+	Repository struct {
+		Id        openapi_types.UUID `json:"id"`
+		LocalPath string             `json:"localPath"`
+		Name      string             `json:"name"`
+	} `json:"repository"`
+	Settings map[string]interface{} `json:"settings"`
+
+	// Token Per-job token for the other index routes.
+	Token string `json:"token"`
+}
+
+// IndexComplete defines model for IndexComplete.
+type IndexComplete struct {
+	CommitSha    *string                 `json:"commitSha,omitempty"`
+	Dependencies *[]IndexDependency      `json:"dependencies,omitempty"`
+	Stats        *map[string]interface{} `json:"stats,omitempty"`
+}
+
+// IndexDependency defines model for IndexDependency.
+type IndexDependency struct {
+	Dev       *bool   `json:"dev,omitempty"`
+	Ecosystem string  `json:"ecosystem"`
+	Manifest  string  `json:"manifest"`
+	Name      string  `json:"name"`
+	Version   *string `json:"version,omitempty"`
+}
+
+// IndexFail defines model for IndexFail.
+type IndexFail struct {
+	Error string `json:"error"`
+}
+
+// IndexFile defines model for IndexFile.
+type IndexFile struct {
+	Chunks        *[]IndexChunk           `json:"chunks,omitempty"`
+	ContentHash   string                  `json:"contentHash"`
+	Imports       *[]string               `json:"imports,omitempty"`
+	Language      *string                 `json:"language,omitempty"`
+	Lines         *int                    `json:"lines,omitempty"`
+	Path          string                  `json:"path"`
+	Size          *int                    `json:"size,omitempty"`
+	SkippedReason *IndexFileSkippedReason `json:"skippedReason,omitempty"`
+	Symbols       *[]IndexSymbol          `json:"symbols,omitempty"`
+}
+
+// IndexFileSkippedReason defines model for IndexFile.SkippedReason.
+type IndexFileSkippedReason string
+
+// IndexJob defines model for IndexJob.
+type IndexJob struct {
+	CommitSha  *string                `json:"commitSha,omitempty"`
+	CreatedAt  time.Time              `json:"createdAt"`
+	Error      *string                `json:"error,omitempty"`
+	FinishedAt *time.Time             `json:"finishedAt,omitempty"`
+	Id         openapi_types.UUID     `json:"id"`
+	Reason     string                 `json:"reason"`
+	StartedAt  *time.Time             `json:"startedAt,omitempty"`
+	Stats      map[string]interface{} `json:"stats"`
+	Status     IndexJobStatus         `json:"status"`
+}
+
+// IndexJobStatus defines model for IndexJob.Status.
+type IndexJobStatus string
+
+// IndexSymbol defines model for IndexSymbol.
+type IndexSymbol struct {
+	Doc       *string `json:"doc,omitempty"`
+	EndLine   int     `json:"endLine"`
+	Exported  *bool   `json:"exported,omitempty"`
+	Kind      string  `json:"kind"`
+	Name      string  `json:"name"`
+	Parent    *string `json:"parent,omitempty"`
+	Signature *string `json:"signature,omitempty"`
+	StartLine int     `json:"startLine"`
+}
+
+// IndexUpload defines model for IndexUpload.
+type IndexUpload struct {
+	Deleted *[]string    `json:"deleted,omitempty"`
+	Files   *[]IndexFile `json:"files,omitempty"`
 }
 
 // Integration defines model for Integration.
@@ -1349,24 +1594,53 @@ type ProjectResourceList struct {
 
 // Repository defines model for Repository.
 type Repository struct {
-	CreatedAt        time.Time              `json:"createdAt"`
-	CurrentBranch    *string                `json:"currentBranch,omitempty"`
-	DefaultBranch    *string                `json:"defaultBranch,omitempty"`
-	GitError         *string                `json:"gitError,omitempty"`
-	GitInspectedAt   *time.Time             `json:"gitInspectedAt,omitempty"`
-	GitRemotes       []GitRemote            `json:"gitRemotes"`
-	HeadSha          *string                `json:"headSha,omitempty"`
-	Id               openapi_types.UUID     `json:"id"`
-	IndexRequestedAt *time.Time             `json:"indexRequestedAt,omitempty"`
-	IndexStatus      RepositoryIndexStatus  `json:"indexStatus"`
-	LocalPath        *string                `json:"localPath,omitempty"`
-	Name             string                 `json:"name"`
-	ProjectId        openapi_types.UUID     `json:"projectId"`
-	RemoteUrl        *string                `json:"remoteUrl,omitempty"`
-	Role             RepositoryRole         `json:"role"`
-	Settings         map[string]interface{} `json:"settings"`
-	SourceType       RepositorySourceType   `json:"sourceType"`
-	UpdatedAt        time.Time              `json:"updatedAt"`
+	CreatedAt        time.Time          `json:"createdAt"`
+	CurrentBranch    *string            `json:"currentBranch,omitempty"`
+	DefaultBranch    *string            `json:"defaultBranch,omitempty"`
+	GitError         *string            `json:"gitError,omitempty"`
+	GitInspectedAt   *time.Time         `json:"gitInspectedAt,omitempty"`
+	GitRemotes       []GitRemote        `json:"gitRemotes"`
+	HeadSha          *string            `json:"headSha,omitempty"`
+	Id               openapi_types.UUID `json:"id"`
+	IndexError       *string            `json:"indexError,omitempty"`
+	IndexRequestedAt *time.Time         `json:"indexRequestedAt,omitempty"`
+
+	// IndexStats files, skipped, symbols, chunks, dependencies
+	IndexStats  *map[string]interface{} `json:"indexStats,omitempty"`
+	IndexStatus RepositoryIndexStatus   `json:"indexStatus"`
+	IndexedAt   *time.Time              `json:"indexedAt,omitempty"`
+
+	// IndexedSha Commit the index reflects.
+	IndexedSha *string                `json:"indexedSha,omitempty"`
+	LocalPath  *string                `json:"localPath,omitempty"`
+	Name       string                 `json:"name"`
+	ProjectId  openapi_types.UUID     `json:"projectId"`
+	RemoteUrl  *string                `json:"remoteUrl,omitempty"`
+	Role       RepositoryRole         `json:"role"`
+	Settings   map[string]interface{} `json:"settings"`
+	SourceType RepositorySourceType   `json:"sourceType"`
+	UpdatedAt  time.Time              `json:"updatedAt"`
+}
+
+// RepositoryFile defines model for RepositoryFile.
+type RepositoryFile struct {
+	Content   string  `json:"content"`
+	HeadSha   *string `json:"headSha,omitempty"`
+	Lines     int     `json:"lines"`
+	Path      string  `json:"path"`
+	Truncated bool    `json:"truncated"`
+}
+
+// RepositoryIndex defines model for RepositoryIndex.
+type RepositoryIndex struct {
+	Error      *string                `json:"error,omitempty"`
+	HeadSha    *string                `json:"headSha,omitempty"`
+	IndexedAt  *time.Time             `json:"indexedAt,omitempty"`
+	IndexedSha *string                `json:"indexedSha,omitempty"`
+	Jobs       []IndexJob             `json:"jobs"`
+	Stale      bool                   `json:"stale"`
+	Stats      map[string]interface{} `json:"stats"`
+	Status     RepositoryIndexStatus  `json:"status"`
 }
 
 // RepositoryIndexStatus defines model for RepositoryIndexStatus.
@@ -1903,6 +2177,9 @@ type ArtifactId = openapi_types.UUID
 // IntegrationId defines model for IntegrationId.
 type IntegrationId = openapi_types.UUID
 
+// JobId defines model for JobId.
+type JobId = openapi_types.UUID
+
 // ProjectId defines model for ProjectId.
 type ProjectId = openapi_types.UUID
 
@@ -1969,6 +2246,53 @@ type GetModelsOverviewParams struct {
 // ListProjectsParams defines parameters for ListProjects.
 type ListProjectsParams struct {
 	IncludeArchived *bool `form:"includeArchived,omitempty" json:"includeArchived,omitempty"`
+}
+
+// ListContextDependenciesParams defines parameters for ListContextDependencies.
+type ListContextDependenciesParams struct {
+	RepositoryId *openapi_types.UUID `form:"repositoryId,omitempty" json:"repositoryId,omitempty"`
+}
+
+// SearchContextParams defines parameters for SearchContext.
+type SearchContextParams struct {
+	Q            string              `form:"q" json:"q"`
+	Kind         *ContextKind        `form:"kind,omitempty" json:"kind,omitempty"`
+	RepositoryId *openapi_types.UUID `form:"repositoryId,omitempty" json:"repositoryId,omitempty"`
+	Limit        *int                `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
+// ListContextSymbolsParams defines parameters for ListContextSymbols.
+type ListContextSymbolsParams struct {
+	Name         string              `form:"name" json:"name"`
+	Kind         *string             `form:"kind,omitempty" json:"kind,omitempty"`
+	RepositoryId *openapi_types.UUID `form:"repositoryId,omitempty" json:"repositoryId,omitempty"`
+}
+
+// ReadRepositoryFileParams defines parameters for ReadRepositoryFile.
+type ReadRepositoryFileParams struct {
+	Path string `form:"path" json:"path"`
+}
+
+// RuntimeContextDependenciesParams defines parameters for RuntimeContextDependencies.
+type RuntimeContextDependenciesParams struct {
+	Repository *string `form:"repository,omitempty" json:"repository,omitempty"`
+}
+
+// RuntimeContextSearchParams defines parameters for RuntimeContextSearch.
+type RuntimeContextSearchParams struct {
+	Q    string       `form:"q" json:"q"`
+	Kind *ContextKind `form:"kind,omitempty" json:"kind,omitempty"`
+
+	// Repository Repository name.
+	Repository *string `form:"repository,omitempty" json:"repository,omitempty"`
+	Limit      *int    `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
+// RuntimeContextSymbolsParams defines parameters for RuntimeContextSymbols.
+type RuntimeContextSymbolsParams struct {
+	Name       string  `form:"name" json:"name"`
+	Kind       *string `form:"kind,omitempty" json:"kind,omitempty"`
+	Repository *string `form:"repository,omitempty" json:"repository,omitempty"`
 }
 
 // ListTasksParams defines parameters for ListTasks.
@@ -2055,6 +2379,18 @@ type CreateTaskJSONRequestBody = CreateTaskRequest
 
 // UpdateRepositoryJSONRequestBody defines body for UpdateRepository for application/json ContentType.
 type UpdateRepositoryJSONRequestBody = UpdateRepositoryRequest
+
+// RuntimeClaimIndexJobJSONRequestBody defines body for RuntimeClaimIndexJob for application/json ContentType.
+type RuntimeClaimIndexJobJSONRequestBody = RuntimeClaimRequest
+
+// RuntimeIndexCompleteJSONRequestBody defines body for RuntimeIndexComplete for application/json ContentType.
+type RuntimeIndexCompleteJSONRequestBody = IndexComplete
+
+// RuntimeIndexFailJSONRequestBody defines body for RuntimeIndexFail for application/json ContentType.
+type RuntimeIndexFailJSONRequestBody = IndexFail
+
+// RuntimeIndexUploadJSONRequestBody defines body for RuntimeIndexUpload for application/json ContentType.
+type RuntimeIndexUploadJSONRequestBody = IndexUpload
 
 // RuntimeClaimRunJSONRequestBody defines body for RuntimeClaimRun for application/json ContentType.
 type RuntimeClaimRunJSONRequestBody = RuntimeClaimRequest
@@ -2245,6 +2581,15 @@ type ServerInterface interface {
 	// (POST /projects/{projectId}/columns)
 	CreateColumn(w http.ResponseWriter, r *http.Request, projectId ProjectId)
 
+	// (GET /projects/{projectId}/context/dependencies)
+	ListContextDependencies(w http.ResponseWriter, r *http.Request, projectId ProjectId, params ListContextDependenciesParams)
+
+	// (GET /projects/{projectId}/context/search)
+	SearchContext(w http.ResponseWriter, r *http.Request, projectId ProjectId, params SearchContextParams)
+
+	// (GET /projects/{projectId}/context/symbols)
+	ListContextSymbols(w http.ResponseWriter, r *http.Request, projectId ProjectId, params ListContextSymbolsParams)
+
 	// (GET /projects/{projectId}/integrations)
 	ListIntegrations(w http.ResponseWriter, r *http.Request, projectId ProjectId)
 
@@ -2290,6 +2635,12 @@ type ServerInterface interface {
 	// (PATCH /repositories/{repositoryId})
 	UpdateRepository(w http.ResponseWriter, r *http.Request, repositoryId RepositoryId)
 
+	// (GET /repositories/{repositoryId}/file)
+	ReadRepositoryFile(w http.ResponseWriter, r *http.Request, repositoryId RepositoryId, params ReadRepositoryFileParams)
+
+	// (GET /repositories/{repositoryId}/index)
+	GetRepositoryIndex(w http.ResponseWriter, r *http.Request, repositoryId RepositoryId)
+
 	// (POST /repositories/{repositoryId}/index)
 	RequestRepositoryIndex(w http.ResponseWriter, r *http.Request, repositoryId RepositoryId)
 
@@ -2302,11 +2653,35 @@ type ServerInterface interface {
 	// (DELETE /repository-relationships/{relationshipId})
 	DeleteRepositoryRelationship(w http.ResponseWriter, r *http.Request, relationshipId RelationshipId)
 
+	// (POST /runtime/v1/index/claim)
+	RuntimeClaimIndexJob(w http.ResponseWriter, r *http.Request)
+
+	// (POST /runtime/v1/index/{jobId}/complete)
+	RuntimeIndexComplete(w http.ResponseWriter, r *http.Request, jobId JobId)
+
+	// (POST /runtime/v1/index/{jobId}/fail)
+	RuntimeIndexFail(w http.ResponseWriter, r *http.Request, jobId JobId)
+
+	// (POST /runtime/v1/index/{jobId}/files)
+	RuntimeIndexUpload(w http.ResponseWriter, r *http.Request, jobId JobId)
+
+	// (POST /runtime/v1/index/{jobId}/heartbeat)
+	RuntimeIndexHeartbeat(w http.ResponseWriter, r *http.Request, jobId JobId)
+
 	// (POST /runtime/v1/runs/claim)
 	RuntimeClaimRun(w http.ResponseWriter, r *http.Request)
 
 	// (POST /runtime/v1/runs/{runId}/complete)
 	RuntimeCompleteRun(w http.ResponseWriter, r *http.Request, runId RunId)
+
+	// (GET /runtime/v1/runs/{runId}/context/dependencies)
+	RuntimeContextDependencies(w http.ResponseWriter, r *http.Request, runId RunId, params RuntimeContextDependenciesParams)
+
+	// (GET /runtime/v1/runs/{runId}/context/search)
+	RuntimeContextSearch(w http.ResponseWriter, r *http.Request, runId RunId, params RuntimeContextSearchParams)
+
+	// (GET /runtime/v1/runs/{runId}/context/symbols)
+	RuntimeContextSymbols(w http.ResponseWriter, r *http.Request, runId RunId, params RuntimeContextSymbolsParams)
 
 	// (POST /runtime/v1/runs/{runId}/events)
 	RuntimeAppendEvents(w http.ResponseWriter, r *http.Request, runId RunId)
@@ -2646,6 +3021,21 @@ func (_ Unimplemented) CreateColumn(w http.ResponseWriter, r *http.Request, proj
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
+// (GET /projects/{projectId}/context/dependencies)
+func (_ Unimplemented) ListContextDependencies(w http.ResponseWriter, r *http.Request, projectId ProjectId, params ListContextDependenciesParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (GET /projects/{projectId}/context/search)
+func (_ Unimplemented) SearchContext(w http.ResponseWriter, r *http.Request, projectId ProjectId, params SearchContextParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (GET /projects/{projectId}/context/symbols)
+func (_ Unimplemented) ListContextSymbols(w http.ResponseWriter, r *http.Request, projectId ProjectId, params ListContextSymbolsParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
 // (GET /projects/{projectId}/integrations)
 func (_ Unimplemented) ListIntegrations(w http.ResponseWriter, r *http.Request, projectId ProjectId) {
 	w.WriteHeader(http.StatusNotImplemented)
@@ -2721,6 +3111,16 @@ func (_ Unimplemented) UpdateRepository(w http.ResponseWriter, r *http.Request, 
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
+// (GET /repositories/{repositoryId}/file)
+func (_ Unimplemented) ReadRepositoryFile(w http.ResponseWriter, r *http.Request, repositoryId RepositoryId, params ReadRepositoryFileParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (GET /repositories/{repositoryId}/index)
+func (_ Unimplemented) GetRepositoryIndex(w http.ResponseWriter, r *http.Request, repositoryId RepositoryId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
 // (POST /repositories/{repositoryId}/index)
 func (_ Unimplemented) RequestRepositoryIndex(w http.ResponseWriter, r *http.Request, repositoryId RepositoryId) {
 	w.WriteHeader(http.StatusNotImplemented)
@@ -2741,6 +3141,31 @@ func (_ Unimplemented) DeleteRepositoryRelationship(w http.ResponseWriter, r *ht
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
+// (POST /runtime/v1/index/claim)
+func (_ Unimplemented) RuntimeClaimIndexJob(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (POST /runtime/v1/index/{jobId}/complete)
+func (_ Unimplemented) RuntimeIndexComplete(w http.ResponseWriter, r *http.Request, jobId JobId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (POST /runtime/v1/index/{jobId}/fail)
+func (_ Unimplemented) RuntimeIndexFail(w http.ResponseWriter, r *http.Request, jobId JobId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (POST /runtime/v1/index/{jobId}/files)
+func (_ Unimplemented) RuntimeIndexUpload(w http.ResponseWriter, r *http.Request, jobId JobId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (POST /runtime/v1/index/{jobId}/heartbeat)
+func (_ Unimplemented) RuntimeIndexHeartbeat(w http.ResponseWriter, r *http.Request, jobId JobId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
 // (POST /runtime/v1/runs/claim)
 func (_ Unimplemented) RuntimeClaimRun(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
@@ -2748,6 +3173,21 @@ func (_ Unimplemented) RuntimeClaimRun(w http.ResponseWriter, r *http.Request) {
 
 // (POST /runtime/v1/runs/{runId}/complete)
 func (_ Unimplemented) RuntimeCompleteRun(w http.ResponseWriter, r *http.Request, runId RunId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (GET /runtime/v1/runs/{runId}/context/dependencies)
+func (_ Unimplemented) RuntimeContextDependencies(w http.ResponseWriter, r *http.Request, runId RunId, params RuntimeContextDependenciesParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (GET /runtime/v1/runs/{runId}/context/search)
+func (_ Unimplemented) RuntimeContextSearch(w http.ResponseWriter, r *http.Request, runId RunId, params RuntimeContextSearchParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (GET /runtime/v1/runs/{runId}/context/symbols)
+func (_ Unimplemented) RuntimeContextSymbols(w http.ResponseWriter, r *http.Request, runId RunId, params RuntimeContextSymbolsParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -4100,6 +4540,197 @@ func (siw *ServerInterfaceWrapper) CreateColumn(w http.ResponseWriter, r *http.R
 	handler.ServeHTTP(w, r)
 }
 
+// ListContextDependencies operation middleware
+func (siw *ServerInterfaceWrapper) ListContextDependencies(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "projectId" -------------
+	var projectId ProjectId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "projectId", chi.URLParam(r, "projectId"), &projectId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "projectId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListContextDependenciesParams
+
+	// ------------- Optional query parameter "repositoryId" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "repositoryId", r.URL.Query(), &params.RepositoryId, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "repositoryId"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "repositoryId", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListContextDependencies(w, r, projectId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SearchContext operation middleware
+func (siw *ServerInterfaceWrapper) SearchContext(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "projectId" -------------
+	var projectId ProjectId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "projectId", chi.URLParam(r, "projectId"), &projectId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "projectId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params SearchContextParams
+
+	// ------------- Required query parameter "q" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "q", r.URL.Query(), &params.Q, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "q"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "q", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "kind" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "kind", r.URL.Query(), &params.Kind, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "kind"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "kind", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "repositoryId" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "repositoryId", r.URL.Query(), &params.RepositoryId, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "repositoryId"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "repositoryId", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SearchContext(w, r, projectId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListContextSymbols operation middleware
+func (siw *ServerInterfaceWrapper) ListContextSymbols(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "projectId" -------------
+	var projectId ProjectId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "projectId", chi.URLParam(r, "projectId"), &projectId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "projectId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListContextSymbolsParams
+
+	// ------------- Required query parameter "name" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "name", r.URL.Query(), &params.Name, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "name"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "name", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "kind" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "kind", r.URL.Query(), &params.Kind, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "kind"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "kind", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "repositoryId" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "repositoryId", r.URL.Query(), &params.RepositoryId, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "repositoryId"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "repositoryId", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListContextSymbols(w, r, projectId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListIntegrations operation middleware
 func (siw *ServerInterfaceWrapper) ListIntegrations(w http.ResponseWriter, r *http.Request) {
 
@@ -4478,6 +5109,74 @@ func (siw *ServerInterfaceWrapper) UpdateRepository(w http.ResponseWriter, r *ht
 	handler.ServeHTTP(w, r)
 }
 
+// ReadRepositoryFile operation middleware
+func (siw *ServerInterfaceWrapper) ReadRepositoryFile(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "repositoryId" -------------
+	var repositoryId RepositoryId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "repositoryId", chi.URLParam(r, "repositoryId"), &repositoryId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "repositoryId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ReadRepositoryFileParams
+
+	// ------------- Required query parameter "path" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "path", r.URL.Query(), &params.Path, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "path"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "path", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadRepositoryFile(w, r, repositoryId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetRepositoryIndex operation middleware
+func (siw *ServerInterfaceWrapper) GetRepositoryIndex(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "repositoryId" -------------
+	var repositoryId RepositoryId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "repositoryId", chi.URLParam(r, "repositoryId"), &repositoryId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "repositoryId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetRepositoryIndex(w, r, repositoryId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // RequestRepositoryIndex operation middleware
 func (siw *ServerInterfaceWrapper) RequestRepositoryIndex(w http.ResponseWriter, r *http.Request) {
 
@@ -4582,6 +5281,124 @@ func (siw *ServerInterfaceWrapper) DeleteRepositoryRelationship(w http.ResponseW
 	handler.ServeHTTP(w, r)
 }
 
+// RuntimeClaimIndexJob operation middleware
+func (siw *ServerInterfaceWrapper) RuntimeClaimIndexJob(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RuntimeClaimIndexJob(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RuntimeIndexComplete operation middleware
+func (siw *ServerInterfaceWrapper) RuntimeIndexComplete(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "jobId" -------------
+	var jobId JobId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "jobId", chi.URLParam(r, "jobId"), &jobId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "jobId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RuntimeIndexComplete(w, r, jobId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RuntimeIndexFail operation middleware
+func (siw *ServerInterfaceWrapper) RuntimeIndexFail(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "jobId" -------------
+	var jobId JobId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "jobId", chi.URLParam(r, "jobId"), &jobId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "jobId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RuntimeIndexFail(w, r, jobId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RuntimeIndexUpload operation middleware
+func (siw *ServerInterfaceWrapper) RuntimeIndexUpload(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "jobId" -------------
+	var jobId JobId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "jobId", chi.URLParam(r, "jobId"), &jobId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "jobId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RuntimeIndexUpload(w, r, jobId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RuntimeIndexHeartbeat operation middleware
+func (siw *ServerInterfaceWrapper) RuntimeIndexHeartbeat(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "jobId" -------------
+	var jobId JobId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "jobId", chi.URLParam(r, "jobId"), &jobId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "jobId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RuntimeIndexHeartbeat(w, r, jobId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // RuntimeClaimRun operation middleware
 func (siw *ServerInterfaceWrapper) RuntimeClaimRun(w http.ResponseWriter, r *http.Request) {
 
@@ -4613,6 +5430,197 @@ func (siw *ServerInterfaceWrapper) RuntimeCompleteRun(w http.ResponseWriter, r *
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.RuntimeCompleteRun(w, r, runId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RuntimeContextDependencies operation middleware
+func (siw *ServerInterfaceWrapper) RuntimeContextDependencies(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "runId" -------------
+	var runId RunId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "runId", chi.URLParam(r, "runId"), &runId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "runId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params RuntimeContextDependenciesParams
+
+	// ------------- Optional query parameter "repository" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "repository", r.URL.Query(), &params.Repository, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "repository"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "repository", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RuntimeContextDependencies(w, r, runId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RuntimeContextSearch operation middleware
+func (siw *ServerInterfaceWrapper) RuntimeContextSearch(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "runId" -------------
+	var runId RunId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "runId", chi.URLParam(r, "runId"), &runId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "runId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params RuntimeContextSearchParams
+
+	// ------------- Required query parameter "q" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "q", r.URL.Query(), &params.Q, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "q"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "q", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "kind" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "kind", r.URL.Query(), &params.Kind, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "kind"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "kind", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "repository" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "repository", r.URL.Query(), &params.Repository, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "repository"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "repository", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RuntimeContextSearch(w, r, runId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RuntimeContextSymbols operation middleware
+func (siw *ServerInterfaceWrapper) RuntimeContextSymbols(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "runId" -------------
+	var runId RunId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "runId", chi.URLParam(r, "runId"), &runId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "runId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params RuntimeContextSymbolsParams
+
+	// ------------- Required query parameter "name" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "name", r.URL.Query(), &params.Name, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "name"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "name", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "kind" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "kind", r.URL.Query(), &params.Kind, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "kind"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "kind", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "repository" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "repository", r.URL.Query(), &params.Repository, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "repository"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "repository", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RuntimeContextSymbols(w, r, runId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -5622,6 +6630,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 		r.Post(options.BaseURL+"/repositories/{repositoryId}/inspect", wrapper.InspectRepository)
 	})
 	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/repositories/{repositoryId}/index", wrapper.GetRepositoryIndex)
+	})
+	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/repositories/{repositoryId}/index", wrapper.RequestRepositoryIndex)
 	})
 	r.Group(func(r chi.Router) {
@@ -5713,6 +6724,18 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/sprints/{sprintId}/complete", wrapper.CompleteSprint)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/projects/{projectId}/context/search", wrapper.SearchContext)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/projects/{projectId}/context/symbols", wrapper.ListContextSymbols)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/projects/{projectId}/context/dependencies", wrapper.ListContextDependencies)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/repositories/{repositoryId}/file", wrapper.ReadRepositoryFile)
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/projects/{projectId}/columns", wrapper.ListColumns)
@@ -5836,6 +6859,30 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/settings/{settingKey}/history", wrapper.ListSettingHistory)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/runtime/v1/index/claim", wrapper.RuntimeClaimIndexJob)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/runtime/v1/index/{jobId}/heartbeat", wrapper.RuntimeIndexHeartbeat)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/runtime/v1/index/{jobId}/files", wrapper.RuntimeIndexUpload)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/runtime/v1/index/{jobId}/complete", wrapper.RuntimeIndexComplete)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/runtime/v1/index/{jobId}/fail", wrapper.RuntimeIndexFail)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/runtime/v1/runs/{runId}/context/search", wrapper.RuntimeContextSearch)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/runtime/v1/runs/{runId}/context/symbols", wrapper.RuntimeContextSymbols)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/runtime/v1/runs/{runId}/context/dependencies", wrapper.RuntimeContextDependencies)
 	})
 	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/runtime/v1/runs/claim", wrapper.RuntimeClaimRun)
@@ -8762,6 +9809,207 @@ func (response CreateColumn409ApplicationProblemPlusJSONResponse) VisitCreateCol
 	return err
 }
 
+type ListContextDependenciesRequestObject struct {
+	ProjectId ProjectId `json:"projectId"`
+	Params    ListContextDependenciesParams
+}
+
+type ListContextDependenciesResponseObject interface {
+	VisitListContextDependenciesResponse(w http.ResponseWriter) error
+}
+
+type ListContextDependencies200JSONResponse DependencyList
+
+func (response ListContextDependencies200JSONResponse) VisitListContextDependenciesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListContextDependencies400ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response ListContextDependencies400ApplicationProblemPlusJSONResponse) VisitListContextDependenciesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListContextDependencies401ApplicationProblemPlusJSONResponse Problem
+
+func (response ListContextDependencies401ApplicationProblemPlusJSONResponse) VisitListContextDependenciesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListContextDependencies404ApplicationProblemPlusJSONResponse Problem
+
+func (response ListContextDependencies404ApplicationProblemPlusJSONResponse) VisitListContextDependenciesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SearchContextRequestObject struct {
+	ProjectId ProjectId `json:"projectId"`
+	Params    SearchContextParams
+}
+
+type SearchContextResponseObject interface {
+	VisitSearchContextResponse(w http.ResponseWriter) error
+}
+
+type SearchContext200JSONResponse ContextHits
+
+func (response SearchContext200JSONResponse) VisitSearchContextResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SearchContext400ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response SearchContext400ApplicationProblemPlusJSONResponse) VisitSearchContextResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SearchContext401ApplicationProblemPlusJSONResponse Problem
+
+func (response SearchContext401ApplicationProblemPlusJSONResponse) VisitSearchContextResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SearchContext404ApplicationProblemPlusJSONResponse Problem
+
+func (response SearchContext404ApplicationProblemPlusJSONResponse) VisitSearchContextResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListContextSymbolsRequestObject struct {
+	ProjectId ProjectId `json:"projectId"`
+	Params    ListContextSymbolsParams
+}
+
+type ListContextSymbolsResponseObject interface {
+	VisitListContextSymbolsResponse(w http.ResponseWriter) error
+}
+
+type ListContextSymbols200JSONResponse ContextHits
+
+func (response ListContextSymbols200JSONResponse) VisitListContextSymbolsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListContextSymbols400ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response ListContextSymbols400ApplicationProblemPlusJSONResponse) VisitListContextSymbolsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListContextSymbols401ApplicationProblemPlusJSONResponse Problem
+
+func (response ListContextSymbols401ApplicationProblemPlusJSONResponse) VisitListContextSymbolsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListContextSymbols404ApplicationProblemPlusJSONResponse Problem
+
+func (response ListContextSymbols404ApplicationProblemPlusJSONResponse) VisitListContextSymbolsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type ListIntegrationsRequestObject struct {
 	ProjectId ProjectId `json:"projectId"`
 }
@@ -9682,6 +10930,139 @@ func (response UpdateRepository409ApplicationProblemPlusJSONResponse) VisitUpdat
 	return err
 }
 
+type ReadRepositoryFileRequestObject struct {
+	RepositoryId RepositoryId `json:"repositoryId"`
+	Params       ReadRepositoryFileParams
+}
+
+type ReadRepositoryFileResponseObject interface {
+	VisitReadRepositoryFileResponse(w http.ResponseWriter) error
+}
+
+type ReadRepositoryFile200JSONResponse RepositoryFile
+
+func (response ReadRepositoryFile200JSONResponse) VisitReadRepositoryFileResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ReadRepositoryFile400ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response ReadRepositoryFile400ApplicationProblemPlusJSONResponse) VisitReadRepositoryFileResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ReadRepositoryFile401ApplicationProblemPlusJSONResponse Problem
+
+func (response ReadRepositoryFile401ApplicationProblemPlusJSONResponse) VisitReadRepositoryFileResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ReadRepositoryFile403ApplicationProblemPlusJSONResponse Problem
+
+func (response ReadRepositoryFile403ApplicationProblemPlusJSONResponse) VisitReadRepositoryFileResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ReadRepositoryFile404ApplicationProblemPlusJSONResponse Problem
+
+func (response ReadRepositoryFile404ApplicationProblemPlusJSONResponse) VisitReadRepositoryFileResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetRepositoryIndexRequestObject struct {
+	RepositoryId RepositoryId `json:"repositoryId"`
+}
+
+type GetRepositoryIndexResponseObject interface {
+	VisitGetRepositoryIndexResponse(w http.ResponseWriter) error
+}
+
+type GetRepositoryIndex200JSONResponse RepositoryIndex
+
+func (response GetRepositoryIndex200JSONResponse) VisitGetRepositoryIndexResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetRepositoryIndex401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response GetRepositoryIndex401ApplicationProblemPlusJSONResponse) VisitGetRepositoryIndexResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetRepositoryIndex404ApplicationProblemPlusJSONResponse Problem
+
+func (response GetRepositoryIndex404ApplicationProblemPlusJSONResponse) VisitGetRepositoryIndexResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type RequestRepositoryIndexRequestObject struct {
 	RepositoryId RepositoryId `json:"repositoryId"`
 }
@@ -9898,6 +11279,295 @@ func (response DeleteRepositoryRelationship404ApplicationProblemPlusJSONResponse
 	return err
 }
 
+type RuntimeClaimIndexJobRequestObject struct {
+	Body *RuntimeClaimIndexJobJSONRequestBody
+}
+
+type RuntimeClaimIndexJobResponseObject interface {
+	VisitRuntimeClaimIndexJobResponse(w http.ResponseWriter) error
+}
+
+type RuntimeClaimIndexJob200JSONResponse IndexClaim
+
+func (response RuntimeClaimIndexJob200JSONResponse) VisitRuntimeClaimIndexJobResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RuntimeClaimIndexJob204Response struct {
+}
+
+func (response RuntimeClaimIndexJob204Response) VisitRuntimeClaimIndexJobResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type RuntimeClaimIndexJob401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response RuntimeClaimIndexJob401ApplicationProblemPlusJSONResponse) VisitRuntimeClaimIndexJobResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RuntimeIndexCompleteRequestObject struct {
+	JobId JobId `json:"jobId"`
+	Body  *RuntimeIndexCompleteJSONRequestBody
+}
+
+type RuntimeIndexCompleteResponseObject interface {
+	VisitRuntimeIndexCompleteResponse(w http.ResponseWriter) error
+}
+
+type RuntimeIndexComplete204Response struct {
+}
+
+func (response RuntimeIndexComplete204Response) VisitRuntimeIndexCompleteResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type RuntimeIndexComplete400ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response RuntimeIndexComplete400ApplicationProblemPlusJSONResponse) VisitRuntimeIndexCompleteResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RuntimeIndexComplete401ApplicationProblemPlusJSONResponse Problem
+
+func (response RuntimeIndexComplete401ApplicationProblemPlusJSONResponse) VisitRuntimeIndexCompleteResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RuntimeIndexComplete403ApplicationProblemPlusJSONResponse Problem
+
+func (response RuntimeIndexComplete403ApplicationProblemPlusJSONResponse) VisitRuntimeIndexCompleteResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RuntimeIndexFailRequestObject struct {
+	JobId JobId `json:"jobId"`
+	Body  *RuntimeIndexFailJSONRequestBody
+}
+
+type RuntimeIndexFailResponseObject interface {
+	VisitRuntimeIndexFailResponse(w http.ResponseWriter) error
+}
+
+type RuntimeIndexFail204Response struct {
+}
+
+func (response RuntimeIndexFail204Response) VisitRuntimeIndexFailResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type RuntimeIndexFail400ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response RuntimeIndexFail400ApplicationProblemPlusJSONResponse) VisitRuntimeIndexFailResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RuntimeIndexFail401ApplicationProblemPlusJSONResponse Problem
+
+func (response RuntimeIndexFail401ApplicationProblemPlusJSONResponse) VisitRuntimeIndexFailResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RuntimeIndexFail403ApplicationProblemPlusJSONResponse Problem
+
+func (response RuntimeIndexFail403ApplicationProblemPlusJSONResponse) VisitRuntimeIndexFailResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RuntimeIndexUploadRequestObject struct {
+	JobId JobId `json:"jobId"`
+	Body  *RuntimeIndexUploadJSONRequestBody
+}
+
+type RuntimeIndexUploadResponseObject interface {
+	VisitRuntimeIndexUploadResponse(w http.ResponseWriter) error
+}
+
+type RuntimeIndexUpload204Response struct {
+}
+
+func (response RuntimeIndexUpload204Response) VisitRuntimeIndexUploadResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type RuntimeIndexUpload400ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response RuntimeIndexUpload400ApplicationProblemPlusJSONResponse) VisitRuntimeIndexUploadResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RuntimeIndexUpload401ApplicationProblemPlusJSONResponse Problem
+
+func (response RuntimeIndexUpload401ApplicationProblemPlusJSONResponse) VisitRuntimeIndexUploadResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RuntimeIndexUpload403ApplicationProblemPlusJSONResponse Problem
+
+func (response RuntimeIndexUpload403ApplicationProblemPlusJSONResponse) VisitRuntimeIndexUploadResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RuntimeIndexHeartbeatRequestObject struct {
+	JobId JobId `json:"jobId"`
+}
+
+type RuntimeIndexHeartbeatResponseObject interface {
+	VisitRuntimeIndexHeartbeatResponse(w http.ResponseWriter) error
+}
+
+type RuntimeIndexHeartbeat204Response struct {
+}
+
+func (response RuntimeIndexHeartbeat204Response) VisitRuntimeIndexHeartbeatResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type RuntimeIndexHeartbeat400ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response RuntimeIndexHeartbeat400ApplicationProblemPlusJSONResponse) VisitRuntimeIndexHeartbeatResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RuntimeIndexHeartbeat401ApplicationProblemPlusJSONResponse Problem
+
+func (response RuntimeIndexHeartbeat401ApplicationProblemPlusJSONResponse) VisitRuntimeIndexHeartbeatResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RuntimeIndexHeartbeat403ApplicationProblemPlusJSONResponse Problem
+
+func (response RuntimeIndexHeartbeat403ApplicationProblemPlusJSONResponse) VisitRuntimeIndexHeartbeatResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type RuntimeClaimRunRequestObject struct {
 	Body *RuntimeClaimRunJSONRequestBody
 }
@@ -10001,6 +11671,249 @@ func (response RuntimeCompleteRun422ApplicationProblemPlusJSONResponse) VisitRun
 	}
 	w.Header().Set("Content-Type", "application/problem+json")
 	w.WriteHeader(422)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RuntimeContextDependenciesRequestObject struct {
+	RunId  RunId `json:"runId"`
+	Params RuntimeContextDependenciesParams
+}
+
+type RuntimeContextDependenciesResponseObject interface {
+	VisitRuntimeContextDependenciesResponse(w http.ResponseWriter) error
+}
+
+type RuntimeContextDependencies200JSONResponse DependencyList
+
+func (response RuntimeContextDependencies200JSONResponse) VisitRuntimeContextDependenciesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RuntimeContextDependencies400ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response RuntimeContextDependencies400ApplicationProblemPlusJSONResponse) VisitRuntimeContextDependenciesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RuntimeContextDependencies401ApplicationProblemPlusJSONResponse Problem
+
+func (response RuntimeContextDependencies401ApplicationProblemPlusJSONResponse) VisitRuntimeContextDependenciesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RuntimeContextDependencies403ApplicationProblemPlusJSONResponse Problem
+
+func (response RuntimeContextDependencies403ApplicationProblemPlusJSONResponse) VisitRuntimeContextDependenciesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RuntimeContextDependencies409ApplicationProblemPlusJSONResponse Problem
+
+func (response RuntimeContextDependencies409ApplicationProblemPlusJSONResponse) VisitRuntimeContextDependenciesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RuntimeContextSearchRequestObject struct {
+	RunId  RunId `json:"runId"`
+	Params RuntimeContextSearchParams
+}
+
+type RuntimeContextSearchResponseObject interface {
+	VisitRuntimeContextSearchResponse(w http.ResponseWriter) error
+}
+
+type RuntimeContextSearch200JSONResponse ContextHits
+
+func (response RuntimeContextSearch200JSONResponse) VisitRuntimeContextSearchResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RuntimeContextSearch400ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response RuntimeContextSearch400ApplicationProblemPlusJSONResponse) VisitRuntimeContextSearchResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RuntimeContextSearch401ApplicationProblemPlusJSONResponse Problem
+
+func (response RuntimeContextSearch401ApplicationProblemPlusJSONResponse) VisitRuntimeContextSearchResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RuntimeContextSearch403ApplicationProblemPlusJSONResponse Problem
+
+func (response RuntimeContextSearch403ApplicationProblemPlusJSONResponse) VisitRuntimeContextSearchResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RuntimeContextSearch409ApplicationProblemPlusJSONResponse Problem
+
+func (response RuntimeContextSearch409ApplicationProblemPlusJSONResponse) VisitRuntimeContextSearchResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RuntimeContextSymbolsRequestObject struct {
+	RunId  RunId `json:"runId"`
+	Params RuntimeContextSymbolsParams
+}
+
+type RuntimeContextSymbolsResponseObject interface {
+	VisitRuntimeContextSymbolsResponse(w http.ResponseWriter) error
+}
+
+type RuntimeContextSymbols200JSONResponse ContextHits
+
+func (response RuntimeContextSymbols200JSONResponse) VisitRuntimeContextSymbolsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RuntimeContextSymbols400ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response RuntimeContextSymbols400ApplicationProblemPlusJSONResponse) VisitRuntimeContextSymbolsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RuntimeContextSymbols401ApplicationProblemPlusJSONResponse Problem
+
+func (response RuntimeContextSymbols401ApplicationProblemPlusJSONResponse) VisitRuntimeContextSymbolsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RuntimeContextSymbols403ApplicationProblemPlusJSONResponse Problem
+
+func (response RuntimeContextSymbols403ApplicationProblemPlusJSONResponse) VisitRuntimeContextSymbolsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RuntimeContextSymbols409ApplicationProblemPlusJSONResponse Problem
+
+func (response RuntimeContextSymbols409ApplicationProblemPlusJSONResponse) VisitRuntimeContextSymbolsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
 	_, err := buf.WriteTo(w)
 	return err
 }
@@ -11990,6 +13903,15 @@ type StrictServerInterface interface {
 	// (POST /projects/{projectId}/columns)
 	CreateColumn(ctx context.Context, request CreateColumnRequestObject) (CreateColumnResponseObject, error)
 
+	// (GET /projects/{projectId}/context/dependencies)
+	ListContextDependencies(ctx context.Context, request ListContextDependenciesRequestObject) (ListContextDependenciesResponseObject, error)
+
+	// (GET /projects/{projectId}/context/search)
+	SearchContext(ctx context.Context, request SearchContextRequestObject) (SearchContextResponseObject, error)
+
+	// (GET /projects/{projectId}/context/symbols)
+	ListContextSymbols(ctx context.Context, request ListContextSymbolsRequestObject) (ListContextSymbolsResponseObject, error)
+
 	// (GET /projects/{projectId}/integrations)
 	ListIntegrations(ctx context.Context, request ListIntegrationsRequestObject) (ListIntegrationsResponseObject, error)
 
@@ -12035,6 +13957,12 @@ type StrictServerInterface interface {
 	// (PATCH /repositories/{repositoryId})
 	UpdateRepository(ctx context.Context, request UpdateRepositoryRequestObject) (UpdateRepositoryResponseObject, error)
 
+	// (GET /repositories/{repositoryId}/file)
+	ReadRepositoryFile(ctx context.Context, request ReadRepositoryFileRequestObject) (ReadRepositoryFileResponseObject, error)
+
+	// (GET /repositories/{repositoryId}/index)
+	GetRepositoryIndex(ctx context.Context, request GetRepositoryIndexRequestObject) (GetRepositoryIndexResponseObject, error)
+
 	// (POST /repositories/{repositoryId}/index)
 	RequestRepositoryIndex(ctx context.Context, request RequestRepositoryIndexRequestObject) (RequestRepositoryIndexResponseObject, error)
 
@@ -12047,11 +13975,35 @@ type StrictServerInterface interface {
 	// (DELETE /repository-relationships/{relationshipId})
 	DeleteRepositoryRelationship(ctx context.Context, request DeleteRepositoryRelationshipRequestObject) (DeleteRepositoryRelationshipResponseObject, error)
 
+	// (POST /runtime/v1/index/claim)
+	RuntimeClaimIndexJob(ctx context.Context, request RuntimeClaimIndexJobRequestObject) (RuntimeClaimIndexJobResponseObject, error)
+
+	// (POST /runtime/v1/index/{jobId}/complete)
+	RuntimeIndexComplete(ctx context.Context, request RuntimeIndexCompleteRequestObject) (RuntimeIndexCompleteResponseObject, error)
+
+	// (POST /runtime/v1/index/{jobId}/fail)
+	RuntimeIndexFail(ctx context.Context, request RuntimeIndexFailRequestObject) (RuntimeIndexFailResponseObject, error)
+
+	// (POST /runtime/v1/index/{jobId}/files)
+	RuntimeIndexUpload(ctx context.Context, request RuntimeIndexUploadRequestObject) (RuntimeIndexUploadResponseObject, error)
+
+	// (POST /runtime/v1/index/{jobId}/heartbeat)
+	RuntimeIndexHeartbeat(ctx context.Context, request RuntimeIndexHeartbeatRequestObject) (RuntimeIndexHeartbeatResponseObject, error)
+
 	// (POST /runtime/v1/runs/claim)
 	RuntimeClaimRun(ctx context.Context, request RuntimeClaimRunRequestObject) (RuntimeClaimRunResponseObject, error)
 
 	// (POST /runtime/v1/runs/{runId}/complete)
 	RuntimeCompleteRun(ctx context.Context, request RuntimeCompleteRunRequestObject) (RuntimeCompleteRunResponseObject, error)
+
+	// (GET /runtime/v1/runs/{runId}/context/dependencies)
+	RuntimeContextDependencies(ctx context.Context, request RuntimeContextDependenciesRequestObject) (RuntimeContextDependenciesResponseObject, error)
+
+	// (GET /runtime/v1/runs/{runId}/context/search)
+	RuntimeContextSearch(ctx context.Context, request RuntimeContextSearchRequestObject) (RuntimeContextSearchResponseObject, error)
+
+	// (GET /runtime/v1/runs/{runId}/context/symbols)
+	RuntimeContextSymbols(ctx context.Context, request RuntimeContextSymbolsRequestObject) (RuntimeContextSymbolsResponseObject, error)
 
 	// (POST /runtime/v1/runs/{runId}/events)
 	RuntimeAppendEvents(ctx context.Context, request RuntimeAppendEventsRequestObject) (RuntimeAppendEventsResponseObject, error)
@@ -13520,6 +15472,87 @@ func (sh *strictHandler) CreateColumn(w http.ResponseWriter, r *http.Request, pr
 	}
 }
 
+// ListContextDependencies operation middleware
+func (sh *strictHandler) ListContextDependencies(w http.ResponseWriter, r *http.Request, projectId ProjectId, params ListContextDependenciesParams) {
+	var request ListContextDependenciesRequestObject
+
+	request.ProjectId = projectId
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListContextDependencies(ctx, request.(ListContextDependenciesRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListContextDependencies")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListContextDependenciesResponseObject); ok {
+		if err := validResponse.VisitListContextDependenciesResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// SearchContext operation middleware
+func (sh *strictHandler) SearchContext(w http.ResponseWriter, r *http.Request, projectId ProjectId, params SearchContextParams) {
+	var request SearchContextRequestObject
+
+	request.ProjectId = projectId
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.SearchContext(ctx, request.(SearchContextRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SearchContext")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(SearchContextResponseObject); ok {
+		if err := validResponse.VisitSearchContextResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListContextSymbols operation middleware
+func (sh *strictHandler) ListContextSymbols(w http.ResponseWriter, r *http.Request, projectId ProjectId, params ListContextSymbolsParams) {
+	var request ListContextSymbolsRequestObject
+
+	request.ProjectId = projectId
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListContextSymbols(ctx, request.(ListContextSymbolsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListContextSymbols")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListContextSymbolsResponseObject); ok {
+		if err := validResponse.VisitListContextSymbolsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // ListIntegrations operation middleware
 func (sh *strictHandler) ListIntegrations(w http.ResponseWriter, r *http.Request, projectId ProjectId) {
 	var request ListIntegrationsRequestObject
@@ -13957,6 +15990,59 @@ func (sh *strictHandler) UpdateRepository(w http.ResponseWriter, r *http.Request
 	}
 }
 
+// ReadRepositoryFile operation middleware
+func (sh *strictHandler) ReadRepositoryFile(w http.ResponseWriter, r *http.Request, repositoryId RepositoryId, params ReadRepositoryFileParams) {
+	var request ReadRepositoryFileRequestObject
+
+	request.RepositoryId = repositoryId
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ReadRepositoryFile(ctx, request.(ReadRepositoryFileRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ReadRepositoryFile")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ReadRepositoryFileResponseObject); ok {
+		if err := validResponse.VisitReadRepositoryFileResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetRepositoryIndex operation middleware
+func (sh *strictHandler) GetRepositoryIndex(w http.ResponseWriter, r *http.Request, repositoryId RepositoryId) {
+	var request GetRepositoryIndexRequestObject
+
+	request.RepositoryId = repositoryId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetRepositoryIndex(ctx, request.(GetRepositoryIndexRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetRepositoryIndex")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetRepositoryIndexResponseObject); ok {
+		if err := validResponse.VisitGetRepositoryIndexResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // RequestRepositoryIndex operation middleware
 func (sh *strictHandler) RequestRepositoryIndex(w http.ResponseWriter, r *http.Request, repositoryId RepositoryId) {
 	var request RequestRepositoryIndexRequestObject
@@ -14061,6 +16147,162 @@ func (sh *strictHandler) DeleteRepositoryRelationship(w http.ResponseWriter, r *
 	}
 }
 
+// RuntimeClaimIndexJob operation middleware
+func (sh *strictHandler) RuntimeClaimIndexJob(w http.ResponseWriter, r *http.Request) {
+	var request RuntimeClaimIndexJobRequestObject
+
+	var body RuntimeClaimIndexJobJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RuntimeClaimIndexJob(ctx, request.(RuntimeClaimIndexJobRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RuntimeClaimIndexJob")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RuntimeClaimIndexJobResponseObject); ok {
+		if err := validResponse.VisitRuntimeClaimIndexJobResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RuntimeIndexComplete operation middleware
+func (sh *strictHandler) RuntimeIndexComplete(w http.ResponseWriter, r *http.Request, jobId JobId) {
+	var request RuntimeIndexCompleteRequestObject
+
+	request.JobId = jobId
+
+	var body RuntimeIndexCompleteJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RuntimeIndexComplete(ctx, request.(RuntimeIndexCompleteRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RuntimeIndexComplete")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RuntimeIndexCompleteResponseObject); ok {
+		if err := validResponse.VisitRuntimeIndexCompleteResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RuntimeIndexFail operation middleware
+func (sh *strictHandler) RuntimeIndexFail(w http.ResponseWriter, r *http.Request, jobId JobId) {
+	var request RuntimeIndexFailRequestObject
+
+	request.JobId = jobId
+
+	var body RuntimeIndexFailJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RuntimeIndexFail(ctx, request.(RuntimeIndexFailRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RuntimeIndexFail")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RuntimeIndexFailResponseObject); ok {
+		if err := validResponse.VisitRuntimeIndexFailResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RuntimeIndexUpload operation middleware
+func (sh *strictHandler) RuntimeIndexUpload(w http.ResponseWriter, r *http.Request, jobId JobId) {
+	var request RuntimeIndexUploadRequestObject
+
+	request.JobId = jobId
+
+	var body RuntimeIndexUploadJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RuntimeIndexUpload(ctx, request.(RuntimeIndexUploadRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RuntimeIndexUpload")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RuntimeIndexUploadResponseObject); ok {
+		if err := validResponse.VisitRuntimeIndexUploadResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RuntimeIndexHeartbeat operation middleware
+func (sh *strictHandler) RuntimeIndexHeartbeat(w http.ResponseWriter, r *http.Request, jobId JobId) {
+	var request RuntimeIndexHeartbeatRequestObject
+
+	request.JobId = jobId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RuntimeIndexHeartbeat(ctx, request.(RuntimeIndexHeartbeatRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RuntimeIndexHeartbeat")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RuntimeIndexHeartbeatResponseObject); ok {
+		if err := validResponse.VisitRuntimeIndexHeartbeatResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // RuntimeClaimRun operation middleware
 func (sh *strictHandler) RuntimeClaimRun(w http.ResponseWriter, r *http.Request) {
 	var request RuntimeClaimRunRequestObject
@@ -14118,6 +16360,87 @@ func (sh *strictHandler) RuntimeCompleteRun(w http.ResponseWriter, r *http.Reque
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(RuntimeCompleteRunResponseObject); ok {
 		if err := validResponse.VisitRuntimeCompleteRunResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RuntimeContextDependencies operation middleware
+func (sh *strictHandler) RuntimeContextDependencies(w http.ResponseWriter, r *http.Request, runId RunId, params RuntimeContextDependenciesParams) {
+	var request RuntimeContextDependenciesRequestObject
+
+	request.RunId = runId
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RuntimeContextDependencies(ctx, request.(RuntimeContextDependenciesRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RuntimeContextDependencies")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RuntimeContextDependenciesResponseObject); ok {
+		if err := validResponse.VisitRuntimeContextDependenciesResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RuntimeContextSearch operation middleware
+func (sh *strictHandler) RuntimeContextSearch(w http.ResponseWriter, r *http.Request, runId RunId, params RuntimeContextSearchParams) {
+	var request RuntimeContextSearchRequestObject
+
+	request.RunId = runId
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RuntimeContextSearch(ctx, request.(RuntimeContextSearchRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RuntimeContextSearch")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RuntimeContextSearchResponseObject); ok {
+		if err := validResponse.VisitRuntimeContextSearchResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RuntimeContextSymbols operation middleware
+func (sh *strictHandler) RuntimeContextSymbols(w http.ResponseWriter, r *http.Request, runId RunId, params RuntimeContextSymbolsParams) {
+	var request RuntimeContextSymbolsRequestObject
+
+	request.RunId = runId
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RuntimeContextSymbols(ctx, request.(RuntimeContextSymbolsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RuntimeContextSymbols")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RuntimeContextSymbolsResponseObject); ok {
+		if err := validResponse.VisitRuntimeContextSymbolsResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

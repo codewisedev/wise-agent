@@ -23,6 +23,7 @@ const TABS = [
   { id: "policy", label: "Policy & budgets" },
   { id: "workflows", label: "Workflows" },
   { id: "board", label: "Board" },
+  { id: "indexing", label: "Indexing" },
 ] as const;
 
 export function SettingsPage() {
@@ -88,6 +89,7 @@ export function SettingsPage() {
         </>
       )}
       {tab === "board" && <SettingsPanels only={["board_defaults"]} />}
+      {tab === "indexing" && <SettingsPanels only={["indexing"]} />}
 
       {tab === "general" && (
       <>

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+import signal
 import sys
 
 from .config import Config
@@ -16,7 +17,7 @@ class JsonFormatter(logging.Formatter):
             "logger": record.name,
             "msg": record.getMessage(),
         }
-        for key in ("run_id", "agent", "attempt"):
+        for key in ("run_id", "agent", "attempt", "job"):
             if hasattr(record, key):
                 data[key] = getattr(record, key)
         if record.exc_info:
@@ -30,6 +31,18 @@ def main() -> None:
     logging.basicConfig(level=logging.INFO, handlers=[handler])
     logging.getLogger("httpx").setLevel(logging.WARNING)
     config = Config.from_env()
+    if len(sys.argv) > 1 and sys.argv[1] == "indexer":
+        from .indexer.indexer import IndexAPI, IndexWorker
+
+        logging.getLogger("wise_runtime").info(
+            "indexer starting as %s → %s", config.runtime_id, config.api_url
+        )
+        worker = IndexWorker(
+            IndexAPI(config.api_url, config.runtime_token), config.runtime_id, config.repo_roots
+        )
+        signal.signal(signal.SIGTERM, worker.stop)
+        worker.run_forever()
+        return
     logging.getLogger("wise_runtime").info("runtime starting as %s → %s", config.runtime_id, config.api_url)
     Worker(config).run_forever()
 

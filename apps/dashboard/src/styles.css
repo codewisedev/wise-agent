@@ -665,3 +665,22 @@ pre.diff span.del { color: var(--danger, #e5484d); background: color-mix(in srgb
 .label-input .chip button:hover, .label-input .chip button:focus-visible { color: var(--danger); outline: 1px solid var(--border); }
 .label-input input { flex: 1; min-width: 120px; border: 0; background: transparent; height: 26px; padding: 0 4px; outline: none; box-shadow: none; }
 .source-edit { flex-basis: 100%; border: 1px solid var(--border); border-radius: var(--radius); margin-top: 6px; }
+
+/* ---------- context ---------- */
+.context-search { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.context-search .search { display: inline-flex; align-items: center; gap: 6px; flex: 1 1 320px; padding: 0 10px; height: 36px;
+  border: 1px solid var(--border-strong); border-radius: var(--radius); background: var(--surface); color: var(--text-faint); }
+.context-search .search:focus-within { border-color: var(--ring); }
+.context-search .search input { flex: 1; border: 0; background: transparent; height: 34px; padding: 0; outline: none; box-shadow: none; }
+.context-search > select, .context-search > .btn { height: 36px; margin: 0; }
+.list.hits li.hit { display: block; padding: 10px 16px; }
+.hit-head { display: inline-flex; align-items: center; gap: 6px; color: var(--link); }
+.hit-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 4px; }
+.hit-snippet { margin: 6px 0 0; padding: 8px 10px; max-height: 160px; overflow: auto; font-size: 12px; line-height: 1.5;
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); white-space: pre-wrap; }
+.drawer.drawer-wide { width: min(980px, 100vw); }
+.code-view { margin: 0; padding: 10px 0; font-family: var(--font-mono); font-size: 12.5px; line-height: 1.55; overflow: auto;
+  white-space: pre; tab-size: 4; }
+.code-view > span { display: block; padding-right: 16px; }
+.code-view > span.hl { background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.code-view .ln { display: inline-block; width: 52px; padding-right: 12px; text-align: right; color: var(--text-faint); user-select: none; }

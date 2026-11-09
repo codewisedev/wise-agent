@@ -15,6 +15,7 @@ import (
 	"strings"
 	"syscall"
 	"time"
+	"wise/apps/api/internal/codeindex"
 
 	"golang.org/x/term"
 
@@ -180,6 +181,10 @@ func serve(ctx context.Context) error {
 	taskSvc.Accounts = accountSvc.ValidateModelChoice
 	// Panel-managed settings: files are defaults; the database wins and edits apply live.
 	settingsSvc := settings.NewService(d, log.With("component", "settings"))
+	inspector := gitinspect.New(cfg.RepoRoots)
+	repoSvc := repositories.NewService(d, inspector)
+	indexSvc := codeindex.NewService(d, repoSvc, log.With("component", "codeindex"))
+	settings.RegisterIndexing(settingsSvc, cfg.IndexingDefaults, indexSvc)
 	settings.RegisterDefaults(settingsSvc, settings.Files{
 		Models: cfg.ModelsConfig, Policy: cfg.ModelsPolicy, Workflows: cfg.WorkflowsConfig, Board: cfg.BoardDefaults,
 	}, gateway, accountSvc, taskSvc)
@@ -192,12 +197,12 @@ func serve(ctx context.Context) error {
 
 	integrationSvc := integrations.NewService(d, accountSvc, taskSvc, log.With("component", "integrations"))
 
-	inspector := gitinspect.New(cfg.RepoRoots)
 	srv := &httpapi.Server{
 		DB:               d,
 		Auth:             authSvc,
 		Projects:         projectSvc,
-		Repositories:     repositories.NewService(d, inspector),
+		Repositories:     repoSvc,
+		Index:            indexSvc,
 		Agents:           agentSvc,
 		RunQueue:         runQueue,
 		Gateway:          gateway,
@@ -221,6 +226,7 @@ func serve(ctx context.Context) error {
 	go runQueue.RunReaper(ctx, 15*time.Second)
 	go hub.ListenWorkflowEvents(ctx, d, log)
 	go integrationSvc.RunScheduler(ctx, time.Minute)
+	go indexSvc.RunScheduler(ctx)
 
 	hs := &http.Server{
 		Addr:              cfg.HTTPAddr,

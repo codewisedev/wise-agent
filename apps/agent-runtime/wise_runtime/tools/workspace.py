@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
@@ -29,8 +30,15 @@ class Workspace:
     point outside the repository are rejected.
     """
 
-    def __init__(self, project: dict[str, Any] | None, allowed_roots: tuple[str, ...] = ()):
+    def __init__(
+        self,
+        project: dict[str, Any] | None,
+        allowed_roots: tuple[str, ...] = (),
+        context: Callable[[str, dict[str, Any]], dict[str, Any]] | None = None,
+    ):
         self.project = project
+        # Index queries go through the control plane (scoped to the run's project).
+        self.context = context
         self.repos: dict[str, Repo] = {}
         self.unavailable: dict[str, str] = {}
         for r in (project or {}).get("repositories", []):

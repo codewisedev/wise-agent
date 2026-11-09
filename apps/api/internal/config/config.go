@@ -27,6 +27,7 @@ type Config struct {
 	ModelsPolicy      string
 	WorkflowsConfig   string
 	BoardDefaults     string
+	IndexingDefaults  string
 	TemporalAddress   string
 	TemporalNamespace string
 	SecretsKey        string
@@ -47,6 +48,7 @@ func Load() (Config, error) {
 		ModelsPolicy:      getenv("WISE_MODELS_POLICY", "configs/policies/models.yaml"),
 		WorkflowsConfig:   getenv("WISE_WORKFLOWS_CONFIG", "configs/workflows/engineering.yaml"),
 		BoardDefaults:     getenv("WISE_BOARD_DEFAULTS", "configs/board/defaults.yaml"),
+		IndexingDefaults:  getenv("WISE_INDEXING_DEFAULTS", "configs/indexing/defaults.yaml"),
 		TemporalAddress:   getenv("WISE_TEMPORAL_ADDRESS", "127.0.0.1:7233"),
 		TemporalNamespace: getenv("WISE_TEMPORAL_NAMESPACE", "wise"),
 		SecretsKey:        os.Getenv("WISE_SECRETS_KEY"),

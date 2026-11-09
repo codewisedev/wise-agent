@@ -3,6 +3,7 @@ import { Layout } from "./components/Layout";
 import { AgentDetailPage } from "./pages/AgentDetailPage";
 import { AgentsPage } from "./pages/AgentsPage";
 import { BoardPage } from "./pages/BoardPage";
+import { ContextPage } from "./pages/ContextPage";
 import { SprintsPage } from "./pages/SprintsPage";
 import { IntegrationsPage } from "./pages/IntegrationsPage";
 import { ApprovalsPage } from "./pages/ApprovalsPage";
@@ -32,6 +33,7 @@ export const router = createBrowserRouter([
       { path: "/projects/:projectId/board", element: <BoardPage /> },
       { path: "/projects/:projectId/integrations", element: <IntegrationsPage /> },
       { path: "/projects/:projectId/sprints", element: <SprintsPage /> },
+      { path: "/projects/:projectId/context", element: <ContextPage /> },
       { path: "/tasks", element: <TasksPage /> },
       { path: "/tasks/:taskId", element: <TaskPage /> },
       { path: "/approvals", element: <ApprovalsPage /> },

@@ -1,0 +1,40 @@
+# Default indexing settings (editable in Settings → Indexing).
+# Globs use .gitignore syntax and are matched against repository-relative paths;
+# the repository's own .gitignore always applies too.
+exclude:
+  - .git/
+  - node_modules/
+  - vendor/
+  - dist/
+  - build/
+  - out/
+  - target/
+  - coverage/
+  - .next/
+  - .nuxt/
+  - .venv/
+  - venv/
+  - __pycache__/
+  - "*.min.js"
+  - "*.min.css"
+  - "*.map"
+  - "*.lock"
+  - package-lock.json
+  - pnpm-lock.yaml
+  - yarn.lock
+  - go.sum
+  - "*.gen.go"
+  - "*.gen.ts"
+  - "*.pb.go"
+include: []          # empty = every file not excluded
+docs:                # treated as documentation (split by heading)
+  - "*.md"
+  - "*.mdx"
+  - "*.rst"
+  - "*.adoc"
+max_file_kb: 512
+max_files: 20000
+chunk_lines: 60
+auto_index: true
+check_interval_minutes: 5
+secret_patterns: []  # extra regexes; the built-in secret guard always applies

@@ -249,6 +249,8 @@ github.com/paulmach/orb v0.13.0/go.mod h1:6scRWINywA2Jf05dcjOfLfxrUIMECvTSG2MVbR
 github.com/pelletier/go-toml/v2 v2.2.2/go.mod h1:1t835xjRzz80PqgE6HHgN2JOsmgYu/h4qDAS4n929Rs=
 github.com/pganalyze/pg_query_go/v6 v6.2.2 h1:O0L6zMC226R82RF3X5n0Ki6HjytDsoAzuzp4ATVAHNo=
 github.com/pganalyze/pg_query_go/v6 v6.2.2/go.mod h1:Cn6+j4870kJz3iYNsb0VsNG04vpSWgEvBwc590J4qD0=
+github.com/pgvector/pgvector-go v0.4.1 h1:Oaj0mC0Ky8KaTweNHHpLwyFlN6a0nUFoo1vgSFTEhPI=
+github.com/pgvector/pgvector-go v0.4.1/go.mod h1:4fSXyjl1TYAIdByAql6JazKWRr2s7J0g4hcRY5cBFCk=
 github.com/pierrec/lz4/v4 v4.1.33/go.mod h1:7SE9MC2STkNtL4PIwGhjmyVwvILaGI9/COYQNBhKM/c=
 github.com/pingcap/errors v0.11.0/go.mod h1:Oi8TUi2kEtXXLMJk9l1cGmz20kV3TaQ0usTwv5KuLY8=
 github.com/pingcap/errors v0.11.5-0.20250523034308-74f78ae071ee h1:/IDPbpzkzA97t1/Z1+C3KlxbevjMeaI6BQYxvivu4u8=

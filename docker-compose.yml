@@ -268,6 +268,36 @@ services:
       resources:
         limits: { cpus: "1.0", memory: 512M }
 
+  # Code indexer: same image as the agent runtime. Reads repositories read-only,
+  # parses them with tree-sitter and uploads the index through the runtime API;
+  # no database access and no egress.
+  wise-indexer:
+    build:
+      context: .
+      dockerfile: apps/agent-runtime/Dockerfile
+      network: host
+    command: ["python", "-m", "wise_runtime", "indexer"]
+    restart: unless-stopped
+    depends_on:
+      wise-api:
+        condition: service_healthy
+    environment:
+      WISE_API_URL: http://wise-api:8080
+      WISE_RUNTIME_TOKEN: ${WISE_RUNTIME_TOKEN}
+      WISE_REPO_ROOTS: ${WISE_REPO_ROOT}
+      WISE_RUNTIME_ID: indexer
+    user: "${WISE_UID:-1000}:${WISE_GID:-1000}"
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    volumes:
+      - ${WISE_REPO_ROOT}:${WISE_REPO_ROOT}:ro
+    networks: [runtime]
+    deploy:
+      resources:
+        limits: { cpus: "1.0", memory: 768M }
+
   wise-dashboard:
     build:
       context: .

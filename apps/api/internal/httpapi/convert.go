@@ -54,6 +54,7 @@ func toRepository(r dbgen.Repository) apigen.Repository {
 		DefaultBranch: r.DefaultBranch, CurrentBranch: r.CurrentBranch, HeadSha: r.HeadSha,
 		GitRemotes: remotes, GitInspectedAt: r.GitInspectedAt, GitError: r.GitError,
 		IndexStatus: apigen.RepositoryIndexStatus(r.IndexStatus), IndexRequestedAt: r.IndexRequestedAt,
+		IndexedSha: r.IndexedSha, IndexedAt: r.IndexedAt, IndexStats: ptrMap(jsonObject(r.IndexStats)), IndexError: r.IndexError,
 		Settings: jsonObject(r.Settings), CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt,
 	}
 }
@@ -104,3 +105,5 @@ func derefMap(p *map[string]any) map[string]any {
 	}
 	return *p
 }
+
+func ptrMap(m map[string]any) *map[string]any { return &m }

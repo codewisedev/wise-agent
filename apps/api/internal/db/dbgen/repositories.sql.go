@@ -15,7 +15,7 @@ import (
 const createRepository = `-- name: CreateRepository :one
 INSERT INTO repositories (id, project_id, name, role, source_type, local_path, remote_url, default_branch, settings)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-RETURNING id, project_id, name, role, source_type, local_path, remote_url, default_branch, current_branch, head_sha, git_remotes, git_inspected_at, git_error, index_status, index_requested_at, settings, created_at, updated_at
+RETURNING id, project_id, name, role, source_type, local_path, remote_url, default_branch, current_branch, head_sha, git_remotes, git_inspected_at, git_error, index_status, index_requested_at, settings, created_at, updated_at, indexed_sha, indexed_at, index_stats, index_error
 `
 
 type CreateRepositoryParams struct {
@@ -62,6 +62,10 @@ func (q *Queries) CreateRepository(ctx context.Context, arg CreateRepositoryPara
 		&i.Settings,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.IndexedSha,
+		&i.IndexedAt,
+		&i.IndexStats,
+		&i.IndexError,
 	)
 	return i, err
 }
@@ -104,7 +108,7 @@ func (q *Queries) CreateRepositoryRelationship(ctx context.Context, arg CreateRe
 }
 
 const deleteRepository = `-- name: DeleteRepository :one
-DELETE FROM repositories WHERE id = $1 RETURNING id, project_id, name, role, source_type, local_path, remote_url, default_branch, current_branch, head_sha, git_remotes, git_inspected_at, git_error, index_status, index_requested_at, settings, created_at, updated_at
+DELETE FROM repositories WHERE id = $1 RETURNING id, project_id, name, role, source_type, local_path, remote_url, default_branch, current_branch, head_sha, git_remotes, git_inspected_at, git_error, index_status, index_requested_at, settings, created_at, updated_at, indexed_sha, indexed_at, index_stats, index_error
 `
 
 func (q *Queries) DeleteRepository(ctx context.Context, id uuid.UUID) (Repository, error) {
@@ -129,6 +133,10 @@ func (q *Queries) DeleteRepository(ctx context.Context, id uuid.UUID) (Repositor
 		&i.Settings,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.IndexedSha,
+		&i.IndexedAt,
+		&i.IndexStats,
+		&i.IndexError,
 	)
 	return i, err
 }
@@ -153,7 +161,7 @@ func (q *Queries) DeleteRepositoryRelationship(ctx context.Context, id uuid.UUID
 }
 
 const getRepository = `-- name: GetRepository :one
-SELECT id, project_id, name, role, source_type, local_path, remote_url, default_branch, current_branch, head_sha, git_remotes, git_inspected_at, git_error, index_status, index_requested_at, settings, created_at, updated_at FROM repositories WHERE id = $1
+SELECT id, project_id, name, role, source_type, local_path, remote_url, default_branch, current_branch, head_sha, git_remotes, git_inspected_at, git_error, index_status, index_requested_at, settings, created_at, updated_at, indexed_sha, indexed_at, index_stats, index_error FROM repositories WHERE id = $1
 `
 
 func (q *Queries) GetRepository(ctx context.Context, id uuid.UUID) (Repository, error) {
@@ -178,12 +186,16 @@ func (q *Queries) GetRepository(ctx context.Context, id uuid.UUID) (Repository, 
 		&i.Settings,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.IndexedSha,
+		&i.IndexedAt,
+		&i.IndexStats,
+		&i.IndexError,
 	)
 	return i, err
 }
 
 const listRepositories = `-- name: ListRepositories :many
-SELECT id, project_id, name, role, source_type, local_path, remote_url, default_branch, current_branch, head_sha, git_remotes, git_inspected_at, git_error, index_status, index_requested_at, settings, created_at, updated_at FROM repositories WHERE project_id = $1 ORDER BY name
+SELECT id, project_id, name, role, source_type, local_path, remote_url, default_branch, current_branch, head_sha, git_remotes, git_inspected_at, git_error, index_status, index_requested_at, settings, created_at, updated_at, indexed_sha, indexed_at, index_stats, index_error FROM repositories WHERE project_id = $1 ORDER BY name
 `
 
 func (q *Queries) ListRepositories(ctx context.Context, projectID uuid.UUID) ([]Repository, error) {
@@ -214,6 +226,10 @@ func (q *Queries) ListRepositories(ctx context.Context, projectID uuid.UUID) ([]
 			&i.Settings,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.IndexedSha,
+			&i.IndexedAt,
+			&i.IndexStats,
+			&i.IndexError,
 		); err != nil {
 			return nil, err
 		}
@@ -263,7 +279,7 @@ UPDATE repositories SET
     index_requested_at = now(),
     updated_at         = now()
 WHERE id = $1
-RETURNING id, project_id, name, role, source_type, local_path, remote_url, default_branch, current_branch, head_sha, git_remotes, git_inspected_at, git_error, index_status, index_requested_at, settings, created_at, updated_at
+RETURNING id, project_id, name, role, source_type, local_path, remote_url, default_branch, current_branch, head_sha, git_remotes, git_inspected_at, git_error, index_status, index_requested_at, settings, created_at, updated_at, indexed_sha, indexed_at, index_stats, index_error
 `
 
 func (q *Queries) QueueRepositoryIndex(ctx context.Context, id uuid.UUID) (Repository, error) {
@@ -288,6 +304,10 @@ func (q *Queries) QueueRepositoryIndex(ctx context.Context, id uuid.UUID) (Repos
 		&i.Settings,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.IndexedSha,
+		&i.IndexedAt,
+		&i.IndexStats,
+		&i.IndexError,
 	)
 	return i, err
 }
@@ -301,7 +321,7 @@ UPDATE repositories SET
     settings       = coalesce($5, settings),
     updated_at     = now()
 WHERE id = $6
-RETURNING id, project_id, name, role, source_type, local_path, remote_url, default_branch, current_branch, head_sha, git_remotes, git_inspected_at, git_error, index_status, index_requested_at, settings, created_at, updated_at
+RETURNING id, project_id, name, role, source_type, local_path, remote_url, default_branch, current_branch, head_sha, git_remotes, git_inspected_at, git_error, index_status, index_requested_at, settings, created_at, updated_at, indexed_sha, indexed_at, index_stats, index_error
 `
 
 type UpdateRepositoryParams struct {
@@ -342,6 +362,10 @@ func (q *Queries) UpdateRepository(ctx context.Context, arg UpdateRepositoryPara
 		&i.Settings,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.IndexedSha,
+		&i.IndexedAt,
+		&i.IndexStats,
+		&i.IndexError,
 	)
 	return i, err
 }
@@ -356,7 +380,7 @@ UPDATE repositories SET
     git_inspected_at = now(),
     updated_at       = now()
 WHERE id = $6
-RETURNING id, project_id, name, role, source_type, local_path, remote_url, default_branch, current_branch, head_sha, git_remotes, git_inspected_at, git_error, index_status, index_requested_at, settings, created_at, updated_at
+RETURNING id, project_id, name, role, source_type, local_path, remote_url, default_branch, current_branch, head_sha, git_remotes, git_inspected_at, git_error, index_status, index_requested_at, settings, created_at, updated_at, indexed_sha, indexed_at, index_stats, index_error
 `
 
 type UpdateRepositoryGitInfoParams struct {
@@ -397,6 +421,10 @@ func (q *Queries) UpdateRepositoryGitInfo(ctx context.Context, arg UpdateReposit
 		&i.Settings,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.IndexedSha,
+		&i.IndexedAt,
+		&i.IndexStats,
+		&i.IndexError,
 	)
 	return i, err
 }

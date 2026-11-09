@@ -12,6 +12,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/pgvector/pgvector-go"
 )
 
 type AgentRunStatus string
@@ -501,6 +502,68 @@ type BoardColumn struct {
 	UpdatedAt time.Time
 }
 
+type CodeChunk struct {
+	ID             uuid.UUID
+	FileID         uuid.UUID
+	RepositoryID   uuid.UUID
+	Kind           string
+	StartLine      int32
+	EndLine        int32
+	Heading        string
+	Content        string
+	SearchHeading  string
+	SearchText     string
+	Tsv            interface{}
+	ContentHash    string
+	Embedding      *pgvector.Vector
+	EmbeddingModel *string
+	EmbeddedAt     *time.Time
+}
+
+type CodeFile struct {
+	ID            uuid.UUID
+	RepositoryID  uuid.UUID
+	Path          string
+	Language      string
+	SizeBytes     int32
+	ContentHash   string
+	LineCount     int32
+	Imports       []string
+	SkippedReason *string
+	IndexedSha    *string
+	UpdatedAt     time.Time
+}
+
+type CodeSymbol struct {
+	ID           uuid.UUID
+	FileID       uuid.UUID
+	RepositoryID uuid.UUID
+	Name         string
+	Kind         string
+	Signature    string
+	Parent       *string
+	Exported     bool
+	StartLine    int32
+	EndLine      int32
+	Doc          string
+}
+
+type IndexJob struct {
+	ID             uuid.UUID
+	RepositoryID   uuid.UUID
+	Status         string
+	Reason         string
+	CommitSha      *string
+	RuntimeID      *string
+	TokenHash      []byte
+	LeaseExpiresAt *time.Time
+	Stats          json.RawMessage
+	Error          *string
+	CreatedAt      time.Time
+	StartedAt      *time.Time
+	FinishedAt     *time.Time
+}
+
 type Integration struct {
 	ID                uuid.UUID
 	ProjectID         uuid.UUID
@@ -580,6 +643,16 @@ type ProjectService struct {
 	UpdatedAt time.Time
 }
 
+type RepoDependency struct {
+	ID           uuid.UUID
+	RepositoryID uuid.UUID
+	Ecosystem    string
+	Name         string
+	Version      string
+	Dev          bool
+	Manifest     string
+}
+
 type Repository struct {
 	ID               uuid.UUID
 	ProjectID        uuid.UUID
@@ -599,6 +672,10 @@ type Repository struct {
 	Settings         json.RawMessage
 	CreatedAt        time.Time
 	UpdatedAt        time.Time
+	IndexedSha       *string
+	IndexedAt        *time.Time
+	IndexStats       json.RawMessage
+	IndexError       *string
 }
 
 type RepositoryRelationship struct {

@@ -318,11 +318,54 @@ export function ColumnsEditor({ value, set }: { value: BoardValue; set: (v: Boar
   );
 }
 
+type IndexingValue = {
+  exclude: string[]; include: string[]; docs: string[]; max_file_kb: number; max_files: number;
+  chunk_lines: number; auto_index: boolean; check_interval_minutes: number; secret_patterns: string[];
+};
+
+function Lines({ label, hint, value, onChange, rows = 6 }: { label: string; hint?: string; value: string[]; onChange: (v: string[]) => void; rows?: number }) {
+  // The raw text is kept while typing (new lines, trailing spaces); the list is derived from it.
+  const [text, setText] = useState(value.join("\n"));
+  const parsed = (t: string) => t.split("\n").map((l) => l.trim()).filter(Boolean);
+  useEffect(() => {
+    if (parsed(text).join("\n") !== value.join("\n")) setText(value.join("\n"));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value]);
+  return (
+    <Field label={label} hint={hint} grow>
+      <textarea className="mono" rows={rows} value={text} spellCheck={false}
+        onChange={(e) => { setText(e.target.value); onChange(parsed(e.target.value)); }} />
+    </Field>
+  );
+}
+
+function IndexingEditor({ value, set }: { value: IndexingValue; set: (v: IndexingValue) => void }) {
+  const num = (k: keyof IndexingValue) => (e: React.ChangeEvent<HTMLInputElement>) => set({ ...value, [k]: Number(e.target.value) });
+  return (
+    <div className="settings-form">
+      <label className="checkbox"><input type="checkbox" checked={value.auto_index} onChange={(e) => set({ ...value, auto_index: e.target.checked })} /> Re-index automatically when a repository's HEAD moves</label>
+      <div className="form-grid">
+        <Field label="Check every (minutes)"><input type="number" min={1} max={1440} value={value.check_interval_minutes} onChange={num("check_interval_minutes")} /></Field>
+        <Field label="Max file size (KB)"><input type="number" min={1} max={4096} value={value.max_file_kb} onChange={num("max_file_kb")} /></Field>
+        <Field label="Max files per repository"><input type="number" min={1} max={200000} value={value.max_files} onChange={num("max_files")} /></Field>
+        <Field label="Chunk size (lines)"><input type="number" min={10} max={400} value={value.chunk_lines} onChange={num("chunk_lines")} /></Field>
+      </div>
+      <div className="form-grid">
+        <Lines label="Exclude" hint=".gitignore syntax, one per line; the repository's own .gitignore always applies" value={value.exclude} onChange={(v) => set({ ...value, exclude: v })} rows={10} />
+        <Lines label="Include only (optional)" hint="Empty = every file not excluded" value={value.include} onChange={(v) => set({ ...value, include: v })} rows={10} />
+        <Lines label="Documentation" hint="Split by heading and searched as docs" value={value.docs} onChange={(v) => set({ ...value, docs: v })} rows={10} />
+      </div>
+      <Lines label="Extra secret patterns" hint="Regular expressions; files that match are never indexed or shown. The built-in guard (.env files, keys, tokens) always applies." value={value.secret_patterns} onChange={(v) => set({ ...value, secret_patterns: v })} rows={3} />
+    </div>
+  );
+}
+
 const EDITORS: Record<string, (v: any, set: (v: any) => void) => ReactNode> = {
   models: (v, set) => <ModelsEditor value={v as ModelsValue} set={set} />,
   model_policy: (v, set) => <PolicyEditor value={v as PolicyValue} set={set} />,
   workflow_defaults: (v, set) => <WorkflowEditor value={v as WorkflowValue} set={set} />,
   board_defaults: (v, set) => <ColumnsEditor value={v as BoardValue} set={set} />,
+  indexing: (v, set) => <IndexingEditor value={v as IndexingValue} set={set} />,
 };
 
 /** Every panel-managed setting; unknown keys fall back to the JSON editor. */

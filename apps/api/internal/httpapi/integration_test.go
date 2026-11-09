@@ -15,6 +15,7 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"wise/apps/api/internal/codeindex"
 
 	"wise/apps/api/internal/accounts"
 	"wise/apps/api/internal/agents"
@@ -56,6 +57,8 @@ type env struct {
 	gw       *modelgateway.Gateway
 	sources  *integrations.Service
 	settings *settings.Service
+	repoSvc  *repositories.Service
+	index    *codeindex.Service
 }
 
 func setup(t *testing.T) *env {
@@ -102,13 +105,17 @@ func setup(t *testing.T) *env {
 	}
 	integrationSvc := integrations.NewService(d, accountSvc, taskSvc, log)
 	settingsSvc := settings.NewService(d, log)
+	repoSvc := repositories.NewService(d, gitinspect.New([]string{root}))
+	indexSvc := codeindex.NewService(d, repoSvc, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	settings.RegisterIndexing(settingsSvc, filepath.Join("..", "..", "..", "..", "configs", "indexing", "defaults.yaml"), indexSvc)
 	settings.RegisterDefaults(settingsSvc, testSettingFiles(t), gw, accountSvc, taskSvc)
 	if err := settingsSvc.Start(context.Background()); err != nil {
 		t.Fatal(err)
 	}
 	server := &httpapi.Server{
 		DB: d, Auth: authSvc, Projects: projectSvc,
-		Repositories: repositories.NewService(d, gitinspect.New([]string{root})),
+		Repositories: repoSvc,
+		Index:        indexSvc,
 		Agents:       agentSvc, RunQueue: queue, Gateway: gw, Hub: hub, Tasks: taskSvc, Accounts: accountSvc, Integrations: integrationSvc, Settings: settingsSvc,
 		Cookie:       httpapi.CookieConfig{TTL: time.Hour},
 		RuntimeToken: runtimeToken,
@@ -120,7 +127,7 @@ func setup(t *testing.T) *env {
 	ts := httptest.NewServer(h)
 	t.Cleanup(ts.Close)
 	jar, _ := cookiejar.New(nil)
-	return &env{t: t, db: d, srv: ts, client: &http.Client{Jar: jar}, repoRoot: root, queue: queue, model: model,
+	return &env{t: t, db: d, srv: ts, client: &http.Client{Jar: jar}, repoRoot: root, queue: queue, model: model, repoSvc: repoSvc, index: indexSvc,
 		tasks: taskSvc, agents: agentSvc, hub: hub, accounts: accountSvc, gw: gw, sources: integrationSvc, settings: settingsSvc}
 }
 
@@ -454,5 +461,15 @@ func testSettingFiles(t *testing.T) settings.Files {
 		Policy:    write("policy.yaml", "cloud_allowed_agents: [\"*\"]\nmax_retries: 1\n"),
 		Workflows: filepath.Join(repo, "workflows", "engineering.yaml"),
 		Board:     filepath.Join(repo, "board", "defaults.yaml"),
+	}
+}
+
+// gitCommit adds an empty commit (HEAD moves).
+func gitCommit(t *testing.T, dir, msg string) {
+	t.Helper()
+	cmd := exec.Command("git", "-C", dir, "commit", "-q", "--allow-empty", "-m", msg)
+	cmd.Env = append(os.Environ(), "GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@t", "GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@t", "GIT_CONFIG_GLOBAL=/dev/null")
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("git commit: %v %s", err, out)
 	}
 }

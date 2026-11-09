@@ -3,11 +3,15 @@
 package repositories
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/url"
+	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 
@@ -276,7 +280,8 @@ func (s *Service) refreshGit(ctx context.Context, repo dbgen.Repository) (dbgen.
 	return updated, err
 }
 
-// RequestIndex marks the repository as queued for indexing (indexer: Phase 4).
+// RequestIndex queues an index job for the repository (the indexer worker
+// picks it up). A job already pending is reused.
 func (s *Service) RequestIndex(ctx context.Context, id uuid.UUID) (dbgen.Repository, error) {
 	var repo dbgen.Repository
 	err := s.db.InTx(ctx, func(q *dbgen.Queries) error {
@@ -286,6 +291,12 @@ func (s *Service) RequestIndex(ctx context.Context, id uuid.UUID) (dbgen.Reposit
 			return errRepoNotFound
 		}
 		if err != nil {
+			return err
+		}
+		if repo.SourceType != dbgen.RepositorySourceTypeLocal {
+			return apperr.Unprocessable("only local repositories can be indexed; remote repositories are cloned in a later phase")
+		}
+		if err := QueueIndexJob(ctx, q, id, "manual"); err != nil {
 			return err
 		}
 		return audit.Record(ctx, q, audit.Entry{
@@ -399,4 +410,85 @@ func nonEmpty(s string) *string {
 		return nil
 	}
 	return &s
+}
+
+// QueueIndexJob adds an index job unless one is already queued or running.
+func QueueIndexJob(ctx context.Context, q *dbgen.Queries, repoID uuid.UUID, reason string) error {
+	jid, err := uuid.NewV7()
+	if err != nil {
+		return err
+	}
+	if _, err := q.QueueIndexJob(ctx, dbgen.QueueIndexJobParams{ID: jid, RepositoryID: repoID, Reason: reason}); err != nil && !db.IsNotFound(err) {
+		return err
+	}
+	return nil
+}
+
+// MaxReadBytes caps ReadFile.
+const MaxReadBytes = 1 << 20
+
+// secretName matches file names that commonly hold credentials.
+var secretName = regexp.MustCompile(`(?i)(^|/)(\.env(\..*)?|\.envrc|id_(rsa|dsa|ecdsa|ed25519)|.*\.(pem|key|p12|pfx|jks|keystore)|credentials(\.json)?|\.netrc|\.npmrc|\.pypirc|secrets?\.(ya?ml|json|toml))$`)
+
+// LooksSecret reports file names that are never shown or indexed.
+func LooksSecret(path string) bool { return secretName.MatchString(path) }
+
+// ReadFile reads a repository file (read-only, inside the repository and the
+// allowed roots; symlinks may not escape). Files the indexer flagged as
+// secrets, or named like credentials, are refused.
+func (s *Service) ReadFile(ctx context.Context, id uuid.UUID, rel string) (content []byte, lines int, truncated bool, repo dbgen.Repository, err error) {
+	repo, err = s.Get(ctx, id)
+	if err != nil {
+		return nil, 0, false, repo, err
+	}
+	if repo.SourceType != dbgen.RepositorySourceTypeLocal || repo.LocalPath == nil {
+		return nil, 0, false, repo, apperr.Unprocessable("only local repositories can be read")
+	}
+	rel = filepath.ToSlash(filepath.Clean("/" + rel))[1:]
+	if rel == "" || LooksSecret(rel) {
+		return nil, 0, false, repo, apperr.Forbidden("this file may contain secrets and is not shown")
+	}
+	if skip, err := s.db.GetCodeFileSkip(ctx, dbgen.GetCodeFileSkipParams{RepositoryID: id, Path: rel}); err == nil && skip != nil && *skip == "secret" {
+		return nil, 0, false, repo, apperr.Forbidden("the indexer flagged this file as containing secrets; it is not shown")
+	}
+	root, err := s.git.ResolvePath(*repo.LocalPath)
+	if err != nil {
+		return nil, 0, false, repo, apperr.Unprocessable(err.Error())
+	}
+	abs, err := filepath.EvalSymlinks(filepath.Join(root, filepath.FromSlash(rel)))
+	if err != nil {
+		return nil, 0, false, repo, apperr.NotFound("file not found")
+	}
+	if abs != root && !strings.HasPrefix(abs, root+string(filepath.Separator)) {
+		return nil, 0, false, repo, apperr.Forbidden("path leaves the repository")
+	}
+	// A symlink may point at a secret under another name: check the resolved file too.
+	if real, err := filepath.Rel(root, abs); err == nil && real != rel {
+		real = filepath.ToSlash(real)
+		if LooksSecret(real) {
+			return nil, 0, false, repo, apperr.Forbidden("this file may contain secrets and is not shown")
+		}
+		if skip, err := s.db.GetCodeFileSkip(ctx, dbgen.GetCodeFileSkipParams{RepositoryID: id, Path: real}); err == nil && skip != nil && *skip == "secret" {
+			return nil, 0, false, repo, apperr.Forbidden("the indexer flagged this file as containing secrets; it is not shown")
+		}
+	}
+	f, err := os.Open(abs)
+	if err != nil {
+		return nil, 0, false, repo, apperr.NotFound("file not found")
+	}
+	defer f.Close()
+	if st, err := f.Stat(); err != nil || st.IsDir() {
+		return nil, 0, false, repo, apperr.Validation(apperr.FieldError{Field: "path", Message: "not a file"})
+	}
+	buf, err := io.ReadAll(io.LimitReader(f, MaxReadBytes+1))
+	if err != nil {
+		return nil, 0, false, repo, err
+	}
+	if len(buf) > MaxReadBytes {
+		buf, truncated = buf[:MaxReadBytes], true
+	}
+	if bytes.IndexByte(buf[:min(len(buf), 8000)], 0) >= 0 {
+		return nil, 0, false, repo, apperr.Validation(apperr.FieldError{Field: "path", Message: "binary file"})
+	}
+	return buf, bytes.Count(buf, []byte("\n")) + 1, truncated, repo, nil
 }

@@ -258,9 +258,9 @@ export interface paths {
             };
             cookie?: never;
         };
-        get?: never;
+        get: operations["getRepositoryIndex"];
         put?: never;
-        /** @description Queues the repository for indexing. The indexer itself arrives in Phase 4. */
+        /** @description Queues an index job for the repository (reused if one is already pending). */
         post: operations["requestRepositoryIndex"];
         delete?: never;
         options?: never;
@@ -689,6 +689,80 @@ export interface paths {
         put?: never;
         /** @description Closes the sprint. If it was current, the next open sprint takes over and unfinished tasks created in Wise move to it. */
         post: operations["completeSprint"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{projectId}/context/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: components["parameters"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        /** @description Searches the project's code index (symbols, code, docs, config). */
+        get: operations["searchContext"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{projectId}/context/symbols": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: components["parameters"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        get: operations["listContextSymbols"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{projectId}/context/dependencies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: components["parameters"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        get: operations["listContextDependencies"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/repositories/{repositoryId}/file": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                repositoryId: components["parameters"]["RepositoryId"];
+            };
+            cookie?: never;
+        };
+        /** @description Reads a file from the repository's working tree (read-only, within WISE_REPO_ROOTS). Files the secret guard flagged are refused. */
+        get: operations["readRepositoryFile"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1266,6 +1340,151 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/runtime/v1/index/claim": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Claims the oldest queued index job. Requires the runtime service token. */
+        post: operations["runtimeClaimIndexJob"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/runtime/v1/index/{jobId}/heartbeat": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: components["parameters"]["JobId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["runtimeIndexHeartbeat"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/runtime/v1/index/{jobId}/files": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: components["parameters"]["JobId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Stores a batch of indexed files (replacing their symbols and chunks) and removes deleted paths. */
+        post: operations["runtimeIndexUpload"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/runtime/v1/index/{jobId}/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: components["parameters"]["JobId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["runtimeIndexComplete"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/runtime/v1/index/{jobId}/fail": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: components["parameters"]["JobId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["runtimeIndexFail"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/runtime/v1/runs/{runId}/context/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                runId: components["parameters"]["RunId"];
+            };
+            cookie?: never;
+        };
+        /** @description Searches the index of the run's project (symbols and text). Results are locations to read, not the code itself. */
+        get: operations["runtimeContextSearch"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/runtime/v1/runs/{runId}/context/symbols": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                runId: components["parameters"]["RunId"];
+            };
+            cookie?: never;
+        };
+        get: operations["runtimeContextSymbols"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/runtime/v1/runs/{runId}/context/dependencies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                runId: components["parameters"]["RunId"];
+            };
+            cookie?: never;
+        };
+        get: operations["runtimeContextDependencies"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/runtime/v1/runs/claim": {
         parameters: {
             query?: never;
@@ -1541,6 +1760,15 @@ export interface components {
             indexStatus: components["schemas"]["RepositoryIndexStatus"];
             /** Format: date-time */
             indexRequestedAt?: string | null;
+            /** @description Commit the index reflects. */
+            indexedSha?: string | null;
+            /** Format: date-time */
+            indexedAt?: string | null;
+            /** @description files, skipped, symbols, chunks, dependencies */
+            indexStats?: {
+                [key: string]: unknown;
+            };
+            indexError?: string | null;
             settings: {
                 [key: string]: unknown;
             };
@@ -2136,6 +2364,151 @@ export interface components {
             finalReport?: boolean;
             maxRevisions?: number;
         };
+        /** @enum {string} */
+        ContextKind: "symbol" | "code" | "doc" | "config";
+        ContextHit: {
+            /** @description symbol, code, doc or config */
+            kind: string;
+            repository: string;
+            /** Format: uuid */
+            repositoryId: string;
+            path: string;
+            language?: string;
+            startLine: number;
+            endLine: number;
+            title: string;
+            snippet: string;
+            /** Format: double */
+            score: number;
+            why: string;
+            indexedSha?: string;
+            /** @description HEAD moved since this was indexed; read the file to be sure. */
+            stale: boolean;
+        };
+        ContextHits: {
+            items: components["schemas"]["ContextHit"][];
+            note?: string;
+        };
+        Dependency: {
+            ecosystem: string;
+            name: string;
+            version: string;
+            dev: boolean;
+            manifest: string;
+            repository: string;
+        };
+        DependencyList: {
+            items: components["schemas"]["Dependency"][];
+        };
+        IndexJob: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            status: "queued" | "running" | "done" | "failed" | "cancelled";
+            reason: string;
+            commitSha?: string | null;
+            stats: {
+                [key: string]: unknown;
+            };
+            error?: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            startedAt?: string | null;
+            /** Format: date-time */
+            finishedAt?: string | null;
+        };
+        RepositoryIndex: {
+            status: components["schemas"]["RepositoryIndexStatus"];
+            indexedSha?: string | null;
+            headSha?: string | null;
+            /** Format: date-time */
+            indexedAt?: string | null;
+            stale: boolean;
+            stats: {
+                [key: string]: unknown;
+            };
+            error?: string | null;
+            jobs: components["schemas"]["IndexJob"][];
+        };
+        RepositoryFile: {
+            path: string;
+            content: string;
+            lines: number;
+            truncated: boolean;
+            headSha?: string | null;
+        };
+        IndexClaim: {
+            /** Format: uuid */
+            jobId: string;
+            /** @description Per-job token for the other index routes. */
+            token: string;
+            leaseSeconds: number;
+            repository: {
+                /** Format: uuid */
+                id: string;
+                name: string;
+                localPath: string;
+            };
+            settings: {
+                [key: string]: unknown;
+            };
+            /** @description path -> content hash already stored */
+            manifest: {
+                [key: string]: string;
+            };
+        };
+        IndexSymbol: {
+            name: string;
+            kind: string;
+            signature?: string;
+            parent?: string;
+            exported?: boolean;
+            startLine: number;
+            endLine: number;
+            doc?: string;
+        };
+        IndexChunk: {
+            /** @enum {string} */
+            kind: "code" | "doc" | "config";
+            startLine: number;
+            endLine: number;
+            heading?: string;
+            content: string;
+        };
+        IndexFile: {
+            path: string;
+            language?: string;
+            size?: number;
+            contentHash: string;
+            lines?: number;
+            imports?: string[];
+            /** @enum {string} */
+            skippedReason?: "" | "secret" | "too_large" | "binary" | "unreadable";
+            symbols?: components["schemas"]["IndexSymbol"][];
+            chunks?: components["schemas"]["IndexChunk"][];
+        };
+        IndexUpload: {
+            files?: components["schemas"]["IndexFile"][];
+            deleted?: string[];
+        };
+        IndexComplete: {
+            commitSha?: string;
+            dependencies?: components["schemas"]["IndexDependency"][];
+            stats?: {
+                [key: string]: unknown;
+            };
+        };
+        IndexFail: {
+            error: string;
+        };
+        IndexDependency: {
+            ecosystem: string;
+            name: string;
+            version?: string;
+            dev?: boolean;
+            manifest: string;
+        };
         Sprint: {
             /** Format: uuid */
             id: string;
@@ -2518,6 +2891,7 @@ export interface components {
         };
     };
     parameters: {
+        JobId: string;
         SprintId: string;
         ProjectId: string;
         RepositoryId: string;
@@ -3071,6 +3445,30 @@ export interface operations {
             401: components["responses"]["Problem"];
             404: components["responses"]["Problem"];
             422: components["responses"]["Problem"];
+        };
+    };
+    getRepositoryIndex: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                repositoryId: components["parameters"]["RepositoryId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Index state and recent jobs. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RepositoryIndex"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
         };
     };
     requestRepositoryIndex: {
@@ -3852,6 +4250,120 @@ export interface operations {
                 content?: never;
             };
             401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    searchContext: {
+        parameters: {
+            query: {
+                q: string;
+                kind?: components["schemas"]["ContextKind"];
+                repositoryId?: string;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                projectId: components["parameters"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Results. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContextHits"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    listContextSymbols: {
+        parameters: {
+            query: {
+                name: string;
+                kind?: string;
+                repositoryId?: string;
+            };
+            header?: never;
+            path: {
+                projectId: components["parameters"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Results. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContextHits"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    listContextDependencies: {
+        parameters: {
+            query?: {
+                repositoryId?: string;
+            };
+            header?: never;
+            path: {
+                projectId: components["parameters"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Results. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DependencyList"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    readRepositoryFile: {
+        parameters: {
+            query: {
+                path: string;
+            };
+            header?: never;
+            path: {
+                repositoryId: components["parameters"]["RepositoryId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description File content. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RepositoryFile"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
             404: components["responses"]["Problem"];
         };
     };
@@ -4929,6 +5441,232 @@ export interface operations {
             };
             401: components["responses"]["Problem"];
             404: components["responses"]["Problem"];
+        };
+    };
+    runtimeClaimIndexJob: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RuntimeClaimRequest"];
+            };
+        };
+        responses: {
+            /** @description Claimed job with the repository, settings and the stored manifest. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IndexClaim"];
+                };
+            };
+            /** @description Nothing queued. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Problem"];
+        };
+    };
+    runtimeIndexHeartbeat: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: components["parameters"]["JobId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Done. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+        };
+    };
+    runtimeIndexUpload: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: components["parameters"]["JobId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IndexUpload"];
+            };
+        };
+        responses: {
+            /** @description Done. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+        };
+    };
+    runtimeIndexComplete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: components["parameters"]["JobId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IndexComplete"];
+            };
+        };
+        responses: {
+            /** @description Done. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+        };
+    };
+    runtimeIndexFail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: components["parameters"]["JobId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IndexFail"];
+            };
+        };
+        responses: {
+            /** @description Done. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+        };
+    };
+    runtimeContextSearch: {
+        parameters: {
+            query: {
+                q: string;
+                kind?: components["schemas"]["ContextKind"];
+                /** @description Repository name. */
+                repository?: string;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                runId: components["parameters"]["RunId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Results. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContextHits"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+        };
+    };
+    runtimeContextSymbols: {
+        parameters: {
+            query: {
+                name: string;
+                kind?: string;
+                repository?: string;
+            };
+            header?: never;
+            path: {
+                runId: components["parameters"]["RunId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Results. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContextHits"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+        };
+    };
+    runtimeContextDependencies: {
+        parameters: {
+            query?: {
+                repository?: string;
+            };
+            header?: never;
+            path: {
+                runId: components["parameters"]["RunId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Results. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DependencyList"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
         };
     };
     runtimeClaimRun: {

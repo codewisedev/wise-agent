@@ -37,6 +37,8 @@ export function ProjectDetailPage() {
   const repos = useQuery({
     queryKey: ["project", projectId, "repositories"],
     queryFn: () => unwrap(api.GET("/projects/{projectId}/repositories", path)),
+    // Follow indexing progress while a job is pending.
+    refetchInterval: (q) => (q.state.data?.items.some((r) => r.sourceType === "local" && (r.indexStatus === "queued" || r.indexStatus === "indexing")) ? 3000 : false),
   });
   const invalidate = () => qc.invalidateQueries({ queryKey: ["project", projectId] });
 
@@ -79,6 +81,9 @@ export function ProjectDetailPage() {
         <div className="actions" style={{ margin: 0 }}>
           <Link to={`/projects/${p.id}/board`} className="btn btn-primary">
             <KanbanSquare size={15} aria-hidden /> Board
+          </Link>
+          <Link to={`/projects/${p.id}/context`} className="btn">
+            <ScanSearch size={15} aria-hidden /> Context
           </Link>
           <Link to={`/projects/${p.id}/sprints`} className="btn">
             <CalendarRange size={15} aria-hidden /> Sprints
@@ -191,9 +196,20 @@ function RepositoryRow({ repo, onChange }: { repo: Repository; onChange: () => v
           )}
         </td>
         <td>
-          <Badge tone={indexTone[repo.indexStatus]} pulse={repo.indexStatus === "queued" || repo.indexStatus === "indexing"}>
-            {label(repo.indexStatus)}
-          </Badge>
+          {repo.sourceType === "remote" ? (
+            <span className="small faint" title="Remote repositories are cloned and indexed in a later phase">remote · not indexed</span>
+          ) : (
+            <Badge tone={indexTone[repo.indexStatus]} pulse={repo.indexStatus === "queued" || repo.indexStatus === "indexing"}>
+              {label(repo.indexStatus)}
+            </Badge>
+          )}
+          {repo.indexedSha && (
+            <div className="cell-sub small faint">
+              {String(repo.indexStats?.files ?? 0)} files · {String(repo.indexStats?.symbols ?? 0)} symbols ·{" "}
+              <span className="mono" title={`indexed ${formatDate(repo.indexedAt)}`}>{shortSha(repo.indexedSha)}</span>
+              {repo.headSha && repo.headSha !== repo.indexedSha && <> <Badge tone="warn" dot={false}>stale</Badge></>}
+            </div>
+          )}
         </td>
         <td className="actions">
           {repo.sourceType === "local" && (
@@ -206,9 +222,12 @@ function RepositoryRow({ repo, onChange }: { repo: Repository; onChange: () => v
               <RefreshCw size={13} aria-hidden /> Inspect
             </button>
           )}
-          <button className="btn btn-sm" onClick={() => index.mutate()} disabled={index.isPending} title="Queue for indexing">
-            <ScanSearch size={13} aria-hidden /> Index
-          </button>
+          {repo.sourceType === "local" && (
+            <button className="btn btn-sm" onClick={() => index.mutate()} disabled={index.isPending || repo.indexStatus === "queued" || repo.indexStatus === "indexing"}
+              title="Index now (only changed files are re-read)">
+              <ScanSearch size={13} aria-hidden /> {repo.indexedSha ? "Re-index" : "Index"}
+            </button>
+          )}
           <button
             className="btn btn-sm btn-danger btn-icon"
             onClick={() => confirm(`Unregister "${repo.name}"? Files on disk are not touched.`) && remove.mutate()}
@@ -220,10 +239,10 @@ function RepositoryRow({ repo, onChange }: { repo: Repository; onChange: () => v
           </button>
         </td>
       </tr>
-      {(error || repo.gitError) && (
+      {(error || repo.gitError || (repo.indexStatus === "failed" && repo.indexError)) && (
         <tr className="detail-row">
           <td colSpan={6}>
-            <ErrorNote error={error ?? repo.gitError} />
+            <ErrorNote error={error ?? repo.gitError ?? `Indexing failed: ${repo.indexError}`} />
           </td>
         </tr>
       )}

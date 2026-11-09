@@ -32,6 +32,7 @@ tags:
   - name: templates
   - name: integrations
   - name: settings
+  - name: context
 
 paths:
   /healthz:
@@ -347,13 +348,24 @@ paths:
     post:
       tags: [repositories]
       operationId: requestRepositoryIndex
-      description: Queues the repository for indexing. The indexer itself arrives in Phase 4.
+      description: Queues an index job for the repository (reused if one is already pending).
       responses:
         "202":
           description: Index request accepted.
           content:
             application/json:
               schema: { $ref: "#/components/schemas/RepositoryStatus" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+    get:
+      tags: [context]
+      operationId: getRepositoryIndex
+      responses:
+        "200":
+          description: Index state and recent jobs.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RepositoryIndex" }
         "401": { $ref: "#/components/responses/Problem" }
         "404": { $ref: "#/components/responses/Problem" }
   /repositories/{repositoryId}/status:
@@ -827,6 +839,82 @@ paths:
       responses:
         "204": { description: Completed. }
         "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+  /projects/{projectId}/context/search:
+    parameters:
+      - $ref: "#/components/parameters/ProjectId"
+    get:
+      tags: [context]
+      operationId: searchContext
+      description: Searches the project's code index (symbols, code, docs, config).
+      parameters:
+        - { name: q, in: query, required: true, schema: { type: string, minLength: 1, maxLength: 500 } }
+        - { name: kind, in: query, required: false, schema: { $ref: "#/components/schemas/ContextKind" } }
+        - { name: repositoryId, in: query, required: false, schema: { type: string, format: uuid } }
+        - { name: limit, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 100 } }
+      responses:
+        "200":
+          description: Results.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ContextHits" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+  /projects/{projectId}/context/symbols:
+    parameters:
+      - $ref: "#/components/parameters/ProjectId"
+    get:
+      tags: [context]
+      operationId: listContextSymbols
+      parameters:
+        - { name: name, in: query, required: true, schema: { type: string, minLength: 1, maxLength: 200 } }
+        - { name: kind, in: query, required: false, schema: { type: string, maxLength: 30 } }
+        - { name: repositoryId, in: query, required: false, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: Results.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ContextHits" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+  /projects/{projectId}/context/dependencies:
+    parameters:
+      - $ref: "#/components/parameters/ProjectId"
+    get:
+      tags: [context]
+      operationId: listContextDependencies
+      parameters:
+        - { name: repositoryId, in: query, required: false, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: Results.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DependencyList" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+  /repositories/{repositoryId}/file:
+    parameters:
+      - $ref: "#/components/parameters/RepositoryId"
+    get:
+      tags: [context]
+      operationId: readRepositoryFile
+      description: "Reads a file from the repository's working tree (read-only, within WISE_REPO_ROOTS). Files the secret guard flagged are refused."
+      parameters:
+        - { name: path, in: query, required: true, schema: { type: string, minLength: 1, maxLength: 1024 } }
+      responses:
+        "200":
+          description: File content.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RepositoryFile" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
         "404": { $ref: "#/components/responses/Problem" }
   /projects/{projectId}/columns:
     parameters:
@@ -1541,6 +1629,152 @@ paths:
         "401": { $ref: "#/components/responses/Problem" }
         "404": { $ref: "#/components/responses/Problem" }
 
+  /runtime/v1/index/claim:
+    post:
+      tags: [runtime]
+      operationId: runtimeClaimIndexJob
+      description: Claims the oldest queued index job. Requires the runtime service token.
+      security: [{ runtimeAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RuntimeClaimRequest" }
+      responses:
+        "200":
+          description: Claimed job with the repository, settings and the stored manifest.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/IndexClaim" }
+        "204": { description: Nothing queued. }
+        "401": { $ref: "#/components/responses/Problem" }
+  /runtime/v1/index/{jobId}/heartbeat:
+    parameters:
+      - $ref: "#/components/parameters/JobId"
+    post:
+      tags: [runtime]
+      operationId: runtimeIndexHeartbeat
+      security: [{ runtimeAuth: [] }]
+      responses:
+        "204": { description: Done. }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+  /runtime/v1/index/{jobId}/files:
+    parameters:
+      - $ref: "#/components/parameters/JobId"
+    post:
+      tags: [runtime]
+      operationId: runtimeIndexUpload
+      description: Stores a batch of indexed files (replacing their symbols and chunks) and removes deleted paths.
+      security: [{ runtimeAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/IndexUpload" }
+      responses:
+        "204": { description: Done. }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+  /runtime/v1/index/{jobId}/complete:
+    parameters:
+      - $ref: "#/components/parameters/JobId"
+    post:
+      tags: [runtime]
+      operationId: runtimeIndexComplete
+      security: [{ runtimeAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/IndexComplete" }
+      responses:
+        "204": { description: Done. }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+  /runtime/v1/index/{jobId}/fail:
+    parameters:
+      - $ref: "#/components/parameters/JobId"
+    post:
+      tags: [runtime]
+      operationId: runtimeIndexFail
+      security: [{ runtimeAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/IndexFail" }
+      responses:
+        "204": { description: Done. }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+  /runtime/v1/runs/{runId}/context/search:
+    parameters:
+      - $ref: "#/components/parameters/RunId"
+    get:
+      tags: [runtime]
+      operationId: runtimeContextSearch
+      description: Searches the index of the run's project (symbols and text). Results are locations to read, not the code itself.
+      security: [{ runtimeAuth: [] }]
+      parameters:
+        - { name: q, in: query, required: true, schema: { type: string, minLength: 1, maxLength: 500 } }
+        - { name: kind, in: query, required: false, schema: { $ref: "#/components/schemas/ContextKind" } }
+        - { name: repository, in: query, required: false, schema: { type: string, maxLength: 200 }, description: Repository name. }
+        - { name: limit, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 50 } }
+      responses:
+        "200":
+          description: Results.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ContextHits" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+  /runtime/v1/runs/{runId}/context/symbols:
+    parameters:
+      - $ref: "#/components/parameters/RunId"
+    get:
+      tags: [runtime]
+      operationId: runtimeContextSymbols
+      security: [{ runtimeAuth: [] }]
+      parameters:
+        - { name: name, in: query, required: true, schema: { type: string, minLength: 1, maxLength: 200 } }
+        - { name: kind, in: query, required: false, schema: { type: string, maxLength: 30 } }
+        - { name: repository, in: query, required: false, schema: { type: string, maxLength: 200 } }
+      responses:
+        "200":
+          description: Results.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ContextHits" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+  /runtime/v1/runs/{runId}/context/dependencies:
+    parameters:
+      - $ref: "#/components/parameters/RunId"
+    get:
+      tags: [runtime]
+      operationId: runtimeContextDependencies
+      security: [{ runtimeAuth: [] }]
+      parameters:
+        - { name: repository, in: query, required: false, schema: { type: string, maxLength: 200 } }
+      responses:
+        "200":
+          description: Results.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DependencyList" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
   /runtime/v1/runs/claim:
     post:
       tags: [runtime]
@@ -1671,6 +1905,11 @@ components:
         per-run token returned by the claim.
 
   parameters:
+    JobId:
+      name: jobId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
     SprintId:
       name: sprintId
       in: path
@@ -1951,6 +2190,10 @@ components:
         gitError: { type: string, nullable: true }
         indexStatus: { $ref: "#/components/schemas/RepositoryIndexStatus" }
         indexRequestedAt: { type: string, format: date-time, nullable: true }
+        indexedSha: { type: string, nullable: true, description: Commit the index reflects. }
+        indexedAt: { type: string, format: date-time, nullable: true }
+        indexStats: { type: object, additionalProperties: true, description: "files, skipped, symbols, chunks, dependencies" }
+        indexError: { type: string, nullable: true }
         settings: { type: object, additionalProperties: true }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
@@ -2537,6 +2780,156 @@ components:
             column: { $ref: "#/components/schemas/ColumnRole" }
         finalReport: { type: boolean }
         maxRevisions: { type: integer, minimum: 0, maximum: 50 }
+    ContextKind:
+      type: string
+      enum: [symbol, code, doc, config]
+    ContextHit:
+      type: object
+      required: [kind, repository, repositoryId, path, startLine, endLine, title, snippet, score, why, stale]
+      properties:
+        kind: { type: string, description: "symbol, code, doc or config" }
+        repository: { type: string }
+        repositoryId: { type: string, format: uuid }
+        path: { type: string }
+        language: { type: string }
+        startLine: { type: integer }
+        endLine: { type: integer }
+        title: { type: string }
+        snippet: { type: string }
+        score: { type: number, format: double }
+        why: { type: string }
+        indexedSha: { type: string }
+        stale: { type: boolean, description: "HEAD moved since this was indexed; read the file to be sure." }
+    ContextHits:
+      type: object
+      required: [items]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/ContextHit" } }
+        note: { type: string }
+    Dependency:
+      type: object
+      required: [ecosystem, name, version, dev, manifest, repository]
+      properties:
+        ecosystem: { type: string }
+        name: { type: string }
+        version: { type: string }
+        dev: { type: boolean }
+        manifest: { type: string }
+        repository: { type: string }
+    DependencyList:
+      type: object
+      required: [items]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/Dependency" } }
+    IndexJob:
+      type: object
+      required: [id, status, reason, stats, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        status: { type: string, enum: [queued, running, done, failed, cancelled] }
+        reason: { type: string }
+        commitSha: { type: string, nullable: true }
+        stats: { type: object, additionalProperties: true }
+        error: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+        startedAt: { type: string, format: date-time, nullable: true }
+        finishedAt: { type: string, format: date-time, nullable: true }
+    RepositoryIndex:
+      type: object
+      required: [status, stale, stats, jobs]
+      properties:
+        status: { $ref: "#/components/schemas/RepositoryIndexStatus" }
+        indexedSha: { type: string, nullable: true }
+        headSha: { type: string, nullable: true }
+        indexedAt: { type: string, format: date-time, nullable: true }
+        stale: { type: boolean }
+        stats: { type: object, additionalProperties: true }
+        error: { type: string, nullable: true }
+        jobs: { type: array, items: { $ref: "#/components/schemas/IndexJob" } }
+    RepositoryFile:
+      type: object
+      required: [path, content, lines, truncated]
+      properties:
+        path: { type: string }
+        content: { type: string }
+        lines: { type: integer }
+        truncated: { type: boolean }
+        headSha: { type: string, nullable: true }
+    IndexClaim:
+      type: object
+      required: [jobId, token, leaseSeconds, repository, settings, manifest]
+      properties:
+        jobId: { type: string, format: uuid }
+        token: { type: string, description: Per-job token for the other index routes. }
+        leaseSeconds: { type: integer }
+        repository:
+          type: object
+          required: [id, name, localPath]
+          properties:
+            id: { type: string, format: uuid }
+            name: { type: string }
+            localPath: { type: string }
+        settings: { type: object, additionalProperties: true }
+        manifest: { type: object, additionalProperties: { type: string }, description: "path -> content hash already stored" }
+    IndexSymbol:
+      type: object
+      required: [name, kind, startLine, endLine]
+      properties:
+        name: { type: string, maxLength: 200 }
+        kind: { type: string, maxLength: 30 }
+        signature: { type: string }
+        parent: { type: string }
+        exported: { type: boolean }
+        startLine: { type: integer, minimum: 1 }
+        endLine: { type: integer, minimum: 1 }
+        doc: { type: string }
+    IndexChunk:
+      type: object
+      required: [kind, startLine, endLine, content]
+      properties:
+        kind: { type: string, enum: [code, doc, config] }
+        startLine: { type: integer, minimum: 1 }
+        endLine: { type: integer, minimum: 1 }
+        heading: { type: string }
+        content: { type: string }
+    IndexFile:
+      type: object
+      required: [path, contentHash]
+      properties:
+        path: { type: string, maxLength: 1024 }
+        language: { type: string }
+        size: { type: integer, minimum: 0 }
+        contentHash: { type: string, maxLength: 128 }
+        lines: { type: integer, minimum: 0 }
+        imports: { type: array, items: { type: string } }
+        skippedReason: { type: string, enum: ["", secret, too_large, binary, unreadable] }
+        symbols: { type: array, items: { $ref: "#/components/schemas/IndexSymbol" } }
+        chunks: { type: array, items: { $ref: "#/components/schemas/IndexChunk" } }
+    IndexUpload:
+      type: object
+      properties:
+        files: { type: array, maxItems: 200, items: { $ref: "#/components/schemas/IndexFile" } }
+        deleted: { type: array, maxItems: 20000, items: { type: string } }
+    IndexComplete:
+      type: object
+      properties:
+        commitSha: { type: string, maxLength: 64 }
+        dependencies: { type: array, items: { $ref: "#/components/schemas/IndexDependency" } }
+        stats: { type: object, additionalProperties: true }
+    IndexFail:
+      type: object
+      required: [error]
+      properties:
+        error: { type: string, maxLength: 4000 }
+    IndexDependency:
+      type: object
+      required: [ecosystem, name, manifest]
+      properties:
+        ecosystem: { type: string, maxLength: 20 }
+        name: { type: string, maxLength: 200 }
+        version: { type: string }
+        dev: { type: boolean }
+        manifest: { type: string }
     Sprint:
       type: object
       required: [id, projectId, name, closed, current, taskCount, openCount, createdAt]

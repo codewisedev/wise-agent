@@ -108,7 +108,11 @@ class Worker:
         heartbeat = Heartbeat(self.client, run_id, token, max(claim.get("leaseSeconds", 60) / 3, 1), cancel)
         heartbeat.start()
         try:
-            workspace = Workspace(claim.get("project"), self.config.repo_roots)
+            workspace = Workspace(
+                claim.get("project"),
+                self.config.repo_roots,
+                context=lambda kind, params: self.client.context(run_id, token, kind, params),
+            )
             ctx = RunContext(
                 run=run,
                 definition=definition,

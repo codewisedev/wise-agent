@@ -20,6 +20,8 @@ const (
 	runtimePrefix = BasePath + "/runtime/"
 	claimPath     = BasePath + "/runtime/v1/runs/claim"
 	runsPrefix    = BasePath + "/runtime/v1/runs/"
+	indexClaim    = BasePath + "/runtime/v1/index/claim"
+	indexPrefix   = BasePath + "/runtime/v1/index/"
 	wsPath        = BasePath + "/events/ws"
 )
 
@@ -36,7 +38,7 @@ func (s *Server) runtimeAuth(writeErr auth.ErrorWriter) func(http.Handler) http.
 				return
 			}
 			ctx := audit.WithActor(r.Context(), audit.System)
-			if r.URL.Path == claimPath {
+			if r.URL.Path == claimPath || r.URL.Path == indexClaim {
 				if s.RuntimeToken == "" {
 					writeErr(w, r, apperr.Unavailable("agent runtime disabled: WISE_RUNTIME_TOKEN is not configured"))
 					return
@@ -46,6 +48,25 @@ func (s *Server) runtimeAuth(writeErr auth.ErrorWriter) func(http.Handler) http.
 					return
 				}
 				next.ServeHTTP(w, r.WithContext(ctx))
+				return
+			}
+			// Index jobs: a per-job token bound to the job in the URL.
+			if strings.HasPrefix(r.URL.Path, indexPrefix) {
+				if s.Index == nil {
+					writeErr(w, r, apperr.Unavailable("indexing is not configured"))
+					return
+				}
+				job, err := s.Index.Authenticate(ctx, token)
+				if err != nil {
+					writeErr(w, r, err)
+					return
+				}
+				idStr, _, _ := strings.Cut(strings.TrimPrefix(r.URL.Path, indexPrefix), "/")
+				if id, err := uuid.Parse(idStr); err != nil || id != job.ID {
+					writeErr(w, r, apperr.Forbidden("index job token does not grant access to this job"))
+					return
+				}
+				next.ServeHTTP(w, r.WithContext(context.WithValue(ctx, indexJobCtxKey{}, job)))
 				return
 			}
 			run, err := s.RunQueue.Authenticate(ctx, token)

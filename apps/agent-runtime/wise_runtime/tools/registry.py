@@ -3,11 +3,16 @@ from __future__ import annotations
 import time
 from typing import Any
 
+import httpx
 import jsonschema
 
+from ..client import ApiError
 from .base import ToolError
-from .fs import IMPLEMENTATIONS
+from .context import IMPLEMENTATIONS as CONTEXT_TOOLS
+from .fs import IMPLEMENTATIONS as FS_TOOLS
 from .workspace import Workspace
+
+IMPLEMENTATIONS = {**FS_TOOLS, **CONTEXT_TOOLS}
 
 
 class ToolRegistry:
@@ -40,3 +45,7 @@ class ToolRegistry:
             return None, str(e), int((time.monotonic() - start) * 1000)
         except OSError as e:
             return None, f"filesystem error: {e.strerror or e}", int((time.monotonic() - start) * 1000)
+        except ApiError as e:
+            return None, f"index error {e.status}: {e.detail}", int((time.monotonic() - start) * 1000)
+        except httpx.HTTPError as e:
+            return None, f"index unreachable: {e}", int((time.monotonic() - start) * 1000)
