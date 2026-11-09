@@ -1561,6 +1561,10 @@ Build:
 
 **Goal:** Wise understands existing projects and remembers engineering decisions.
 
+**Status:** done — see `docs/decisions/0006-context-and-memory.md`. Embeddings use a configured
+OpenAI-compatible model with explicit consent for cloud providers; extracted memories always need approval.
+Wise system memory (§12.3) moves to Phase 6.
+
 ## Phase 5 — Engineering Pipeline
 
 Build:

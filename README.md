@@ -2,7 +2,7 @@
 
 Personal, local-first AI engineering platform. See [`implementation-plan.md`](implementation-plan.md) for the full vision and roadmap.
 
-**Status: Phase 3c — Everything configurable from the panel.** Wise manages projects and repositories behind a login, keeps tasks on Trello-style boards with your own lists (by hand or imported from Jira, ClickUp and Trello), and runs them through configurable agent workflows on Temporal — any step on any of your accounts (Claude Code, Codex, LM Studio, DeepSeek…), with review gates or fully step by step. Agents, prompts, models, policies and limits are all edited in the dashboard. Context indexing and the coding pipeline arrive in later phases.
+**Status: Phase 3c — Everything configurable from the panel.** Wise manages projects and repositories behind a login, keeps tasks on Trello-style boards with your own lists (by hand or imported from Jira, ClickUp and Trello), and runs them through configurable agent workflows on Temporal — any step on any of your accounts (Claude Code, Codex, LM Studio, DeepSeek…), with review gates or fully step by step. Agents, prompts, models, policies and limits are all edited in the dashboard. **Phase 4** adds a code index (tree-sitter symbols, keyword and semantic search), memory that agents receive once you approve it, and an engineering profile. The coding pipeline arrives in Phase 5.
 
 ## What's here
 
@@ -15,7 +15,9 @@ Personal, local-first AI engineering platform. See [`implementation-plan.md`](im
 | `apps/agent-runtime` | Python agent runtime (WiseLoop, read-only repository tools) |
 | `packages/agent-definitions`, `packages/prompts` | Agent contracts (YAML) and versioned system prompts |
 | `packages/contracts/{agents,events}` | JSON Schemas for agent/tool definitions and agent events |
-| `configs/models`, `configs/policies`, `configs/board` | Shipped *defaults* for models, usage policy and board lists (edited afterwards in Settings) |
+| `configs/models`, `configs/policies`, `configs/board`, `configs/indexing`, `configs/memory` | Shipped *defaults* for models, usage policy, board lists, indexing and memory (edited afterwards in Settings) |
+| `apps/agent-runtime/wise_runtime/indexer` | The code indexer (`wise-indexer` service): tree-sitter symbols, chunks, dependencies, secret guard |
+| `apps/api/internal/{codeindex,memory}` | Code index storage and search; memory, extraction, context injection and profile inference |
 | `apps/api/internal/{workflow,tasks}` | Temporal workflow, activities, outbox dispatcher; tasks, artifacts, approvals |
 | `configs/workflows`, `infrastructure/temporal` | Approval gates; Temporal DB/schema setup and dynamic config |
 | `apps/execution-worker` | Placeholder for later phases |
@@ -115,6 +117,31 @@ Temporal's UI (http://127.0.0.1:8233, namespace `wise`) shows every workflow's h
 through a Postgres outbox, so decisions made while Temporal or the orchestrator is down are delivered later.
 See `docs/decisions/0003-workflow-engine.md`, `0004-board-accounts-templates.md` and
 `0005-panel-configuration.md`.
+
+## Context, memory and profile
+
+**Code index** — each local repository is indexed by the `wise-indexer` service (read-only, no database or
+network access): files, symbols from tree-sitter (Go, TypeScript/JavaScript, Vue, Python, Rust, Java), docs by
+heading, configuration and dependencies, all tied to the commit it read. Use **Index** on a repository; after
+that, new commits are re-indexed automatically (Settings → Indexing). A project's **Context** page searches
+symbols, code and docs and opens the real file at the hit; agents search the same index with `search_context`,
+`find_symbol` and `list_dependencies`. Files that look like secrets (`.env`, keys, tokens) are never indexed or
+shown.
+
+**Semantic search** — off until you choose an embedding model in **Settings → Models → Embeddings** (e.g. a
+Google AI Studio account with `gemini-embedding-001`). Cloud providers need the consent tick, because chunks of
+your code are sent to them. Without it, search is keyword-only.
+
+**Memory** (`g y`) — rules, preferences, decisions, facts, conventions and examples, for you or per project.
+Write them yourself, or let the memory agent propose them from your review comments, finished reports or
+**Extract memories** on a task; proposals wait in the inbox until you approve them. Every agent run starts with
+your rules, the most relevant memories and a project summary; the run page shows exactly what it was given.
+
+**Engineering profile** (`g f`) — your rules, preferences and conventions by area, plus approved examples
+(**Save as approved example** in the Context file viewer). **Propose preferences** infers them from a project's
+index; inferred proposals are never rules — making one a rule is your call.
+
+See `docs/decisions/0006-context-and-memory.md`.
 
 ## API
 

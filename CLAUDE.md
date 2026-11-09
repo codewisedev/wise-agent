@@ -23,7 +23,9 @@ editing code or files.** This applies to every feature, in every phase.
     bootstrap admin password); account credentials live encrypted in the database, entered via the panel;
   - **infrastructure wiring**: database URL, Temporal address, container networks, ports, image versions;
   - **security boundaries**: `WISE_REPO_ROOTS` (what agents may read), the runtime's network isolation, the
-    CLI runner's isolation, session/CSRF rules.
+    CLI runner's isolation, session/CSRF rules, and the indexer's built-in **secret guard** (credential file
+    names and token patterns are never indexed, embedded or shown; users may add patterns in Settings →
+    Indexing but not remove the built-in ones).
   If you think something else should not be configurable, record it here with the reason.
 
 ## Working in the repo
