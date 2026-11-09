@@ -123,6 +123,25 @@ func (q *Queries) GetMemory(ctx context.Context, id uuid.UUID) (Memory, error) {
 	return i, err
 }
 
+const getMemoryExtraction = `-- name: GetMemoryExtraction :one
+SELECT run_id, source, source_refs, project_id, candidates, processed_at, created_at FROM memory_extractions WHERE run_id = $1
+`
+
+func (q *Queries) GetMemoryExtraction(ctx context.Context, runID uuid.UUID) (MemoryExtraction, error) {
+	row := q.db.QueryRow(ctx, getMemoryExtraction, runID)
+	var i MemoryExtraction
+	err := row.Scan(
+		&i.RunID,
+		&i.Source,
+		&i.SourceRefs,
+		&i.ProjectID,
+		&i.Candidates,
+		&i.ProcessedAt,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const getMemoryVersion = `-- name: GetMemoryVersion :one
 SELECT memory_id, version, scope, project_id, kind, category, title, body, status, changed_by, created_at FROM memory_versions WHERE memory_id = $1 AND version = $2
 `
@@ -310,6 +329,7 @@ func (q *Queries) ListCompletedWorkflowsToLearnFrom(ctx context.Context) ([]List
 const listFinishedUnprocessedExtractions = `-- name: ListFinishedUnprocessedExtractions :many
 SELECT e.run_id FROM memory_extractions e JOIN agent_runs r ON r.id = e.run_id
 WHERE e.processed_at IS NULL AND r.status IN ('succeeded', 'failed', 'cancelled')
+ORDER BY e.created_at
 LIMIT 50
 `
 

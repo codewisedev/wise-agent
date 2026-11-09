@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Archive, Brain, Check, History, Pencil, Plus, RotateCcw, Search, X } from "lucide-react";
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import { Link, useSearchParams } from "react-router";
 import { api, unwrap, type Schemas } from "../api/client";
 import { Badge, Empty, ErrorNote, Field, Panel, relativeTime } from "../components/ui";
@@ -180,7 +180,10 @@ export function MemoryPage() {
   const qc = useQueryClient();
   const [params, setParams] = useSearchParams();
   const inbox = useMemoryInbox();
-  const tab = TABS.find((t) => t.id === params.get("tab")) ?? ((inbox.data?.candidates ?? 0) > 0 ? TABS[0] : TABS[1]);
+  // Without ?tab, open the inbox if it has proposals — decided once, so polling never switches tabs.
+  const defaultTab = useRef<string | null>(null);
+  if (defaultTab.current === null && inbox.data) defaultTab.current = inbox.data.candidates > 0 ? "inbox" : "developer";
+  const tab = TABS.find((t) => t.id === (params.get("tab") ?? defaultTab.current ?? "developer")) ?? TABS[1];
   const [q, setQ] = useState("");
   const [kind, setKind] = useState("");
   const [projectId, setProjectId] = useState("");

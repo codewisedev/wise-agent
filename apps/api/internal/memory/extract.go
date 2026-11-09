@@ -174,43 +174,46 @@ func (s *Service) OnRunFinished(ctx context.Context, runID uuid.UUID) {
 }
 
 func (s *Service) process(ctx context.Context, runID uuid.UUID) error {
-	var cands []Candidate
-	var ext dbgen.MemoryExtraction
-	err := s.db.InTx(ctx, func(q *dbgen.Queries) error {
-		var err error
-		ext, err = q.LockMemoryExtraction(ctx, runID)
-		if db.IsNotFound(err) {
-			return nil // not an extraction run, or already processed
-		}
-		if err != nil {
-			return err
-		}
-		run, err := q.GetAgentRun(ctx, runID)
-		if err != nil {
-			return err
-		}
-		if run.Status == dbgen.AgentRunStatusSucceeded && len(run.Output) > 0 {
-			var out struct {
-				Memories []Candidate `json:"memories"`
-			}
-			if err := json.Unmarshal(run.Output, &out); err != nil {
-				return err
-			}
-			cands = out.Memories
-		}
-		return q.FinishMemoryExtraction(ctx, dbgen.FinishMemoryExtractionParams{RunID: runID, Candidates: int32(len(cands))})
-	})
-	if err != nil || len(cands) == 0 {
+	ext, err := s.db.GetMemoryExtraction(ctx, runID)
+	if db.IsNotFound(err) || (err == nil && ext.ProcessedAt != nil) {
+		return nil // not an extraction run, or already processed
+	}
+	if err != nil {
 		return err
 	}
-	var refs map[string]any
-	_ = json.Unmarshal(ext.SourceRefs, &refs)
-	if refs == nil {
-		refs = map[string]any{}
+	run, err := s.db.GetAgentRun(ctx, runID)
+	if err != nil {
+		return err
 	}
+	var cands []Candidate
+	if run.Status == dbgen.AgentRunStatusSucceeded && len(run.Output) > 0 {
+		var out struct {
+			Memories []Candidate `json:"memories"`
+		}
+		if err := json.Unmarshal(run.Output, &out); err != nil {
+			// A malformed output will not get better: record it as yielding nothing.
+			s.log.Warn("memory extraction: unreadable output", "run", runID, "err", err)
+		} else {
+			cands = out.Memories
+		}
+	}
+	refs := map[string]any{}
+	_ = json.Unmarshal(ext.SourceRefs, &refs)
 	refs["runId"] = runID
-	_, err = s.AddCandidates(ctx, cands, ext.ProjectID, ext.Source, refs)
-	return err
+	// Duplicate checks may call the embedding model: do them before the transaction.
+	prep := s.prepareCandidates(ctx, cands, ext.ProjectID)
+	// Candidates and "processed" commit together, so nothing is lost or stored twice.
+	return s.db.InTx(ctx, func(q *dbgen.Queries) error {
+		if _, err := q.LockMemoryExtraction(ctx, runID); db.IsNotFound(err) {
+			return nil // processed meanwhile (hook and sweep raced)
+		} else if err != nil {
+			return err
+		}
+		if err := insertCandidates(ctx, q, prep, ext.Source, refs); err != nil {
+			return err
+		}
+		return q.FinishMemoryExtraction(ctx, dbgen.FinishMemoryExtractionParams{RunID: runID, Candidates: int32(len(prep))})
+	})
 }
 
 // Sweep processes extraction runs that finished while the hook was missed, and
@@ -231,7 +234,7 @@ func (s *Service) Sweep(ctx context.Context) error {
 	}
 	for _, id := range ids {
 		if err := s.process(ctx, id); err != nil {
-			return err
+			s.log.Warn("memory extraction sweep: process run", "run", id, "err", err) // keep going with the others
 		}
 	}
 	return nil

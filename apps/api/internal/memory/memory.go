@@ -165,9 +165,20 @@ func (s *Service) insert(ctx context.Context, in Input, status, source string, r
 	if err != nil {
 		return dbgen.Memory{}, err
 	}
-	rawRefs, _ := json.Marshal(refs)
 	var m dbgen.Memory
 	err = s.db.InTx(ctx, func(q *dbgen.Queries) error {
+		m, err = insertQ(ctx, q, id, in, status, source, refs, rationale, dup, userID)
+		return err
+	})
+	return m, err
+}
+
+// insertQ stores a memory and its first version inside the caller's transaction.
+func insertQ(ctx context.Context, q *dbgen.Queries, id uuid.UUID, in Input, status, source string, refs map[string]any, rationale string, dup *uuid.UUID, userID *uuid.UUID) (dbgen.Memory, error) {
+	rawRefs, _ := json.Marshal(refs)
+	var m dbgen.Memory
+	err := func() error {
+		var err error
 		if in.ProjectID != nil {
 			if _, err := q.GetProject(ctx, *in.ProjectID); db.IsNotFound(err) {
 				return apperr.Validation(apperr.FieldError{Field: "projectId", Message: "no such project"})
@@ -187,7 +198,7 @@ func (s *Service) insert(ctx context.Context, in Input, status, source string, r
 		}
 		return audit.Record(ctx, q, audit.Entry{Action: "memory.create", EntityType: "memory", EntityID: audit.Ptr(id),
 			Payload: map[string]any{"status": status, "source": source, "kind": in.Kind, "scope": in.Scope}})
-	})
+	}()
 	return m, err
 }
 
@@ -329,10 +340,17 @@ type Candidate struct {
 	Rationale string `json:"rationale"`
 }
 
-// AddCandidates stores proposed memories for approval, marking likely
-// duplicates of existing ones.
-func (s *Service) AddCandidates(ctx context.Context, cands []Candidate, projectID *uuid.UUID, source string, refs map[string]any) (int, error) {
-	n := 0
+// prepared is a validated candidate with its duplicate check done.
+type prepared struct {
+	in        Input
+	rationale string
+	dup       *uuid.UUID
+}
+
+// prepareCandidates validates proposals and finds likely duplicates (this may
+// call the embedding model, so it runs outside any transaction).
+func (s *Service) prepareCandidates(ctx context.Context, cands []Candidate, projectID *uuid.UUID) []prepared {
+	var out []prepared
 	for _, c := range cands {
 		in := Input{Scope: c.Scope, ProjectID: projectID, Kind: c.Kind, Category: c.Category, Title: c.Title, Body: c.Body}
 		if in.Scope == "project" && projectID == nil {
@@ -342,13 +360,35 @@ func (s *Service) AddCandidates(ctx context.Context, cands []Candidate, projectI
 			s.log.Warn("skipping invalid memory candidate", "title", c.Title, "err", err)
 			continue
 		}
-		dup := s.duplicateOf(ctx, in)
-		if _, err := s.insert(ctx, in, "candidate", source, refs, strings.TrimSpace(c.Rationale), dup, nil); err != nil {
-			return n, err
-		}
-		n++
+		out = append(out, prepared{in: in, rationale: strings.TrimSpace(c.Rationale), dup: s.duplicateOf(ctx, in)})
 	}
-	return n, nil
+	return out
+}
+
+// AddCandidates stores proposed memories for approval (all or none), marking
+// likely duplicates of existing ones.
+func (s *Service) AddCandidates(ctx context.Context, cands []Candidate, projectID *uuid.UUID, source string, refs map[string]any) (int, error) {
+	prep := s.prepareCandidates(ctx, cands, projectID)
+	err := s.db.InTx(ctx, func(q *dbgen.Queries) error {
+		return insertCandidates(ctx, q, prep, source, refs)
+	})
+	if err != nil {
+		return 0, err
+	}
+	return len(prep), nil
+}
+
+func insertCandidates(ctx context.Context, q *dbgen.Queries, prep []prepared, source string, refs map[string]any) error {
+	for _, p := range prep {
+		id, err := uuid.NewV7()
+		if err != nil {
+			return err
+		}
+		if _, err := insertQ(ctx, q, id, p.in, "candidate", source, refs, p.rationale, p.dup, nil); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // duplicateOf finds an existing candidate/active memory saying the same thing.

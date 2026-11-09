@@ -106,6 +106,7 @@ UPDATE memory_extractions SET processed_at = now(), candidates = $2 WHERE run_id
 -- Extractions whose run ended but whose output was not turned into candidates (e.g. API restart).
 SELECT e.run_id FROM memory_extractions e JOIN agent_runs r ON r.id = e.run_id
 WHERE e.processed_at IS NULL AND r.status IN ('succeeded', 'failed', 'cancelled')
+ORDER BY e.created_at
 LIMIT 50;
 
 -- name: SetAgentRunContext :exec
@@ -119,3 +120,6 @@ WHERE w.status = 'completed' AND w.finished_at > now() - interval '2 days'
   AND NOT EXISTS (SELECT 1 FROM agent_runs r WHERE r.idempotency_key = 'memory:workflow:' || w.id::text)
 ORDER BY w.finished_at
 LIMIT 10;
+
+-- name: GetMemoryExtraction :one
+SELECT * FROM memory_extractions WHERE run_id = $1;
