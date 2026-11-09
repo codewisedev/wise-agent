@@ -81,3 +81,16 @@
     additionalProperties: false
     properties:
       repository: { type: string }
+- name: search_memory
+  description: >-
+    Search the knowledge the user approved: their engineering profile (rules, preferences, conventions,
+    examples) and this project's decisions and facts. Rules and the most relevant memories are already in your
+    instructions; use this to look up something specific.
+  side_effects: none
+  permissions_required: [project:read]
+  input_schema:
+    type: object
+    additionalProperties: false
+    required: [query]
+    properties:
+      query: { type: string, minLength: 1, maxLength: 500 }

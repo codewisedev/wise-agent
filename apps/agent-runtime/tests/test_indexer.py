@@ -273,3 +273,26 @@ def test_batches_stay_under_server_limits(tmp_path: Path) -> None:
     settings = Settings(chunk_lines=10, max_file_kb=4096)
     index_repository(str(tmp_path), settings, {}, lambda b, d: sizes.append(sum(len(f["chunks"]) for f in b)))
     assert sizes and max(sizes) <= 5000
+
+
+def test_search_memory_tool_calls_the_memory_endpoint() -> None:
+    calls: list[tuple[str, dict]] = []
+
+    def remote(kind: str, params: dict) -> dict:
+        calls.append((kind, params))
+        return {"items": []}
+
+    defs = [
+        {
+            "name": "search_memory",
+            "sideEffects": "none",
+            "inputSchema": {
+                "type": "object",
+                "required": ["query"],
+                "properties": {"query": {"type": "string"}},
+            },
+        }
+    ]
+    ws = Workspace({"name": "p", "repositories": []}, (), context=remote)
+    _, err, _ = ToolRegistry(defs, ws).execute("search_memory", {"query": "retries"})
+    assert err is None and calls == [("memory", {"q": "retries"})]

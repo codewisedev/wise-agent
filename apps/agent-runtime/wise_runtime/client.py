@@ -93,9 +93,10 @@ class ControlPlane:
         )
 
     def context(self, run_id: str, token: str, kind: str, params: dict[str, Any]) -> dict[str, Any]:
-        """Index queries for a run (search, symbols, dependencies)."""
+        """Index and memory queries for a run (search, symbols, dependencies, memory)."""
+        path = "memory/search" if kind == "memory" else f"context/{kind}"
         res = self._http.get(
-            f"{self._base}/runs/{run_id}/context/{kind}",
+            f"{self._base}/runs/{run_id}/{path}",
             params=params,
             headers={"Authorization": f"Bearer {token}"},
             timeout=self._timeout,

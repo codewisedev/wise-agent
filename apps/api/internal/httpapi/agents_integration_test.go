@@ -103,7 +103,7 @@ func TestAgentRunLifecycle(t *testing.T) {
 		t.Fatalf("want 13 agents, got %d", len(list))
 	}
 	detail := e.expect(e.do("GET", "/agents/product-agent", nil), 200)
-	if detail["prompt"] == "" || detail["enabled"] != true || len(detail["tools"].([]any)) != 7 {
+	if detail["prompt"] == "" || detail["enabled"] != true || len(detail["tools"].([]any)) != 8 {
 		t.Fatalf("detail: %v", detail)
 	}
 	e.expect(e.do("POST", "/agents/qa-agent/runs", map[string]any{"input": map[string]any{}}), 409)
@@ -116,7 +116,7 @@ func TestAgentRunLifecycle(t *testing.T) {
 	e.expect(e.do("POST", "/runtime/v1/runs/claim", map[string]string{"runtimeId": "x"}), 401) // user session
 	claim := e.expect(e.runtimeDo(runtimeToken, "POST", "/runtime/v1/runs/claim", map[string]string{"runtimeId": "rt-1"}), 200)
 	token := claim["runToken"].(string)
-	if claim["run"].(map[string]any)["id"] != runID || claim["prompt"] == "" || len(claim["tools"].([]any)) != 7 {
+	if claim["run"].(map[string]any)["id"] != runID || claim["prompt"] == "" || len(claim["tools"].([]any)) != 8 {
 		t.Fatalf("claim: %v", claim)
 	}
 	if e.runtimeDo(runtimeToken, "POST", "/runtime/v1/runs/claim", map[string]string{"runtimeId": "rt-2"}).status != 204 {

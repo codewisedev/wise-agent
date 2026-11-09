@@ -113,9 +113,11 @@ LIMIT 50;
 UPDATE agent_runs SET context = $2 WHERE id = $1 AND context IS NULL;
 
 -- name: ListCompletedWorkflowsToLearnFrom :many
--- Recently completed workflows with a final report and no memory extraction yet.
+-- Workflows completed since memory went live (migration 00019), with a final
+-- report and no memory extraction yet: learn going forward, never backfill.
 SELECT w.id, w.task_id FROM workflow_runs w
 WHERE w.status = 'completed' AND w.finished_at > now() - interval '2 days'
+  AND w.finished_at > sqlc.arg(live_since)::timestamptz
   AND EXISTS (SELECT 1 FROM artifacts a WHERE a.task_id = w.task_id AND a.kind = 'final_report')
   AND NOT EXISTS (SELECT 1 FROM agent_runs r WHERE r.idempotency_key = 'memory:workflow:' || w.id::text)
 ORDER BY w.finished_at

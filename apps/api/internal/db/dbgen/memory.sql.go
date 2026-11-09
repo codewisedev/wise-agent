@@ -344,6 +344,7 @@ func (q *Queries) InsertMemoryVersion(ctx context.Context, arg InsertMemoryVersi
 const listCompletedWorkflowsToLearnFrom = `-- name: ListCompletedWorkflowsToLearnFrom :many
 SELECT w.id, w.task_id FROM workflow_runs w
 WHERE w.status = 'completed' AND w.finished_at > now() - interval '2 days'
+  AND w.finished_at > $1::timestamptz
   AND EXISTS (SELECT 1 FROM artifacts a WHERE a.task_id = w.task_id AND a.kind = 'final_report')
   AND NOT EXISTS (SELECT 1 FROM agent_runs r WHERE r.idempotency_key = 'memory:workflow:' || w.id::text)
 ORDER BY w.finished_at
@@ -355,9 +356,10 @@ type ListCompletedWorkflowsToLearnFromRow struct {
 	TaskID uuid.UUID
 }
 
-// Recently completed workflows with a final report and no memory extraction yet.
-func (q *Queries) ListCompletedWorkflowsToLearnFrom(ctx context.Context) ([]ListCompletedWorkflowsToLearnFromRow, error) {
-	rows, err := q.db.Query(ctx, listCompletedWorkflowsToLearnFrom)
+// Workflows completed since memory went live (migration 00019), with a final
+// report and no memory extraction yet: learn going forward, never backfill.
+func (q *Queries) ListCompletedWorkflowsToLearnFrom(ctx context.Context, liveSince time.Time) ([]ListCompletedWorkflowsToLearnFromRow, error) {
+	rows, err := q.db.Query(ctx, listCompletedWorkflowsToLearnFrom, liveSince)
 	if err != nil {
 		return nil, err
 	}

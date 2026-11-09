@@ -39,7 +39,14 @@ def list_dependencies(ws: Workspace, args: dict[str, Any]) -> dict[str, Any]:
     return _remote(ws, "dependencies", {"repository": args.get("repository")})
 
 
+def search_memory(ws: Workspace, args: dict[str, Any]) -> dict[str, Any]:
+    if ws.context is None:
+        raise ToolError("memory is not available to this run")
+    return ws.context("memory", {"q": args["query"]})
+
+
 IMPLEMENTATIONS = {
+    "search_memory": search_memory,
     "search_context": search_context,
     "find_symbol": find_symbol,
     "list_dependencies": list_dependencies,

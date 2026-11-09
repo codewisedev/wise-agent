@@ -75,6 +75,7 @@ type Service struct {
 
 	mu       sync.RWMutex
 	settings Settings
+	since    time.Time // when memory went live (see liveSince)
 }
 
 func NewService(d *db.DB, a *agents.Service, emb Embedder, log *slog.Logger) *Service {

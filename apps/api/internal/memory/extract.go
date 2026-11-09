@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -75,7 +76,8 @@ func artifactText(content []byte, n int) string {
 // OnApprovalDecided extracts from a review decision that carries a comment:
 // the user's corrections are the most valuable source of memories.
 func (s *Service) OnApprovalDecided(ctx context.Context, ap dbgen.Approval) {
-	if ap.Comment == nil || len(strings.TrimSpace(*ap.Comment)) < 10 || !s.Settings().ExtractOnReviewComments {
+	if ap.Comment == nil || len(strings.TrimSpace(*ap.Comment)) < 10 || !s.Settings().ExtractOnReviewComments ||
+		!s.agentEnabled(ctx, ExtractorAgent) {
 		return
 	}
 	task, pid, err := s.taskContext(ctx, ap.TaskID)
@@ -222,8 +224,8 @@ func (s *Service) process(ctx context.Context, runID uuid.UUID) error {
 // Sweep processes extraction runs that finished while the hook was missed, and
 // starts extractions for workflows that completed (in the orchestrator).
 func (s *Service) Sweep(ctx context.Context) error {
-	if s.Settings().ExtractOnCompletedWorkflows {
-		done, err := s.db.ListCompletedWorkflowsToLearnFrom(ctx)
+	if s.Settings().ExtractOnCompletedWorkflows && s.agentEnabled(ctx, ExtractorAgent) {
+		done, err := s.db.ListCompletedWorkflowsToLearnFrom(ctx, s.liveSince(ctx))
 		if err != nil {
 			return err
 		}
@@ -241,4 +243,27 @@ func (s *Service) Sweep(ctx context.Context) error {
 		}
 	}
 	return nil
+}
+
+// agentEnabled reports whether an agent is switched on (switching the memory
+// agent off in the panel stops automatic extraction quietly).
+func (s *Service) agentEnabled(ctx context.Context, name string) bool {
+	row, err := s.db.GetCurrentAgentDefinitionByName(ctx, name)
+	return err == nil && row.Enabled
+}
+
+// liveSince is when memory went live (migration 00019 applied): completed
+// workflows are learned from going forward, never backfilled.
+func (s *Service) liveSince(ctx context.Context) time.Time {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.since.IsZero() {
+		var t *time.Time
+		if err := s.db.Pool.QueryRow(ctx, "SELECT max(tstamp) FROM goose_db_version WHERE version_id = 19").Scan(&t); err == nil && t != nil {
+			s.since = *t
+		} else {
+			s.since = time.Now()
+		}
+	}
+	return s.since
 }
