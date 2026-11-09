@@ -16,6 +16,8 @@ import (
 	"syscall"
 	"time"
 	"wise/apps/api/internal/codeindex"
+	"wise/apps/api/internal/db/dbgen"
+	"wise/apps/api/internal/memory"
 
 	"golang.org/x/term"
 
@@ -185,6 +187,14 @@ func serve(ctx context.Context) error {
 	repoSvc := repositories.NewService(d, inspector)
 	indexSvc := codeindex.NewService(d, repoSvc, log.With("component", "codeindex"))
 	settings.RegisterIndexing(settingsSvc, cfg.IndexingDefaults, indexSvc)
+	memorySvc := memory.NewService(d, agentSvc, gateway, log.With("component", "memory"))
+	settings.RegisterMemory(settingsSvc, cfg.MemoryDefaults, memorySvc)
+	runQueue.ContextFor = func(ctx context.Context, run dbgen.AgentRun) (string, error) {
+		p, err := memorySvc.ForRun(ctx, run)
+		return p.Text, err
+	}
+	runQueue.OnFinished = memorySvc.OnRunFinished
+	taskSvc.OnApprovalDecided = memorySvc.OnApprovalDecided
 	settings.RegisterDefaults(settingsSvc, settings.Files{
 		Models: cfg.ModelsConfig, Policy: cfg.ModelsPolicy, Workflows: cfg.WorkflowsConfig, Board: cfg.BoardDefaults,
 	}, gateway, accountSvc, taskSvc)
@@ -203,6 +213,7 @@ func serve(ctx context.Context) error {
 		Projects:         projectSvc,
 		Repositories:     repoSvc,
 		Index:            indexSvc,
+		Memory:           memorySvc,
 		Agents:           agentSvc,
 		RunQueue:         runQueue,
 		Gateway:          gateway,
@@ -228,6 +239,7 @@ func serve(ctx context.Context) error {
 	go integrationSvc.RunScheduler(ctx, time.Minute)
 	go indexSvc.RunScheduler(ctx)
 	indexSvc.SetEmbedder(gateway)
+	go memorySvc.RunBackground(ctx)
 	go indexSvc.RunEmbedder(ctx)
 
 	hs := &http.Server{

@@ -1,10 +1,11 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { Bot, Cpu, FolderGit2, Inbox, ListChecks, LogOut, Monitor, Moon, Settings, Sun, Workflow } from "lucide-react";
+import { Bot, Brain, Cpu, FolderGit2, Inbox, ListChecks, LogOut, Monitor, Moon, Settings, Sun, Workflow } from "lucide-react";
 import { useMemo } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router";
 import { useEventSocket, type WorkflowEvent } from "../api/events";
 import { useLogout, useSession } from "../auth";
 import { usePendingApprovals } from "../pages/ApprovalsPage";
+import { useMemoryInbox } from "../pages/MemoryPage";
 import { useShortcuts } from "../shortcuts";
 import { useTheme } from "../theme";
 import { Kbd } from "./ui";
@@ -24,6 +25,7 @@ export function Layout() {
   const qc = useQueryClient();
   const pending = usePendingApprovals();
   const pendingCount = pending.data?.pendingCount ?? 0;
+  const memoryInbox = useMemoryInbox().data?.candidates ?? 0;
   // Every workflow's events: keeps the approvals badge and inbox current.
   useEventSocket<WorkflowEvent>("stream=workflows", true, (ev) => {
     if (ev.type.startsWith("approval.") || ev.type === "workflow.status") {
@@ -39,6 +41,7 @@ export function Layout() {
       "g i": () => navigate("/approvals"),
       "g w": () => navigate("/workflows"),
       "g a": () => navigate("/agents"),
+      "g y": () => navigate("/memory"),
       "g m": () => navigate("/models"),
       "g s": () => navigate("/settings"),
       t: cycle,
@@ -79,6 +82,15 @@ export function Layout() {
           </NavLink>
           <NavLink to="/agents">
             <Bot size={16} aria-hidden /> Agents <Kbd keys={["g", "a"]} />
+          </NavLink>
+          <NavLink to="/memory">
+            <Brain size={16} aria-hidden /> Memory
+            {memoryInbox > 0 && (
+              <span className="nav-count" aria-label={`${memoryInbox} to review`}>
+                {memoryInbox}
+              </span>
+            )}
+            <Kbd keys={["g", "y"]} />
           </NavLink>
           <NavLink to="/models">
             <Cpu size={16} aria-hidden /> Models <Kbd keys={["g", "m"]} />

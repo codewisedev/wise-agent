@@ -39,6 +39,12 @@ type Service struct {
 	tools map[string]agents.Tool
 	lease time.Duration
 	log   *slog.Logger
+
+	// ContextFor returns the context section appended to a run's system prompt
+	// (memory and project summary), frozen per run. Optional.
+	ContextFor func(ctx context.Context, run dbgen.AgentRun) (string, error)
+	// OnFinished is called after a run reaches a final state. Optional.
+	OnFinished func(ctx context.Context, runID uuid.UUID)
 }
 
 func NewService(d *db.DB, hub *events.Hub, gw *modelgateway.Gateway, tools map[string]agents.Tool, log *slog.Logger) *Service {
@@ -114,6 +120,12 @@ func (s *Service) Claim(ctx context.Context, runtimeID string) (*Claim, error) {
 		return nil, err
 	}
 	s.hub.Publish(ev)
+	// Build the run's context now so it is fixed before the first model turn.
+	if s.ContextFor != nil {
+		if _, err := s.ContextFor(ctx, c.Run); err != nil {
+			s.log.Warn("build run context", "run", c.Run.ID, "err", err)
+		}
+	}
 	return c, nil
 }
 
@@ -226,7 +238,7 @@ func (s *Service) ModelTurn(ctx context.Context, run dbgen.AgentRun, msgs []mode
 	treq := modelgateway.TurnRequest{
 		RunID: &run.ID, AgentName: def.Name,
 		Alias: def.ModelConfig.Alias, Fallbacks: def.ModelConfig.Fallbacks,
-		System: defRow.Prompt, Messages: msgs, Tools: tools, OutputSchema: def.OutputSchema,
+		System: s.systemPrompt(ctx, run, defRow.Prompt), Messages: msgs, Tools: tools, OutputSchema: def.OutputSchema,
 		Temperature: def.ModelConfig.Temperature, MaxOutputTokens: def.ModelConfig.MaxOutputTokens,
 		MaxRunTokens: def.ExecutionLimits.MaxTokens, MaxRunCostUSD: def.ExecutionLimits.MaxCostUSD,
 	}
@@ -305,7 +317,26 @@ func (s *Service) finish(ctx context.Context, id uuid.UUID, status dbgen.AgentRu
 		return err
 	}
 	s.hub.Publish(ev)
+	if s.OnFinished != nil {
+		go s.OnFinished(context.WithoutCancel(ctx), id)
+	}
 	return nil
+}
+
+// systemPrompt is the agent's prompt plus the run's context section (if any).
+func (s *Service) systemPrompt(ctx context.Context, run dbgen.AgentRun, prompt string) string {
+	if s.ContextFor == nil {
+		return prompt
+	}
+	text, err := s.ContextFor(ctx, run)
+	if err != nil {
+		s.log.Warn("run context", "run", run.ID, "err", err)
+		return prompt
+	}
+	if text == "" {
+		return prompt
+	}
+	return prompt + "\n\n" + text
 }
 
 func (s *Service) requeue(ctx context.Context, id uuid.UUID, reason string) error {

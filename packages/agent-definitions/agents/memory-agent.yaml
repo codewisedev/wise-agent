@@ -1,0 +1,73 @@
+name: memory-agent
+version: 1.0.0
+description: Proposes durable engineering knowledge (rules, preferences, decisions, facts) from review feedback and reports, for the user to approve.
+enabled: true
+phase: 4
+prompt: memory-agent/system.md
+produces: memory_candidates
+responsibilities:
+  - Turn the user's review feedback and finished reports into short, reusable memories
+  - Separate durable rules and preferences from one-off requests about a single task
+  - Avoid proposing what is already known
+input_schema:
+  type: object
+  additionalProperties: false
+  required: [source, task]
+  properties:
+    source: { type: string, enum: [review_feedback, report, task], description: What the material comes from. }
+    decision: { type: string, description: The review decision (approved or rejected), for review feedback. }
+    feedback: { type: string, description: What the user wrote when reviewing. }
+    task:
+      type: object
+      additionalProperties: false
+      required: [title]
+      properties:
+        title: { type: string }
+        description: { type: string }
+    material: { type: string, description: The reviewed artifacts or the final report (JSON text, may be truncated). }
+    existing_memories:
+      type: array
+      description: Memories already known; do not propose these again.
+      items:
+        type: object
+        additionalProperties: true
+output_schema:
+  type: object
+  additionalProperties: false
+  required: [memories]
+  properties:
+    memories:
+      type: array
+      maxItems: 5
+      items:
+        type: object
+        additionalProperties: false
+        required: [scope, kind, category, title, body, rationale]
+        properties:
+          scope: { enum: [developer, project], description: "developer = the user's general preference; project = this project only" }
+          kind: { enum: [rule, preference, decision, fact, convention, example] }
+          category: { enum: [coding, architecture, testing, api, database, security, tooling, product, other] }
+          title: { type: string, maxLength: 120 }
+          body: { type: string, maxLength: 1500 }
+          rationale: { type: string, maxLength: 500, description: Why this is worth remembering, quoting the source. }
+tools: []
+permissions: []
+model_config:
+  alias: reasoning
+  fallbacks: [local]
+  temperature: 0.1
+  max_output_tokens: 2048
+execution_limits:
+  max_turns: 3
+  max_tool_calls: 0
+  max_tokens: 60000
+  max_cost_usd: 0.2
+  timeout_s: 300
+error_handling:
+  max_attempts: 2
+  invalid_output_retries: 2
+evaluation:
+  criteria:
+    - Every memory traces back to something the user wrote or approved
+    - Rules only where the user stated a general requirement
+    - No duplicates of existing memories; no secrets

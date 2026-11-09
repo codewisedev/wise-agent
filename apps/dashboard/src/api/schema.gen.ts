@@ -1502,6 +1502,209 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/memories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listMemories"];
+        put?: never;
+        /** @description Adds a memory written by the user; it applies to agents immediately. Signed-in session only. */
+        post: operations["createMemory"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/memories/inbox": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getMemoryInbox"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/memories/{memoryId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                memoryId: components["parameters"]["MemoryId"];
+            };
+            cookie?: never;
+        };
+        get: operations["getMemory"];
+        /** @description Edits a memory (a new version; status unchanged). Signed-in session only. */
+        put: operations["updateMemory"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/memories/{memoryId}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                memoryId: components["parameters"]["MemoryId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Makes a candidate active, optionally with edits. It then influences agents. Signed-in session only. */
+        post: operations["approveMemory"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/memories/{memoryId}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                memoryId: components["parameters"]["MemoryId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Discards a candidate (kept for the record). Signed-in session only. */
+        post: operations["rejectMemory"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/memories/{memoryId}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                memoryId: components["parameters"]["MemoryId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Stops a memory from influencing agents. Signed-in session only. */
+        post: operations["archiveMemory"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/memories/{memoryId}/reactivate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                memoryId: components["parameters"]["MemoryId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Puts an archived memory back in use. Signed-in session only. */
+        post: operations["reactivateMemory"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/memories/{memoryId}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                memoryId: components["parameters"]["MemoryId"];
+            };
+            cookie?: never;
+        };
+        get: operations["listMemoryVersions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/memories/{memoryId}/versions/{version}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                memoryId: components["parameters"]["MemoryId"];
+                version: number;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["restoreMemoryVersion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tasks/{taskId}/extract-memories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                taskId: components["parameters"]["TaskId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Runs the memory agent over the task's review comments and results; proposals arrive in the memory inbox. */
+        post: operations["extractTaskMemories"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/runtime/v1/runs/{runId}/memory/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                runId: components["parameters"]["RunId"];
+            };
+            cookie?: never;
+        };
+        /** @description Searches the approved memories of the user and the run's project. */
+        get: operations["runtimeMemorySearch"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/runtime/v1/runs/claim": {
         parameters: {
             query?: never;
@@ -1957,6 +2160,7 @@ export interface components {
             output?: {
                 [key: string]: unknown;
             } | null;
+            context?: components["schemas"]["RunContext"];
             error?: string | null;
             attempt: number;
             maxAttempts: number;
@@ -2398,6 +2602,88 @@ export interface components {
             lastError?: string;
             /** Format: date-time */
             lastRun?: string | null;
+        };
+        /** @enum {string} */
+        MemoryScope: "developer" | "project";
+        /** @enum {string} */
+        MemoryKind: "rule" | "preference" | "decision" | "fact" | "convention" | "example";
+        /** @enum {string} */
+        MemoryCategory: "coding" | "architecture" | "testing" | "api" | "database" | "security" | "tooling" | "product" | "other";
+        /** @enum {string} */
+        MemoryStatus: "candidate" | "active" | "rejected" | "archived";
+        Memory: {
+            /** Format: uuid */
+            id: string;
+            scope: components["schemas"]["MemoryScope"];
+            /** Format: uuid */
+            projectId?: string | null;
+            projectName?: string | null;
+            kind: components["schemas"]["MemoryKind"];
+            category: components["schemas"]["MemoryCategory"];
+            title: string;
+            body: string;
+            status: components["schemas"]["MemoryStatus"];
+            /** @enum {string} */
+            source: "manual" | "review_feedback" | "report" | "profile_inference" | "task";
+            sourceRefs: {
+                [key: string]: unknown;
+            };
+            rationale: string;
+            /** Format: uuid */
+            duplicateOf?: string | null;
+            version: number;
+            /** Format: date-time */
+            decidedAt?: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        MemoryInput: {
+            scope: components["schemas"]["MemoryScope"];
+            /** Format: uuid */
+            projectId?: string | null;
+            kind: components["schemas"]["MemoryKind"];
+            category?: components["schemas"]["MemoryCategory"];
+            title: string;
+            body: string;
+        };
+        MemoryList: {
+            items: components["schemas"]["Memory"][];
+        };
+        MemoryInbox: {
+            /** Format: int64 */
+            candidates: number;
+        };
+        MemoryVersion: {
+            version: number;
+            scope: string;
+            /** Format: uuid */
+            projectId?: string | null;
+            kind: string;
+            category: string;
+            title: string;
+            body: string;
+            status: string;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        MemoryVersionList: {
+            items: components["schemas"]["MemoryVersion"][];
+        };
+        /** @description What the run was given at its start (rules, relevant memories, project summary), frozen per run. */
+        RunContext: {
+            text?: string;
+            rules?: components["schemas"]["RunContextRef"][];
+            relevant?: components["schemas"]["RunContextRef"][];
+            project?: string;
+            semantic?: boolean;
+        };
+        RunContextRef: {
+            id: string;
+            kind: string;
+            scope: string;
+            title: string;
         };
         /** @enum {string} */
         ContextKind: "symbol" | "code" | "doc" | "config";
@@ -2926,6 +3212,7 @@ export interface components {
         };
     };
     parameters: {
+        MemoryId: string;
         JobId: string;
         SprintId: string;
         ProjectId: string;
@@ -5723,6 +6010,352 @@ export interface operations {
             401: components["responses"]["Problem"];
             403: components["responses"]["Problem"];
             409: components["responses"]["Problem"];
+        };
+    };
+    listMemories: {
+        parameters: {
+            query?: {
+                status?: components["schemas"]["MemoryStatus"];
+                scope?: components["schemas"]["MemoryScope"];
+                projectId?: string;
+                kind?: components["schemas"]["MemoryKind"];
+                category?: components["schemas"]["MemoryCategory"];
+                q?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Memories (candidates first). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MemoryList"];
+                };
+            };
+            401: components["responses"]["Problem"];
+        };
+    };
+    createMemory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MemoryInput"];
+            };
+        };
+        responses: {
+            /** @description Created. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Memory"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+        };
+    };
+    getMemoryInbox: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Candidates waiting for a decision. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MemoryInbox"];
+                };
+            };
+            401: components["responses"]["Problem"];
+        };
+    };
+    getMemory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                memoryId: components["parameters"]["MemoryId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Memory. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Memory"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    updateMemory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                memoryId: components["parameters"]["MemoryId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MemoryInput"];
+            };
+        };
+        responses: {
+            /** @description Updated. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Memory"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+        };
+    };
+    approveMemory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                memoryId: components["parameters"]["MemoryId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["MemoryInput"];
+            };
+        };
+        responses: {
+            /** @description Done. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Memory"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+        };
+    };
+    rejectMemory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                memoryId: components["parameters"]["MemoryId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Done. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Memory"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+        };
+    };
+    archiveMemory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                memoryId: components["parameters"]["MemoryId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Done. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Memory"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+        };
+    };
+    reactivateMemory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                memoryId: components["parameters"]["MemoryId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Done. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Memory"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+        };
+    };
+    listMemoryVersions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                memoryId: components["parameters"]["MemoryId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Versions, newest first. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MemoryVersionList"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    restoreMemoryVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                memoryId: components["parameters"]["MemoryId"];
+                version: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Restored as a new version. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Memory"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    extractTaskMemories: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                taskId: components["parameters"]["TaskId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Extraction queued. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentRun"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+        };
+    };
+    runtimeMemorySearch: {
+        parameters: {
+            query: {
+                q: string;
+            };
+            header?: never;
+            path: {
+                runId: components["parameters"]["RunId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Memories. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MemoryList"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
         };
     };
     runtimeClaimRun: {

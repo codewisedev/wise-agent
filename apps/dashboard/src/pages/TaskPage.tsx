@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  AlertTriangle, Bot, CheckCircle2, ChevronRight, CircleSlash, FileText, Flag, Hourglass, Pencil, Play, RotateCcw, Square, XCircle,
+  AlertTriangle, Bot, Brain, CheckCircle2, ChevronRight, CircleSlash, FileText, Flag, Hourglass, Pencil, Play, RotateCcw, Square, XCircle,
 } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { Link, useParams } from "react-router";
@@ -150,6 +150,9 @@ export function TaskPage() {
   });
   const [retryAccount, setRetryAccount] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
+  const extract = useMutation({
+    mutationFn: () => unwrap(api.POST("/tasks/{taskId}/extract-memories", { params: { path: { taskId } } })),
+  });
   const retry = useMutation({
     mutationFn: async ({ workflowId, stepId }: { workflowId: string; stepId: string }) => {
       // Optionally switch the failed step to another account before retrying it.
@@ -198,6 +201,10 @@ export function TaskPage() {
           <button className="btn" onClick={() => setEditing((v) => !v)} aria-expanded={editing}>
             <Pencil size={14} aria-hidden /> {editing ? "Close editor" : "Edit"}
           </button>
+          <button className="btn" onClick={() => extract.mutate()} disabled={extract.isPending}
+            title="Ask the memory agent to propose memories from this task's review comments and results">
+            <Brain size={14} aria-hidden /> {extract.isSuccess ? "Extracting… see Memory" : "Extract memories"}
+          </button>
           {wf && isActiveWorkflow(wf) && (
             <button className="btn btn-danger" onClick={() => cancel.mutate()} disabled={cancel.isPending}>
               <Square size={14} aria-hidden /> Cancel
@@ -205,7 +212,7 @@ export function TaskPage() {
           )}
         </div>
       </header>
-      <ErrorNote error={cancel.error} />
+      <ErrorNote error={cancel.error ?? extract.error} />
       {editing && (
         <Panel title="Edit task" flush={false}>
           <TaskDetailsForm task={task} onSaved={() => setEditing(false)} />

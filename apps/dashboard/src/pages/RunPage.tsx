@@ -167,6 +167,16 @@ export function RunPage() {
         </ol>
       </Panel>
 
+      {r.context?.text && (
+        <Panel title="Context given to the agent" flush={false}>
+          <p className="small muted" style={{ marginTop: 0 }}>
+            Added to the agent's instructions when the run started: {r.context.rules?.length ?? 0} rule(s),{" "}
+            {r.context.relevant?.length ?? 0} relevant memorie(s){r.context.semantic ? " (found by meaning)" : ""}. <Link to="/memory">Manage memory →</Link>
+          </p>
+          <pre className="json prompt">{r.context.text}</pre>
+        </Panel>
+      )}
+
       <Panel title="Input" flush={false}>
         <Json value={r.input} label="input" />
       </Panel>

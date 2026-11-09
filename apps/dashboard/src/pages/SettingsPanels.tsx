@@ -452,12 +452,41 @@ function IndexingEditor({ value, set }: { value: IndexingValue; set: (v: Indexin
   );
 }
 
+type MemoryValue = {
+  retrieval_k: number; max_context_chars: number; extract_on_review_comments: boolean;
+  extract_on_completed_workflows: boolean; duplicate_similarity: number; skip_agents: string[];
+};
+
+function MemoryEditor({ value, set }: { value: MemoryValue; set: (v: MemoryValue) => void }) {
+  return (
+    <div className="settings-form">
+      <h3>What agents are given</h3>
+      <div className="form-grid">
+        <Field label="Relevant memories per run" hint="Rules are always given; 0 = rules only">
+          <input type="number" min={0} max={30} value={value.retrieval_k} onChange={(e) => set({ ...value, retrieval_k: Number(e.target.value) })} />
+        </Field>
+        <Field label="Context size limit (characters)">
+          <input type="number" min={500} max={40000} step={500} value={value.max_context_chars} onChange={(e) => set({ ...value, max_context_chars: Number(e.target.value) })} />
+        </Field>
+      </div>
+      <Lines label="Agents without memory context" hint="One agent name per line" value={value.skip_agents} onChange={(v) => set({ ...value, skip_agents: v })} rows={3} />
+      <h3>Proposals (always wait for your approval)</h3>
+      <label className="checkbox"><input type="checkbox" checked={value.extract_on_review_comments} onChange={(e) => set({ ...value, extract_on_review_comments: e.target.checked })} /> From review comments</label>
+      <label className="checkbox"><input type="checkbox" checked={value.extract_on_completed_workflows} onChange={(e) => set({ ...value, extract_on_completed_workflows: e.target.checked })} /> From finished workflows' final reports</label>
+      <Field label="Duplicate threshold" hint="How similar in meaning a proposal must be to an existing memory to be flagged as a duplicate (0.5–1)">
+        <input type="number" min={0.5} max={1} step={0.01} value={value.duplicate_similarity} onChange={(e) => set({ ...value, duplicate_similarity: Number(e.target.value) })} />
+      </Field>
+    </div>
+  );
+}
+
 const EDITORS: Record<string, (v: any, set: (v: any) => void) => ReactNode> = {
   models: (v, set) => <ModelsEditor value={v as ModelsValue} set={set} />,
   model_policy: (v, set) => <PolicyEditor value={v as PolicyValue} set={set} />,
   workflow_defaults: (v, set) => <WorkflowEditor value={v as WorkflowValue} set={set} />,
   board_defaults: (v, set) => <ColumnsEditor value={v as BoardValue} set={set} />,
   indexing: (v, set) => <IndexingEditor value={v as IndexingValue} set={set} />,
+  memory: (v, set) => <MemoryEditor value={v as MemoryValue} set={set} />,
 };
 
 /** Every panel-managed setting; unknown keys fall back to the JSON editor. */

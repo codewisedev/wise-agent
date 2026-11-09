@@ -33,6 +33,7 @@ tags:
   - name: integrations
   - name: settings
   - name: context
+  - name: memory
 
 paths:
   /healthz:
@@ -1787,6 +1788,230 @@ paths:
         "401": { $ref: "#/components/responses/Problem" }
         "403": { $ref: "#/components/responses/Problem" }
         "409": { $ref: "#/components/responses/Problem" }
+  /memories:
+    get:
+      tags: [memory]
+      operationId: listMemories
+      parameters:
+        - { name: status, in: query, required: false, schema: { $ref: "#/components/schemas/MemoryStatus" } }
+        - { name: scope, in: query, required: false, schema: { $ref: "#/components/schemas/MemoryScope" } }
+        - { name: projectId, in: query, required: false, schema: { type: string, format: uuid } }
+        - { name: kind, in: query, required: false, schema: { $ref: "#/components/schemas/MemoryKind" } }
+        - { name: category, in: query, required: false, schema: { $ref: "#/components/schemas/MemoryCategory" } }
+        - { name: q, in: query, required: false, schema: { type: string, maxLength: 200 } }
+        - { name: limit, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 500 } }
+      responses:
+        "200":
+          description: Memories (candidates first).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MemoryList" }
+        "401": { $ref: "#/components/responses/Problem" }
+    post:
+      tags: [memory]
+      operationId: createMemory
+      description: Adds a memory written by the user; it applies to agents immediately. Signed-in session only.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MemoryInput" }
+      responses:
+        "201":
+          description: Created.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Memory" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+  /memories/inbox:
+    get:
+      tags: [memory]
+      operationId: getMemoryInbox
+      responses:
+        "200":
+          description: Candidates waiting for a decision.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MemoryInbox" }
+        "401": { $ref: "#/components/responses/Problem" }
+  /memories/{memoryId}:
+    parameters:
+      - $ref: "#/components/parameters/MemoryId"
+    get:
+      tags: [memory]
+      operationId: getMemory
+      responses:
+        "200":
+          description: Memory.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Memory" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+    put:
+      tags: [memory]
+      operationId: updateMemory
+      description: Edits a memory (a new version; status unchanged). Signed-in session only.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MemoryInput" }
+      responses:
+        "200":
+          description: Updated.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Memory" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+  /memories/{memoryId}/approve:
+    parameters:
+      - $ref: "#/components/parameters/MemoryId"
+    post:
+      tags: [memory]
+      operationId: approveMemory
+      description: Makes a candidate active, optionally with edits. It then influences agents. Signed-in session only.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MemoryInput" }
+      responses:
+        "200":
+          description: Done.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Memory" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+  /memories/{memoryId}/reject:
+    parameters:
+      - $ref: "#/components/parameters/MemoryId"
+    post:
+      tags: [memory]
+      operationId: rejectMemory
+      description: Discards a candidate (kept for the record). Signed-in session only.
+      responses:
+        "200":
+          description: Done.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Memory" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+  /memories/{memoryId}/archive:
+    parameters:
+      - $ref: "#/components/parameters/MemoryId"
+    post:
+      tags: [memory]
+      operationId: archiveMemory
+      description: Stops a memory from influencing agents. Signed-in session only.
+      responses:
+        "200":
+          description: Done.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Memory" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+  /memories/{memoryId}/reactivate:
+    parameters:
+      - $ref: "#/components/parameters/MemoryId"
+    post:
+      tags: [memory]
+      operationId: reactivateMemory
+      description: Puts an archived memory back in use. Signed-in session only.
+      responses:
+        "200":
+          description: Done.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Memory" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+  /memories/{memoryId}/versions:
+    parameters:
+      - $ref: "#/components/parameters/MemoryId"
+    get:
+      tags: [memory]
+      operationId: listMemoryVersions
+      responses:
+        "200":
+          description: Versions, newest first.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MemoryVersionList" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+  /memories/{memoryId}/versions/{version}/restore:
+    parameters:
+      - $ref: "#/components/parameters/MemoryId"
+      - { name: version, in: path, required: true, schema: { type: integer, minimum: 1 } }
+    post:
+      tags: [memory]
+      operationId: restoreMemoryVersion
+      responses:
+        "200":
+          description: Restored as a new version.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Memory" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+  /tasks/{taskId}/extract-memories:
+    parameters:
+      - $ref: "#/components/parameters/TaskId"
+    post:
+      tags: [memory]
+      operationId: extractTaskMemories
+      description: Runs the memory agent over the task's review comments and results; proposals arrive in the memory inbox.
+      responses:
+        "202":
+          description: Extraction queued.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AgentRun" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+  /runtime/v1/runs/{runId}/memory/search:
+    parameters:
+      - $ref: "#/components/parameters/RunId"
+    get:
+      tags: [runtime]
+      operationId: runtimeMemorySearch
+      description: Searches the approved memories of the user and the run's project.
+      security: [{ runtimeAuth: [] }]
+      parameters:
+        - { name: q, in: query, required: true, schema: { type: string, minLength: 1, maxLength: 500 } }
+      responses:
+        "200":
+          description: Memories.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MemoryList" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
   /runtime/v1/runs/claim:
     post:
       tags: [runtime]
@@ -1917,6 +2142,11 @@ components:
         per-run token returned by the claim.
 
   parameters:
+    MemoryId:
+      name: memoryId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
     JobId:
       name: jobId
       in: path
@@ -2376,6 +2606,7 @@ components:
         status: { $ref: "#/components/schemas/AgentRunStatus" }
         input: { type: object, additionalProperties: true }
         output: { type: object, additionalProperties: true, nullable: true }
+        context: { $ref: "#/components/schemas/RunContext" }
         error: { type: string, nullable: true }
         attempt: { type: integer }
         maxAttempts: { type: integer }
@@ -2807,6 +3038,86 @@ components:
         pending: { type: integer, format: int64 }
         lastError: { type: string }
         lastRun: { type: string, format: date-time, nullable: true }
+    MemoryScope: { type: string, enum: [developer, project] }
+    MemoryKind: { type: string, enum: [rule, preference, decision, fact, convention, example] }
+    MemoryCategory: { type: string, enum: [coding, architecture, testing, api, database, security, tooling, product, other] }
+    MemoryStatus: { type: string, enum: [candidate, active, rejected, archived] }
+    Memory:
+      type: object
+      required: [id, scope, kind, category, title, body, status, source, sourceRefs, rationale, version, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        scope: { $ref: "#/components/schemas/MemoryScope" }
+        projectId: { type: string, format: uuid, nullable: true }
+        projectName: { type: string, nullable: true }
+        kind: { $ref: "#/components/schemas/MemoryKind" }
+        category: { $ref: "#/components/schemas/MemoryCategory" }
+        title: { type: string }
+        body: { type: string }
+        status: { $ref: "#/components/schemas/MemoryStatus" }
+        source: { type: string, enum: [manual, review_feedback, report, profile_inference, task] }
+        sourceRefs: { type: object, additionalProperties: true }
+        rationale: { type: string }
+        duplicateOf: { type: string, format: uuid, nullable: true }
+        version: { type: integer }
+        decidedAt: { type: string, format: date-time, nullable: true }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    MemoryInput:
+      type: object
+      required: [scope, kind, title, body]
+      properties:
+        scope: { $ref: "#/components/schemas/MemoryScope" }
+        projectId: { type: string, format: uuid, nullable: true }
+        kind: { $ref: "#/components/schemas/MemoryKind" }
+        category: { $ref: "#/components/schemas/MemoryCategory" }
+        title: { type: string, minLength: 1, maxLength: 200 }
+        body: { type: string, minLength: 1, maxLength: 8000 }
+    MemoryList:
+      type: object
+      required: [items]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/Memory" } }
+    MemoryInbox:
+      type: object
+      required: [candidates]
+      properties:
+        candidates: { type: integer, format: int64 }
+    MemoryVersion:
+      type: object
+      required: [version, scope, kind, category, title, body, status, createdAt]
+      properties:
+        version: { type: integer }
+        scope: { type: string }
+        projectId: { type: string, format: uuid, nullable: true }
+        kind: { type: string }
+        category: { type: string }
+        title: { type: string }
+        body: { type: string }
+        status: { type: string }
+        createdAt: { type: string, format: date-time }
+    MemoryVersionList:
+      type: object
+      required: [items]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/MemoryVersion" } }
+    RunContext:
+      type: object
+      description: What the run was given at its start (rules, relevant memories, project summary), frozen per run.
+      properties:
+        text: { type: string }
+        rules: { type: array, items: { $ref: "#/components/schemas/RunContextRef" } }
+        relevant: { type: array, items: { $ref: "#/components/schemas/RunContextRef" } }
+        project: { type: string }
+        semantic: { type: boolean }
+    RunContextRef:
+      type: object
+      required: [id, kind, scope, title]
+      properties:
+        id: { type: string }
+        kind: { type: string }
+        scope: { type: string }
+        title: { type: string }
     ContextKind:
       type: string
       enum: [symbol, code, doc, config]

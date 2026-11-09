@@ -16,6 +16,8 @@ import (
 	"testing"
 	"time"
 	"wise/apps/api/internal/codeindex"
+	"wise/apps/api/internal/db/dbgen"
+	"wise/apps/api/internal/memory"
 
 	"wise/apps/api/internal/accounts"
 	"wise/apps/api/internal/agents"
@@ -59,6 +61,7 @@ type env struct {
 	settings *settings.Service
 	repoSvc  *repositories.Service
 	index    *codeindex.Service
+	memory   *memory.Service
 }
 
 func setup(t *testing.T) *env {
@@ -109,6 +112,14 @@ func setup(t *testing.T) *env {
 	indexSvc := codeindex.NewService(d, repoSvc, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	indexSvc.SetEmbedder(gw)
 	settings.RegisterIndexing(settingsSvc, filepath.Join("..", "..", "..", "..", "configs", "indexing", "defaults.yaml"), indexSvc)
+	memorySvc := memory.NewService(d, agentSvc, gw, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	settings.RegisterMemory(settingsSvc, filepath.Join("..", "..", "..", "..", "configs", "memory", "defaults.yaml"), memorySvc)
+	queue.ContextFor = func(ctx context.Context, run dbgen.AgentRun) (string, error) {
+		p, err := memorySvc.ForRun(ctx, run)
+		return p.Text, err
+	}
+	queue.OnFinished = memorySvc.OnRunFinished
+	taskSvc.OnApprovalDecided = memorySvc.OnApprovalDecided
 	settings.RegisterDefaults(settingsSvc, testSettingFiles(t), gw, accountSvc, taskSvc)
 	if err := settingsSvc.Start(context.Background()); err != nil {
 		t.Fatal(err)
@@ -117,6 +128,7 @@ func setup(t *testing.T) *env {
 		DB: d, Auth: authSvc, Projects: projectSvc,
 		Repositories: repoSvc,
 		Index:        indexSvc,
+		Memory:       memorySvc,
 		Agents:       agentSvc, RunQueue: queue, Gateway: gw, Hub: hub, Tasks: taskSvc, Accounts: accountSvc, Integrations: integrationSvc, Settings: settingsSvc,
 		Cookie:       httpapi.CookieConfig{TTL: time.Hour},
 		RuntimeToken: runtimeToken,
@@ -128,7 +140,7 @@ func setup(t *testing.T) *env {
 	ts := httptest.NewServer(h)
 	t.Cleanup(ts.Close)
 	jar, _ := cookiejar.New(nil)
-	return &env{t: t, db: d, srv: ts, client: &http.Client{Jar: jar}, repoRoot: root, queue: queue, model: model, repoSvc: repoSvc, index: indexSvc,
+	return &env{t: t, db: d, srv: ts, client: &http.Client{Jar: jar}, repoRoot: root, queue: queue, model: model, repoSvc: repoSvc, index: indexSvc, memory: memorySvc,
 		tasks: taskSvc, agents: agentSvc, hub: hub, accounts: accountSvc, gw: gw, sources: integrationSvc, settings: settingsSvc}
 }
 

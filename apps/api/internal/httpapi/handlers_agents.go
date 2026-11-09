@@ -51,6 +51,7 @@ func toAgentRun(r dbgen.AgentRun) apigen.AgentRun {
 		o := jsonObject(r.Output)
 		out.Output = &o
 	}
+	out.Context = runContext(r.Context)
 	return out
 }
 

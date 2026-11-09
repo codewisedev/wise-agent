@@ -4,6 +4,7 @@ import { AgentDetailPage } from "./pages/AgentDetailPage";
 import { AgentsPage } from "./pages/AgentsPage";
 import { BoardPage } from "./pages/BoardPage";
 import { ContextPage } from "./pages/ContextPage";
+import { MemoryPage } from "./pages/MemoryPage";
 import { SprintsPage } from "./pages/SprintsPage";
 import { IntegrationsPage } from "./pages/IntegrationsPage";
 import { ApprovalsPage } from "./pages/ApprovalsPage";
@@ -39,6 +40,7 @@ export const router = createBrowserRouter([
       { path: "/approvals", element: <ApprovalsPage /> },
       { path: "/workflows", element: <WorkflowsPage /> },
       { path: "/agents", element: <AgentsPage /> },
+      { path: "/memory", element: <MemoryPage /> },
       { path: "/agents/:agentName", element: <AgentDetailPage /> },
       { path: "/runs/:runId", element: <RunPage /> },
       { path: "/models", element: <ModelsPage /> },

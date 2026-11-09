@@ -34,6 +34,8 @@ type Service struct {
 	// Agents and Accounts validate workflow plans.
 	Agents   AgentLookup
 	Accounts AccountChecker
+	// OnApprovalDecided is called after a review decision is stored. Optional.
+	OnApprovalDecided func(ctx context.Context, ap dbgen.Approval)
 }
 
 func NewService(d *db.DB, cfg WorkflowConfig) *Service { return &Service{db: d, cfg: cfg} }
@@ -449,6 +451,9 @@ func (s *Service) Decide(ctx context.Context, id uuid.UUID, approve bool, review
 			Payload: map[string]any{"gate": ap.Gate, "round": ap.Round, "combinedHash": ap.CombinedHash, "comment": comment},
 		})
 	})
+	if err == nil && s.OnApprovalDecided != nil {
+		go s.OnApprovalDecided(context.WithoutCancel(ctx), out)
+	}
 	return out, err
 }
 

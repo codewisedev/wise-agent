@@ -418,6 +418,7 @@ type AgentRun struct {
 	WorkflowRunID     *uuid.UUID
 	IdempotencyKey    *string
 	ModelOverride     []byte
+	Context           []byte
 }
 
 type ApiToken struct {
@@ -584,6 +585,54 @@ type Integration struct {
 	CreatedAt         time.Time
 	UpdatedAt         time.Time
 	SprintID          *uuid.UUID
+}
+
+type Memory struct {
+	ID             uuid.UUID
+	Scope          string
+	ProjectID      *uuid.UUID
+	Kind           string
+	Category       string
+	Title          string
+	Body           string
+	Status         string
+	Source         string
+	SourceRefs     json.RawMessage
+	Rationale      string
+	DuplicateOf    *uuid.UUID
+	Version        int32
+	Tsv            interface{}
+	Embedding      *pgvector.Vector
+	EmbeddingModel *string
+	CreatedBy      *uuid.UUID
+	DecidedBy      *uuid.UUID
+	DecidedAt      *time.Time
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+}
+
+type MemoryExtraction struct {
+	RunID       uuid.UUID
+	Source      string
+	SourceRefs  json.RawMessage
+	ProjectID   *uuid.UUID
+	Candidates  int32
+	ProcessedAt *time.Time
+	CreatedAt   time.Time
+}
+
+type MemoryVersion struct {
+	MemoryID  uuid.UUID
+	Version   int32
+	Scope     string
+	ProjectID *uuid.UUID
+	Kind      string
+	Category  string
+	Title     string
+	Body      string
+	Status    string
+	ChangedBy *uuid.UUID
+	CreatedAt time.Time
 }
 
 type ModelCache struct {

@@ -24,6 +24,7 @@ const TABS = [
   { id: "workflows", label: "Workflows" },
   { id: "board", label: "Board" },
   { id: "indexing", label: "Indexing" },
+  { id: "memory", label: "Memory" },
 ] as const;
 
 export function SettingsPage() {
@@ -90,6 +91,7 @@ export function SettingsPage() {
       )}
       {tab === "board" && <SettingsPanels only={["board_defaults"]} />}
       {tab === "indexing" && <SettingsPanels only={["indexing"]} />}
+      {tab === "memory" && <SettingsPanels only={["memory"]} />}
 
       {tab === "general" && (
       <>

@@ -19,8 +19,9 @@ const runtimeToken = "test-runtime-token-0123456789abcdef0123"
 
 // scriptedProvider returns queued responses in order (then a valid final).
 type scriptedProvider struct {
-	mu    sync.Mutex
-	queue []string
+	mu         sync.Mutex
+	queue      []string
+	lastSystem string // the system prompt of the last call
 }
 
 func (p *scriptedProvider) Name() string                 { return "scripted" }
@@ -31,9 +32,10 @@ func (p *scriptedProvider) push(texts ...string) {
 	p.queue = append(p.queue, texts...)
 	p.mu.Unlock()
 }
-func (p *scriptedProvider) Complete(context.Context, modelgateway.ProviderRequest) (modelgateway.ProviderResponse, error) {
+func (p *scriptedProvider) Complete(_ context.Context, req modelgateway.ProviderRequest) (modelgateway.ProviderResponse, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
+	p.lastSystem = req.System
 	text := `{"action":"final","final":{}}`
 	if len(p.queue) > 0 {
 		text, p.queue = p.queue[0], p.queue[1:]
@@ -97,8 +99,8 @@ func TestAgentRunLifecycle(t *testing.T) {
 	e.login()
 
 	list := e.expect(e.do("GET", "/agents", nil), 200)["items"].([]any)
-	if len(list) != 11 {
-		t.Fatalf("want 11 agents, got %d", len(list))
+	if len(list) != 12 {
+		t.Fatalf("want 12 agents, got %d", len(list))
 	}
 	detail := e.expect(e.do("GET", "/agents/product-agent", nil), 200)
 	if detail["prompt"] == "" || detail["enabled"] != true || len(detail["tools"].([]any)) != 7 {

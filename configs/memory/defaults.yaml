@@ -1,0 +1,7 @@
+# Default memory settings (editable in Settings → Memory).
+retrieval_k: 6                        # relevant memories given to each agent run (rules are always given)
+max_context_chars: 6000               # size cap of the context section added to an agent's prompt
+extract_on_review_comments: true      # propose memories from your review comments
+extract_on_completed_workflows: true  # propose memories from finished workflows' final reports
+duplicate_similarity: 0.9             # how close (by meaning) a candidate must be to count as a duplicate
+skip_agents: [memory-agent]           # agents that get no memory context

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"wise/apps/api/internal/codeindex"
+	"wise/apps/api/internal/memory"
 
 	"wise/apps/api/internal/accounts"
 	"wise/apps/api/internal/modelgateway"
@@ -111,6 +112,29 @@ func RegisterIndexing(s *Service, file string, idx *codeindex.Service) {
 			st, err := codeindex.ParseSettings(v)
 			if err == nil {
 				idx.SetSettings(st)
+			}
+			return err
+		},
+	})
+}
+
+// RegisterMemory declares the "memory" setting (retrieval and extraction).
+func RegisterMemory(s *Service, file string, mem *memory.Service) {
+	s.Register(Def{
+		Key: "memory", Title: "Memory",
+		Description: "How many relevant memories each agent run gets (rules always apply), the size of that context, which events propose new memories, and the duplicate threshold.",
+		Default:     FileDefault(file),
+		Validate: func(_ context.Context, v json.RawMessage) (json.RawMessage, error) {
+			st, err := memory.ParseSettings(v)
+			if err != nil {
+				return nil, err
+			}
+			return json.Marshal(st)
+		},
+		Apply: func(_ context.Context, v json.RawMessage) error {
+			st, err := memory.ParseSettings(v)
+			if err == nil {
+				mem.SetSettings(st)
 			}
 			return err
 		},
