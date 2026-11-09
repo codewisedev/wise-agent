@@ -167,3 +167,36 @@ SELECT * FROM repositories WHERE source_type = 'local' ORDER BY created_at;
 
 -- name: GetCodeFileSkip :one
 SELECT skipped_reason FROM code_files WHERE repository_id = $1 AND path = $2;
+
+-- name: PendingEmbeddingChunks :many
+-- Chunks without a vector from the current embedding model.
+SELECT c.id, c.heading, c.content, c.content_hash, f.path
+FROM code_chunks c JOIN code_files f ON f.id = c.file_id
+WHERE c.embedding_model IS DISTINCT FROM sqlc.arg(model)::text
+ORDER BY c.id
+LIMIT sqlc.arg(row_limit);
+
+-- name: SetChunkEmbedding :exec
+-- Skipped when the chunk was replaced meanwhile (content hash changed).
+UPDATE code_chunks SET embedding = sqlc.arg(vec)::text::vector, embedding_model = sqlc.arg(model), embedded_at = now()
+WHERE id = sqlc.arg(id) AND content_hash = sqlc.arg(content_hash);
+
+-- name: CountEmbeddings :one
+SELECT count(*) FILTER (WHERE embedding_model = sqlc.arg(model)::text) AS embedded,
+       count(*) FILTER (WHERE embedding_model IS DISTINCT FROM sqlc.arg(model)::text) AS pending
+FROM code_chunks;
+
+-- name: SemanticChunks :many
+SELECT c.id, c.kind, c.start_line, c.end_line, c.heading, c.content,
+       f.path, f.language, r.id AS repository_id, r.name AS repository_name,
+       r.indexed_sha, r.head_sha,
+       (c.embedding <=> sqlc.arg(vec)::text::vector)::float8 AS distance
+FROM code_chunks c
+JOIN code_files f ON f.id = c.file_id
+JOIN repositories r ON r.id = c.repository_id
+WHERE r.project_id = sqlc.arg(project_id)
+  AND c.embedding_model = sqlc.arg(model)::text
+  AND (sqlc.narg(repository_id)::uuid IS NULL OR r.id = sqlc.narg(repository_id))
+  AND (sqlc.narg(kind)::text IS NULL OR c.kind = sqlc.narg(kind))
+ORDER BY distance
+LIMIT sqlc.arg(row_limit);

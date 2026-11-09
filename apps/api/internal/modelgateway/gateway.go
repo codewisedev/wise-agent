@@ -84,6 +84,10 @@ type Gateway struct {
 	cooldownMu  sync.Mutex
 	cooldown    map[string]time.Time
 	cooldownErr map[string]string
+
+	// embedFault parks embedding after a configuration mismatch (e.g. wrong
+	// dimensions) until the configuration changes, so paid calls are not repeated.
+	embedFault string
 }
 
 // ProviderCooldown is how long a provider is skipped after a provider-wide failure.
@@ -717,4 +721,5 @@ func (g *Gateway) Reconfigure(cfg Config, pol Policy) {
 		}
 	}
 	g.cfg, g.policy, g.providers = cfg, pol, next
+	g.embedFault = ""
 }

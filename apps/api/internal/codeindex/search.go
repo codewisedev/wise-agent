@@ -27,6 +27,8 @@ type Hit struct {
 	Why          string  `json:"why"`
 	IndexedSHA   string  `json:"indexedSha"`
 	Stale        bool    `json:"stale"` // HEAD moved since this was indexed
+
+	id string // chunk id, for merging keyword and semantic results
 }
 
 // SearchQuery narrows a search.
@@ -72,27 +74,30 @@ func snippet(s string, max int) string {
 	return clean(s, max) + "…"
 }
 
-// Search returns symbols (name matches) and chunks (full-text) for a project.
-func (s *Service) Search(ctx context.Context, q SearchQuery) ([]Hit, error) {
+// Search returns symbols (name matches) and chunks (full text, and by meaning
+// when an embedding model is configured) for a project. The note explains a
+// degraded search (e.g. semantic search unavailable).
+func (s *Service) Search(ctx context.Context, q SearchQuery) ([]Hit, string, error) {
 	text := strings.TrimSpace(q.Text)
 	if text == "" || len(text) > 500 {
-		return nil, apperr.Validation(apperr.FieldError{Field: "q", Message: "must be 1-500 characters"})
+		return nil, "", apperr.Validation(apperr.FieldError{Field: "q", Message: "must be 1-500 characters"})
 	}
 	if q.Limit <= 0 || q.Limit > 100 {
 		q.Limit = 20
 	}
 	if _, err := s.db.GetProject(ctx, q.ProjectID); db.IsNotFound(err) {
-		return nil, apperr.NotFound("project not found")
+		return nil, "", apperr.NotFound("project not found")
 	} else if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	var hits []Hit
+	note := ""
 	if q.Kind == "" || q.Kind == "symbol" {
 		// A single identifier-like query is also a symbol lookup.
 		if !strings.ContainsAny(text, " \t") {
 			syms, err := s.Symbols(ctx, q.ProjectID, text, "", q.RepositoryID, min(q.Limit, 10))
 			if err != nil {
-				return nil, err
+				return nil, "", err
 			}
 			hits = append(hits, syms...)
 		}
@@ -106,12 +111,13 @@ func (s *Service) Search(ctx context.Context, q SearchQuery) ([]Hit, error) {
 			ProjectID: q.ProjectID, Query: queryText(text), RepositoryID: q.RepositoryID, Kind: kind, RowLimit: int32(q.Limit),
 		})
 		if err != nil {
-			return nil, err
+			return nil, "", err
 		}
+		var words []Hit
 		seen := map[string]bool{}
 		for _, r := range rows {
 			seen[r.ID.String()] = true
-			hits = append(hits, Hit{
+			words = append(words, Hit{id: r.ID.String(),
 				Kind: r.Kind, Repository: r.RepositoryName, RepositoryID: r.RepositoryID.String(), Path: r.Path, Language: r.Language,
 				StartLine: int(r.StartLine), EndLine: int(r.EndLine), Title: r.Heading, Snippet: snippet(r.Content, 600),
 				Score: r.Rank, Why: "all words match", IndexedSHA: deref(r.IndexedSha), Stale: stale(r.IndexedSha, r.HeadSha),
@@ -123,24 +129,35 @@ func (s *Service) Search(ctx context.Context, q SearchQuery) ([]Hit, error) {
 				ProjectID: q.ProjectID, Query: anyQ, RepositoryID: q.RepositoryID, Kind: kind, RowLimit: int32(q.Limit),
 			})
 			if err != nil {
-				return nil, err
+				return nil, "", err
 			}
 			for _, r := range more {
 				if seen[r.ID.String()] {
 					continue
 				}
-				hits = append(hits, Hit{
+				words = append(words, Hit{id: r.ID.String(),
 					Kind: r.Kind, Repository: r.RepositoryName, RepositoryID: r.RepositoryID.String(), Path: r.Path, Language: r.Language,
 					StartLine: int(r.StartLine), EndLine: int(r.EndLine), Title: r.Heading, Snippet: snippet(r.Content, 600),
 					Score: r.Rank, Why: "some words match", IndexedSHA: deref(r.IndexedSha), Stale: stale(r.IndexedSha, r.HeadSha),
 				})
 			}
 		}
+		// Meaning: fused with the keyword ranking (reciprocal-rank fusion).
+		sem, err := s.semantic(ctx, q, kind)
+		switch {
+		case err != nil:
+			note = "Semantic search is unavailable (" + err.Error() + "); showing keyword matches only."
+			hits = append(hits, words...)
+		case sem != nil:
+			hits = append(hits, fuse(q.Limit, words, sem)...)
+		default:
+			hits = append(hits, words...)
+		}
 	}
 	if len(hits) > q.Limit {
 		hits = hits[:q.Limit]
 	}
-	return hits, nil
+	return hits, note, nil
 }
 
 // Symbols finds symbols by name (exact, prefix, then fuzzy).

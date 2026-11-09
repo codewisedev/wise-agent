@@ -3,6 +3,7 @@ package modelgateway
 import (
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"sigs.k8s.io/yaml"
@@ -13,6 +14,26 @@ type Config struct {
 	Providers map[string]ProviderConfig `json:"providers"`
 	Aliases   map[string]AliasConfig    `json:"aliases"`
 	Cache     CacheConfig               `json:"cache"`
+	// Embedding turns on semantic search of the code index (and memory).
+	Embedding *EmbeddingConfig `json:"embedding,omitempty"`
+}
+
+// EmbeddingConfig picks the model that embeds code, docs and queries.
+type EmbeddingConfig struct {
+	Provider   string `json:"provider"` // built-in provider or model account (OpenAI-compatible)
+	Model      string `json:"model"`
+	Dimensions int    `json:"dimensions,omitempty"` // 0 = the model's default
+	BatchSize  int    `json:"batch_size,omitempty"`
+	// AllowCloud is the explicit consent to send code and docs to a cloud provider.
+	AllowCloud bool `json:"allow_cloud"`
+}
+
+// Key identifies vectors made with this configuration; changing it re-embeds everything.
+func (e *EmbeddingConfig) Key() string {
+	if e == nil {
+		return ""
+	}
+	return fmt.Sprintf("%s/%s@%d", e.Provider, e.Model, e.Dimensions)
 }
 
 type ProviderConfig struct {
@@ -127,6 +148,31 @@ func ParseModels(raw []byte, isAccount func(string) bool) (Config, error) {
 			p.Timeout = time.Duration(p.TimeoutS) * time.Second
 		}
 		cfg.Providers[name] = p
+	}
+	if e := cfg.Embedding; e != nil {
+		e.Provider, e.Model = strings.TrimSpace(e.Provider), strings.TrimSpace(e.Model)
+		switch {
+		case e.Provider == "" && e.Model == "":
+			cfg.Embedding = nil
+		case e.Model == "":
+			return cfg, fmt.Errorf("embedding: model is required (e.g. gemini-embedding-001 or text-embedding-3-small)")
+		case e.Dimensions != 0 && (e.Dimensions < 32 || e.Dimensions > 4096):
+			return cfg, fmt.Errorf("embedding: dimensions must be 32-4096 (or 0 for the model's default)")
+		case e.BatchSize < 0 || e.BatchSize > 256:
+			return cfg, fmt.Errorf("embedding: batch_size must be 1-256")
+		}
+		if cfg.Embedding != nil {
+			if e.BatchSize == 0 {
+				e.BatchSize = 32
+			}
+			if p, ok := cfg.Providers[e.Provider]; ok {
+				if p.Type != "openai-compatible" {
+					return cfg, fmt.Errorf("embedding: provider %q is not OpenAI-compatible", e.Provider)
+				}
+			} else if isAccount == nil || !isAccount(e.Provider) {
+				return cfg, fmt.Errorf("embedding: %q is neither a provider nor a model account", e.Provider)
+			}
+		}
 	}
 	for alias, a := range cfg.Aliases {
 		if len(a.Targets) == 0 {

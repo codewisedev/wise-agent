@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowDown, ArrowUp, Braces, History, Plus, RotateCcw, Save, Trash2 } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { api, unwrap, type Schemas } from "../api/client";
-import { ErrorNote, Field, Panel, relativeTime } from "../components/ui";
+import { Badge, ErrorNote, Field, Panel, relativeTime } from "../components/ui";
 
 type Setting = Schemas["Setting"];
 type Json = Record<string, unknown>;
@@ -12,7 +12,91 @@ type ModelsValue = {
   providers?: Record<string, { type: string; base_url?: string; api_key_env?: string; cloud?: boolean; timeout_s?: number; input_per_mtok?: number; output_per_mtok?: number }>;
   aliases?: Record<string, { description?: string; targets: { provider: string; model: string }[] }>;
   cache?: { enabled?: boolean; ttl_hours?: number };
+  embedding?: { provider: string; model: string; dimensions?: number; batch_size?: number; allow_cloud?: boolean };
 };
+
+function hostOf(url: string): string {
+  try {
+    return new URL(url).host;
+  } catch {
+    return url;
+  }
+}
+
+/** Embedding models that work with each kind of endpoint (any other model id can be typed). */
+function embeddingSuggestions(baseUrl: string): string[] {
+  if (baseUrl.includes("generativelanguage.googleapis.com")) return ["gemini-embedding-001", "text-embedding-004"];
+  if (baseUrl.includes("api.openai.com")) return ["text-embedding-3-small", "text-embedding-3-large"];
+  return ["text-embedding-nomic-embed-text-v1.5", "text-embedding-bge-m3", "text-embedding-3-small"];
+}
+
+function EmbeddingSection({ value, set, choices }: {
+  value: ModelsValue; set: (v: ModelsValue) => void;
+  choices: { name: string; baseUrl: string; cloud: boolean }[];
+}) {
+  const status = useQuery({
+    queryKey: ["embedding-status"], queryFn: () => unwrap(api.GET("/context/embeddings")),
+    refetchInterval: (q) => ((q.state.data?.pending ?? 0) > 0 ? 3000 : 15000),
+  });
+  const e = value.embedding;
+  const chosen = choices.find((c) => c.name === e?.provider);
+  const put = (patch: Partial<NonNullable<ModelsValue["embedding"]>>) =>
+    set({ ...value, embedding: { provider: e?.provider ?? choices[0]?.name ?? "", model: e?.model ?? "", dimensions: e?.dimensions ?? 768, ...e, ...patch } });
+  const st = status.data;
+  const total = (st?.embedded ?? 0) + (st?.pending ?? 0);
+  return (
+    <>
+      <h3>Embeddings (semantic search)</h3>
+      <p className="small faint">
+        Lets search and agents find code and docs by meaning, not only by words. Chunks of your repositories (and search
+        queries) are sent to this model; secret files are never sent.
+      </p>
+      {!e ? (
+        <button type="button" className="btn btn-sm" disabled={choices.length === 0} onClick={() => put({})}>
+          <Plus size={13} aria-hidden /> Turn on semantic search
+        </button>
+      ) : (
+        <div className="settings-group">
+          <div className="form-grid">
+            <Field label="Account or provider" hint="An OpenAI-compatible account: Google AI Studio, OpenAI, LM Studio…">
+              <select value={e.provider} onChange={(ev) => put({ provider: ev.target.value, allow_cloud: false })}>
+                {!chosen && <option value={e.provider}>{e.provider || "choose…"} (missing)</option>}
+                {choices.map((c) => <option key={c.name} value={c.name}>{c.name}{c.cloud ? " · cloud" : " · local"}</option>)}
+              </select>
+            </Field>
+            <Field label="Model" grow>
+              <input className="mono" list="embedding-models" value={e.model} onChange={(ev) => put({ model: ev.target.value })} placeholder="gemini-embedding-001" />
+              <datalist id="embedding-models">{embeddingSuggestions(chosen?.baseUrl ?? "").map((m) => <option key={m} value={m} />)}</datalist>
+            </Field>
+            <Field label="Dimensions" hint="0 = model default">
+              <input type="number" min={0} max={4096} value={e.dimensions ?? 0} onChange={(ev) => put({ dimensions: Number(ev.target.value) })} style={{ width: 110 }} />
+            </Field>
+          </div>
+          {chosen?.cloud && (
+            <label className="checkbox">
+              <input type="checkbox" checked={!!e.allow_cloud} onChange={(ev) => put({ allow_cloud: ev.target.checked })} />
+              <span>Allow sending code and docs from my repositories to <strong>{chosen.name}</strong> ({hostOf(chosen.baseUrl)})</span>
+            </label>
+          )}
+          <div className="actions" style={{ margin: 0 }}>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => { const next = { ...value }; delete next.embedding; set(next); }}>
+              <Trash2 size={13} aria-hidden /> Turn off
+            </button>
+          </div>
+          {st && st.configured && (
+            <p className="small" role="status">
+              {st.available
+                ? <><Badge tone="ok" dot={false}>on</Badge> {st.embedded} of {total} chunks embedded{st.pending > 0 ? " — working…" : ""}</>
+                : <><Badge tone="warn" dot={false}>paused</Badge> {st.problem}</>}
+              {st.lastError && <span className="error small"> Last error: {st.lastError}</span>}
+            </p>
+          )}
+          <p className="small faint">Changes apply after Save; switching model or dimensions re-embeds everything.</p>
+        </div>
+      )}
+    </>
+  );
+}
 type PolicyValue = { cloud_allowed_agents?: string[]; daily_budget_usd?: Record<string, number>; max_retries?: number };
 type WorkflowValue = { max_revisions?: number };
 type BoardValue = { columns: { name: string; role?: string; color?: string }[] };
@@ -226,6 +310,14 @@ function ModelsEditor({ value, set }: { value: ModelsValue; set: (v: ModelsValue
           <Plus size={13} aria-hidden /> Add provider
         </button>
       </div>
+
+      <EmbeddingSection
+        value={value} set={set}
+        choices={[
+          ...Object.entries(providers).filter(([, p]) => p.type === "openai-compatible").map(([n, p]) => ({ name: n, baseUrl: p.base_url ?? "", cloud: !!p.cloud })),
+          ...(accounts.data?.items.filter((a) => a.kind === "openai_compatible" && a.enabled).map((a) => ({ name: a.name, baseUrl: a.baseUrl, cloud: a.cloud })) ?? []),
+        ]}
+      />
 
       <h3>Response cache</h3>
       <div className="form-grid">

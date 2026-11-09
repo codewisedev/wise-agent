@@ -227,6 +227,8 @@ func serve(ctx context.Context) error {
 	go hub.ListenWorkflowEvents(ctx, d, log)
 	go integrationSvc.RunScheduler(ctx, time.Minute)
 	go indexSvc.RunScheduler(ctx)
+	indexSvc.SetEmbedder(gateway)
+	go indexSvc.RunEmbedder(ctx)
 
 	hs := &http.Server{
 		Addr:              cfg.HTTPAddr,

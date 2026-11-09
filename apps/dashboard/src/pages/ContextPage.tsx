@@ -78,6 +78,24 @@ function HitRow({ h, onOpen }: { h: Hit; onOpen: (h: Hit) => void }) {
   );
 }
 
+function EmbeddingBadge() {
+  const st = useQuery({ queryKey: ["embedding-status"], queryFn: () => unwrap(api.GET("/context/embeddings")), refetchInterval: 15000 });
+  if (!st.data) return null;
+  const d = st.data;
+  return (
+    <p className="small muted" role="status" style={{ marginTop: 0 }}>
+      Semantic search:{" "}
+      {d.available ? (
+        <><Badge tone="ok" dot={false}>on</Badge> {d.model}{d.pending > 0 ? ` · ${d.embedded} of ${d.embedded + d.pending} chunks embedded` : ""}</>
+      ) : d.configured ? (
+        <><Badge tone="warn" dot={false}>paused</Badge> {d.problem}</>
+      ) : (
+        <><Badge dot={false}>off</Badge> keyword search only — <Link to="/settings?tab=models">choose an embedding model</Link></>
+      )}
+    </p>
+  );
+}
+
 export function ContextPage() {
   const { projectId = "" } = useParams();
   const [params, setParams] = useSearchParams();
@@ -139,6 +157,7 @@ export function ContextPage() {
           </p>
         </div>
       </header>
+      <EmbeddingBadge />
       {repos.data && indexed.length === 0 && (
         <Empty icon={<ScanSearch size={24} aria-hidden />}>
           Nothing indexed yet. Use <strong>Index</strong> on a repository on the <Link to={`/projects/${projectId}`}>project page</Link>.

@@ -695,6 +695,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/context/embeddings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Whether semantic search is configured and running, and how far embedding has got. */
+        get: operations["getEmbeddingStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/projects/{projectId}/context/search": {
         parameters: {
             query?: never;
@@ -2363,6 +2380,24 @@ export interface components {
             };
             finalReport?: boolean;
             maxRevisions?: number;
+        };
+        EmbeddingStatus: {
+            configured: boolean;
+            /** @description Configured and able to run now. */
+            available: boolean;
+            provider?: string;
+            model?: string;
+            cloud: boolean;
+            allowCloud: boolean;
+            /** @description Why semantic search cannot run right now. */
+            problem?: string;
+            /** Format: int64 */
+            embedded: number;
+            /** Format: int64 */
+            pending: number;
+            lastError?: string;
+            /** Format: date-time */
+            lastRun?: string | null;
         };
         /** @enum {string} */
         ContextKind: "symbol" | "code" | "doc" | "config";
@@ -4251,6 +4286,27 @@ export interface operations {
             };
             401: components["responses"]["Problem"];
             404: components["responses"]["Problem"];
+        };
+    };
+    getEmbeddingStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Status. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmbeddingStatus"];
+                };
+            };
+            401: components["responses"]["Problem"];
         };
     };
     searchContext: {

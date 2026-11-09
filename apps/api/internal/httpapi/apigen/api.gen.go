@@ -1248,6 +1248,25 @@ type DependencyList struct {
 	Items []Dependency `json:"items"`
 }
 
+// EmbeddingStatus defines model for EmbeddingStatus.
+type EmbeddingStatus struct {
+	AllowCloud bool `json:"allowCloud"`
+
+	// Available Configured and able to run now.
+	Available  bool       `json:"available"`
+	Cloud      bool       `json:"cloud"`
+	Configured bool       `json:"configured"`
+	Embedded   int64      `json:"embedded"`
+	LastError  *string    `json:"lastError,omitempty"`
+	LastRun    *time.Time `json:"lastRun,omitempty"`
+	Model      *string    `json:"model,omitempty"`
+	Pending    int64      `json:"pending"`
+
+	// Problem Why semantic search cannot run right now.
+	Problem  *string `json:"problem,omitempty"`
+	Provider *string `json:"provider,omitempty"`
+}
+
 // FieldError defines model for FieldError.
 type FieldError struct {
 	Field   string `json:"field"`
@@ -2539,6 +2558,9 @@ type ServerInterface interface {
 	// (PUT /columns/{columnId})
 	UpdateColumn(w http.ResponseWriter, r *http.Request, columnId openapi_types.UUID)
 
+	// (GET /context/embeddings)
+	GetEmbeddingStatus(w http.ResponseWriter, r *http.Request)
+
 	// (GET /healthz)
 	GetHealth(w http.ResponseWriter, r *http.Request)
 
@@ -2948,6 +2970,11 @@ func (_ Unimplemented) DeleteColumn(w http.ResponseWriter, r *http.Request, colu
 
 // (PUT /columns/{columnId})
 func (_ Unimplemented) UpdateColumn(w http.ResponseWriter, r *http.Request, columnId openapi_types.UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (GET /context/embeddings)
+func (_ Unimplemented) GetEmbeddingStatus(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -4177,6 +4204,20 @@ func (siw *ServerInterfaceWrapper) UpdateColumn(w http.ResponseWriter, r *http.R
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.UpdateColumn(w, r, columnId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetEmbeddingStatus operation middleware
+func (siw *ServerInterfaceWrapper) GetEmbeddingStatus(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetEmbeddingStatus(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -6726,6 +6767,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 		r.Post(options.BaseURL+"/sprints/{sprintId}/complete", wrapper.CompleteSprint)
 	})
 	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/context/embeddings", wrapper.GetEmbeddingStatus)
+	})
+	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/projects/{projectId}/context/search", wrapper.SearchContext)
 	})
 	r.Group(func(r chi.Router) {
@@ -9025,6 +9069,43 @@ func (response UpdateColumn409ApplicationProblemPlusJSONResponse) VisitUpdateCol
 	}
 	w.Header().Set("Content-Type", "application/problem+json")
 	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetEmbeddingStatusRequestObject struct {
+}
+
+type GetEmbeddingStatusResponseObject interface {
+	VisitGetEmbeddingStatusResponse(w http.ResponseWriter) error
+}
+
+type GetEmbeddingStatus200JSONResponse EmbeddingStatus
+
+func (response GetEmbeddingStatus200JSONResponse) VisitGetEmbeddingStatusResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetEmbeddingStatus401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response GetEmbeddingStatus401ApplicationProblemPlusJSONResponse) VisitGetEmbeddingStatusResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
 	_, err := buf.WriteTo(w)
 	return err
 }
@@ -13861,6 +13942,9 @@ type StrictServerInterface interface {
 	// (PUT /columns/{columnId})
 	UpdateColumn(ctx context.Context, request UpdateColumnRequestObject) (UpdateColumnResponseObject, error)
 
+	// (GET /context/embeddings)
+	GetEmbeddingStatus(ctx context.Context, request GetEmbeddingStatusRequestObject) (GetEmbeddingStatusResponseObject, error)
+
 	// (GET /healthz)
 	GetHealth(ctx context.Context, request GetHealthRequestObject) (GetHealthResponseObject, error)
 
@@ -15077,6 +15161,30 @@ func (sh *strictHandler) UpdateColumn(w http.ResponseWriter, r *http.Request, co
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(UpdateColumnResponseObject); ok {
 		if err := validResponse.VisitUpdateColumnResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetEmbeddingStatus operation middleware
+func (sh *strictHandler) GetEmbeddingStatus(w http.ResponseWriter, r *http.Request) {
+	var request GetEmbeddingStatusRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetEmbeddingStatus(ctx, request.(GetEmbeddingStatusRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetEmbeddingStatus")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetEmbeddingStatusResponseObject); ok {
+		if err := validResponse.VisitGetEmbeddingStatusResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

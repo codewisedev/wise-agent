@@ -840,6 +840,18 @@ paths:
         "204": { description: Completed. }
         "401": { $ref: "#/components/responses/Problem" }
         "404": { $ref: "#/components/responses/Problem" }
+  /context/embeddings:
+    get:
+      tags: [context]
+      operationId: getEmbeddingStatus
+      description: Whether semantic search is configured and running, and how far embedding has got.
+      responses:
+        "200":
+          description: Status.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EmbeddingStatus" }
+        "401": { $ref: "#/components/responses/Problem" }
   /projects/{projectId}/context/search:
     parameters:
       - $ref: "#/components/parameters/ProjectId"
@@ -2780,6 +2792,21 @@ components:
             column: { $ref: "#/components/schemas/ColumnRole" }
         finalReport: { type: boolean }
         maxRevisions: { type: integer, minimum: 0, maximum: 50 }
+    EmbeddingStatus:
+      type: object
+      required: [configured, available, cloud, allowCloud, embedded, pending]
+      properties:
+        configured: { type: boolean }
+        available: { type: boolean, description: Configured and able to run now. }
+        provider: { type: string }
+        model: { type: string }
+        cloud: { type: boolean }
+        allowCloud: { type: boolean }
+        problem: { type: string, description: Why semantic search cannot run right now. }
+        embedded: { type: integer, format: int64 }
+        pending: { type: integer, format: int64 }
+        lastError: { type: string }
+        lastRun: { type: string, format: date-time, nullable: true }
     ContextKind:
       type: string
       enum: [symbol, code, doc, config]

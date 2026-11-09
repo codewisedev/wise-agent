@@ -107,6 +107,7 @@ func setup(t *testing.T) *env {
 	settingsSvc := settings.NewService(d, log)
 	repoSvc := repositories.NewService(d, gitinspect.New([]string{root}))
 	indexSvc := codeindex.NewService(d, repoSvc, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	indexSvc.SetEmbedder(gw)
 	settings.RegisterIndexing(settingsSvc, filepath.Join("..", "..", "..", "..", "configs", "indexing", "defaults.yaml"), indexSvc)
 	settings.RegisterDefaults(settingsSvc, testSettingFiles(t), gw, accountSvc, taskSvc)
 	if err := settingsSvc.Start(context.Background()); err != nil {

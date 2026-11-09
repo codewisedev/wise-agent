@@ -133,12 +133,18 @@ func (s *Server) runProject(ctx context.Context, repoName *string) (uuid.UUID, *
 	return uuid.Nil, nil, apperr.Validation(apperr.FieldError{Field: "repository", Message: "no repository with that name in this project"})
 }
 
-func toHits(h []codeindex.Hit) apigen.ContextHits {
+func toHits(h []codeindex.Hit, notes ...string) apigen.ContextHits {
 	items := reshape[[]apigen.ContextHit](h)
 	if items == nil {
 		items = []apigen.ContextHit{}
 	}
 	out := apigen.ContextHits{Items: items}
+	for _, n := range notes {
+		if n != "" {
+			out.Note = &n
+			return out
+		}
+	}
 	if len(h) == 0 {
 		note := "No matches in the index. Try other words, find_symbol, or search_code for exact text."
 		out.Note = &note
@@ -178,11 +184,11 @@ func (s *Server) RuntimeContextSearch(ctx context.Context, req apigen.RuntimeCon
 	if req.Params.Limit != nil {
 		limit = *req.Params.Limit
 	}
-	hits, err := s.Index.Search(ctx, codeindex.SearchQuery{ProjectID: pid, Text: req.Params.Q, Kind: kindOf(req.Params.Kind), RepositoryID: repo, Limit: limit})
+	hits, note, err := s.Index.Search(ctx, codeindex.SearchQuery{ProjectID: pid, Text: req.Params.Q, Kind: kindOf(req.Params.Kind), RepositoryID: repo, Limit: limit})
 	if err != nil {
 		return nil, err
 	}
-	return apigen.RuntimeContextSearch200JSONResponse(toHits(hits)), nil
+	return apigen.RuntimeContextSearch200JSONResponse(toHits(hits, note)), nil
 }
 
 func (s *Server) RuntimeContextSymbols(ctx context.Context, req apigen.RuntimeContextSymbolsRequestObject) (apigen.RuntimeContextSymbolsResponseObject, error) {
@@ -216,12 +222,12 @@ func (s *Server) SearchContext(ctx context.Context, req apigen.SearchContextRequ
 	if req.Params.Limit != nil {
 		limit = *req.Params.Limit
 	}
-	hits, err := s.Index.Search(ctx, codeindex.SearchQuery{ProjectID: req.ProjectId, Text: req.Params.Q, Kind: kindOf(req.Params.Kind),
+	hits, note, err := s.Index.Search(ctx, codeindex.SearchQuery{ProjectID: req.ProjectId, Text: req.Params.Q, Kind: kindOf(req.Params.Kind),
 		RepositoryID: req.Params.RepositoryId, Limit: limit})
 	if err != nil {
 		return nil, err
 	}
-	return apigen.SearchContext200JSONResponse(toHits(hits)), nil
+	return apigen.SearchContext200JSONResponse(toHits(hits, note)), nil
 }
 
 func (s *Server) ListContextSymbols(ctx context.Context, req apigen.ListContextSymbolsRequestObject) (apigen.ListContextSymbolsResponseObject, error) {
@@ -273,4 +279,28 @@ func (s *Server) ReadRepositoryFile(ctx context.Context, req apigen.ReadReposito
 		return nil, err
 	}
 	return apigen.ReadRepositoryFile200JSONResponse{Path: req.Params.Path, Content: string(content), Lines: lines, Truncated: truncated, HeadSha: repo.HeadSha}, nil
+}
+
+func (s *Server) GetEmbeddingStatus(ctx context.Context, _ apigen.GetEmbeddingStatusRequestObject) (apigen.GetEmbeddingStatusResponseObject, error) {
+	st, err := s.Index.EmbeddingStatus(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := apigen.GetEmbeddingStatus200JSONResponse{
+		Configured: st.Info.Configured, Available: st.Info.Available, Cloud: st.Info.Cloud, AllowCloud: st.Info.AllowCloud,
+		Embedded: st.Embedded, Pending: st.Pending,
+	}
+	if st.Info.Provider != "" {
+		out.Provider, out.Model = &st.Info.Provider, &st.Info.Model
+	}
+	if st.Info.Problem != "" {
+		out.Problem = &st.Info.Problem
+	}
+	if st.LastError != "" {
+		out.LastError = &st.LastError
+	}
+	if !st.LastRun.IsZero() {
+		out.LastRun = &st.LastRun
+	}
+	return out, nil
 }

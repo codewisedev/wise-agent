@@ -54,6 +54,24 @@ func (q *Queries) ClaimIndexJob(ctx context.Context, arg ClaimIndexJobParams) (I
 	return i, err
 }
 
+const countEmbeddings = `-- name: CountEmbeddings :one
+SELECT count(*) FILTER (WHERE embedding_model = $1::text) AS embedded,
+       count(*) FILTER (WHERE embedding_model IS DISTINCT FROM $1::text) AS pending
+FROM code_chunks
+`
+
+type CountEmbeddingsRow struct {
+	Embedded int64
+	Pending  int64
+}
+
+func (q *Queries) CountEmbeddings(ctx context.Context, model string) (CountEmbeddingsRow, error) {
+	row := q.db.QueryRow(ctx, countEmbeddings, model)
+	var i CountEmbeddingsRow
+	err := row.Scan(&i.Embedded, &i.Pending)
+	return i, err
+}
+
 const countIndex = `-- name: CountIndex :one
 SELECT
     (SELECT count(*) FROM code_files f WHERE f.repository_id = $1 AND f.skipped_reason IS NULL) AS files,
@@ -489,6 +507,54 @@ func (q *Queries) ListReposNeedingIndex(ctx context.Context) ([]uuid.UUID, error
 	return items, nil
 }
 
+const pendingEmbeddingChunks = `-- name: PendingEmbeddingChunks :many
+SELECT c.id, c.heading, c.content, c.content_hash, f.path
+FROM code_chunks c JOIN code_files f ON f.id = c.file_id
+WHERE c.embedding_model IS DISTINCT FROM $1::text
+ORDER BY c.id
+LIMIT $2
+`
+
+type PendingEmbeddingChunksParams struct {
+	Model    string
+	RowLimit int32
+}
+
+type PendingEmbeddingChunksRow struct {
+	ID          uuid.UUID
+	Heading     string
+	Content     string
+	ContentHash string
+	Path        string
+}
+
+// Chunks without a vector from the current embedding model.
+func (q *Queries) PendingEmbeddingChunks(ctx context.Context, arg PendingEmbeddingChunksParams) ([]PendingEmbeddingChunksRow, error) {
+	rows, err := q.db.Query(ctx, pendingEmbeddingChunks, arg.Model, arg.RowLimit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []PendingEmbeddingChunksRow{}
+	for rows.Next() {
+		var i PendingEmbeddingChunksRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Heading,
+			&i.Content,
+			&i.ContentHash,
+			&i.Path,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const queueIndexJob = `-- name: QueueIndexJob :one
 INSERT INTO index_jobs (id, repository_id, reason)
 VALUES ($1, $2, $3)
@@ -780,6 +846,111 @@ func (q *Queries) SearchSymbols(ctx context.Context, arg SearchSymbolsParams) ([
 		return nil, err
 	}
 	return items, nil
+}
+
+const semanticChunks = `-- name: SemanticChunks :many
+SELECT c.id, c.kind, c.start_line, c.end_line, c.heading, c.content,
+       f.path, f.language, r.id AS repository_id, r.name AS repository_name,
+       r.indexed_sha, r.head_sha,
+       (c.embedding <=> $1::text::vector)::float8 AS distance
+FROM code_chunks c
+JOIN code_files f ON f.id = c.file_id
+JOIN repositories r ON r.id = c.repository_id
+WHERE r.project_id = $2
+  AND c.embedding_model = $3::text
+  AND ($4::uuid IS NULL OR r.id = $4)
+  AND ($5::text IS NULL OR c.kind = $5)
+ORDER BY distance
+LIMIT $6
+`
+
+type SemanticChunksParams struct {
+	Vec          string
+	ProjectID    uuid.UUID
+	Model        string
+	RepositoryID *uuid.UUID
+	Kind         *string
+	RowLimit     int32
+}
+
+type SemanticChunksRow struct {
+	ID             uuid.UUID
+	Kind           string
+	StartLine      int32
+	EndLine        int32
+	Heading        string
+	Content        string
+	Path           string
+	Language       string
+	RepositoryID   uuid.UUID
+	RepositoryName string
+	IndexedSha     *string
+	HeadSha        *string
+	Distance       float64
+}
+
+func (q *Queries) SemanticChunks(ctx context.Context, arg SemanticChunksParams) ([]SemanticChunksRow, error) {
+	rows, err := q.db.Query(ctx, semanticChunks,
+		arg.Vec,
+		arg.ProjectID,
+		arg.Model,
+		arg.RepositoryID,
+		arg.Kind,
+		arg.RowLimit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SemanticChunksRow{}
+	for rows.Next() {
+		var i SemanticChunksRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Kind,
+			&i.StartLine,
+			&i.EndLine,
+			&i.Heading,
+			&i.Content,
+			&i.Path,
+			&i.Language,
+			&i.RepositoryID,
+			&i.RepositoryName,
+			&i.IndexedSha,
+			&i.HeadSha,
+			&i.Distance,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const setChunkEmbedding = `-- name: SetChunkEmbedding :exec
+UPDATE code_chunks SET embedding = $1::text::vector, embedding_model = $2, embedded_at = now()
+WHERE id = $3 AND content_hash = $4
+`
+
+type SetChunkEmbeddingParams struct {
+	Vec         string
+	Model       *string
+	ID          uuid.UUID
+	ContentHash string
+}
+
+// Skipped when the chunk was replaced meanwhile (content hash changed).
+func (q *Queries) SetChunkEmbedding(ctx context.Context, arg SetChunkEmbeddingParams) error {
+	_, err := q.db.Exec(ctx, setChunkEmbedding,
+		arg.Vec,
+		arg.Model,
+		arg.ID,
+		arg.ContentHash,
+	)
+	return err
 }
 
 const setRepositoryIndexed = `-- name: SetRepositoryIndexed :exec

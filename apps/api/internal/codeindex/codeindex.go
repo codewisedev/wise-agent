@@ -93,6 +93,9 @@ type Service struct {
 
 	mu       sync.RWMutex
 	settings Settings
+
+	emb        Embedder
+	embedState embedState
 }
 
 func NewService(d *db.DB, repos *repositories.Service, log *slog.Logger) *Service {

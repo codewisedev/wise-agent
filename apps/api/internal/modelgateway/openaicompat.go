@@ -199,3 +199,45 @@ func truncate(s string, n int) string {
 	}
 	return s[:n] + "…"
 }
+
+// Embed returns one vector per text (OpenAI-compatible /embeddings: Google AI
+// Studio, OpenAI, LM Studio…).
+func (p *OpenAICompat) Embed(ctx context.Context, model string, dims int, texts []string) ([][]float32, Usage, float64, error) {
+	body := map[string]any{"model": model, "input": texts}
+	if dims > 0 {
+		body["dimensions"] = dims
+	}
+	var out struct {
+		Data []struct {
+			Index     int       `json:"index"`
+			Embedding []float32 `json:"embedding"`
+		} `json:"data"`
+		Usage struct {
+			PromptTokens int64 `json:"prompt_tokens"`
+		} `json:"usage"`
+	}
+	if err := p.do(ctx, http.MethodPost, "/embeddings", body, &out); err != nil {
+		return nil, Usage{}, 0, err
+	}
+	if len(out.Data) != len(texts) {
+		return nil, Usage{}, 0, &ProviderError{Err: fmt.Errorf("embeddings: got %d vectors for %d texts", len(out.Data), len(texts))}
+	}
+	vecs := make([][]float32, len(texts))
+	for i, d := range out.Data {
+		idx := d.Index
+		if idx < 0 || idx >= len(texts) || vecs[idx] != nil {
+			idx = i
+		}
+		if len(d.Embedding) == 0 {
+			return nil, Usage{}, 0, &ProviderError{Err: errors.New("embeddings: empty vector")}
+		}
+		vecs[idx] = d.Embedding
+	}
+	for _, v := range vecs {
+		if v == nil {
+			return nil, Usage{}, 0, &ProviderError{Err: errors.New("embeddings: response indexes do not cover every input")}
+		}
+	}
+	u := Usage{InputTokens: out.Usage.PromptTokens}
+	return vecs, u, price(p.cfg, u), nil
+}
