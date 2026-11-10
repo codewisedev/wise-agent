@@ -3,7 +3,7 @@ import {
   type Edge, type EdgeProps, type Node, type NodeProps,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { AlertTriangle, ArrowLeft, ArrowRight, Bot, Diamond, FileText, Flag, FolderGit2, GitBranch, Inbox, KeyRound, ListChecks, Plus, ShieldCheck, Trash2 } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ArrowRight, Bot, Diamond, FileText, Flag, FolderGit2, GitBranch, Inbox, KeyRound, ListChecks, Plus, ShieldCheck, TerminalSquare, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import type { Schemas } from "../api/client";
 import { useTheme } from "../theme";
@@ -21,6 +21,7 @@ export interface StepView {
   account?: string;
   model?: string;
   review: boolean;
+  runtime?: string; // claude-code | codex; undefined = native
 }
 
 type StepType = Schemas["StepType"];
@@ -38,7 +39,10 @@ const COLUMN_LABEL: Record<string, string> = { backlog: "Backlog", todo: "To do"
 
 export const viewOf = (s: TemplateStep): StepView => ({
   enabled: s.enabled ?? true, account: s.account || undefined, model: s.model || undefined, review: s.review ?? false,
+  runtime: s.runtime && s.runtime !== "native" ? s.runtime : undefined,
 });
+
+export const RUNTIME_LABEL: Record<string, string> = { "claude-code": "Claude Code", codex: "Codex" };
 
 type StepData = { step: TemplateStep; view: StepView; issues: string[]; selected: boolean; agent?: Agent; onSelect: () => void };
 type EndData = { icon: ReactNode; title: string; sub?: string };
@@ -59,7 +63,10 @@ function StepNode({ data }: NodeProps<Node<StepData>>) {
       {typeOf(step) === "agent" ? (
         <>
           <span className="flow-step-agent mono"><Bot size={11} aria-hidden />{step.agent}</span>
-          <span className="flow-step-acct mono"><KeyRound size={11} aria-hidden />{view.account ? `${view.account}${view.model ? ` · ${view.model}` : ""}` : "default routing"}</span>
+          <span className="flow-step-acct mono">
+            {view.runtime ? <><TerminalSquare size={11} aria-hidden />{RUNTIME_LABEL[view.runtime] ?? view.runtime}</>
+              : <><KeyRound size={11} aria-hidden />{view.account ? `${view.account}${view.model ? ` · ${view.model}` : ""}` : "default routing"}</>}
+          </span>
           {agent?.produces && <span className="flow-step-kind">→ {label(agent.produces)}</span>}
         </>
       ) : (
@@ -264,7 +271,8 @@ export function StepInspector({
   const setV = (patch: Partial<StepView>) => {
     if (mode === "task") onViewChange?.({ ...v, ...patch });
     else onChange?.({ ...step, ...("enabled" in patch ? { enabled: patch.enabled } : {}), ...("account" in patch ? { account: patch.account || undefined } : {}),
-      ...("model" in patch ? { model: patch.model || undefined } : {}), ...("review" in patch ? { review: patch.review } : {}) });
+      ...("model" in patch ? { model: patch.model || undefined } : {}), ...("review" in patch ? { review: patch.review } : {}),
+      ...("runtime" in patch ? { runtime: (patch.runtime || undefined) as TemplateStep["runtime"] } : {}) });
   };
 
   return (
@@ -335,8 +343,17 @@ export function StepInspector({
         <input type="checkbox" checked={v.enabled} onChange={(e) => setV({ enabled: e.target.checked })} />
         <span>Run this step</span>
       </label>
+      {type === "agent" && agent?.produces === "implementation" && (
+        <Field label="Runtime" hint="Wise's own agent, or an external coding CLI the project allows (Project → Coding runtimes)">
+          <select value={v.runtime ?? ""} onChange={(e) => setV({ runtime: e.target.value || undefined })}>
+            <option value="">Wise (native)</option>
+            <option value="claude-code">Claude Code</option>
+            <option value="codex">Codex</option>
+          </select>
+        </Field>
+      )}
       {type === "agent" && (
-        <Field label="Account" hint="Who runs the step; default = the agent's model alias with fallbacks">
+        <Field label="Account" hint={v.runtime ? "The runtime's credential account; empty = Settings → Coding runtimes" : "Who runs the step; default = the agent's model alias with fallbacks"}>
           <AccountSelect value={v.account ?? ""} onChange={(a) => setV({ account: a, ...(a ? {} : { model: "" }) })} defaultLabel="default routing" />
         </Field>
       )}

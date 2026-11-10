@@ -536,7 +536,84 @@ function ExecutionEditor({ value, set }: { value: ExecutionValue; set: (v: Execu
   );
 }
 
+type RuntimeValue = {
+  enabled: boolean; model: string; tools?: string[]; sandbox?: string;
+  credential: { mode: "proxy" | "subscription"; account: string };
+  prices: { input_per_mtok: number; output_per_mtok: number };
+  limits: { wall_clock_s: number; idle_s: number; max_turns: number; max_cost_usd: number };
+};
+type CodingValue = { runtimes: Record<string, RuntimeValue> };
+
+const RUNTIMES: { id: string; label: string; proxyKind: string; subKind: string }[] = [
+  { id: "claude-code", label: "Claude Code", proxyKind: "an Anthropic API-key account", subKind: "a Claude Code account, or empty = the token in .env" },
+  { id: "codex", label: "Codex", proxyKind: "an OpenAI-compatible account for api.openai.com", subKind: "a Codex account (auth.json)" },
+];
+
+function CodingEditor({ value, set }: { value: CodingValue; set: (v: CodingValue) => void }) {
+  const put = (id: string, r: RuntimeValue) => set({ ...value, runtimes: { ...value.runtimes, [id]: r } });
+  return (
+    <div className="settings-form">
+      <p className="small muted" style={{ marginTop: 0 }}>
+        Implementing steps can run on an external coding CLI instead of Wise's own agent. It works in the task's runner (the same
+        sandbox rules) and Wise still checks, reviews and gates its change. Each project chooses the runtimes it allows.
+      </p>
+      {RUNTIMES.map((rt) => {
+        const r = value.runtimes[rt.id];
+        if (!r) return null;
+        const lim = (k: keyof RuntimeValue["limits"]) => (e: React.ChangeEvent<HTMLInputElement>) => put(rt.id, { ...r, limits: { ...r.limits, [k]: Number(e.target.value) } });
+        return (
+          <section key={rt.id} aria-label={rt.label}>
+            <h3>{rt.label}</h3>
+            <label className="checkbox"><input type="checkbox" checked={r.enabled} onChange={(e) => put(rt.id, { ...r, enabled: e.target.checked })} /> Available</label>
+            <div className="form-grid">
+              <Field label="Model" hint="Empty = the CLI's default">
+                <input className="mono" value={r.model} onChange={(e) => put(rt.id, { ...r, model: e.target.value })} />
+              </Field>
+              <Field label="Credential">
+                <select value={r.credential.mode} onChange={(e) => put(rt.id, { ...r, credential: { ...r.credential, mode: e.target.value as RuntimeValue["credential"]["mode"] } })}>
+                  <option value="proxy">Runtime Proxy (API key never enters the sandbox)</option>
+                  <option value="subscription">Subscription (reduced isolation)</option>
+                </select>
+              </Field>
+              <Field label="Account" hint={r.credential.mode === "proxy" ? rt.proxyKind : rt.subKind}>
+                <input className="mono" value={r.credential.account} onChange={(e) => put(rt.id, { ...r, credential: { ...r.credential, account: e.target.value } })} />
+              </Field>
+              {rt.id === "codex" && (
+                <Field label="Sandbox" hint="danger-full-access: Wise's container is the sandbox">
+                  <select value={r.sandbox || "danger-full-access"} onChange={(e) => put(rt.id, { ...r, sandbox: e.target.value })}>
+                    <option value="danger-full-access">Container only</option>
+                    <option value="workspace-write">Codex sandbox too</option>
+                  </select>
+                </Field>
+              )}
+            </div>
+            {r.credential.mode === "subscription" && (
+              <p className="small warn-text" role="note">
+                Subscription mode: the vendor token is inside the runner, so any command it runs (including repository scripts) can read it,
+                and Wise cannot stop a run mid-way on cost{rt.id === "claude-code" ? " (Claude Code enforces the cost limit itself)" : " (only turn and time limits apply)"}.
+              </p>
+            )}
+            <div className="form-grid">
+              <Field label="Wall clock (s)"><input type="number" min={60} max={21600} value={r.limits.wall_clock_s} onChange={lim("wall_clock_s")} /></Field>
+              <Field label="Idle (s)"><input type="number" min={30} value={r.limits.idle_s} onChange={lim("idle_s")} /></Field>
+              <Field label="Max turns"><input type="number" min={1} max={500} value={r.limits.max_turns} onChange={lim("max_turns")} /></Field>
+              <Field label="Max cost per run (USD)"><input type="number" min={0} max={500} step={0.5} value={r.limits.max_cost_usd} onChange={lim("max_cost_usd")} /></Field>
+              <Field label="Input price / M tokens" hint="Proxy-mode accounting">
+                <input type="number" min={0} step={0.05} value={r.prices.input_per_mtok} onChange={(e) => put(rt.id, { ...r, prices: { ...r.prices, input_per_mtok: Number(e.target.value) } })} />
+              </Field>
+              <Field label="Output price / M tokens">
+                <input type="number" min={0} step={0.05} value={r.prices.output_per_mtok} onChange={(e) => put(rt.id, { ...r, prices: { ...r.prices, output_per_mtok: Number(e.target.value) } })} />
+              </Field>
+            </div>
+          </section>
+        );
+      })}
+    </div>
+  );
+}
+
 const EDITORS: Record<string, (v: any, set: (v: any) => void) => ReactNode> = {
+  coding_runtimes: (v, set) => <CodingEditor value={v as CodingValue} set={set} />,
   execution: (v, set) => <ExecutionEditor value={v as ExecutionValue} set={set} />,
   models: (v, set) => <ModelsEditor value={v as ModelsValue} set={set} />,
   model_policy: (v, set) => <PolicyEditor value={v as PolicyValue} set={set} />,

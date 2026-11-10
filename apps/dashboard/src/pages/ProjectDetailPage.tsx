@@ -8,6 +8,7 @@ import {
 } from "../components/ui";
 import { SourcesPanel } from "./IntegrationsPage";
 import { RepoExecutionEditor } from "../components/RepoExecution";
+import { CodingRuntimesPanel } from "../components/CodingRuntimesPanel";
 import { projectsKey } from "./ProjectsPage";
 
 const ROLES: Schemas["RepositoryRole"][] = [
@@ -143,6 +144,7 @@ export function ProjectDetailPage() {
 
       <RelationshipsPanel projectId={projectId} repos={repoList} readOnly={readOnly} />
       <ResourcesPanel projectId={projectId} readOnly={readOnly} />
+      <CodingRuntimesPanel projectId={projectId} readOnly={readOnly} />
       {!readOnly && <SourcesPanel projectId={projectId} adding={addingSource} setAdding={setAddingSource} />}
     </>
   );

@@ -26,6 +26,7 @@ const TABS = [
   { id: "indexing", label: "Indexing" },
   { id: "memory", label: "Memory" },
   { id: "execution", label: "Execution" },
+  { id: "coding", label: "Coding runtimes" },
 ] as const;
 
 export function SettingsPage() {
@@ -94,6 +95,7 @@ export function SettingsPage() {
       {tab === "indexing" && <SettingsPanels only={["indexing"]} />}
       {tab === "memory" && <SettingsPanels only={["memory"]} />}
       {tab === "execution" && <SettingsPanels only={["execution"]} />}
+      {tab === "coding" && <SettingsPanels only={["coding_runtimes"]} />}
 
       {tab === "general" && (
       <>

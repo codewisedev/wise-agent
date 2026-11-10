@@ -63,6 +63,7 @@ export function TaskWorkflowPanel({ taskId, canRun, task }: { taskId: string; ca
     views[st.id] = {
       enabled: o.enabled ?? base.enabled, review: o.review ?? base.review,
       account: (o.account ?? base.account) || undefined, model: (o.model ?? base.model) || undefined,
+      runtime: (o.runtime !== undefined ? (o.runtime === "native" ? undefined : o.runtime) : base.runtime) || undefined,
     };
   }
   const selIdx = tmpl.definition.steps.findIndex((s) => s.id === selected);
@@ -104,6 +105,7 @@ export function TaskWorkflowPanel({ taskId, canRun, task }: { taskId: string; ca
               if ((v.account ?? "") !== (base.account ?? "")) o.account = v.account ?? "";
               if ((v.model ?? "") !== (base.model ?? "")) o.model = v.model ?? "";
               if (v.review !== base.review) o.review = v.review;
+              if ((v.runtime ?? "") !== (base.runtime ?? "")) o.runtime = (v.runtime ?? "native") as Override["runtime"];
               setSteps((cur) => ({ ...cur, [st.id]: o }));
               setDirty(true);
             }}

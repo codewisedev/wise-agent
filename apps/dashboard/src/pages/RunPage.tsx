@@ -64,6 +64,18 @@ function describe(ev: AgentEvent): { icon: ReactNode; title: ReactNode; tone?: s
           <details><summary>output</summary><Json value={p.output} label="tool output" maxHeight={300} /></details>
         ) : undefined,
       };
+    case "external.started":
+      return {
+        icon: <Cpu size={14} />, tone: p.reducedIsolation ? "warn" : undefined,
+        title: <>running on <code className="chip">{str(p.runtime)}</code> {str(p.cliVersion)} · {p.mode === "proxy" ? "Runtime Proxy" : "subscription"}
+          {p.reducedIsolation ? <> <Badge tone="warn" dot={false}>reduced isolation</Badge></> : null}</>,
+      };
+    case "file.changed":
+      return { icon: <Wrench size={14} />, title: <>changed <span className="mono small">{str(p.path)}</span></> };
+    case "agent.warning":
+      return { icon: <AlertTriangle size={14} />, tone: "warn", title: <>{str(p.text)}</> };
+    case "external.finished":
+      return { icon: <Cpu size={14} />, tone: p.ok ? "ok" : "bad", title: <>{p.ok ? "runtime finished" : "runtime failed"}{p.text ? <> — {str(p.text).slice(0, 300)}</> : null}</> };
     case "output.invalid":
       return {
         icon: <AlertTriangle size={14} />,
