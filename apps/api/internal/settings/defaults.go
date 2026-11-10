@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"wise/apps/api/internal/codeindex"
 	"wise/apps/api/internal/memory"
+	"wise/apps/api/internal/workspaces"
 
 	"wise/apps/api/internal/accounts"
 	"wise/apps/api/internal/modelgateway"
@@ -135,6 +136,29 @@ func RegisterMemory(s *Service, file string, mem *memory.Service) {
 			st, err := memory.ParseSettings(v)
 			if err == nil {
 				mem.SetSettings(st)
+			}
+			return err
+		},
+	})
+}
+
+// RegisterExecution declares the "execution" setting (sandboxes, egress, fix rounds).
+func RegisterExecution(s *Service, file string, ws *workspaces.Service) {
+	s.Register(Def{
+		Key: "execution", Title: "Execution",
+		Description: "Task sandboxes: resource limits, the hosts they may reach (package registries; private addresses are always refused), command and setup timeouts, how much command output agents see, how long finished workspaces are kept, quality-gate fix rounds, branch names and the commit author.",
+		Default:     FileDefault(file),
+		Validate: func(_ context.Context, v json.RawMessage) (json.RawMessage, error) {
+			st, err := workspaces.ParseSettings(v)
+			if err != nil {
+				return nil, err
+			}
+			return json.Marshal(st)
+		},
+		Apply: func(ctx context.Context, v json.RawMessage) error {
+			st, err := workspaces.ParseSettings(v)
+			if err == nil {
+				err = ws.SetSettings(ctx, st)
 			}
 			return err
 		},

@@ -27,6 +27,9 @@ x-api-env: &api-env
   # Claude Code / Codex calls run in the isolated CLI runner.
   WISE_CLI_RUNNER_URL: http://wise-cli-runner:8090
   WISE_CLI_RUNNER_TOKEN: ${WISE_CLI_RUNNER_TOKEN:?set WISE_CLI_RUNNER_TOKEN in .env}
+  # Task workspaces and sandboxes run in the executor.
+  WISE_EXECUTOR_URL: http://wise-executor:8091
+  WISE_EXECUTOR_TOKEN: ${WISE_EXECUTOR_TOKEN:?set WISE_EXECUTOR_TOKEN in .env}
 
 x-hardened: &hardened
   read_only: true
@@ -84,7 +87,7 @@ services:
       - "host.docker.internal:host-gateway"
     ports:
       - "127.0.0.1:8080:8080"
-    networks: [data, edge, runtime, cli]
+    networks: [data, edge, runtime, cli, exec]
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/api/v1/readyz"]
       interval: 10s
@@ -200,15 +203,122 @@ services:
       WISE_LOG_LEVEL: ${WISE_LOG_LEVEL:-info}
       WISE_TEMPORAL_ADDRESS: temporal:7233
       WISE_TEMPORAL_NAMESPACE: wise
+      WISE_EXECUTOR_URL: http://wise-executor:8091
+      WISE_EXECUTOR_TOKEN: ${WISE_EXECUTOR_TOKEN:?set WISE_EXECUTOR_TOKEN in .env}
     user: "${WISE_UID:-1000}:${WISE_GID:-1000}"
     <<: *hardened
     tmpfs: [/tmp]
     volumes:
       - ./configs:/app/configs:ro
-    networks: [workflow]
+    networks: [workflow, exec]
     deploy:
       resources:
         limits: { cpus: "0.5", memory: 256M }
+
+  # The executor's only access to Docker: a filtering proxy (containers, exec,
+  # images, networks). It limits API endpoints, not container parameters, so
+  # the executor itself is trusted code that builds every sandbox from a
+  # fixed template (docs/decisions/0007-engineering-pipeline.md).
+  wise-docker-proxy:
+    image: tecnativa/docker-socket-proxy:v0.4.1
+    restart: unless-stopped
+    environment:
+      CONTAINERS: 1
+      EXEC: 1
+      IMAGES: 1
+      NETWORKS: 1
+      POST: 1
+      PING: 1
+      VERSION: 1
+      EVENTS: 0
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    read_only: true
+    tmpfs: [/run, /tmp, /var/lib/haproxy]
+    networks: [docker]
+    deploy:
+      resources:
+        limits: { cpus: "0.25", memory: 64M }
+
+  # Makes the workspaces volume writable by the host user (runs once).
+  wise-workspaces-init:
+    image: alpine:3.23
+    command: ["chown", "${WISE_UID:-1000}:${WISE_GID:-1000}", "/workspaces"]
+    restart: "no"
+    volumes:
+      - wise-workspaces:/workspaces
+    network_mode: none
+
+  # Trusted execution worker: clones task workspaces, runs sandboxes and
+  # delivers approved branches. The only service that can write to
+  # repositories (only to add wise/… branches) and start containers.
+  wise-executor:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+      network: host
+      args:
+        GOPROXY: ${GOPROXY:-https://proxy.golang.org,direct}
+        INSTALL_CLAUDE_CODE: "false"
+        APK_MIRROR: ${APK_MIRROR:-}
+    command: ["executor"]
+    restart: unless-stopped
+    depends_on:
+      wise-docker-proxy:
+        condition: service_started
+      wise-workspaces-init:
+        condition: service_completed_successfully
+    environment:
+      WISE_EXECUTOR_TOKEN: ${WISE_EXECUTOR_TOKEN:?set WISE_EXECUTOR_TOKEN in .env}
+      WISE_EGRESS_TOKEN: ${WISE_EGRESS_TOKEN:?set WISE_EGRESS_TOKEN in .env}
+      WISE_REPO_ROOTS: ${WISE_REPO_ROOT}
+      WISE_DOCKER_HOST: tcp://wise-docker-proxy:2375
+      WISE_WORKSPACES_VOLUME: wise-workspaces
+      WISE_SANDBOX_USER: "${WISE_UID:-1000}:${WISE_GID:-1000}"
+      WISE_LOG_LEVEL: ${WISE_LOG_LEVEL:-info}
+      HOME: /tmp
+    user: "${WISE_UID:-1000}:${WISE_GID:-1000}"
+    <<: *hardened
+    tmpfs: [/tmp]
+    volumes:
+      - wise-workspaces:/workspaces
+      - ${WISE_REPO_ROOT}:${WISE_REPO_ROOT}
+    networks: [exec, docker]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8091/healthz"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    deploy:
+      resources:
+        limits: { cpus: "1.0", memory: 512M }
+
+  # The only way out of sandboxes: allowlisted package registries, never
+  # private addresses. Joins each sandbox's private network.
+  wise-egress:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+      network: host
+      args:
+        GOPROXY: ${GOPROXY:-https://proxy.golang.org,direct}
+        INSTALL_CLAUDE_CODE: "false"
+        APK_MIRROR: ${APK_MIRROR:-}
+    command: ["egress"]
+    restart: unless-stopped
+    labels:
+      wise.role: egress
+    environment:
+      # Read-only: it can only fetch the egress allowlist from the executor.
+      WISE_EGRESS_TOKEN: ${WISE_EGRESS_TOKEN:?set WISE_EGRESS_TOKEN in .env}
+      WISE_EXECUTOR_URL: http://wise-executor:8091
+      WISE_LOG_LEVEL: ${WISE_LOG_LEVEL:-info}
+    user: "${WISE_UID:-1000}:${WISE_GID:-1000}"
+    <<: *hardened
+    networks: [exec, sandbox-egress]
+    deploy:
+      resources:
+        limits: { cpus: "0.5", memory: 128M }
 
   # Runs Claude Code / Codex for the API. No database, repositories or control-plane
   # secrets: each request carries the one account credential it needs. Internet
@@ -332,6 +442,16 @@ networks:
     internal: true
   # CLI runner -> internet (Anthropic, OpenAI).
   cli-egress: {}
+  # API/orchestrator <-> executor, executor <-> egress proxy.
+  exec:
+    internal: true
+  # Executor -> Docker socket proxy.
+  docker:
+    internal: true
+  # Egress proxy -> internet (allowlisted registries only).
+  sandbox-egress: {}
 
 volumes:
   postgres-data: {}
+  wise-workspaces:
+    name: wise-workspaces

@@ -48,7 +48,7 @@ const createImportedTask = `-- name: CreateImportedTask :one
 INSERT INTO tasks (id, project_id, title, description, column_id, position, priority, labels, source,
                    integration_id, external_id, external_url, external_status, template_id, sprint_id, synced_at)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, now())
-RETURNING id, project_id, title, description, status, created_by, created_at, updated_at, template_id, workflow_overrides, position, priority, labels, source, integration_id, external_id, external_url, external_status, synced_at, column_id, sprint_id, archived_at
+RETURNING id, project_id, title, description, status, created_by, created_at, updated_at, template_id, workflow_overrides, position, priority, labels, source, integration_id, external_id, external_url, external_status, synced_at, column_id, sprint_id, archived_at, target_repository_id
 `
 
 type CreateImportedTaskParams struct {
@@ -111,6 +111,7 @@ func (q *Queries) CreateImportedTask(ctx context.Context, arg CreateImportedTask
 		&i.ColumnID,
 		&i.SprintID,
 		&i.ArchivedAt,
+		&i.TargetRepositoryID,
 	)
 	return i, err
 }
@@ -239,7 +240,7 @@ func (q *Queries) GetIntegration(ctx context.Context, id uuid.UUID) (Integration
 }
 
 const getTaskByExternal = `-- name: GetTaskByExternal :one
-SELECT id, project_id, title, description, status, created_by, created_at, updated_at, template_id, workflow_overrides, position, priority, labels, source, integration_id, external_id, external_url, external_status, synced_at, column_id, sprint_id, archived_at FROM tasks WHERE integration_id = $1 AND external_id = $2
+SELECT id, project_id, title, description, status, created_by, created_at, updated_at, template_id, workflow_overrides, position, priority, labels, source, integration_id, external_id, external_url, external_status, synced_at, column_id, sprint_id, archived_at, target_repository_id FROM tasks WHERE integration_id = $1 AND external_id = $2
 `
 
 type GetTaskByExternalParams struct {
@@ -273,6 +274,7 @@ func (q *Queries) GetTaskByExternal(ctx context.Context, arg GetTaskByExternalPa
 		&i.ColumnID,
 		&i.SprintID,
 		&i.ArchivedAt,
+		&i.TargetRepositoryID,
 	)
 	return i, err
 }
@@ -397,7 +399,7 @@ UPDATE tasks SET
     title = $2, description = $3, labels = $4, priority = $5, external_url = $6, external_status = $7,
     column_id = $8, position = $9, sprint_id = $10, synced_at = now(), updated_at = now()
 WHERE id = $1
-RETURNING id, project_id, title, description, status, created_by, created_at, updated_at, template_id, workflow_overrides, position, priority, labels, source, integration_id, external_id, external_url, external_status, synced_at, column_id, sprint_id, archived_at
+RETURNING id, project_id, title, description, status, created_by, created_at, updated_at, template_id, workflow_overrides, position, priority, labels, source, integration_id, external_id, external_url, external_status, synced_at, column_id, sprint_id, archived_at, target_repository_id
 `
 
 type UpdateImportedTaskParams struct {
@@ -450,6 +452,7 @@ func (q *Queries) UpdateImportedTask(ctx context.Context, arg UpdateImportedTask
 		&i.ColumnID,
 		&i.SprintID,
 		&i.ArchivedAt,
+		&i.TargetRepositoryID,
 	)
 	return i, err
 }

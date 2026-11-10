@@ -1,0 +1,37 @@
+# Default execution settings (editable in Settings → Execution).
+# Sandbox resources for each task workspace.
+limits:
+  cpus: 2
+  memory_mb: 4096
+  pids: 1024
+# Hosts sandboxes may reach through the egress proxy (package registries).
+# "*.example.org" allows subdomains. Private and local addresses are always
+# refused, whatever is listed here.
+egress_allowlist:
+  - registry.npmjs.org
+  - registry.yarnpkg.com
+  - pypi.org
+  - files.pythonhosted.org
+  - proxy.golang.org
+  - sum.golang.org
+  - index.crates.io
+  - static.crates.io
+  - codeload.github.com
+  - objects.githubusercontent.com
+command_timeout_s: 600     # one command (tests, lint, an agent's run_command)
+setup_timeout_s: 900       # each setup command (dependency installation)
+max_output_kb: 64          # command output given back to an agent
+retention_days: 7          # finished tasks' workspaces are removed after this
+max_fix_rounds: 3          # quality gate: fix rounds before asking you
+# Task branch names. {slug} = the title, {id} = a short task id,
+# {external} = the source's id (e.g. a ClickUp or Jira key) or the short id.
+branch_template: "wise/{slug}-{id}"
+# Commit author for task commits; empty = the repository's git identity.
+commit_author:
+  name: ""
+  email: ""
+# Toolchain images offered by "Detect" (build them with `make toolchains`).
+images:
+  node: wise-toolchain-node:22
+  go: wise-toolchain-go:1.26
+  python: wise-toolchain-python:3.13

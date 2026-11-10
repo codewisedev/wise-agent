@@ -34,6 +34,7 @@ tags:
   - name: settings
   - name: context
   - name: memory
+  - name: execution
 
 paths:
   /healthz:
@@ -342,7 +343,7 @@ paths:
               schema: { $ref: "#/components/schemas/Repository" }
         "401": { $ref: "#/components/responses/Problem" }
         "404": { $ref: "#/components/responses/Problem" }
-        "422": { $ref: "#/components/responses/Problem" }
+        "400": { $ref: "#/components/responses/Problem" }
   /repositories/{repositoryId}/index:
     parameters:
       - $ref: "#/components/parameters/RepositoryId"
@@ -2144,7 +2145,7 @@ paths:
         "204": { description: Run succeeded. }
         "401": { $ref: "#/components/responses/Problem" }
         "403": { $ref: "#/components/responses/Problem" }
-        "422": { $ref: "#/components/responses/Problem" }
+        "400": { $ref: "#/components/responses/Problem" }
   /runtime/v1/runs/{runId}/fail:
     parameters:
       - $ref: "#/components/parameters/RunId"
@@ -2163,6 +2164,92 @@ paths:
         "403": { $ref: "#/components/responses/Problem" }
 
 
+  /repositories/{repositoryId}/execution:
+    parameters:
+      - $ref: "#/components/parameters/RepositoryId"
+    get:
+      tags: [execution]
+      operationId: getRepositoryExecution
+      description: How Wise builds and checks this repository in a task sandbox.
+      responses:
+        "200":
+          description: Execution settings (empty image = not set up yet).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RepositoryExecution" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+    put:
+      tags: [execution]
+      operationId: setRepositoryExecution
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RepositoryExecution" }
+      responses:
+        "200":
+          description: Saved.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RepositoryExecution" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "400": { $ref: "#/components/responses/Problem" }
+  /repositories/{repositoryId}/execution/detect:
+    parameters:
+      - $ref: "#/components/parameters/RepositoryId"
+    post:
+      tags: [execution]
+      operationId: detectRepositoryExecution
+      description: Suggests execution settings from the repository's files. Nothing is saved.
+      responses:
+        "200":
+          description: Suggestion.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ExecutionDetection" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+  /tasks/{taskId}/workspace:
+    parameters:
+      - $ref: "#/components/parameters/TaskId"
+    get:
+      tags: [execution]
+      operationId: getTaskWorkspace
+      description: The task's workspace (its private clone, sandbox and branch) and the repository it changes.
+      responses:
+        "200":
+          description: Workspace state.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TaskWorkspace" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+    post:
+      tags: [execution]
+      operationId: prepareTaskWorkspace
+      description: Prepares the task's workspace (clone, branch, sandbox, preflight, setup). Reuses a ready one.
+      responses:
+        "202":
+          description: Preparing (or already ready).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Workspace" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "503": { $ref: "#/components/responses/Problem" }
+    delete:
+      tags: [execution]
+      operationId: removeTaskWorkspace
+      description: Removes the task's workspace and sandbox. A delivered branch stays in the repository.
+      responses:
+        "204": { description: Removed. }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "503": { $ref: "#/components/responses/Problem" }
 components:
   securitySchemes:
     cookieAuth:
@@ -2450,6 +2537,72 @@ components:
       properties:
         name: { type: string }
         url: { type: string }
+    RepositoryExecution:
+      type: object
+      required: [image, setup, commands, tools, baseBranch, env]
+      properties:
+        image: { type: string, maxLength: 255, description: "Toolchain image the sandbox runs (must include git), e.g. wise-toolchain-node:22." }
+        setup: { type: array, maxItems: 20, items: { type: string, maxLength: 2000 }, description: Commands run once when the workspace is prepared (dependency installation). }
+        commands: { $ref: "#/components/schemas/QualityCommands" }
+        tools: { type: array, maxItems: 30, items: { type: string, maxLength: 64 }, description: Commands that must exist in the image (checked before any agent runs). }
+        baseBranch: { type: string, maxLength: 200, description: "Branch task branches start from; empty = the repository's current branch." }
+        env: { type: object, additionalProperties: { type: string, maxLength: 4000 }, description: "Extra environment variables for the sandbox. Visible to agents: never put secrets here." }
+    QualityCommands:
+      type: object
+      required: [format, lint, typecheck, test]
+      properties:
+        format: { type: string, maxLength: 2000, description: "Format check (must not rewrite files), e.g. npm run format:check. Empty = skipped." }
+        lint: { type: string, maxLength: 2000 }
+        typecheck: { type: string, maxLength: 2000 }
+        test: { type: string, maxLength: 2000 }
+    ExecutionDetection:
+      type: object
+      required: [settings, detected, notes]
+      properties:
+        settings: { $ref: "#/components/schemas/RepositoryExecution" }
+        detected: { type: array, items: { type: string } }
+        notes: { type: array, items: { type: string } }
+    WorkspaceStatus:
+      type: string
+      enum: [preparing, ready, failed, stopped, removed]
+    Workspace:
+      type: object
+      required: [id, taskId, repositoryId, status, branch, image, log, toolVersions, scrubbed, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        taskId: { type: string, format: uuid }
+        workflowRunId: { type: string, format: uuid, nullable: true }
+        repositoryId: { type: string, format: uuid }
+        repositoryName: { type: string }
+        status: { $ref: "#/components/schemas/WorkspaceStatus" }
+        branch: { type: string, description: The task branch inside the workspace (and its name when delivered). }
+        baseBranch: { type: string, nullable: true }
+        baseSha: { type: string, nullable: true }
+        image: { type: string }
+        log: { type: string, description: The last part of the preparation log. }
+        error: { type: string, nullable: true }
+        toolVersions: { type: array, items: { type: string } }
+        scrubbed: { type: array, items: { type: string }, description: Tracked files named like credentials that were kept out of the workspace. }
+        headSha: { type: string, nullable: true }
+        deliveredBranch: { type: string, nullable: true }
+        deliveredSha: { type: string, nullable: true }
+        deliveredAt: { type: string, format: date-time, nullable: true }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    TaskWorkspace:
+      type: object
+      properties:
+        workspace: { allOf: [{ $ref: "#/components/schemas/Workspace" }], nullable: true }
+        repository: { allOf: [{ $ref: "#/components/schemas/RepositoryRef" }], nullable: true, description: The repository the task changes (chosen or automatic). }
+        problem: { type: string, nullable: true, description: Why a workspace cannot be prepared yet (e.g. no execution settings). }
+        executorAvailable: { type: boolean }
+    RepositoryRef:
+      type: object
+      required: [id, name]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        configured: { type: boolean, description: The repository has execution settings. }
     Repository:
       type: object
       required: [id, projectId, name, role, sourceType, gitRemotes, indexStatus, settings, createdAt, updatedAt]
@@ -2763,6 +2916,7 @@ components:
         externalStatus: { type: string, nullable: true }
         templateId: { type: string, format: uuid, nullable: true }
         sprintId: { type: string, format: uuid, nullable: true }
+        targetRepositoryId: { type: string, format: uuid, nullable: true, description: "The repository the task changes; null = the project's only local repository." }
         archivedAt: { type: string, format: date-time, nullable: true, description: "Set when the task's source stopped returning it (e.g. no longer assigned to you); cleared if it returns." }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
@@ -2779,6 +2933,7 @@ components:
         column: { type: string, format: uuid, description: Move to this column of the project's board. }
         sprint: { type: string, description: "A sprint id of the project, or \"none\" to take the task out of its sprint." }
         position: { type: number, format: double, description: "Order within the column (cards sort ascending); omit to append." }
+        repository: { type: string, description: "A local repository id of the project the task changes, or \"auto\" (the project's only local repository)." }
     BoardCard:
       type: object
       required: [task, pendingApproval]

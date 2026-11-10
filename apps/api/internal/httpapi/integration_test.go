@@ -18,6 +18,7 @@ import (
 	"wise/apps/api/internal/codeindex"
 	"wise/apps/api/internal/db/dbgen"
 	"wise/apps/api/internal/memory"
+	"wise/apps/api/internal/workspaces"
 
 	"wise/apps/api/internal/accounts"
 	"wise/apps/api/internal/agents"
@@ -62,6 +63,8 @@ type env struct {
 	repoSvc  *repositories.Service
 	index    *codeindex.Service
 	memory   *memory.Service
+	exec     *fakeExecutor
+	ws       *workspaces.Service
 }
 
 func setup(t *testing.T) *env {
@@ -120,6 +123,9 @@ func setup(t *testing.T) *env {
 	}
 	queue.OnFinished = memorySvc.OnRunFinished
 	taskSvc.OnApprovalDecided = memorySvc.OnApprovalDecided
+	fx := &fakeExecutor{}
+	wsSvc := workspaces.New(d, fx, log)
+	settings.RegisterExecution(settingsSvc, filepath.Join("..", "..", "..", "..", "configs", "execution", "defaults.yaml"), wsSvc)
 	settings.RegisterDefaults(settingsSvc, testSettingFiles(t), gw, accountSvc, taskSvc)
 	if err := settingsSvc.Start(context.Background()); err != nil {
 		t.Fatal(err)
@@ -129,6 +135,7 @@ func setup(t *testing.T) *env {
 		Repositories: repoSvc,
 		Index:        indexSvc,
 		Memory:       memorySvc,
+		Workspaces:   wsSvc,
 		Agents:       agentSvc, RunQueue: queue, Gateway: gw, Hub: hub, Tasks: taskSvc, Accounts: accountSvc, Integrations: integrationSvc, Settings: settingsSvc,
 		Cookie:       httpapi.CookieConfig{TTL: time.Hour},
 		RuntimeToken: runtimeToken,
@@ -140,7 +147,7 @@ func setup(t *testing.T) *env {
 	ts := httptest.NewServer(h)
 	t.Cleanup(ts.Close)
 	jar, _ := cookiejar.New(nil)
-	return &env{t: t, db: d, srv: ts, client: &http.Client{Jar: jar}, repoRoot: root, queue: queue, model: model, repoSvc: repoSvc, index: indexSvc, memory: memorySvc,
+	return &env{t: t, db: d, srv: ts, client: &http.Client{Jar: jar}, repoRoot: root, queue: queue, model: model, repoSvc: repoSvc, index: indexSvc, memory: memorySvc, exec: fx, ws: wsSvc,
 		tasks: taskSvc, agents: agentSvc, hub: hub, accounts: accountSvc, gw: gw, sources: integrationSvc, settings: settingsSvc}
 }
 

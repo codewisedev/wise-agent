@@ -894,6 +894,33 @@ func (e WorkflowStepStatus) Valid() bool {
 	}
 }
 
+// Defines values for WorkspaceStatus.
+const (
+	WorkspaceStatusFailed    WorkspaceStatus = "failed"
+	WorkspaceStatusPreparing WorkspaceStatus = "preparing"
+	WorkspaceStatusReady     WorkspaceStatus = "ready"
+	WorkspaceStatusRemoved   WorkspaceStatus = "removed"
+	WorkspaceStatusStopped   WorkspaceStatus = "stopped"
+)
+
+// Valid indicates whether the value is a known member of the WorkspaceStatus enum.
+func (e WorkspaceStatus) Valid() bool {
+	switch e {
+	case WorkspaceStatusFailed:
+		return true
+	case WorkspaceStatusPreparing:
+		return true
+	case WorkspaceStatusReady:
+		return true
+	case WorkspaceStatusRemoved:
+		return true
+	case WorkspaceStatusStopped:
+		return true
+	default:
+		return false
+	}
+}
+
 // Account defines model for Account.
 type Account struct {
 	BaseUrl string `json:"baseUrl"`
@@ -1420,6 +1447,13 @@ type ExampleInput struct {
 	Title     *string `json:"title,omitempty"`
 }
 
+// ExecutionDetection defines model for ExecutionDetection.
+type ExecutionDetection struct {
+	Detected []string            `json:"detected"`
+	Notes    []string            `json:"notes"`
+	Settings RepositoryExecution `json:"settings"`
+}
+
 // FieldError defines model for FieldError.
 type FieldError struct {
 	Field   string `json:"field"`
@@ -1838,6 +1872,15 @@ type ProjectResourceList struct {
 	Items []ProjectResource `json:"items"`
 }
 
+// QualityCommands defines model for QualityCommands.
+type QualityCommands struct {
+	// Format Format check (must not rewrite files), e.g. npm run format:check. Empty = skipped.
+	Format    string `json:"format"`
+	Lint      string `json:"lint"`
+	Test      string `json:"test"`
+	Typecheck string `json:"typecheck"`
+}
+
 // Repository defines model for Repository.
 type Repository struct {
 	CreatedAt        time.Time          `json:"createdAt"`
@@ -1868,6 +1911,25 @@ type Repository struct {
 	UpdatedAt  time.Time              `json:"updatedAt"`
 }
 
+// RepositoryExecution defines model for RepositoryExecution.
+type RepositoryExecution struct {
+	// BaseBranch Branch task branches start from; empty = the repository's current branch.
+	BaseBranch string          `json:"baseBranch"`
+	Commands   QualityCommands `json:"commands"`
+
+	// Env Extra environment variables for the sandbox. Visible to agents: never put secrets here.
+	Env map[string]string `json:"env"`
+
+	// Image Toolchain image the sandbox runs (must include git), e.g. wise-toolchain-node:22.
+	Image string `json:"image"`
+
+	// Setup Commands run once when the workspace is prepared (dependency installation).
+	Setup []string `json:"setup"`
+
+	// Tools Commands that must exist in the image (checked before any agent runs).
+	Tools []string `json:"tools"`
+}
+
 // RepositoryFile defines model for RepositoryFile.
 type RepositoryFile struct {
 	Content   string  `json:"content"`
@@ -1895,6 +1957,14 @@ type RepositoryIndexStatus string
 // RepositoryList defines model for RepositoryList.
 type RepositoryList struct {
 	Items []Repository `json:"items"`
+}
+
+// RepositoryRef defines model for RepositoryRef.
+type RepositoryRef struct {
+	// Configured The repository has execution settings.
+	Configured *bool              `json:"configured,omitempty"`
+	Id         openapi_types.UUID `json:"id"`
+	Name       string             `json:"name"`
 }
 
 // RepositoryRelationship defines model for RepositoryRelationship.
@@ -2154,9 +2224,12 @@ type Task struct {
 	Source         *TaskSource         `json:"source,omitempty"`
 	SprintId       *openapi_types.UUID `json:"sprintId,omitempty"`
 	Status         TaskStatus          `json:"status"`
-	TemplateId     *openapi_types.UUID `json:"templateId,omitempty"`
-	Title          string              `json:"title"`
-	UpdatedAt      time.Time           `json:"updatedAt"`
+
+	// TargetRepositoryId The repository the task changes; null = the project's only local repository.
+	TargetRepositoryId *openapi_types.UUID `json:"targetRepositoryId,omitempty"`
+	TemplateId         *openapi_types.UUID `json:"templateId,omitempty"`
+	Title              string              `json:"title"`
+	UpdatedAt          time.Time           `json:"updatedAt"`
 }
 
 // TaskSource defines model for Task.Source.
@@ -2194,6 +2267,18 @@ type TaskWorkflow struct {
 	Plan     WorkflowPlan            `json:"plan"`
 	Steps    map[string]StepOverride `json:"steps"`
 	Template WorkflowTemplate        `json:"template"`
+}
+
+// TaskWorkspace defines model for TaskWorkspace.
+type TaskWorkspace struct {
+	ExecutorAvailable *bool `json:"executorAvailable,omitempty"`
+
+	// Problem Why a workspace cannot be prepared yet (e.g. no execution settings).
+	Problem *string `json:"problem,omitempty"`
+
+	// Repository The repository the task changes (chosen or automatic).
+	Repository *RepositoryRef `json:"repository,omitempty"`
+	Workspace  *Workspace     `json:"workspace,omitempty"`
 }
 
 // TemplateDefinition defines model for TemplateDefinition.
@@ -2317,6 +2402,9 @@ type UpdateTaskRequest struct {
 	Position *float64      `json:"position,omitempty"`
 	Priority *TaskPriority `json:"priority,omitempty"`
 
+	// Repository A local repository id of the project the task changes, or "auto" (the project's only local repository).
+	Repository *string `json:"repository,omitempty"`
+
 	// Sprint A sprint id of the project, or "none" to take the task out of its sprint.
 	Sprint *string `json:"sprint,omitempty"`
 	Title  *string `json:"title,omitempty"`
@@ -2424,6 +2512,39 @@ type WorkflowTemplateInput struct {
 type WorkflowTemplateList struct {
 	Items []WorkflowTemplate `json:"items"`
 }
+
+// Workspace defines model for Workspace.
+type Workspace struct {
+	BaseBranch *string `json:"baseBranch,omitempty"`
+	BaseSha    *string `json:"baseSha,omitempty"`
+
+	// Branch The task branch inside the workspace (and its name when delivered).
+	Branch          string             `json:"branch"`
+	CreatedAt       time.Time          `json:"createdAt"`
+	DeliveredAt     *time.Time         `json:"deliveredAt,omitempty"`
+	DeliveredBranch *string            `json:"deliveredBranch,omitempty"`
+	DeliveredSha    *string            `json:"deliveredSha,omitempty"`
+	Error           *string            `json:"error,omitempty"`
+	HeadSha         *string            `json:"headSha,omitempty"`
+	Id              openapi_types.UUID `json:"id"`
+	Image           string             `json:"image"`
+
+	// Log The last part of the preparation log.
+	Log            string             `json:"log"`
+	RepositoryId   openapi_types.UUID `json:"repositoryId"`
+	RepositoryName *string            `json:"repositoryName,omitempty"`
+
+	// Scrubbed Tracked files named like credentials that were kept out of the workspace.
+	Scrubbed      []string            `json:"scrubbed"`
+	Status        WorkspaceStatus     `json:"status"`
+	TaskId        openapi_types.UUID  `json:"taskId"`
+	ToolVersions  []string            `json:"toolVersions"`
+	UpdatedAt     time.Time           `json:"updatedAt"`
+	WorkflowRunId *openapi_types.UUID `json:"workflowRunId,omitempty"`
+}
+
+// WorkspaceStatus defines model for WorkspaceStatus.
+type WorkspaceStatus string
 
 // AccountId defines model for AccountId.
 type AccountId = openapi_types.UUID
@@ -2673,6 +2794,9 @@ type UpdateRepositoryJSONRequestBody = UpdateRepositoryRequest
 
 // CreateExampleJSONRequestBody defines body for CreateExample for application/json ContentType.
 type CreateExampleJSONRequestBody = ExampleInput
+
+// SetRepositoryExecutionJSONRequestBody defines body for SetRepositoryExecution for application/json ContentType.
+type SetRepositoryExecutionJSONRequestBody = RepositoryExecution
 
 // RuntimeClaimIndexJobJSONRequestBody defines body for RuntimeClaimIndexJob for application/json ContentType.
 type RuntimeClaimIndexJobJSONRequestBody = RuntimeClaimRequest
@@ -2971,6 +3095,15 @@ type ServerInterface interface {
 	// (POST /repositories/{repositoryId}/examples)
 	CreateExample(w http.ResponseWriter, r *http.Request, repositoryId RepositoryId)
 
+	// (GET /repositories/{repositoryId}/execution)
+	GetRepositoryExecution(w http.ResponseWriter, r *http.Request, repositoryId RepositoryId)
+
+	// (PUT /repositories/{repositoryId}/execution)
+	SetRepositoryExecution(w http.ResponseWriter, r *http.Request, repositoryId RepositoryId)
+
+	// (POST /repositories/{repositoryId}/execution/detect)
+	DetectRepositoryExecution(w http.ResponseWriter, r *http.Request, repositoryId RepositoryId)
+
 	// (GET /repositories/{repositoryId}/file)
 	ReadRepositoryFile(w http.ResponseWriter, r *http.Request, repositoryId RepositoryId, params ReadRepositoryFileParams)
 
@@ -3084,6 +3217,15 @@ type ServerInterface interface {
 
 	// (PUT /tasks/{taskId}/workflow)
 	SetTaskWorkflow(w http.ResponseWriter, r *http.Request, taskId TaskId)
+
+	// (DELETE /tasks/{taskId}/workspace)
+	RemoveTaskWorkspace(w http.ResponseWriter, r *http.Request, taskId TaskId)
+
+	// (GET /tasks/{taskId}/workspace)
+	GetTaskWorkspace(w http.ResponseWriter, r *http.Request, taskId TaskId)
+
+	// (POST /tasks/{taskId}/workspace)
+	PrepareTaskWorkspace(w http.ResponseWriter, r *http.Request, taskId TaskId)
 
 	// (GET /tools)
 	ListTools(w http.ResponseWriter, r *http.Request)
@@ -3523,6 +3665,21 @@ func (_ Unimplemented) CreateExample(w http.ResponseWriter, r *http.Request, rep
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
+// (GET /repositories/{repositoryId}/execution)
+func (_ Unimplemented) GetRepositoryExecution(w http.ResponseWriter, r *http.Request, repositoryId RepositoryId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (PUT /repositories/{repositoryId}/execution)
+func (_ Unimplemented) SetRepositoryExecution(w http.ResponseWriter, r *http.Request, repositoryId RepositoryId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (POST /repositories/{repositoryId}/execution/detect)
+func (_ Unimplemented) DetectRepositoryExecution(w http.ResponseWriter, r *http.Request, repositoryId RepositoryId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
 // (GET /repositories/{repositoryId}/file)
 func (_ Unimplemented) ReadRepositoryFile(w http.ResponseWriter, r *http.Request, repositoryId RepositoryId, params ReadRepositoryFileParams) {
 	w.WriteHeader(http.StatusNotImplemented)
@@ -3710,6 +3867,21 @@ func (_ Unimplemented) GetTaskWorkflow(w http.ResponseWriter, r *http.Request, t
 
 // (PUT /tasks/{taskId}/workflow)
 func (_ Unimplemented) SetTaskWorkflow(w http.ResponseWriter, r *http.Request, taskId TaskId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (DELETE /tasks/{taskId}/workspace)
+func (_ Unimplemented) RemoveTaskWorkspace(w http.ResponseWriter, r *http.Request, taskId TaskId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (GET /tasks/{taskId}/workspace)
+func (_ Unimplemented) GetTaskWorkspace(w http.ResponseWriter, r *http.Request, taskId TaskId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (POST /tasks/{taskId}/workspace)
+func (_ Unimplemented) PrepareTaskWorkspace(w http.ResponseWriter, r *http.Request, taskId TaskId) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -5953,6 +6125,84 @@ func (siw *ServerInterfaceWrapper) CreateExample(w http.ResponseWriter, r *http.
 	handler.ServeHTTP(w, r)
 }
 
+// GetRepositoryExecution operation middleware
+func (siw *ServerInterfaceWrapper) GetRepositoryExecution(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "repositoryId" -------------
+	var repositoryId RepositoryId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "repositoryId", chi.URLParam(r, "repositoryId"), &repositoryId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "repositoryId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetRepositoryExecution(w, r, repositoryId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SetRepositoryExecution operation middleware
+func (siw *ServerInterfaceWrapper) SetRepositoryExecution(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "repositoryId" -------------
+	var repositoryId RepositoryId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "repositoryId", chi.URLParam(r, "repositoryId"), &repositoryId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "repositoryId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetRepositoryExecution(w, r, repositoryId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DetectRepositoryExecution operation middleware
+func (siw *ServerInterfaceWrapper) DetectRepositoryExecution(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "repositoryId" -------------
+	var repositoryId RepositoryId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "repositoryId", chi.URLParam(r, "repositoryId"), &repositoryId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "repositoryId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DetectRepositoryExecution(w, r, repositoryId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ReadRepositoryFile operation middleware
 func (siw *ServerInterfaceWrapper) ReadRepositoryFile(w http.ResponseWriter, r *http.Request) {
 
@@ -7099,6 +7349,84 @@ func (siw *ServerInterfaceWrapper) SetTaskWorkflow(w http.ResponseWriter, r *htt
 	handler.ServeHTTP(w, r)
 }
 
+// RemoveTaskWorkspace operation middleware
+func (siw *ServerInterfaceWrapper) RemoveTaskWorkspace(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "taskId" -------------
+	var taskId TaskId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "taskId", chi.URLParam(r, "taskId"), &taskId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "taskId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RemoveTaskWorkspace(w, r, taskId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetTaskWorkspace operation middleware
+func (siw *ServerInterfaceWrapper) GetTaskWorkspace(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "taskId" -------------
+	var taskId TaskId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "taskId", chi.URLParam(r, "taskId"), &taskId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "taskId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetTaskWorkspace(w, r, taskId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PrepareTaskWorkspace operation middleware
+func (siw *ServerInterfaceWrapper) PrepareTaskWorkspace(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "taskId" -------------
+	var taskId TaskId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "taskId", chi.URLParam(r, "taskId"), &taskId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "taskId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PrepareTaskWorkspace(w, r, taskId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListTools operation middleware
 func (siw *ServerInterfaceWrapper) ListTools(w http.ResponseWriter, r *http.Request) {
 
@@ -7861,6 +8189,24 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/runtime/v1/runs/{runId}/fail", wrapper.RuntimeFailRun)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/repositories/{repositoryId}/execution", wrapper.GetRepositoryExecution)
+	})
+	r.Group(func(r chi.Router) {
+		r.Put(options.BaseURL+"/repositories/{repositoryId}/execution", wrapper.SetRepositoryExecution)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/repositories/{repositoryId}/execution/detect", wrapper.DetectRepositoryExecution)
+	})
+	r.Group(func(r chi.Router) {
+		r.Delete(options.BaseURL+"/tasks/{taskId}/workspace", wrapper.RemoveTaskWorkspace)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/tasks/{taskId}/workspace", wrapper.GetTaskWorkspace)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/tasks/{taskId}/workspace", wrapper.PrepareTaskWorkspace)
 	})
 
 	return r
@@ -12872,6 +13218,177 @@ func (response CreateExample404ApplicationProblemPlusJSONResponse) VisitCreateEx
 	return err
 }
 
+type GetRepositoryExecutionRequestObject struct {
+	RepositoryId RepositoryId `json:"repositoryId"`
+}
+
+type GetRepositoryExecutionResponseObject interface {
+	VisitGetRepositoryExecutionResponse(w http.ResponseWriter) error
+}
+
+type GetRepositoryExecution200JSONResponse RepositoryExecution
+
+func (response GetRepositoryExecution200JSONResponse) VisitGetRepositoryExecutionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetRepositoryExecution401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response GetRepositoryExecution401ApplicationProblemPlusJSONResponse) VisitGetRepositoryExecutionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetRepositoryExecution404ApplicationProblemPlusJSONResponse Problem
+
+func (response GetRepositoryExecution404ApplicationProblemPlusJSONResponse) VisitGetRepositoryExecutionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetRepositoryExecutionRequestObject struct {
+	RepositoryId RepositoryId `json:"repositoryId"`
+	Body         *SetRepositoryExecutionJSONRequestBody
+}
+
+type SetRepositoryExecutionResponseObject interface {
+	VisitSetRepositoryExecutionResponse(w http.ResponseWriter) error
+}
+
+type SetRepositoryExecution200JSONResponse RepositoryExecution
+
+func (response SetRepositoryExecution200JSONResponse) VisitSetRepositoryExecutionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetRepositoryExecution400ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response SetRepositoryExecution400ApplicationProblemPlusJSONResponse) VisitSetRepositoryExecutionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetRepositoryExecution401ApplicationProblemPlusJSONResponse Problem
+
+func (response SetRepositoryExecution401ApplicationProblemPlusJSONResponse) VisitSetRepositoryExecutionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetRepositoryExecution404ApplicationProblemPlusJSONResponse Problem
+
+func (response SetRepositoryExecution404ApplicationProblemPlusJSONResponse) VisitSetRepositoryExecutionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DetectRepositoryExecutionRequestObject struct {
+	RepositoryId RepositoryId `json:"repositoryId"`
+}
+
+type DetectRepositoryExecutionResponseObject interface {
+	VisitDetectRepositoryExecutionResponse(w http.ResponseWriter) error
+}
+
+type DetectRepositoryExecution200JSONResponse ExecutionDetection
+
+func (response DetectRepositoryExecution200JSONResponse) VisitDetectRepositoryExecutionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DetectRepositoryExecution401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response DetectRepositoryExecution401ApplicationProblemPlusJSONResponse) VisitDetectRepositoryExecutionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DetectRepositoryExecution404ApplicationProblemPlusJSONResponse Problem
+
+func (response DetectRepositoryExecution404ApplicationProblemPlusJSONResponse) VisitDetectRepositoryExecutionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type ReadRepositoryFileRequestObject struct {
 	RepositoryId RepositoryId `json:"repositoryId"`
 	Params       ReadRepositoryFileParams
@@ -13079,9 +13596,23 @@ func (response InspectRepository200JSONResponse) VisitInspectRepositoryResponse(
 	return err
 }
 
-type InspectRepository401ApplicationProblemPlusJSONResponse struct {
+type InspectRepository400ApplicationProblemPlusJSONResponse struct {
 	ProblemApplicationProblemPlusJSONResponse
 }
+
+func (response InspectRepository400ApplicationProblemPlusJSONResponse) VisitInspectRepositoryResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type InspectRepository401ApplicationProblemPlusJSONResponse Problem
 
 func (response InspectRepository401ApplicationProblemPlusJSONResponse) VisitInspectRepositoryResponse(w http.ResponseWriter) error {
 
@@ -13105,20 +13636,6 @@ func (response InspectRepository404ApplicationProblemPlusJSONResponse) VisitInsp
 	}
 	w.Header().Set("Content-Type", "application/problem+json")
 	w.WriteHeader(404)
-	_, err := buf.WriteTo(w)
-	return err
-}
-
-type InspectRepository422ApplicationProblemPlusJSONResponse Problem
-
-func (response InspectRepository422ApplicationProblemPlusJSONResponse) VisitInspectRepositoryResponse(w http.ResponseWriter) error {
-
-	var buf bytes.Buffer
-	if err := json.NewEncoder(&buf).Encode(response); err != nil {
-		return err
-	}
-	w.Header().Set("Content-Type", "application/problem+json")
-	w.WriteHeader(422)
 	_, err := buf.WriteTo(w)
 	return err
 }
@@ -13573,9 +14090,23 @@ func (response RuntimeCompleteRun204Response) VisitRuntimeCompleteRunResponse(w 
 	return nil
 }
 
-type RuntimeCompleteRun401ApplicationProblemPlusJSONResponse struct {
+type RuntimeCompleteRun400ApplicationProblemPlusJSONResponse struct {
 	ProblemApplicationProblemPlusJSONResponse
 }
+
+func (response RuntimeCompleteRun400ApplicationProblemPlusJSONResponse) VisitRuntimeCompleteRunResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RuntimeCompleteRun401ApplicationProblemPlusJSONResponse Problem
 
 func (response RuntimeCompleteRun401ApplicationProblemPlusJSONResponse) VisitRuntimeCompleteRunResponse(w http.ResponseWriter) error {
 
@@ -13599,20 +14130,6 @@ func (response RuntimeCompleteRun403ApplicationProblemPlusJSONResponse) VisitRun
 	}
 	w.Header().Set("Content-Type", "application/problem+json")
 	w.WriteHeader(403)
-	_, err := buf.WriteTo(w)
-	return err
-}
-
-type RuntimeCompleteRun422ApplicationProblemPlusJSONResponse Problem
-
-func (response RuntimeCompleteRun422ApplicationProblemPlusJSONResponse) VisitRuntimeCompleteRunResponse(w http.ResponseWriter) error {
-
-	var buf bytes.Buffer
-	if err := json.NewEncoder(&buf).Encode(response); err != nil {
-		return err
-	}
-	w.Header().Set("Content-Type", "application/problem+json")
-	w.WriteHeader(422)
 	_, err := buf.WriteTo(w)
 	return err
 }
@@ -15193,6 +15710,212 @@ func (response SetTaskWorkflow404ApplicationProblemPlusJSONResponse) VisitSetTas
 	return err
 }
 
+type RemoveTaskWorkspaceRequestObject struct {
+	TaskId TaskId `json:"taskId"`
+}
+
+type RemoveTaskWorkspaceResponseObject interface {
+	VisitRemoveTaskWorkspaceResponse(w http.ResponseWriter) error
+}
+
+type RemoveTaskWorkspace204Response struct {
+}
+
+func (response RemoveTaskWorkspace204Response) VisitRemoveTaskWorkspaceResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type RemoveTaskWorkspace401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response RemoveTaskWorkspace401ApplicationProblemPlusJSONResponse) VisitRemoveTaskWorkspaceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RemoveTaskWorkspace404ApplicationProblemPlusJSONResponse Problem
+
+func (response RemoveTaskWorkspace404ApplicationProblemPlusJSONResponse) VisitRemoveTaskWorkspaceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RemoveTaskWorkspace503ApplicationProblemPlusJSONResponse Problem
+
+func (response RemoveTaskWorkspace503ApplicationProblemPlusJSONResponse) VisitRemoveTaskWorkspaceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(503)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetTaskWorkspaceRequestObject struct {
+	TaskId TaskId `json:"taskId"`
+}
+
+type GetTaskWorkspaceResponseObject interface {
+	VisitGetTaskWorkspaceResponse(w http.ResponseWriter) error
+}
+
+type GetTaskWorkspace200JSONResponse TaskWorkspace
+
+func (response GetTaskWorkspace200JSONResponse) VisitGetTaskWorkspaceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetTaskWorkspace401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response GetTaskWorkspace401ApplicationProblemPlusJSONResponse) VisitGetTaskWorkspaceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetTaskWorkspace404ApplicationProblemPlusJSONResponse Problem
+
+func (response GetTaskWorkspace404ApplicationProblemPlusJSONResponse) VisitGetTaskWorkspaceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PrepareTaskWorkspaceRequestObject struct {
+	TaskId TaskId `json:"taskId"`
+}
+
+type PrepareTaskWorkspaceResponseObject interface {
+	VisitPrepareTaskWorkspaceResponse(w http.ResponseWriter) error
+}
+
+type PrepareTaskWorkspace202JSONResponse Workspace
+
+func (response PrepareTaskWorkspace202JSONResponse) VisitPrepareTaskWorkspaceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(202)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PrepareTaskWorkspace400ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response PrepareTaskWorkspace400ApplicationProblemPlusJSONResponse) VisitPrepareTaskWorkspaceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PrepareTaskWorkspace401ApplicationProblemPlusJSONResponse Problem
+
+func (response PrepareTaskWorkspace401ApplicationProblemPlusJSONResponse) VisitPrepareTaskWorkspaceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PrepareTaskWorkspace404ApplicationProblemPlusJSONResponse Problem
+
+func (response PrepareTaskWorkspace404ApplicationProblemPlusJSONResponse) VisitPrepareTaskWorkspaceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PrepareTaskWorkspace409ApplicationProblemPlusJSONResponse Problem
+
+func (response PrepareTaskWorkspace409ApplicationProblemPlusJSONResponse) VisitPrepareTaskWorkspaceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PrepareTaskWorkspace503ApplicationProblemPlusJSONResponse Problem
+
+func (response PrepareTaskWorkspace503ApplicationProblemPlusJSONResponse) VisitPrepareTaskWorkspaceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(503)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type ListToolsRequestObject struct {
 }
 
@@ -16074,6 +16797,15 @@ type StrictServerInterface interface {
 	// (POST /repositories/{repositoryId}/examples)
 	CreateExample(ctx context.Context, request CreateExampleRequestObject) (CreateExampleResponseObject, error)
 
+	// (GET /repositories/{repositoryId}/execution)
+	GetRepositoryExecution(ctx context.Context, request GetRepositoryExecutionRequestObject) (GetRepositoryExecutionResponseObject, error)
+
+	// (PUT /repositories/{repositoryId}/execution)
+	SetRepositoryExecution(ctx context.Context, request SetRepositoryExecutionRequestObject) (SetRepositoryExecutionResponseObject, error)
+
+	// (POST /repositories/{repositoryId}/execution/detect)
+	DetectRepositoryExecution(ctx context.Context, request DetectRepositoryExecutionRequestObject) (DetectRepositoryExecutionResponseObject, error)
+
 	// (GET /repositories/{repositoryId}/file)
 	ReadRepositoryFile(ctx context.Context, request ReadRepositoryFileRequestObject) (ReadRepositoryFileResponseObject, error)
 
@@ -16187,6 +16919,15 @@ type StrictServerInterface interface {
 
 	// (PUT /tasks/{taskId}/workflow)
 	SetTaskWorkflow(ctx context.Context, request SetTaskWorkflowRequestObject) (SetTaskWorkflowResponseObject, error)
+
+	// (DELETE /tasks/{taskId}/workspace)
+	RemoveTaskWorkspace(ctx context.Context, request RemoveTaskWorkspaceRequestObject) (RemoveTaskWorkspaceResponseObject, error)
+
+	// (GET /tasks/{taskId}/workspace)
+	GetTaskWorkspace(ctx context.Context, request GetTaskWorkspaceRequestObject) (GetTaskWorkspaceResponseObject, error)
+
+	// (POST /tasks/{taskId}/workspace)
+	PrepareTaskWorkspace(ctx context.Context, request PrepareTaskWorkspaceRequestObject) (PrepareTaskWorkspaceResponseObject, error)
 
 	// (GET /tools)
 	ListTools(ctx context.Context, request ListToolsRequestObject) (ListToolsResponseObject, error)
@@ -18503,6 +19244,91 @@ func (sh *strictHandler) CreateExample(w http.ResponseWriter, r *http.Request, r
 	}
 }
 
+// GetRepositoryExecution operation middleware
+func (sh *strictHandler) GetRepositoryExecution(w http.ResponseWriter, r *http.Request, repositoryId RepositoryId) {
+	var request GetRepositoryExecutionRequestObject
+
+	request.RepositoryId = repositoryId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetRepositoryExecution(ctx, request.(GetRepositoryExecutionRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetRepositoryExecution")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetRepositoryExecutionResponseObject); ok {
+		if err := validResponse.VisitGetRepositoryExecutionResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// SetRepositoryExecution operation middleware
+func (sh *strictHandler) SetRepositoryExecution(w http.ResponseWriter, r *http.Request, repositoryId RepositoryId) {
+	var request SetRepositoryExecutionRequestObject
+
+	request.RepositoryId = repositoryId
+
+	var body SetRepositoryExecutionJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.SetRepositoryExecution(ctx, request.(SetRepositoryExecutionRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SetRepositoryExecution")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(SetRepositoryExecutionResponseObject); ok {
+		if err := validResponse.VisitSetRepositoryExecutionResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DetectRepositoryExecution operation middleware
+func (sh *strictHandler) DetectRepositoryExecution(w http.ResponseWriter, r *http.Request, repositoryId RepositoryId) {
+	var request DetectRepositoryExecutionRequestObject
+
+	request.RepositoryId = repositoryId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DetectRepositoryExecution(ctx, request.(DetectRepositoryExecutionRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DetectRepositoryExecution")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DetectRepositoryExecutionResponseObject); ok {
+		if err := validResponse.VisitDetectRepositoryExecutionResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // ReadRepositoryFile operation middleware
 func (sh *strictHandler) ReadRepositoryFile(w http.ResponseWriter, r *http.Request, repositoryId RepositoryId, params ReadRepositoryFileParams) {
 	var request ReadRepositoryFileRequestObject
@@ -19585,6 +20411,84 @@ func (sh *strictHandler) SetTaskWorkflow(w http.ResponseWriter, r *http.Request,
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(SetTaskWorkflowResponseObject); ok {
 		if err := validResponse.VisitSetTaskWorkflowResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RemoveTaskWorkspace operation middleware
+func (sh *strictHandler) RemoveTaskWorkspace(w http.ResponseWriter, r *http.Request, taskId TaskId) {
+	var request RemoveTaskWorkspaceRequestObject
+
+	request.TaskId = taskId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RemoveTaskWorkspace(ctx, request.(RemoveTaskWorkspaceRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RemoveTaskWorkspace")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RemoveTaskWorkspaceResponseObject); ok {
+		if err := validResponse.VisitRemoveTaskWorkspaceResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetTaskWorkspace operation middleware
+func (sh *strictHandler) GetTaskWorkspace(w http.ResponseWriter, r *http.Request, taskId TaskId) {
+	var request GetTaskWorkspaceRequestObject
+
+	request.TaskId = taskId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetTaskWorkspace(ctx, request.(GetTaskWorkspaceRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetTaskWorkspace")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetTaskWorkspaceResponseObject); ok {
+		if err := validResponse.VisitGetTaskWorkspaceResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PrepareTaskWorkspace operation middleware
+func (sh *strictHandler) PrepareTaskWorkspace(w http.ResponseWriter, r *http.Request, taskId TaskId) {
+	var request PrepareTaskWorkspaceRequestObject
+
+	request.TaskId = taskId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PrepareTaskWorkspace(ctx, request.(PrepareTaskWorkspaceRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PrepareTaskWorkspace")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PrepareTaskWorkspaceResponseObject); ok {
+		if err := validResponse.VisitPrepareTaskWorkspaceResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

@@ -53,8 +53,14 @@ dev: temporal-up ## Run API, orchestrator, runtime and dashboard on the host
 migrate: ## Apply migrations (make migrate ARGS=status|down|reset)
 	go run ./apps/api/cmd/wise-api migrate $(ARGS)
 
+.PHONY: toolchains
+toolchains: ## Build the sandbox toolchain images (Node, Go, Python with git)
+	docker build -q -t wise-toolchain-node:22 --build-arg APK_MIRROR=$${APK_MIRROR:-} infrastructure/toolchains/node
+	docker build -q -t wise-toolchain-go:1.26 --build-arg APK_MIRROR=$${APK_MIRROR:-} infrastructure/toolchains/go
+	docker build -q -t wise-toolchain-python:3.13 --build-arg APK_MIRROR=$${APK_MIRROR:-} infrastructure/toolchains/python
+
 .PHONY: up
-up: ## Build and start the full stack in Docker
+up: toolchains ## Build and start the full stack in Docker
 	docker compose up -d --build --wait
 
 .PHONY: down

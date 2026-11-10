@@ -14,7 +14,8 @@ COPY packages/contracts ./packages/contracts
 COPY packages/agent-definitions ./packages/agent-definitions
 COPY packages/prompts ./packages/prompts
 RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache/go-build \
-    go build -trimpath -ldflags="-s -w" -o /out/wise-api ./apps/api/cmd/wise-api
+    go build -trimpath -ldflags="-s -w" -o /out/wise-api ./apps/api/cmd/wise-api \
+ && go build -trimpath -ldflags="-s -w" -o /out/wise-sandbox ./apps/api/cmd/wise-sandbox
 
 FROM alpine:${ALPINE_VERSION}
 # Claude Code and Codex CLIs power the CLI model providers; they run in the
@@ -36,6 +37,8 @@ RUN if [ -n "$APK_MIRROR" ]; then sed -i "s#https\?://dl-cdn.alpinelinux.org/alp
 WORKDIR /app
 COPY configs ./configs
 COPY --from=build /out/wise-api /usr/local/bin/wise-api
+# Installed into task sandboxes by the executor (file operations, commands).
+COPY --from=build /out/wise-sandbox /usr/local/bin/wise-sandbox
 USER 10001
 EXPOSE 8080
 ENTRYPOINT ["wise-api"]

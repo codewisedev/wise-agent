@@ -17,7 +17,9 @@ import (
 	"time"
 	"wise/apps/api/internal/codeindex"
 	"wise/apps/api/internal/db/dbgen"
+	"wise/apps/api/internal/executor"
 	"wise/apps/api/internal/memory"
+	"wise/apps/api/internal/workspaces"
 
 	"golang.org/x/term"
 
@@ -46,6 +48,8 @@ Commands:
   serve                                  Run the HTTP API (default)
   orchestrator                           Run the Temporal worker and workflow command dispatcher
   cli-runner                             Run Claude Code / Codex calls for the API (isolated container)
+  executor                               Run the execution worker (task workspaces and sandboxes)
+  egress                                 Run the sandbox egress proxy
   migrate [up|down|reset|status]         Manage database migrations
   user create -username NAME [-role R]   Create a user (password read from stdin/prompt)
   user set-password -username NAME      Replace a user's password
@@ -69,6 +73,10 @@ func main() {
 		err = orchestrator(ctx)
 	case "cli-runner":
 		err = cliRunner(ctx)
+	case "executor":
+		err = executorCmd(ctx)
+	case "egress":
+		err = egressCmd(ctx)
 	case "migrate":
 		err = migrate(ctx, args)
 	case "user":
@@ -189,6 +197,14 @@ func serve(ctx context.Context) error {
 	settings.RegisterIndexing(settingsSvc, cfg.IndexingDefaults, indexSvc)
 	memorySvc := memory.NewService(d, agentSvc, gateway, log.With("component", "memory"))
 	settings.RegisterMemory(settingsSvc, cfg.MemoryDefaults, memorySvc)
+	var execClient workspaces.Executor
+	if c := executor.NewClient(cfg.ExecutorURL, cfg.ExecutorToken); c != nil {
+		execClient = c
+	} else {
+		log.Warn("executor not configured: task workspaces are unavailable (set WISE_EXECUTOR_URL and WISE_EXECUTOR_TOKEN)")
+	}
+	workspaceSvc := workspaces.New(d, execClient, log.With("component", "workspaces"))
+	settings.RegisterExecution(settingsSvc, cfg.ExecutionDefaults, workspaceSvc)
 	runQueue.ContextFor = func(ctx context.Context, run dbgen.AgentRun) (string, error) {
 		p, err := memorySvc.ForRun(ctx, run)
 		return p.Text, err
@@ -214,6 +230,7 @@ func serve(ctx context.Context) error {
 		Repositories:     repoSvc,
 		Index:            indexSvc,
 		Memory:           memorySvc,
+		Workspaces:       workspaceSvc,
 		Agents:           agentSvc,
 		RunQueue:         runQueue,
 		Gateway:          gateway,
@@ -240,6 +257,7 @@ func serve(ctx context.Context) error {
 	go indexSvc.RunScheduler(ctx)
 	indexSvc.SetEmbedder(gateway)
 	go memorySvc.RunBackground(ctx)
+	go workspaceSvc.RunSweeper(ctx)
 	go indexSvc.RunEmbedder(ctx)
 
 	hs := &http.Server{

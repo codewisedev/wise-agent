@@ -762,28 +762,29 @@ type Sprint struct {
 }
 
 type Task struct {
-	ID                uuid.UUID
-	ProjectID         uuid.UUID
-	Title             string
-	Description       string
-	Status            string
-	CreatedBy         *uuid.UUID
-	CreatedAt         time.Time
-	UpdatedAt         time.Time
-	TemplateID        *uuid.UUID
-	WorkflowOverrides json.RawMessage
-	Position          float64
-	Priority          string
-	Labels            []string
-	Source            string
-	IntegrationID     *uuid.UUID
-	ExternalID        *string
-	ExternalUrl       *string
-	ExternalStatus    *string
-	SyncedAt          *time.Time
-	ColumnID          uuid.UUID
-	SprintID          *uuid.UUID
-	ArchivedAt        *time.Time
+	ID                 uuid.UUID
+	ProjectID          uuid.UUID
+	Title              string
+	Description        string
+	Status             string
+	CreatedBy          *uuid.UUID
+	CreatedAt          time.Time
+	UpdatedAt          time.Time
+	TemplateID         *uuid.UUID
+	WorkflowOverrides  json.RawMessage
+	Position           float64
+	Priority           string
+	Labels             []string
+	Source             string
+	IntegrationID      *uuid.UUID
+	ExternalID         *string
+	ExternalUrl        *string
+	ExternalStatus     *string
+	SyncedAt           *time.Time
+	ColumnID           uuid.UUID
+	SprintID           *uuid.UUID
+	ArchivedAt         *time.Time
+	TargetRepositoryID *uuid.UUID
 }
 
 type ToolCall struct {
@@ -869,4 +870,29 @@ type WorkflowTemplate struct {
 	CreatedBy   *uuid.UUID
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
+}
+
+type Workspace struct {
+	ID              uuid.UUID
+	TaskID          uuid.UUID
+	WorkflowRunID   *uuid.UUID
+	RepositoryID    uuid.UUID
+	Status          string
+	Branch          string
+	BaseBranch      *string
+	BaseSha         *string
+	Image           string
+	JobID           *string
+	Log             string
+	Error           *string
+	ToolVersions    []string
+	Scrubbed        []string
+	HeadSha         *string
+	DeliveredBranch *string
+	DeliveredSha    *string
+	DeliveredAt     *time.Time
+	CreatedBy       *uuid.UUID
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+	FinishedAt      *time.Time
 }

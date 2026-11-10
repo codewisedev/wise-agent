@@ -309,7 +309,7 @@ func taskFields(out *apigen.Task, t dbgen.Task) {
 	pos := t.Position
 	out.Column, out.Priority, out.Source, out.Labels, out.Position = &col, &pri, &src, &labels, &pos
 	out.ExternalId, out.ExternalUrl, out.ExternalStatus, out.TemplateId = t.ExternalID, t.ExternalUrl, t.ExternalStatus, t.TemplateID
-	out.SprintId, out.ArchivedAt = t.SprintID, t.ArchivedAt
+	out.SprintId, out.ArchivedAt, out.TargetRepositoryId = t.SprintID, t.ArchivedAt, t.TargetRepositoryID
 }
 
 func (s *Server) GetBoard(ctx context.Context, req apigen.GetBoardRequestObject) (apigen.GetBoardResponseObject, error) {
@@ -394,6 +394,11 @@ func (s *Server) UpdateTask(ctx context.Context, req apigen.UpdateTaskRequestObj
 		p.Labels = *b.Labels
 		if p.Labels == nil {
 			p.Labels = []string{}
+		}
+	}
+	if b.Repository != nil {
+		if err := s.setTaskRepository(ctx, req.TaskId, *b.Repository); err != nil {
+			return nil, err
 		}
 	}
 	t, err := s.Tasks.UpdateCard(ctx, req.TaskId, p)

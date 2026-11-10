@@ -29,6 +29,9 @@ type Config struct {
 	BoardDefaults     string
 	IndexingDefaults  string
 	MemoryDefaults    string
+	ExecutionDefaults string
+	ExecutorURL       string
+	ExecutorToken     string
 	TemporalAddress   string
 	TemporalNamespace string
 	SecretsKey        string
@@ -51,6 +54,9 @@ func Load() (Config, error) {
 		BoardDefaults:     getenv("WISE_BOARD_DEFAULTS", "configs/board/defaults.yaml"),
 		IndexingDefaults:  getenv("WISE_INDEXING_DEFAULTS", "configs/indexing/defaults.yaml"),
 		MemoryDefaults:    getenv("WISE_MEMORY_DEFAULTS", "configs/memory/defaults.yaml"),
+		ExecutionDefaults: getenv("WISE_EXECUTION_DEFAULTS", "configs/execution/defaults.yaml"),
+		ExecutorURL:       getenv("WISE_EXECUTOR_URL", ""),
+		ExecutorToken:     getenv("WISE_EXECUTOR_TOKEN", ""),
 		TemporalAddress:   getenv("WISE_TEMPORAL_ADDRESS", "127.0.0.1:7233"),
 		TemporalNamespace: getenv("WISE_TEMPORAL_NAMESPACE", "wise"),
 		SecretsKey:        os.Getenv("WISE_SECRETS_KEY"),

@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"wise/apps/api/internal/secretguard"
 
 	"github.com/google/uuid"
 
@@ -427,11 +428,8 @@ func QueueIndexJob(ctx context.Context, q *dbgen.Queries, repoID uuid.UUID, reas
 // MaxReadBytes caps ReadFile.
 const MaxReadBytes = 1 << 20
 
-// secretName matches file names that commonly hold credentials.
-var secretName = regexp.MustCompile(`(?i)(^|/)(\.env(\..*)?|\.envrc|id_(rsa|dsa|ecdsa|ed25519)|.*\.(pem|key|p12|pfx|jks|keystore)|credentials(\.json)?|\.netrc|\.npmrc|\.pypirc|secrets?\.(ya?ml|json|toml))$`)
-
 // LooksSecret reports file names that are never shown or indexed.
-func LooksSecret(path string) bool { return secretName.MatchString(path) }
+func LooksSecret(path string) bool { return secretguard.LooksSecret(path) }
 
 // ReadFile reads a repository file (read-only, inside the repository and the
 // allowed roots; symlinks may not escape). Files the indexer flagged as

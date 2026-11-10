@@ -1854,6 +1854,65 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/repositories/{repositoryId}/execution": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                repositoryId: components["parameters"]["RepositoryId"];
+            };
+            cookie?: never;
+        };
+        /** @description How Wise builds and checks this repository in a task sandbox. */
+        get: operations["getRepositoryExecution"];
+        put: operations["setRepositoryExecution"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/repositories/{repositoryId}/execution/detect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                repositoryId: components["parameters"]["RepositoryId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Suggests execution settings from the repository's files. Nothing is saved. */
+        post: operations["detectRepositoryExecution"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tasks/{taskId}/workspace": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                taskId: components["parameters"]["TaskId"];
+            };
+            cookie?: never;
+        };
+        /** @description The task's workspace (its private clone, sandbox and branch) and the repository it changes. */
+        get: operations["getTaskWorkspace"];
+        put?: never;
+        /** @description Prepares the task's workspace (clone, branch, sandbox, preflight, setup). Reuses a ready one. */
+        post: operations["prepareTaskWorkspace"];
+        /** @description Removes the task's workspace and sandbox. A delivered branch stays in the repository. */
+        delete: operations["removeTaskWorkspace"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1997,6 +2056,82 @@ export interface components {
         GitRemote: {
             name: string;
             url: string;
+        };
+        RepositoryExecution: {
+            /** @description Toolchain image the sandbox runs (must include git), e.g. wise-toolchain-node:22. */
+            image: string;
+            /** @description Commands run once when the workspace is prepared (dependency installation). */
+            setup: string[];
+            commands: components["schemas"]["QualityCommands"];
+            /** @description Commands that must exist in the image (checked before any agent runs). */
+            tools: string[];
+            /** @description Branch task branches start from; empty = the repository's current branch. */
+            baseBranch: string;
+            /** @description Extra environment variables for the sandbox. Visible to agents: never put secrets here. */
+            env: {
+                [key: string]: string;
+            };
+        };
+        QualityCommands: {
+            /** @description Format check (must not rewrite files), e.g. npm run format:check. Empty = skipped. */
+            format: string;
+            lint: string;
+            typecheck: string;
+            test: string;
+        };
+        ExecutionDetection: {
+            settings: components["schemas"]["RepositoryExecution"];
+            detected: string[];
+            notes: string[];
+        };
+        /** @enum {string} */
+        WorkspaceStatus: "preparing" | "ready" | "failed" | "stopped" | "removed";
+        Workspace: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            taskId: string;
+            /** Format: uuid */
+            workflowRunId?: string | null;
+            /** Format: uuid */
+            repositoryId: string;
+            repositoryName?: string;
+            status: components["schemas"]["WorkspaceStatus"];
+            /** @description The task branch inside the workspace (and its name when delivered). */
+            branch: string;
+            baseBranch?: string | null;
+            baseSha?: string | null;
+            image: string;
+            /** @description The last part of the preparation log. */
+            log: string;
+            error?: string | null;
+            toolVersions: string[];
+            /** @description Tracked files named like credentials that were kept out of the workspace. */
+            scrubbed: string[];
+            headSha?: string | null;
+            deliveredBranch?: string | null;
+            deliveredSha?: string | null;
+            /** Format: date-time */
+            deliveredAt?: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        TaskWorkspace: {
+            workspace?: components["schemas"]["Workspace"] | null;
+            /** @description The repository the task changes (chosen or automatic). */
+            repository?: components["schemas"]["RepositoryRef"] | null;
+            /** @description Why a workspace cannot be prepared yet (e.g. no execution settings). */
+            problem?: string | null;
+            executorAvailable?: boolean;
+        };
+        RepositoryRef: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            /** @description The repository has execution settings. */
+            configured?: boolean;
         };
         Repository: {
             /** Format: uuid */
@@ -2323,6 +2458,11 @@ export interface components {
             /** Format: uuid */
             sprintId?: string | null;
             /**
+             * Format: uuid
+             * @description The repository the task changes; null = the project's only local repository.
+             */
+            targetRepositoryId?: string | null;
+            /**
              * Format: date-time
              * @description Set when the task's source stopped returning it (e.g. no longer assigned to you); cleared if it returns.
              */
@@ -2351,6 +2491,8 @@ export interface components {
              * @description Order within the column (cards sort ascending); omit to append.
              */
             position?: number;
+            /** @description A local repository id of the project the task changes, or "auto" (the project's only local repository). */
+            repository?: string;
         };
         BoardCard: {
             task: components["schemas"]["Task"];
@@ -3811,9 +3953,9 @@ export interface operations {
                     "application/json": components["schemas"]["Repository"];
                 };
             };
+            400: components["responses"]["Problem"];
             401: components["responses"]["Problem"];
             404: components["responses"]["Problem"];
-            422: components["responses"]["Problem"];
         };
     };
     getRepositoryIndex: {
@@ -6597,9 +6739,9 @@ export interface operations {
                 };
                 content?: never;
             };
+            400: components["responses"]["Problem"];
             401: components["responses"]["Problem"];
             403: components["responses"]["Problem"];
-            422: components["responses"]["Problem"];
         };
     };
     runtimeFailRun: {
@@ -6626,6 +6768,157 @@ export interface operations {
             };
             401: components["responses"]["Problem"];
             403: components["responses"]["Problem"];
+        };
+    };
+    getRepositoryExecution: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                repositoryId: components["parameters"]["RepositoryId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Execution settings (empty image = not set up yet). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RepositoryExecution"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    setRepositoryExecution: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                repositoryId: components["parameters"]["RepositoryId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RepositoryExecution"];
+            };
+        };
+        responses: {
+            /** @description Saved. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RepositoryExecution"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    detectRepositoryExecution: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                repositoryId: components["parameters"]["RepositoryId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Suggestion. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExecutionDetection"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    getTaskWorkspace: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                taskId: components["parameters"]["TaskId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Workspace state. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskWorkspace"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    prepareTaskWorkspace: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                taskId: components["parameters"]["TaskId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Preparing (or already ready). */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Workspace"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    removeTaskWorkspace: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                taskId: components["parameters"]["TaskId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Removed. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
         };
     };
 }
