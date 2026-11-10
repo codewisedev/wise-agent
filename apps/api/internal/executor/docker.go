@@ -103,6 +103,24 @@ func (d *Docker) network(ctx context.Context, id string) error {
 	return nil
 }
 
+// attach connects the service labelled wise.role=<role> to a sandbox network
+// under alias (idempotent).
+func (d *Docker) attach(ctx context.Context, id, role, alias string) error {
+	res, err := d.cli.ContainerList(ctx, client.ContainerListOptions{Filters: make(client.Filters).Add("label", "wise.role="+role)})
+	if err != nil {
+		return err
+	}
+	if len(res.Items) == 0 {
+		return fmt.Errorf("%s is not running", alias)
+	}
+	if _, err := d.cli.NetworkConnect(ctx, name(id), client.NetworkConnectOptions{
+		Container: res.Items[0].ID, EndpointConfig: &network.EndpointSettings{Aliases: []string{alias}},
+	}); err != nil && !cerrdefs.IsConflict(err) && !strings.Contains(err.Error(), "already exists") {
+		return fmt.Errorf("connect %s: %w", alias, err)
+	}
+	return nil
+}
+
 // dropNetwork removes the sandbox's network (stopped sandboxes keep none, so
 // retained workspaces do not use up Docker's address pools).
 func (d *Docker) dropNetwork(ctx context.Context, id string) error {
@@ -111,6 +129,11 @@ func (d *Docker) dropNetwork(ctx context.Context, id string) error {
 		_, _ = d.cli.NetworkDisconnect(ctx, n, client.NetworkDisconnectOptions{Container: eg, Force: true})
 	}
 	_, _ = d.cli.NetworkDisconnect(ctx, n, client.NetworkDisconnectOptions{Container: n, Force: true})
+	if res, err := d.cli.ContainerList(ctx, client.ContainerListOptions{Filters: make(client.Filters).Add("label", "wise.role=model-proxy")}); err == nil {
+		for _, c := range res.Items {
+			_, _ = d.cli.NetworkDisconnect(ctx, n, client.NetworkDisconnectOptions{Container: c.ID, Force: true})
+		}
+	}
 	if _, err := d.cli.NetworkRemove(ctx, n, client.NetworkRemoveOptions{}); err != nil && !cerrdefs.IsNotFound(err) {
 		return err
 	}
@@ -224,6 +247,11 @@ func (d *Docker) CreateRunner(ctx context.Context, spec RunnerSpec) error {
 	}
 	if err := d.network(ctx, spec.WorkspaceID); err != nil {
 		return err
+	}
+	if spec.ModelProxy {
+		if err := d.attach(ctx, spec.WorkspaceID, "model-proxy", "wise-model-proxy"); err != nil {
+			return err
+		}
 	}
 	n := runnerName(spec.RunID)
 	labels := map[string]string{"wise.workspace": spec.WorkspaceID, "wise.role": "runner", "wise.run": spec.RunID}

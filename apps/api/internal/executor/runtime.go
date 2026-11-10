@@ -32,6 +32,7 @@ type RunnerSpec struct {
 	MemoryMB    int64
 	Pids        int64
 	CLISubpath  string // inside the CLI bundle volume, e.g. claude-code/2.1.319/musl
+	ModelProxy  bool   // connect the Runtime Proxy to the run's network
 }
 
 // Runtime runs sandboxes. Docker in production; a local stand-in in tests.

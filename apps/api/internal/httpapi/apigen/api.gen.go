@@ -20,6 +20,7 @@ import (
 
 // Defines values for AccountKind.
 const (
+	AccountKindAnthropic        AccountKind = "anthropic"
 	AccountKindClaudeCode       AccountKind = "claude_code"
 	AccountKindClickup          AccountKind = "clickup"
 	AccountKindCodexCli         AccountKind = "codex_cli"
@@ -31,6 +32,8 @@ const (
 // Valid indicates whether the value is a known member of the AccountKind enum.
 func (e AccountKind) Valid() bool {
 	switch e {
+	case AccountKindAnthropic:
+		return true
 	case AccountKindClaudeCode:
 		return true
 	case AccountKindClickup:

@@ -30,6 +30,9 @@ x-api-env: &api-env
   # Task workspaces and sandboxes run in the executor.
   WISE_EXECUTOR_URL: http://wise-executor:8091
   WISE_EXECUTOR_TOKEN: ${WISE_EXECUTOR_TOKEN:?set WISE_EXECUTOR_TOKEN in .env}
+  # Coding runners' Runtime Proxy (API-key accounts).
+  WISE_MODEL_PROXY_URL: http://wise-model-proxy:8095
+  WISE_MODEL_PROXY_TOKEN: ${WISE_MODEL_PROXY_TOKEN:?set WISE_MODEL_PROXY_TOKEN in .env}
 
 x-hardened: &hardened
   read_only: true
@@ -333,6 +336,32 @@ services:
       resources:
         limits: { cpus: "0.5", memory: 128M }
 
+  # Runtime Proxy: coding-CLI runners call models with a per-run token; the
+  # real API key is injected here (never in a sandbox), usage and budgets are
+  # enforced. Joins a run's private network only for that run.
+  wise-model-proxy:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+      network: host
+      args:
+        GOPROXY: ${GOPROXY:-https://proxy.golang.org,direct}
+        INSTALL_CLAUDE_CODE: "false"
+        APK_MIRROR: ${APK_MIRROR:-}
+    command: ["model-proxy"]
+    restart: unless-stopped
+    labels:
+      wise.role: model-proxy
+    environment:
+      WISE_MODEL_PROXY_TOKEN: ${WISE_MODEL_PROXY_TOKEN:?set WISE_MODEL_PROXY_TOKEN in .env}
+      WISE_LOG_LEVEL: ${WISE_LOG_LEVEL:-info}
+    user: "${WISE_UID:-1000}:${WISE_GID:-1000}"
+    <<: *hardened
+    networks: [exec, model-egress]
+    deploy:
+      resources:
+        limits: { cpus: "0.5", memory: 128M }
+
   # Runs Claude Code / Codex for the API. No database, repositories or control-plane
   # secrets: each request carries the one account credential it needs. Internet
   # egress only (the CLIs talk to their vendors).
@@ -463,6 +492,8 @@ networks:
     internal: true
   # Egress proxy -> internet (allowlisted registries only).
   sandbox-egress: {}
+  # Runtime Proxy -> model vendors.
+  model-egress: {}
 
 volumes:
   postgres-data: {}

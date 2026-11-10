@@ -27,6 +27,7 @@ type RunnerRequest struct {
 	Files      map[string]string `json:"files,omitempty"`   // written into the fresh run home before start
 	Collect    []string          `json:"collect,omitempty"` // home-relative files read back after the run
 	GrantHosts []string          `json:"grantHosts,omitempty"`
+	ModelProxy bool              `json:"modelProxy,omitempty"` // reach wise-model-proxy (API-key mode)
 	NoProxy    []string          `json:"noProxy,omitempty"`
 	WallClockS int               `json:"wallClockS"`
 	IdleS      int               `json:"idleS"`
@@ -186,7 +187,11 @@ func (m *Manager) runRunner(ctx context.Context, st State, runID, token string, 
 	if m.cfg.Proxy != "" {
 		proxy = strings.Replace(m.cfg.Proxy, "://", "://run:"+token+"@", 1)
 	}
-	noProxy := strings.Join(append([]string{"localhost", "127.0.0.1"}, req.NoProxy...), ",")
+	np := append([]string{"localhost", "127.0.0.1"}, req.NoProxy...)
+	if req.ModelProxy {
+		np = append(np, "wise-model-proxy")
+	}
+	noProxy := strings.Join(np, ",")
 	env := []string{"HOME=/home/wise", "XDG_CACHE_HOME=/home/wise/.cache", "NPM_CONFIG_PREFIX=/home/wise/.npm-global",
 		"GOFLAGS=-modcacherw", "GIT_TERMINAL_PROMPT=0", "CI=true", "WISE_WORKSPACE=/workspace",
 		"PATH=/opt/cli:/home/wise/.local/bin:/home/wise/.npm-global/bin:/home/wise/go/bin:/usr/local/go/bin:" +
@@ -203,7 +208,7 @@ func (m *Manager) runRunner(ctx context.Context, st State, runID, token string, 
 		limits = l
 	}
 	spec := RunnerSpec{RunID: runID, WorkspaceID: st.ID, Image: st.Image, User: m.cfg.User, Env: env,
-		CPUs: limits.CPUs, MemoryMB: limits.MemoryMB, Pids: limits.Pids, CLISubpath: req.CLI + "/" + req.Version + "/musl"}
+		CPUs: limits.CPUs, MemoryMB: limits.MemoryMB, Pids: limits.Pids, CLISubpath: req.CLI + "/" + req.Version + "/musl", ModelProxy: req.ModelProxy}
 	fmt.Fprintf(j, "[wise] starting %s %s runner\n", req.CLI, req.Version)
 	if err := m.rt.CreateRunner(ctx, spec); err != nil {
 		return res, err

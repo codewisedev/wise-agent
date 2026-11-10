@@ -10,6 +10,7 @@ import (
 
 	"wise/apps/api/internal/egress"
 	"wise/apps/api/internal/executor"
+	"wise/apps/api/internal/modelproxy"
 )
 
 func listen(ctx context.Context, hs *http.Server) error {
@@ -74,6 +75,20 @@ func executorCmd(ctx context.Context) error {
 	log.Info("executor listening", "addr", addr)
 	return listen(ctx, &http.Server{Addr: addr, Handler: executor.Handler(m, token, egressToken, log),
 		ReadHeaderTimeout: 10 * time.Second, IdleTimeout: 120 * time.Second, MaxHeaderBytes: 1 << 16})
+}
+
+// modelProxyCmd runs the Runtime Proxy: runners' model calls with per-run
+// tokens, the real API keys injected here, usage and budgets.
+func modelProxyCmd(ctx context.Context) error {
+	log := newLogger(os.Getenv("WISE_LOG_LEVEL")).With("service", "model-proxy")
+	token := os.Getenv("WISE_MODEL_PROXY_TOKEN")
+	if len(token) < 32 {
+		return errors.New("WISE_MODEL_PROXY_TOKEN must be at least 32 characters")
+	}
+	addr := envOr("WISE_MODEL_PROXY_ADDR", ":8095")
+	log.Info("model proxy listening", "addr", addr)
+	return listen(ctx, &http.Server{Addr: addr, Handler: modelproxy.New(token, log).Handler(),
+		ReadHeaderTimeout: 30 * time.Second, MaxHeaderBytes: 1 << 16})
 }
 
 // egressCmd runs the sandbox egress proxy. It holds only a token that can

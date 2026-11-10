@@ -3195,7 +3195,7 @@ components:
         comment: { type: string, maxLength: 10000 }
     AccountKind:
       type: string
-      enum: [claude_code, codex_cli, openai_compatible, jira, clickup, trello]
+      enum: [claude_code, codex_cli, openai_compatible, anthropic, jira, clickup, trello]
     Account:
       type: object
       required: [id, name, kind, baseUrl, defaultModel, cloud, enabled, hasSecret, secretHint, metadata, createdAt, updatedAt]

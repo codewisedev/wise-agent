@@ -2735,7 +2735,7 @@ export interface components {
             comment?: string;
         };
         /** @enum {string} */
-        AccountKind: "claude_code" | "codex_cli" | "openai_compatible" | "jira" | "clickup" | "trello";
+        AccountKind: "claude_code" | "codex_cli" | "openai_compatible" | "anthropic" | "jira" | "clickup" | "trello";
         Account: {
             /** Format: uuid */
             id: string;

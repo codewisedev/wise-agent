@@ -32,9 +32,12 @@ const (
 	KindClaudeCode = "claude_code"
 	KindCodexCLI   = "codex_cli"
 	KindOpenAI     = "openai_compatible"
-	KindJira       = "jira"
-	KindClickUp    = "clickup"
-	KindTrello     = "trello"
+	// KindAnthropic is an Anthropic API key, used by Claude Code runners
+	// through the Runtime Proxy (never handed to a sandbox).
+	KindAnthropic = "anthropic"
+	KindJira      = "jira"
+	KindClickUp   = "clickup"
+	KindTrello    = "trello"
 )
 
 // IsModelKind reports whether accounts of this kind serve model calls.
@@ -198,7 +201,7 @@ func (s *Service) apply(a *dbgen.Account, in Input, create bool) error {
 		errs = append(errs, apperr.FieldError{Field: "name", Message: "is used by a built-in provider in models.yaml"})
 	}
 	switch a.Kind {
-	case KindClaudeCode, KindCodexCLI, KindOpenAI, KindJira, KindClickUp, KindTrello:
+	case KindClaudeCode, KindCodexCLI, KindOpenAI, KindAnthropic, KindJira, KindClickUp, KindTrello:
 	default:
 		return apperr.Validation(apperr.FieldError{Field: "kind", Message: "unknown account kind"})
 	}
@@ -243,7 +246,7 @@ func (s *Service) apply(a *dbgen.Account, in Input, create bool) error {
 	// are local only when they point at this machine or the private network (a
 	// user may still mark a local endpoint as cloud).
 	switch a.Kind {
-	case KindClaudeCode, KindCodexCLI:
+	case KindClaudeCode, KindCodexCLI, KindAnthropic:
 		a.Cloud = true
 	case KindOpenAI:
 		a.Cloud = !isLocalURL(a.BaseUrl) || (in.Cloud != nil && *in.Cloud)
@@ -259,6 +262,8 @@ func (s *Service) apply(a *dbgen.Account, in Input, create bool) error {
 			errs = append(errs, apperr.FieldError{Field: "secret", Message: "is too large"})
 		case a.Kind == KindCodexCLI && v != "" && !json.Valid([]byte(v)):
 			errs = append(errs, apperr.FieldError{Field: "secret", Message: "paste the whole ~/.codex/auth.json file"})
+		case a.Kind == KindAnthropic && v != "" && !strings.HasPrefix(v, "sk-ant-"):
+			errs = append(errs, apperr.FieldError{Field: "secret", Message: "an Anthropic API key (sk-ant-…)"})
 		}
 	} else if create && a.Kind != KindOpenAI {
 		errs = append(errs, apperr.FieldError{Field: "secret", Message: "is required for this kind"})
