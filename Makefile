@@ -60,6 +60,10 @@ toolchains: ## Build the sandbox toolchain images (Node, Go, Python with git)
 	docker build -q -t wise-toolchain-python:3.13 --build-arg APK_MIRROR=$${APK_MIRROR:-} infrastructure/toolchains/python
 	docker build -q -t wise-coding-clis:2.1.319-0.163.0 infrastructure/coding-clis
 
+.PHONY: escape-check
+escape-check: ## Sandbox escape checks on the running stack (REPO=<git repo under WISE_REPO_ROOT>)
+	python3 scripts/escape_check.py $(REPO)
+
 .PHONY: up
 up: toolchains ## Build and start the full stack in Docker
 	docker compose up -d --build --wait

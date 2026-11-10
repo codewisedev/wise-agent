@@ -2,7 +2,7 @@
 
 Personal, local-first AI engineering platform. See [`implementation-plan.md`](implementation-plan.md) for the full vision and roadmap.
 
-**Status: Phase 5 — Engineering pipeline.** Wise manages projects and repositories behind a login, keeps tasks on Trello-style boards with your own lists (by hand or imported from Jira, ClickUp and Trello), and runs them through configurable agent workflows on Temporal — any step on any of your accounts (Claude Code, Codex, LM Studio, DeepSeek…), with review gates or fully step by step. Agents, prompts, models, policies and limits are all edited in the dashboard. **Phase 4** adds a code index (tree-sitter symbols, keyword and semantic search), memory that agents receive once you approve it, and an engineering profile. **Phase 5** lets Wise write code: in a private clone of your repository inside a locked-down sandbox, agents implement the approved plan, your checks run, independent agents review the diff, failures are fixed in rounds, and after your approval the change lands in your repository as a `wise/…` branch.
+**Status: Phase 5b — External coding agents.** Wise manages projects and repositories behind a login, keeps tasks on Trello-style boards with your own lists (by hand or imported from Jira, ClickUp and Trello), and runs them through configurable agent workflows on Temporal — any step on any of your accounts (Claude Code, Codex, LM Studio, DeepSeek…), with review gates or fully step by step. Agents, prompts, models, policies and limits are all edited in the dashboard. **Phase 4** adds a code index (tree-sitter symbols, keyword and semantic search), memory that agents receive once you approve it, and an engineering profile. **Phase 5** lets Wise write code: in a private clone of your repository inside a locked-down sandbox, agents implement the approved plan, your checks run, independent agents review the diff, failures are fixed in rounds, and after your approval the change lands in your repository as a `wise/…` branch.
 
 ## What's here
 
@@ -164,6 +164,23 @@ Pick the **Engineering → code** workflow for a task (or add the steps to your 
    and never from sandbox output.
 8. **Deliver.** The approved commit is written into your repository as the branch. Your checkout is untouched and
    existing branches are never moved. Run `git switch wise/…` to try it.
+
+**Claude Code and Codex as coders (Phase 5b).** An implementing step can run on Claude Code or Codex instead of Wise's
+own agent:
+1. In the project page's **Coding runtimes** panel, allow the runtime.
+2. In the workflow editor, pick it on the Implement step.
+
+The CLI works in a runner on the task workspace, under the same sandbox rules (`.git` hidden, no other network than
+registries and its vendor). Wise still runs the checks, reviews, quality gate, your approval and delivery.
+
+Credentials, set in Settings → Coding runtimes:
+- **Runtime Proxy:** an Anthropic or OpenAI API-key account. The key never enters the sandbox, and budgets are enforced
+  per run.
+- **Subscription:** your `claude setup-token` token or a Codex login. This is reduced isolation: the token is inside the
+  runner, so a project must allow it explicitly.
+
+`make escape-check REPO=<repo>` re-runs the isolation checks on your stack. See
+`docs/decisions/0008-external-coding-agents.md`.
 
 Settings → Execution holds sandbox limits, the egress allowlist, timeouts, fix rounds, workspace retention, the
 branch name template and the commit author. The isolation model is described in

@@ -1602,6 +1602,9 @@ Build:
 
 **Goal:** Implementation agents can delegate to Claude Code or Codex under Wise's isolation and approval rules.
 
+**Status:** done — see `docs/decisions/0008-external-coding-agents.md`. API keys go through the Runtime Proxy;
+subscription credentials are allowed per project as an explicit reduced-isolation mode (the §9.9 decision).
+
 ## Phase 6 — Self-Improvement
 
 Build:

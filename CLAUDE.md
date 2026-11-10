@@ -32,7 +32,11 @@ editing code or files.** This applies to every feature, in every phase.
     - only the executor writes to repositories, and only to add `wise/…` branches for approved commits;
     - after the clone it never runs git or does file IO in a workspace;
     - sandboxes leave only through `wise-egress`, which always refuses private addresses (users edit the host
-      allowlist, not that rule).
+      allowlist, not that rule);
+  - **external coding runtimes** (ADR 0008): runners use the same fixed template (with `.git` hidden and a fresh
+    home per run); vendor hosts are granted per run only; API keys stay in `wise-model-proxy` and never enter a
+    sandbox; Claude Code never loads the repository's settings or hooks. Projects choose runtimes and whether
+    subscription (reduced-isolation) mode is allowed, but these mechanisms are not configurable.
   If you think something else should not be configurable, record it here with the reason.
 
 ## Working in the repo
