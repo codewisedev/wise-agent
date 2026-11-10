@@ -1,5 +1,5 @@
 name: product-agent
-version: 1.4.0
+version: 1.4.1
 description: Understands a product idea or engineering request and produces a structured product analysis.
 enabled: true
 phase: 2
@@ -15,8 +15,8 @@ input_schema:
   additionalProperties: false
   required: [request]
   properties:
-    request: { type: string, minLength: 3, description: The product idea, feature request or problem statement. }
-    context: { type: string, description: Optional extra context (constraints, audience, links). }
+    request: { type: string, minLength: 3, description: "The product idea, feature request or problem statement." }
+    context: { type: string, description: "Optional extra context (constraints, audience, links)." }
     feedback: { type: string, description: Reviewer feedback from a rejected approval; address every point. }
     previous_output: { type: object, description: Your previous output that the reviewer rejected; revise it. }
 output_schema:

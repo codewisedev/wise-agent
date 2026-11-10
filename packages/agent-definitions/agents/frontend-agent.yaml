@@ -1,5 +1,5 @@
 name: frontend-agent
-version: 1.0.0
+version: 1.0.1
 description: Implements the approved plan's frontend changes (UI, client code) in the task workspace, with tests.
 enabled: true
 phase: 5
@@ -32,7 +32,7 @@ output_schema:
   additionalProperties: false
   required: [summary, changed_files, tests, checks_run, notes, commit_message]
   properties:
-    summary: { type: string, description: What you changed and why, for the reviewer. }
+    summary: { type: string, description: "What you changed and why, for the reviewer." }
     changed_files:
       type: array
       items:
@@ -62,7 +62,7 @@ output_schema:
           command: { type: string }
           result: { enum: [passed, failed, not_run] }
           note: { type: string }
-    notes: { type: array, items: { type: string }, description: Follow-ups, limitations or decisions the reviewer should know. }
+    notes: { type: array, items: { type: string }, description: "Follow-ups, limitations or decisions the reviewer should know." }
     commit_message: { type: string, minLength: 3, maxLength: 2000, description: "Conventional commit message: a subject line of at most 72 characters, a blank line, then the body." }
 tools: [get_project_context, search_context, find_symbol, list_dependencies, search_memory, ws_list_files, ws_read_file, ws_search, ws_git_diff, ws_write_file, ws_edit_file, ws_delete_file, ws_run_command]
 permissions: [project:read, workspace:read, workspace:write, workspace:execute]

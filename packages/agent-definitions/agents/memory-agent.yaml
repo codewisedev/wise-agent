@@ -1,5 +1,5 @@
 name: memory-agent
-version: 1.0.0
+version: 1.0.1
 description: Proposes durable engineering knowledge (rules, preferences, decisions, facts) from review feedback and reports, for the user to approve.
 enabled: true
 phase: 4
@@ -15,7 +15,7 @@ input_schema:
   required: [source, task]
   properties:
     source: { type: string, enum: [review_feedback, report, task], description: What the material comes from. }
-    decision: { type: string, description: The review decision (approved or rejected), for review feedback. }
+    decision: { type: string, description: "The review decision (approved or rejected), for review feedback." }
     feedback: { type: string, description: What the user wrote when reviewing. }
     task:
       type: object
@@ -24,7 +24,7 @@ input_schema:
       properties:
         title: { type: string }
         description: { type: string }
-    material: { type: string, description: The reviewed artifacts or the final report (JSON text, may be truncated). }
+    material: { type: string, description: "The reviewed artifacts or the final report (JSON text, may be truncated)." }
     existing_memories:
       type: array
       description: Memories already known; do not propose these again.
@@ -49,7 +49,7 @@ output_schema:
           category: { enum: [coding, architecture, testing, api, database, security, tooling, product, other] }
           title: { type: string, maxLength: 120 }
           body: { type: string, maxLength: 1500 }
-          rationale: { type: string, maxLength: 500, description: Why this is worth remembering, quoting the source. }
+          rationale: { type: string, maxLength: 500, description: "Why this is worth remembering, quoting the source." }
 tools: []
 permissions: []
 model_config:
