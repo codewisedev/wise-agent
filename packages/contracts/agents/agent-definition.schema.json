@@ -89,7 +89,10 @@
           "project:read",
           "network:egress",
           "git:commit",
-          "git:push"
+          "git:push",
+          "workspace:read",
+          "workspace:write",
+          "workspace:execute"
         ]
       },
       "uniqueItems": true

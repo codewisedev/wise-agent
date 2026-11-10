@@ -26,7 +26,8 @@ func TestEmbeddedCatalogIsValid(t *testing.T) {
 			}
 		}
 	}
-	want := []string{"product-agent", "requirements-agent", "planner-agent", "architect-agent", "memory-agent", "profile-agent"}
+	want := []string{"product-agent", "requirements-agent", "planner-agent", "architect-agent", "memory-agent", "profile-agent",
+		"backend-agent", "frontend-agent", "qa-agent", "reviewer-agent", "security-agent"}
 	for _, name := range want {
 		if !enabled[name] {
 			t.Errorf("%s should be enabled", name)

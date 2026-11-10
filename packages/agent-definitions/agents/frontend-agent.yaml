@@ -1,17 +1,88 @@
 name: frontend-agent
-version: 0.1.0
-description: Implements frontend functionality inside an isolated workspace.
-enabled: false
+version: 1.0.0
+description: Implements the approved plan's frontend changes (UI, client code) in the task workspace, with tests.
+enabled: true
 phase: 5
+prompt: frontend-agent/system.md
+produces: implementation
+consumes:
+  plan: plan
+  requirements: requirements
+  architecture_review: architecture_review
 responsibilities:
-  - Implement UI changes
-  - Keep accessibility and design tokens
-  - Report changed files and rationale
-input_schema: { type: object, properties: {} }
-output_schema: { type: object, properties: {} }
-tools: []
-permissions: []
-model_config: { alias: reasoning }
-execution_limits: { max_turns: 1, max_tool_calls: 0, timeout_s: 60 }
-error_handling: { max_attempts: 1, invalid_output_retries: 0 }
-evaluation: { criteria: [] }
+  - Implement the approved plan's UI and client changes in the task workspace
+  - Follow the project's components, styles and accessibility conventions
+  - Write and update tests
+  - Run the repository's checks and fix what fails
+input_schema:
+  type: object
+  additionalProperties: false
+  required: [request, plan]
+  properties:
+    request: { type: string, minLength: 3, description: The task. }
+    plan: { type: object, description: The approved implementation plan (output of planner-agent). }
+    requirements: { type: object, description: Approved requirements. }
+    architecture_review: { type: object, description: The architect's review of the plan. }
+    quality_commands: { type: object, additionalProperties: { type: string }, description: "The repository's checks (format, lint, typecheck, test) that the quality gate will run." }
+    fix_feedback: { type: string, description: "Failed checks and review findings from the quality gate; fix every one." }
+    feedback: { type: string, description: Reviewer feedback from a rejected final approval; address every point. }
+    previous_output: { type: object, description: Your previous report. }
+output_schema:
+  type: object
+  additionalProperties: false
+  required: [summary, changed_files, tests, checks_run, notes, commit_message]
+  properties:
+    summary: { type: string, description: What you changed and why, for the reviewer. }
+    changed_files:
+      type: array
+      items:
+        type: object
+        additionalProperties: false
+        required: [path, change, why]
+        properties:
+          path: { type: string }
+          change: { enum: [added, modified, deleted] }
+          why: { type: string }
+    tests:
+      type: array
+      items:
+        type: object
+        additionalProperties: false
+        required: [path, description]
+        properties:
+          path: { type: string }
+          description: { type: string }
+    checks_run:
+      type: array
+      items:
+        type: object
+        additionalProperties: false
+        required: [command, result]
+        properties:
+          command: { type: string }
+          result: { enum: [passed, failed, not_run] }
+          note: { type: string }
+    notes: { type: array, items: { type: string }, description: Follow-ups, limitations or decisions the reviewer should know. }
+    commit_message: { type: string, minLength: 3, maxLength: 2000, description: "Conventional commit message: a subject line of at most 72 characters, a blank line, then the body." }
+tools: [get_project_context, search_context, find_symbol, list_dependencies, search_memory, ws_list_files, ws_read_file, ws_search, ws_git_diff, ws_write_file, ws_edit_file, ws_delete_file, ws_run_command]
+permissions: [project:read, workspace:read, workspace:write, workspace:execute]
+model_config:
+  alias: reasoning
+  fallbacks: [local]
+  temperature: 0.1
+  max_output_tokens: 8000
+execution_limits:
+  max_turns: 60
+  max_tool_calls: 160
+  max_tokens: 3000000
+  max_cost_usd: 6
+  timeout_s: 3600
+error_handling:
+  max_attempts: 2
+  invalid_output_retries: 2
+evaluation:
+  criteria:
+    - Every plan step in the frontend area is implemented or explicitly deferred with a reason
+    - New behaviour is covered by tests that fail without the change
+    - The repository's checks pass in the sandbox
+    - The change stays within the approved scope

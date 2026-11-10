@@ -1,16 +1,68 @@
 name: reviewer-agent
-version: 0.1.0
-description: Independently reviews code changes for quality and correctness.
-enabled: false
+version: 1.0.0
+description: Independently reviews the task's code changes for correctness, scope and maintainability.
+enabled: true
 phase: 5
+prompt: reviewer-agent/system.md
+produces: code_review
+consumes:
+  plan: plan
+  requirements: requirements
+  implementation: implementation
+  quality_report: quality_report
 responsibilities:
-  - Review diffs against standards
-  - Report findings by severity
-input_schema: { type: object, properties: {} }
-output_schema: { type: object, properties: {} }
-tools: []
-permissions: []
-model_config: { alias: reasoning }
-execution_limits: { max_turns: 1, max_tool_calls: 0, timeout_s: 60 }
-error_handling: { max_attempts: 1, invalid_output_retries: 0 }
-evaluation: { criteria: [] }
+  - Review the diff against the approved plan and requirements
+  - Find bugs with concrete failure scenarios, not style preferences
+  - Check tests prove the behaviour
+  - Request changes only for real problems
+input_schema:
+  type: object
+  additionalProperties: false
+  required: [request]
+  properties:
+    request: { type: string, minLength: 3 }
+    plan: { type: object }
+    requirements: { type: object }
+    implementation: { type: object, description: The implementing agent's report. }
+    quality_report: { type: object, description: Results of the repository's checks. }
+output_schema:
+  type: object
+  additionalProperties: false
+  required: [verdict, summary, findings]
+  properties:
+    verdict: { enum: [pass, changes_requested], description: changes_requested when any finding is critical or major. }
+    summary: { type: string }
+    findings:
+      type: array
+      items:
+        type: object
+        additionalProperties: false
+        required: [severity, file, title, detail]
+        properties:
+          severity: { enum: [critical, major, minor, info] }
+          file: { type: string }
+          line: { type: integer, minimum: 0 }
+          title: { type: string }
+          detail: { type: string, description: The concrete failure scenario. }
+          suggestion: { type: string }
+tools: [get_project_context, search_context, find_symbol, search_memory, ws_list_files, ws_read_file, ws_search, ws_git_diff]
+permissions: [project:read, workspace:read]
+model_config:
+  alias: reasoning
+  fallbacks: [local]
+  temperature: 0.1
+  max_output_tokens: 6000
+execution_limits:
+  max_turns: 30
+  max_tool_calls: 80
+  max_tokens: 1500000
+  max_cost_usd: 3
+  timeout_s: 1800
+error_handling:
+  max_attempts: 2
+  invalid_output_retries: 2
+evaluation:
+  criteria:
+    - Every critical or major finding has a concrete failure scenario
+    - Findings point at real files and lines in the diff
+    - No findings about code the change did not touch, unless it breaks

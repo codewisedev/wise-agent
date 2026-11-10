@@ -1,17 +1,66 @@
 name: qa-agent
-version: 0.1.0
-description: Independently executes tests and validates behaviour.
-enabled: false
+version: 1.0.0
+description: Diagnoses failing checks and review findings into precise fix instructions, and spots missing tests.
+enabled: true
 phase: 5
+prompt: qa-agent/system.md
+produces: qa
+consumes:
+  plan: plan
+  requirements: requirements
+  implementation: implementation
+  quality_report: quality_report
 responsibilities:
-  - Run tests independently
-  - Validate acceptance criteria
-  - Never trust implementer claims
-input_schema: { type: object, properties: {} }
-output_schema: { type: object, properties: {} }
-tools: []
-permissions: []
-model_config: { alias: reasoning }
-execution_limits: { max_turns: 1, max_tool_calls: 0, timeout_s: 60 }
-error_handling: { max_attempts: 1, invalid_output_retries: 0 }
-evaluation: { criteria: [] }
+  - Read failing check output and find the root cause in the workspace
+  - Turn failures and review findings into precise, ordered fix instructions
+  - Point out acceptance criteria without tests
+input_schema:
+  type: object
+  additionalProperties: false
+  required: [request]
+  properties:
+    request: { type: string, minLength: 3 }
+    plan: { type: object }
+    requirements: { type: object }
+    implementation: { type: object }
+    quality_report: { type: object }
+    code_review: { type: object }
+    security_review: { type: object }
+output_schema:
+  type: object
+  additionalProperties: false
+  required: [summary, fixes, missing_tests]
+  properties:
+    summary: { type: string }
+    fixes:
+      type: array
+      items:
+        type: object
+        additionalProperties: false
+        required: [problem, cause, instruction]
+        properties:
+          problem: { type: string, description: The failing check or finding. }
+          cause: { type: string, description: The root cause you found (file and line when possible). }
+          instruction: { type: string, description: What exactly to change. }
+          file: { type: string }
+    missing_tests: { type: array, items: { type: string } }
+tools: [get_project_context, search_context, find_symbol, search_memory, ws_list_files, ws_read_file, ws_search, ws_git_diff, ws_run_command]
+permissions: [project:read, workspace:read, workspace:execute]
+model_config:
+  alias: reasoning
+  fallbacks: [local]
+  temperature: 0.1
+  max_output_tokens: 5000
+execution_limits:
+  max_turns: 30
+  max_tool_calls: 80
+  max_tokens: 1500000
+  max_cost_usd: 3
+  timeout_s: 1800
+error_handling:
+  max_attempts: 2
+  invalid_output_retries: 2
+evaluation:
+  criteria:
+    - Every failing check has a fix with a root cause, not a restatement of the error
+    - Instructions are specific enough to apply without re-investigating

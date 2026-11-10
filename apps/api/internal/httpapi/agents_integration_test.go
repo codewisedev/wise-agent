@@ -106,7 +106,7 @@ func TestAgentRunLifecycle(t *testing.T) {
 	if detail["prompt"] == "" || detail["enabled"] != true || len(detail["tools"].([]any)) != 8 {
 		t.Fatalf("detail: %v", detail)
 	}
-	e.expect(e.do("POST", "/agents/qa-agent/runs", map[string]any{"input": map[string]any{}}), 409)
+	e.expect(e.do("POST", "/agents/release-agent/runs", map[string]any{"input": map[string]any{}}), 409)
 	e.expect(e.do("POST", "/agents/nope-agent/runs", map[string]any{"input": map[string]any{}}), 404)
 	e.expect(e.do("POST", "/agents/product-agent/runs", map[string]any{"input": map[string]any{"request": "x", "bogus": 1}}), 400)
 	runID := e.createRun("product-agent", map[string]any{"request": "Build a salon booking app"})
