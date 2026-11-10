@@ -310,8 +310,21 @@ func (a *Activities) EvaluateGate(ctx context.Context, req EngRequest) (GateResu
 	}
 	res.Summary = strings.TrimSpace(sum.String())
 	res.Feedback = strings.TrimSpace(fb.String())
+	if res.Summary == "" {
+		res.Summary = "nothing to check"
+	}
 	rec, _ := json.Marshal(map[string]any{"round": req.Round, "passed": res.Passed, "summary": res.Summary, "feedback": res.Feedback})
-	if _, err := a.Tasks.SaveArtifact(ctx, req.WorkflowRunID, req.TaskID, tasks.KindGate, rec, nil); err != nil {
+	art, err := a.Tasks.SaveArtifact(ctx, req.WorkflowRunID, req.TaskID, tasks.KindGate, rec, nil)
+	if err != nil {
+		return GateResult{}, err
+	}
+	// Close this evaluation's step row: failed when the round failed (a fix
+	// round follows), succeeded when it passed.
+	u := tasks.StepUpdate{Stage: req.Stage, Attempt: max(req.Step, 1), Status: "succeeded", ArtifactID: &art.ID}
+	if !res.Passed {
+		u.Status, u.Error = "failed", &res.Summary
+	}
+	if err := a.Tasks.RecordStep(ctx, req.WorkflowRunID, u); err != nil {
 		return GateResult{}, err
 	}
 	return res, nil
@@ -348,22 +361,29 @@ func (a *Activities) QAFeedback(ctx context.Context, taskID uuid.UUID) (string, 
 	return b.String(), nil
 }
 
+// SnapshotResult is the stored changeset and whether it carries credentials.
+type SnapshotResult struct {
+	ArtifactID  uuid.UUID
+	SecretFound bool
+	Secrets     []string // credential-like files ("" when only a token was found in the diff)
+}
+
 // Snapshot commits the workspace's changes and stores the verified changeset.
-func (a *Activities) Snapshot(ctx context.Context, req EngRequest) (uuid.UUID, error) {
+func (a *Activities) Snapshot(ctx context.Context, req EngRequest) (SnapshotResult, error) {
 	ws, err := a.ws()
 	if err != nil {
-		return uuid.Nil, a.failStage(ctx, req.stage(), nil, err.Error())
+		return SnapshotResult{}, a.failStage(ctx, req.stage(), nil, err.Error())
 	}
 	if err := ws.Reload(ctx); err != nil {
-		return uuid.Nil, err
+		return SnapshotResult{}, err
 	}
 	w, err := a.liveWorkspace(ctx, req)
 	if err != nil {
-		return uuid.Nil, err
+		return SnapshotResult{}, err
 	}
 	info, err := a.Tasks.StartInfo(ctx, req.WorkflowRunID)
 	if err != nil {
-		return uuid.Nil, err
+		return SnapshotResult{}, err
 	}
 	msg := info.Task.Title
 	if arts, err := a.Tasks.LatestArtifacts(ctx, req.TaskID, tasks.KindImplementation); err == nil {
@@ -379,14 +399,24 @@ func (a *Activities) Snapshot(ctx context.Context, req EngRequest) (uuid.UUID, e
 	cs, err := ws.Snapshot(ctx, w, msg)
 	stop()
 	if err != nil {
-		return uuid.Nil, a.humanError(ctx, req, err)
+		return SnapshotResult{}, a.humanError(ctx, req, err)
 	}
 	raw, _ := json.Marshal(cs)
 	art, err := a.Tasks.SaveArtifact(ctx, req.WorkflowRunID, req.TaskID, tasks.KindChangeset, raw, nil)
 	if err != nil {
-		return uuid.Nil, err
+		return SnapshotResult{}, err
 	}
-	return art.ID, a.succeeded(ctx, req, &art.ID)
+	res := SnapshotResult{ArtifactID: art.ID, SecretFound: cs.SecretFound}
+	for _, f := range cs.Files {
+		if f.Secret {
+			res.Secrets = append(res.Secrets, f.Path)
+		}
+	}
+	if res.SecretFound {
+		msg := "the change contains credentials; a fix round removes them"
+		return res, a.Tasks.RecordStep(ctx, req.WorkflowRunID, tasks.StepUpdate{Stage: req.Stage, Attempt: max(req.Step, 1), Status: "failed", ArtifactID: &art.ID, Error: &msg})
+	}
+	return res, a.succeeded(ctx, req, &art.ID)
 }
 
 // DeliverRequest delivers the changeset approved at Gate.

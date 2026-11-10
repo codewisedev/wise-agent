@@ -26,7 +26,8 @@ max_fix_rounds: 3          # quality gate: fix rounds before asking you
 # Task branch names. {slug} = the title, {id} = a short task id,
 # {external} = the source's id (e.g. a ClickUp or Jira key) or the short id.
 branch_template: "wise/{slug}-{id}"
-# Commit author for task commits; empty = the repository's git identity.
+# Commit author for task commits; empty = the author of the repository's latest
+# commit (usually you).
 commit_author:
   name: ""
   email: ""

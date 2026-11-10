@@ -382,6 +382,15 @@ func TestSnapshotAndDeliver(t *testing.T) {
 	if msg != "Dev <dev@example.com>" {
 		t.Fatalf("author %s", msg)
 	}
+	// Without an author, task commits take the base commit's author.
+	f.fs(t, map[string]any{"op": "write", "path": "x.txt", "content": "x"})
+	cs3, err := f.m.Snapshot(context.Background(), f.ws, SnapshotRequest{Message: "x"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := run(t, filepath.Join(f.root, "workspaces", f.ws, "trusted.git"), "git", "log", "-1", "--format=%an <%ae>", cs3.HeadSHA); got != "T <t@example.com>" {
+		t.Fatalf("default author %s", got)
+	}
 
 	if err := f.m.Remove(context.Background(), f.ws); err != nil {
 		t.Fatal(err)

@@ -3,6 +3,7 @@ package workflow
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -411,8 +412,21 @@ func (w *pipeline) runGate(ctx workflow.Context, st tasks.PlanStep, revision int
 			return err
 		}
 		w.notes[st.ID] = []string{"Quality gate: " + g.Summary}
+		feedback, diagnose := g.Feedback, true
 		if g.Passed {
-			break
+			// Commit and verify the change; a credential in it fails the round.
+			var snap SnapshotResult
+			if err := w.retrying(ctx, st, func(actx workflow.Context, req EngRequest) error {
+				return workflow.ExecuteActivity(actx, a.Snapshot, req).Get(ctx, &snap)
+			}); err != nil {
+				return err
+			}
+			if !snap.SecretFound {
+				return nil
+			}
+			g.Summary = "the change contains credentials."
+			feedback, diagnose = secretFeedback(snap.Secrets), false
+			w.notes[st.ID] = []string{"Quality gate: " + g.Summary}
 		}
 		if round >= g.MaxRounds {
 			msg := fmt.Sprintf("quality gate failed after %d fix round(s): %s Retry to run another fix round.", round, g.Summary)
@@ -420,8 +434,7 @@ func (w *pipeline) runGate(ctx workflow.Context, st tasks.PlanStep, revision int
 				return err
 			}
 		}
-		feedback := g.Feedback
-		if st.DiagnoseWith != "" {
+		if diagnose && st.DiagnoseWith != "" {
 			diag := tasks.PlanStep{ID: st.ID + tasks.DiagnoseSuffix, Name: st.Name + " (diagnosis)", Agent: st.DiagnoseWith, Kind: tasks.KindQA, Enabled: true}
 			if err := w.runAgent(ctx, diag, revision, "", round+1, ""); err != nil {
 				return err
@@ -453,10 +466,14 @@ func (w *pipeline) runGate(ctx workflow.Context, st tasks.PlanStep, revision int
 			}
 		}
 	}
-	return w.retrying(ctx, st, func(actx workflow.Context, req EngRequest) error {
-		var id uuid.UUID
-		return workflow.ExecuteActivity(actx, a.Snapshot, req).Get(ctx, &id)
-	})
+}
+
+func secretFeedback(files []string) string {
+	msg := "### The change contains credentials\nA token, key or credential file is in the diff. Remove it: read secrets from configuration or the environment, as the repository already does, and use obvious placeholders in tests."
+	if len(files) > 0 {
+		msg += "\nCredential-like files in the change: " + strings.Join(files, ", ")
+	}
+	return msg
 }
 
 // stopWorkspace stops the task sandbox when a workflow with a workspace ends.

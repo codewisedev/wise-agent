@@ -517,7 +517,7 @@ function ExecutionEditor({ value, set }: { value: ExecutionValue; set: (v: Execu
         </Field>
       </div>
       <div className="form-grid">
-        <Field label="Commit author name" hint="Empty = the repository's git identity">
+        <Field label="Commit author name" hint="Empty = the author of the repository's latest commit">
           <input value={value.commit_author.name} onChange={(e) => set({ ...value, commit_author: { ...value.commit_author, name: e.target.value } })} />
         </Field>
         <Field label="Commit author email">

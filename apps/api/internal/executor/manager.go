@@ -98,16 +98,19 @@ type PrepareRequest struct {
 
 // State is a workspace's executor-private record.
 type State struct {
-	ID        string    `json:"id"`
-	RepoPath  string    `json:"repoPath"`
-	Branch    string    `json:"branch"`
-	Base      string    `json:"base"`
-	BaseSHA   string    `json:"baseSha"`
-	Image     string    `json:"image"`
-	Prepared  bool      `json:"prepared"`
-	Tools     []string  `json:"toolVersions,omitempty"`
-	Scrubbed  []string  `json:"scrubbed,omitempty"`
-	CreatedAt time.Time `json:"createdAt"`
+	ID       string   `json:"id"`
+	RepoPath string   `json:"repoPath"`
+	Branch   string   `json:"branch"`
+	Base     string   `json:"base"`
+	BaseSHA  string   `json:"baseSha"`
+	Image    string   `json:"image"`
+	Prepared bool     `json:"prepared"`
+	Tools    []string `json:"toolVersions,omitempty"`
+	Scrubbed []string `json:"scrubbed,omitempty"`
+	// The author of the base commit: the default identity of task commits.
+	AuthorName  string    `json:"authorName,omitempty"`
+	AuthorEmail string    `json:"authorEmail,omitempty"`
+	CreatedAt   time.Time `json:"createdAt"`
 }
 
 // Info is a workspace as callers see it.
@@ -321,6 +324,11 @@ func (m *Manager) prepare(ctx context.Context, req PrepareRequest, log io.Writer
 		}
 	}
 	fmt.Fprintf(log, "branch %s from %s at %s\n", req.Branch, st.Base, st.BaseSHA[:12])
+	if who, err := git(ctx, repoDir, "log", "-1", "--format=%an%x00%ae", "HEAD"); err == nil {
+		if n, e, ok := strings.Cut(strings.TrimSpace(who), "\x00"); ok && n != "" && strings.Contains(e, "@") {
+			st.AuthorName, st.AuthorEmail = n, e
+		}
+	}
 
 	// Tracked files named like credentials stay out of the sandbox.
 	files, err := git(ctx, repoDir, "ls-files", "-z")
@@ -371,7 +379,10 @@ func (m *Manager) prepare(ctx context.Context, req PrepareRequest, log io.Writer
 		}
 		seen[t] = true
 		var out bytes.Buffer
-		code, err := m.rt.Exec(ctx, req.ID, []string{"/bin/sh", "-c", `command -v "$1" >/dev/null || exit 127; "$1" --version 2>&1 | head -n 1`, "sh", t}, nil, nil, &limitWriter{w: &out, n: 4096})
+		// Most tools answer --version; some only "version" (go) or -version.
+		code, err := m.rt.Exec(ctx, req.ID, []string{"/bin/sh", "-c", `command -v "$1" >/dev/null || exit 127
+for a in --version version -version; do v=$("$1" "$a" 2>&1) && { printf '%s\n' "$v" | head -n 1; exit 0; }; done
+echo "found at $(command -v "$1")"`, "sh", t}, nil, nil, &limitWriter{w: &out, n: 4096})
 		if err != nil {
 			return State{}, err
 		}

@@ -38,6 +38,7 @@ type eng struct {
 	quality     int
 	evaluations []EngRequest
 	snapshots   int
+	secretOnce  bool // the first snapshot finds a credential
 	delivered   []DeliverRequest
 	stopped     int
 }
@@ -54,9 +55,12 @@ func (e *eng) setup(env *testsuite.TestWorkflowEnvironment) {
 		return GateResult{Passed: true, Summary: "2 checks passed.", MaxRounds: e.maxRounds}, nil
 	})
 	env.OnActivity(a.QAFeedback, mock.Anything, mock.Anything).Return("## Diagnosis\nnil map in handler", nil)
-	env.OnActivity(a.Snapshot, mock.Anything, mock.Anything).Return(func(context.Context, EngRequest) (uuid.UUID, error) {
+	env.OnActivity(a.Snapshot, mock.Anything, mock.Anything).Return(func(context.Context, EngRequest) (SnapshotResult, error) {
 		e.snapshots++
-		return uuid.New(), nil
+		if e.secretOnce && e.snapshots == 1 {
+			return SnapshotResult{ArtifactID: uuid.New(), SecretFound: true, Secrets: []string{"config/.env"}}, nil
+		}
+		return SnapshotResult{ArtifactID: uuid.New()}, nil
 	})
 	env.OnActivity(a.Deliver, mock.Anything, mock.Anything).Return(func(_ context.Context, r DeliverRequest) error {
 		e.delivered = append(e.delivered, r)
@@ -197,4 +201,30 @@ func TestPlansWithoutEngineeringStepsNeverTouchWorkspaces(t *testing.T) {
 	env.ExecuteWorkflow(PipelineWorkflow, input(engineering()))
 	require.NoError(t, env.GetWorkflowError())
 	require.Equal(t, 0, e.stopped+e.prepared)
+}
+
+func TestCodeWorkflowCredentialsFailTheGate(t *testing.T) {
+	env := newEnv()
+	ids, dec := approvals(3)
+	s := &script{approvals: ids, decisions: dec}
+	s.setup(env)
+	e := &eng{maxRounds: 3, secretOnce: true}
+	e.setup(env)
+
+	env.ExecuteWorkflow(PipelineWorkflow, input(codePlan()))
+	require.True(t, env.IsWorkflowCompleted())
+	require.NoError(t, env.GetWorkflowError())
+	var impl []StageRequest
+	for _, c := range s.stageCalls {
+		if c.Stage == "implement" {
+			impl = append(impl, c)
+		}
+		require.NotEqual(t, "gate"+tasks.DiagnoseSuffix, c.Stage, "a credential needs no diagnosis")
+	}
+	require.Len(t, impl, 2)
+	require.Contains(t, impl[1].FixFeedback, "config/.env")
+	require.Equal(t, 2, e.snapshots)
+	// The approval only ever pins the clean changeset.
+	require.Len(t, s.gates, 3)
+	require.Len(t, e.delivered, 1)
 }

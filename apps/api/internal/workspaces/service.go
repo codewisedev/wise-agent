@@ -9,7 +9,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"os/exec"
 	"strings"
 	"sync"
 	"time"
@@ -522,23 +521,6 @@ func (s *Service) RunSweeper(ctx context.Context) {
 
 // ---- commit identity ----
 
-// CommitAuthor is the identity for task commits: the setting, else the
-// repository's git identity, else Wise.
-func (s *Service) CommitAuthor(ctx context.Context, repo dbgen.Repository) Author {
-	if a := s.Settings().CommitAuthor; a.Name != "" {
-		return a
-	}
-	if repo.LocalPath != nil {
-		get := func(k string) string {
-			out, err := exec.CommandContext(ctx, "git", "-C", *repo.LocalPath, "config", "--get", k).Output()
-			if err != nil {
-				return ""
-			}
-			return strings.TrimSpace(string(out))
-		}
-		if n, e := get("user.name"), get("user.email"); n != "" && strings.Contains(e, "@") {
-			return Author{Name: n, Email: e}
-		}
-	}
-	return Author{Name: "Wise", Email: "wise@localhost"}
-}
+// CommitAuthor is the identity for task commits from the setting; empty
+// means the executor uses the author of the repository's latest commit.
+func (s *Service) CommitAuthor() Author { return s.Settings().CommitAuthor }

@@ -15,18 +15,20 @@ import (
 
 	"wise/apps/api/internal/agents"
 	"wise/apps/api/internal/executor"
+	"wise/apps/api/internal/workflow"
 )
 
 // fakeExecutor stands in for the executor service.
 type fakeExecutor struct {
-	mu       sync.Mutex
-	prepared []executor.PrepareRequest
-	removed  []string
-	egress   []string
-	fail     string
-	fsCalls  []map[string]any
-	commands []string
-	timeouts []int
+	mu         sync.Mutex
+	prepared   []executor.PrepareRequest
+	removed    []string
+	egress     []string
+	fail       string
+	fsCalls    []map[string]any
+	commands   []string
+	timeouts   []int
+	deliveries []string
 }
 
 func (f *fakeExecutor) Prepare(_ context.Context, req executor.PrepareRequest) (string, error) {
@@ -92,6 +94,9 @@ func (f *fakeExecutor) Snapshot(_ context.Context, id string, req executor.Snaps
 }
 
 func (f *fakeExecutor) Deliver(_ context.Context, id string, req executor.DeliverRequest) (executor.Delivery, error) {
+	f.mu.Lock()
+	f.deliveries = append(f.deliveries, req.SHA)
+	f.mu.Unlock()
 	return executor.Delivery{Branch: "wise/x", SHA: req.SHA, RepoPath: "/repo"}, nil
 }
 func (f *fakeExecutor) SetEgress(_ context.Context, hosts []string) error {
@@ -326,4 +331,103 @@ func TestRuntimeWorkspaceTools(t *testing.T) {
 		t.Fatal("a run without a workflow has no workspace")
 	}
 	e.expect(e.runtimeDo(c2["runToken"].(string), "POST", "/runtime/v1/runs/"+c2["run"].(map[string]any)["id"].(string)+"/workspace/fs", map[string]any{"op": "list"}), 409)
+}
+
+func TestGateEvaluationAndDeliveryNeedTheExactApprovedChangeset(t *testing.T) {
+	e := setup(t)
+	e.login()
+	ctx := context.Background()
+	taskID, _ := e.workspaceTask(t)
+	tid := uuid.MustParse(taskID)
+	runID, _ := uuid.NewV7()
+	if _, err := e.db.Pool.Exec(ctx, "INSERT INTO workflow_runs (id, task_id, workflow_type, status) VALUES ($1, $2, 'PipelineWorkflow', 'running')", runID, tid); err != nil {
+		t.Fatal(err)
+	}
+	acts := &workflow.Activities{Tasks: e.tasks, Agents: e.agents, Workspaces: e.ws}
+
+	// The gate reads real check and review artifacts.
+	e.saveArtifact(runID, tid, "quality_report", map[string]any{"passed": false, "checks": []map[string]any{
+		{"name": "test", "command": "go test ./...", "status": "failed", "exitCode": 1, "durationMs": 900, "output": "--- FAIL: TestHealth\nexpected 200, got 500"},
+		{"name": "lint", "command": "go vet ./...", "status": "passed", "exitCode": 0, "durationMs": 300, "output": ""},
+	}})
+	e.saveArtifact(runID, tid, "code_review", map[string]any{"verdict": "changes_requested", "summary": "s", "findings": []map[string]any{
+		{"severity": "major", "file": "health.go", "line": 12, "title": "Handler ignores DB errors", "detail": "a down DB returns 200", "suggestion": "return 503"},
+		{"severity": "minor", "file": "health.go", "title": "Naming", "detail": "nit"},
+	}})
+	req := workflow.EngRequest{WorkflowRunID: runID, TaskID: tid, Stage: "gate", Step: 1, Kinds: []string{"quality_report", "code_review"}}
+	g, err := acts.EvaluateGate(ctx, req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if g.Passed || g.MaxRounds != 3 || !strings.Contains(g.Feedback, "expected 200, got 500") || !strings.Contains(g.Feedback, "Handler ignores DB errors") ||
+		strings.Contains(g.Feedback, "Naming") || !strings.Contains(g.Summary, "1 of 2 checks failed") {
+		t.Fatalf("failing gate: %+v", g)
+	}
+	var status string
+	if err := e.db.Pool.QueryRow(ctx, "SELECT status FROM workflow_steps WHERE workflow_run_id = $1 AND stage = 'gate' AND attempt = 1", runID).Scan(&status); err != nil || status != "failed" {
+		t.Fatalf("gate step row: %q %v", status, err)
+	}
+	e.saveArtifact(runID, tid, "quality_report", map[string]any{"passed": true, "checks": []map[string]any{{"name": "test", "command": "go test ./...", "status": "passed", "exitCode": 0, "durationMs": 1, "output": ""}}})
+	e.saveArtifact(runID, tid, "code_review", map[string]any{"verdict": "pass", "summary": "ok", "findings": []any{}})
+	req.Step = 2
+	if g, err := acts.EvaluateGate(ctx, req); err != nil || !g.Passed {
+		t.Fatalf("passing gate: %+v %v", g, err)
+	}
+
+	// Delivery: only the exact changeset the latest gate decision approved.
+	deliver := func() error {
+		return acts.Deliver(ctx, workflow.DeliverRequest{EngRequest: workflow.EngRequest{WorkflowRunID: runID, TaskID: tid, Stage: "deliver", Step: 1}, Gate: "gate"})
+	}
+	changeset := func(sha string) {
+		e.saveArtifact(runID, tid, "changeset", map[string]any{"baseSha": strings.Repeat("a", 40), "headSha": sha, "branch": "wise/x", "files": []any{}, "patch": "+x"})
+	}
+	expectRefused := func(want string) {
+		t.Helper()
+		err := deliver()
+		if err == nil || !strings.Contains(err.Error(), want) {
+			t.Fatalf("deliver: want refusal %q, got %v", want, err)
+		}
+	}
+	changeset(strings.Repeat("b", 40))
+	expectRefused("has not been approved")
+	ap, err := e.tasks.CreateApproval(ctx, runID, tid, "gate", []string{"changeset"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	expectRefused("has not been approved") // pending
+	e.expect(e.do("POST", "/approvals/"+ap.ID.String()+"/approve", map[string]any{"combinedHash": ap.CombinedHash}), 200)
+
+	changeset(strings.Repeat("c", 40)) // changed after the approval
+	expectRefused("is superseded")     // a new changeset makes the earlier approval stale
+	ap2, err := e.tasks.CreateApproval(ctx, runID, tid, "gate", []string{"changeset"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	e.expect(e.do("POST", "/approvals/"+ap2.ID.String()+"/reject", map[string]any{"combinedHash": ap2.CombinedHash, "comment": "use a context timeout"}), 200)
+	expectRefused("is rejected")
+	e.exec.mu.Lock()
+	n := len(e.exec.deliveries)
+	e.exec.mu.Unlock()
+	if n != 0 {
+		t.Fatalf("delivered %d times before an approval of the latest changeset", n)
+	}
+
+	ap3, err := e.tasks.CreateApproval(ctx, runID, tid, "gate", []string{"changeset"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	e.expect(e.do("POST", "/approvals/"+ap3.ID.String()+"/approve", map[string]any{"combinedHash": ap3.CombinedHash}), 200)
+	if err := deliver(); err != nil {
+		t.Fatal(err)
+	}
+	e.exec.mu.Lock()
+	got := append([]string(nil), e.exec.deliveries...)
+	e.exec.mu.Unlock()
+	if len(got) != 1 || got[0] != strings.Repeat("c", 40) {
+		t.Fatalf("deliveries: %v", got)
+	}
+	w := e.expect(e.do("GET", "/tasks/"+taskID+"/workspace", nil), 200)["workspace"].(map[string]any)
+	if w["deliveredBranch"] != "wise/x" || w["deliveredSha"] != strings.Repeat("c", 40) {
+		t.Fatalf("workspace after delivery: %v", w)
+	}
 }

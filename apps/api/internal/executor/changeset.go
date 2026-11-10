@@ -72,8 +72,15 @@ func (m *Manager) Snapshot(ctx context.Context, ws string, req SnapshotRequest) 
 	if !st.Prepared {
 		return Changeset{}, bad("the workspace is not ready")
 	}
-	if strings.TrimSpace(req.Message) == "" || strings.TrimSpace(req.AuthorName) == "" || !strings.Contains(req.AuthorEmail, "@") {
-		return Changeset{}, bad("message, authorName and authorEmail are required")
+	if strings.TrimSpace(req.AuthorName) == "" {
+		// Default identity: the author of the repository's latest commit.
+		req.AuthorName, req.AuthorEmail = st.AuthorName, st.AuthorEmail
+		if req.AuthorName == "" {
+			req.AuthorName, req.AuthorEmail = "Wise", "wise@localhost"
+		}
+	}
+	if strings.TrimSpace(req.Message) == "" || !strings.Contains(req.AuthorEmail, "@") {
+		return Changeset{}, bad("message and a valid author are required")
 	}
 	if err := m.rt.Ensure(ctx, ws); err != nil {
 		return Changeset{}, err

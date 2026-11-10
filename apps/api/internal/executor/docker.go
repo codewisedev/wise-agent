@@ -79,10 +79,11 @@ func (d *Docker) egressContainer(ctx context.Context) (string, error) {
 	return "", errors.New("the egress proxy (wise-egress) is not running")
 }
 
-func (d *Docker) Create(ctx context.Context, spec SandboxSpec) error {
-	n := name(spec.ID)
-	labels := map[string]string{"wise.workspace": spec.ID, "wise.role": "sandbox"}
-	// A private network per sandbox: no route out except the egress proxy.
+// network creates the sandbox's private network (no route out except the
+// egress proxy, which joins it) unless it exists.
+func (d *Docker) network(ctx context.Context, id string) error {
+	n := name(id)
+	labels := map[string]string{"wise.workspace": id, "wise.role": "sandbox"}
 	if _, err := d.cli.NetworkCreate(ctx, n, client.NetworkCreateOptions{Driver: "bridge", Internal: true, Labels: labels}); err != nil && !cerrdefs.IsConflict(err) {
 		return fmt.Errorf("create network: %w", err)
 	}
@@ -95,6 +96,30 @@ func (d *Docker) Create(ctx context.Context, spec SandboxSpec) error {
 	}); err != nil && !cerrdefs.IsConflict(err) && !strings.Contains(err.Error(), "already exists") {
 		return fmt.Errorf("connect egress proxy: %w", err)
 	}
+	return nil
+}
+
+// dropNetwork removes the sandbox's network (stopped sandboxes keep none, so
+// retained workspaces do not use up Docker's address pools).
+func (d *Docker) dropNetwork(ctx context.Context, id string) error {
+	n := name(id)
+	if eg, err := d.egressContainer(ctx); err == nil {
+		_, _ = d.cli.NetworkDisconnect(ctx, n, client.NetworkDisconnectOptions{Container: eg, Force: true})
+	}
+	_, _ = d.cli.NetworkDisconnect(ctx, n, client.NetworkDisconnectOptions{Container: n, Force: true})
+	if _, err := d.cli.NetworkRemove(ctx, n, client.NetworkRemoveOptions{}); err != nil && !cerrdefs.IsNotFound(err) {
+		return err
+	}
+	return nil
+}
+
+func (d *Docker) Create(ctx context.Context, spec SandboxSpec) error {
+	n := name(spec.ID)
+	labels := map[string]string{"wise.workspace": spec.ID, "wise.role": "sandbox"}
+	if err := d.network(ctx, spec.ID); err != nil {
+		return err
+	}
+	var err error
 	sub := func(p, target string, ro bool) mount.Mount {
 		return mount.Mount{Type: mount.TypeVolume, Source: d.volume, Target: target, ReadOnly: ro,
 			VolumeOptions: &mount.VolumeOptions{NoCopy: true, Subpath: spec.ID + "/" + p}}
@@ -112,8 +137,9 @@ func (d *Docker) Create(ctx context.Context, spec SandboxSpec) error {
 			CapDrop:        []string{"ALL"},
 			SecurityOpt:    []string{"no-new-privileges:true"},
 			ReadonlyRootfs: true,
-			Tmpfs:          map[string]string{"/tmp": "rw,nosuid,size=1g"},
-			Init:           ptr(true),
+			// exec: test runners build and run binaries in /tmp (go test, cargo, node-gyp).
+			Tmpfs: map[string]string{"/tmp": "rw,nosuid,nodev,exec,size=1g"},
+			Init:  ptr(true),
 			Resources: container.Resources{
 				NanoCPUs: int64(spec.CPUs * 1e9), Memory: spec.MemoryMB << 20, PidsLimit: &pids,
 			},
@@ -139,6 +165,14 @@ func (d *Docker) Ensure(ctx context.Context, id string) error {
 	case "missing":
 		return errors.New("the sandbox no longer exists; prepare the workspace again")
 	}
+	// A stopped sandbox has no network: recreate it and attach the container.
+	if err := d.network(ctx, id); err != nil {
+		return err
+	}
+	if _, err := d.cli.NetworkConnect(ctx, name(id), client.NetworkConnectOptions{Container: name(id)}); err != nil &&
+		!cerrdefs.IsConflict(err) && !strings.Contains(err.Error(), "already exists") {
+		return fmt.Errorf("attach sandbox network: %w", err)
+	}
 	if _, err := d.cli.ContainerStart(ctx, name(id), client.ContainerStartOptions{}); err != nil {
 		return fmt.Errorf("start sandbox: %w", err)
 	}
@@ -151,20 +185,17 @@ func (d *Docker) Stop(ctx context.Context, id string) error {
 	if cerrdefs.IsNotFound(err) {
 		return nil
 	}
-	return err
+	if err != nil {
+		return err
+	}
+	return d.dropNetwork(ctx, id)
 }
 
 func (d *Docker) Remove(ctx context.Context, id string) error {
 	if _, err := d.cli.ContainerRemove(ctx, name(id), client.ContainerRemoveOptions{Force: true}); err != nil && !cerrdefs.IsNotFound(err) {
 		return err
 	}
-	if eg, err := d.egressContainer(ctx); err == nil {
-		_, _ = d.cli.NetworkDisconnect(ctx, name(id), client.NetworkDisconnectOptions{Container: eg, Force: true})
-	}
-	if _, err := d.cli.NetworkRemove(ctx, name(id), client.NetworkRemoveOptions{}); err != nil && !cerrdefs.IsNotFound(err) {
-		return err
-	}
-	return nil
+	return d.dropNetwork(ctx, id)
 }
 
 func (d *Docker) State(ctx context.Context, id string) (string, error) {

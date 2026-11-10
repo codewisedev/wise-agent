@@ -169,11 +169,7 @@ func (s *Service) Snapshot(ctx context.Context, w dbgen.Workspace, message strin
 	if err != nil {
 		return executor.Changeset{}, err
 	}
-	repo, err := s.db.GetRepository(ctx, w.RepositoryID)
-	if err != nil {
-		return executor.Changeset{}, err
-	}
-	a := s.CommitAuthor(ctx, repo)
+	a := s.CommitAuthor()
 	cs, err := o.Snapshot(ctx, w.ID.String(), executor.SnapshotRequest{Message: message, AuthorName: a.Name, AuthorEmail: a.Email})
 	if err != nil {
 		return cs, err
