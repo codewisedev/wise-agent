@@ -2,7 +2,7 @@
 
 Personal, local-first AI engineering platform. See [`implementation-plan.md`](implementation-plan.md) for the full vision and roadmap.
 
-**Status: Phase 3c — Everything configurable from the panel.** Wise manages projects and repositories behind a login, keeps tasks on Trello-style boards with your own lists (by hand or imported from Jira, ClickUp and Trello), and runs them through configurable agent workflows on Temporal — any step on any of your accounts (Claude Code, Codex, LM Studio, DeepSeek…), with review gates or fully step by step. Agents, prompts, models, policies and limits are all edited in the dashboard. **Phase 4** adds a code index (tree-sitter symbols, keyword and semantic search), memory that agents receive once you approve it, and an engineering profile. The coding pipeline arrives in Phase 5.
+**Status: Phase 5 — Engineering pipeline.** Wise manages projects and repositories behind a login, keeps tasks on Trello-style boards with your own lists (by hand or imported from Jira, ClickUp and Trello), and runs them through configurable agent workflows on Temporal — any step on any of your accounts (Claude Code, Codex, LM Studio, DeepSeek…), with review gates or fully step by step. Agents, prompts, models, policies and limits are all edited in the dashboard. **Phase 4** adds a code index (tree-sitter symbols, keyword and semantic search), memory that agents receive once you approve it, and an engineering profile. **Phase 5** lets Wise write code: in a private clone of your repository inside a locked-down sandbox, agents implement the approved plan, your checks run, independent agents review the diff, failures are fixed in rounds, and after your approval the change lands in your repository as a `wise/…` branch.
 
 ## What's here
 
@@ -29,8 +29,8 @@ Prerequisites: Docker + Compose, Go 1.26+, Node 22+ with pnpm (for local dev onl
 
 ```bash
 cp .env.example .env        # then edit: set WISE_POSTGRES_PASSWORD, WISE_REPO_ROOT,
-                            # WISE_BOOTSTRAP_ADMIN_PASSWORD (12+ chars)
-make up                     # build + start postgres, API and dashboard
+                            # WISE_BOOTSTRAP_ADMIN_PASSWORD (12+ chars) and the tokens
+make up                     # build the toolchain images, then start the stack
 open http://localhost:5173  # sign in with WISE_BOOTSTRAP_ADMIN_USER / _PASSWORD
 ```
 
@@ -142,6 +142,32 @@ your rules, the most relevant memories and a project summary; the run page shows
 index; inferred proposals are never rules — making one a rule is your call.
 
 See `docs/decisions/0006-context-and-memory.md`.
+
+## Engineering pipeline
+
+Pick the **Engineering → code** workflow for a task (or add the steps to your own template in Settings → Workflows):
+
+1. **Before the first run**, open the project, click **Execution** on the repository and use **Detect**. It
+   proposes the toolchain image, setup commands (e.g. `npm ci`) and checks (format, lint, type check, tests); save
+   them. `make toolchains` builds the Node, Go and Python images (they include git).
+2. **Analysis, requirements, plan and architecture** run as before; you approve the plan.
+3. **Workspace.** The `wise-executor` clones the repository into a private volume on a branch named after the
+   task, e.g. `wise/add-csv-export-0b8f8a52`. It starts a sandbox, checks the tools and runs the setup. The sandbox:
+   - runs as you, with a read-only root and no capabilities;
+   - mounts only its own task's files;
+   - reaches only package registries, through `wise-egress`.
+4. **Implement.** The backend agent edits files and runs commands in the sandbox (`ws_*` tools).
+5. **Quality, code review and security review.** Your checks run, then two agents review the diff read-only.
+6. **Quality gate.** When checks or reviews fail, a fix round follows: the QA agent explains the failures, the
+   implementing agent fixes them, and everything runs again. After the configured rounds it waits for you.
+7. **Your final approval.** The task's **Code** panel shows the verified diff, computed from the commit itself
+   and never from sandbox output.
+8. **Deliver.** The approved commit is written into your repository as the branch. Your checkout is untouched and
+   existing branches are never moved. Run `git switch wise/…` to try it.
+
+Settings → Execution holds sandbox limits, the egress allowlist, timeouts, fix rounds, workspace retention, the
+branch name template and the commit author. The isolation model is described in
+`docs/decisions/0007-engineering-pipeline.md`.
 
 ## API
 

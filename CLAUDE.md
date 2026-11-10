@@ -25,7 +25,14 @@ editing code or files.** This applies to every feature, in every phase.
   - **security boundaries**: `WISE_REPO_ROOTS` (what agents may read), the runtime's network isolation, the
     CLI runner's isolation, session/CSRF rules, and the indexer's built-in **secret guard** (credential file
     names and token patterns are never indexed, embedded or shown; users may add patterns in Settings →
-    Indexing but not remove the built-in ones).
+    Indexing but not remove the built-in ones);
+  - **the engineering pipeline's isolation** (ADR 0007):
+    - only `wise-executor` reaches Docker, through the filtering socket proxy, and it builds every sandbox from a
+      fixed template (no extra mounts, never privileged, never host network);
+    - only the executor writes to repositories, and only to add `wise/…` branches for approved commits;
+    - after the clone it never runs git or does file IO in a workspace;
+    - sandboxes leave only through `wise-egress`, which always refuses private addresses (users edit the host
+      allowlist, not that rule).
   If you think something else should not be configurable, record it here with the reason.
 
 ## Working in the repo
