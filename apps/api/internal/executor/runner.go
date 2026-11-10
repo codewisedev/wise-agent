@@ -26,6 +26,7 @@ type RunnerRequest struct {
 	Env        map[string]string `json:"env,omitempty"`
 	Files      map[string]string `json:"files,omitempty"`   // written into the fresh run home before start
 	Collect    []string          `json:"collect,omitempty"` // home-relative files read back after the run
+	StdinFile  string            `json:"stdinFile,omitempty"` // home-relative file fed to the command's stdin
 	GrantHosts []string          `json:"grantHosts,omitempty"`
 	ModelProxy bool              `json:"modelProxy,omitempty"` // reach wise-model-proxy (API-key mode)
 	NoProxy    []string          `json:"noProxy,omitempty"`
@@ -80,6 +81,11 @@ func (r *RunnerRequest) validate() error {
 	for _, p := range r.Collect {
 		if _, ok := cleanHomePath(p); !ok {
 			return bad("invalid collect path %q", p)
+		}
+	}
+	if r.StdinFile != "" {
+		if _, ok := r.Files[r.StdinFile]; !ok {
+			return bad("stdinFile must be one of the files written before start")
 		}
 	}
 	for _, h := range append(append([]string{}, r.GrantHosts...), r.NoProxy...) {
@@ -245,8 +251,15 @@ func (m *Manager) runRunner(ctx context.Context, st State, runID, token string, 
 		}
 	}()
 	jobID := newID()
+	command := shellJoin(argv)
+	if req.StdinFile != "" {
+		c, _ := cleanHomePath(req.StdinFile)
+		command += " < " + shellJoin([]string{"/home/wise/" + c})
+	} else {
+		command += " < /dev/null"
+	}
 	code, err := m.rt.ExecRunner(rctx, runID, append(m.helperCmd("run", "--id", jobID, "--timeout", strconv.Itoa(req.WallClockS), "--"),
-		shellJoin(argv)), nil, nil, j)
+		command), nil, nil, j)
 	if rctx.Err() != nil {
 		kctx, kc := context.WithTimeout(context.Background(), 10*time.Second)
 		_, _ = m.rt.ExecRunner(kctx, runID, m.helperCmd("kill", jobID), nil, nil, io.Discard)

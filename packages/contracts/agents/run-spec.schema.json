@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://wise.local/contracts/agents/run-spec.schema.json",
+  "title": "RunSpec v1",
+  "description": "What an external coding runtime (Claude Code, Codex) receives for one run. Rendered by the adapters in apps/api/internal/coding; credentials are never part of it.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["specVersion", "runId", "agent", "runtime", "cliVersion", "instructions", "input", "outputSchema", "protectedPaths", "limits", "credential"],
+  "properties": {
+    "specVersion": { "const": 1 },
+    "runId": { "type": "string", "minLength": 1 },
+    "taskId": { "type": "string" },
+    "agent": { "type": "string", "minLength": 1 },
+    "runtime": { "enum": ["claude-code", "codex"] },
+    "cliVersion": { "type": "string", "minLength": 1 },
+    "model": { "type": "string" },
+    "instructions": { "type": "string", "minLength": 1, "description": "The agent's system prompt with the user's rules and Wise context." },
+    "input": { "type": "object", "description": "The agent's input: request, plan, requirements, architecture review, quality commands, fix feedback." },
+    "outputSchema": { "type": "object", "description": "The agent's output contract; the final report is validated against it." },
+    "protectedPaths": { "type": "array", "items": { "type": "string" } },
+    "tools": { "type": "array", "items": { "type": "string" } },
+    "sandbox": { "enum": ["danger-full-access", "workspace-write"] },
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["wallClockS", "idleS", "maxTurns", "maxCostUsd"],
+      "properties": {
+        "wallClockS": { "type": "integer", "minimum": 1 },
+        "idleS": { "type": "integer", "minimum": 1 },
+        "maxTurns": { "type": "integer", "minimum": 1 },
+        "maxCostUsd": { "type": "number", "minimum": 0 }
+      }
+    },
+    "credential": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode"],
+      "properties": { "mode": { "enum": ["proxy", "subscription"] } }
+    }
+  }
+}

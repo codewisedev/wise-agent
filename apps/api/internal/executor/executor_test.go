@@ -497,6 +497,7 @@ echo "proxy: $HTTPS_PROXY"
 echo "no-proxy: $NO_PROXY"
 echo "custom: $WISE_RUN_MODE"
 echo "args: $*"
+echo "stdin: $(cat)"
 mkdir -p "$HOME/out" && echo '{"done":true}' > "$HOME/out/result.json"
 echo '{"type":"result"}'
 `
@@ -504,8 +505,8 @@ echo '{"type":"result"}'
 
 	id, err := f.m.Runner(context.Background(), f.ws, RunnerRequest{
 		CLI: "claude-code", Version: "2.1.319", Command: []string{"{cli}", "-p", "it's fine"},
-		Env: map[string]string{"WISE_RUN_MODE": "test"}, Files: map[string]string{".config/cli/settings.json": `{"x":1}`},
-		Collect: []string{"out/result.json", "missing.json"}, GrantHosts: []string{"api.anthropic.com"}, NoProxy: []string{"wise-model-proxy"},
+		Env: map[string]string{"WISE_RUN_MODE": "test"}, Files: map[string]string{".config/cli/settings.json": `{"x":1}`, "prompt.md": "the prompt"},
+		Collect: []string{"out/result.json", "missing.json"}, StdinFile: "prompt.md", GrantHosts: []string{"api.anthropic.com"}, NoProxy: []string{"wise-model-proxy"},
 		WallClockS: 60, IdleS: 30,
 	})
 	if err != nil {
@@ -516,7 +517,7 @@ echo '{"type":"result"}'
 		t.Fatalf("runner: %+v", st)
 	}
 	for _, want := range []string{`{"type":"start"}`, `home-file: {"x":1}`, "proxy: http://run:", "@wise-egress:3128",
-		"no-proxy: localhost,127.0.0.1,wise-model-proxy", "custom: test", "args: -p it's fine", `{"type":"result"}`} {
+		"no-proxy: localhost,127.0.0.1,wise-model-proxy", "custom: test", "args: -p it's fine", "stdin: the prompt", `{"type":"result"}`} {
 		if !strings.Contains(st.Output, want) {
 			t.Errorf("output lacks %q:\n%s", want, st.Output)
 		}
