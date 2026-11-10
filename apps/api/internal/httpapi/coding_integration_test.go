@@ -80,6 +80,19 @@ func TestExternalCodingRuns(t *testing.T) {
 		t.Fatalf("runner request: %+v", req)
 	}
 
+	// The runtime's mapped external events are accepted by the events API.
+	evs := map[string]any{"events": []map[string]any{
+		{"type": "external.started", "payload": map[string]any{"runtime": "claude-code", "mode": "subscription", "reducedIsolation": true}},
+		{"type": "tool.call", "payload": map[string]any{"tool": "Bash", "input": map[string]any{"summary": "npm test"}}},
+		{"type": "tool.result", "payload": map[string]any{"tool": "Bash", "status": "ok", "input": map[string]any{"summary": "npm test"}, "output": "ok"}},
+		{"type": "file.changed", "payload": map[string]any{"path": "src/greet.js"}},
+		{"type": "agent.warning", "payload": map[string]any{"text": "x"}},
+		{"type": "external.finished", "payload": map[string]any{"ok": true}},
+	}}
+	if r := e.runtimeDo(tok, "POST", "/runtime/v1/runs/"+runID+"/events", evs); r.status >= 300 {
+		t.Fatalf("external events refused: %d %v", r.status, r.body)
+	}
+
 	// The report must match the agent's contract.
 	e.exec.mu.Lock()
 	e.exec.runnerOut = claudeStream(`{"files":[]}`)
