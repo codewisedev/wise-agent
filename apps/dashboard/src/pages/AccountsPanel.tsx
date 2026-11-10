@@ -47,6 +47,10 @@ export const PRESETS: Record<string, Preset> = {
     label: "Codex", kind: "codex_cli", multiline: true,
     secretLabel: "auth.json", secretHint: "Run `codex login`, then paste the contents of ~/.codex/auth.json. Wise keeps it refreshed.",
   },
+  anthropic: {
+    label: "Anthropic API key (Claude Code runners)", kind: "anthropic", secretLabel: "API key",
+    secretHint: "console.anthropic.com → API keys. Used only by the Runtime Proxy; it never enters a sandbox.",
+  },
   jira: {
     label: "Jira", kind: "jira", baseUrl: "https://your-site.atlassian.net", needsBaseUrl: true,
     secretLabel: "API token", secretHint: "id.atlassian.com → Security → API tokens. Read access is enough.",
@@ -60,7 +64,7 @@ export const PRESETS: Record<string, Preset> = {
 };
 
 const KIND_LABEL: Record<Kind, string> = {
-  claude_code: "Claude Code", codex_cli: "Codex", openai_compatible: "OpenAI-compatible",
+  claude_code: "Claude Code", codex_cli: "Codex", openai_compatible: "OpenAI-compatible", anthropic: "Anthropic API",
   jira: "Jira", clickup: "ClickUp", trello: "Trello",
 };
 
