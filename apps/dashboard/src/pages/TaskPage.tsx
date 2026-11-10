@@ -13,6 +13,7 @@ import {
   ApprovalCard, Pipeline, TaskStatus, WorkflowStatus, isActiveWorkflow, kindLabel, stepName, type Artifact, type Plan,
 } from "./workflowUi";
 import { TaskWorkflowPanel } from "./TaskWorkflowPanel";
+import { TaskCodePanel, hasCode } from "./TaskCodePanel";
 import { AccountSelect } from "../components/AccountSelect";
 import { TaskDetailsForm } from "../components/TaskFields";
 
@@ -248,6 +249,8 @@ export function TaskPage() {
       {pending && <ApprovalCard key={pending.id} approval={pending} stepLabel={stepName(plan, pending.gate)} onShowArtifact={setKind} />}
 
       {(!wf || !isActiveWorkflow(wf)) && <TaskWorkflowPanel taskId={taskId} task={task} canRun={task.status !== "cancelled"} />}
+
+      {hasCode(plan, artifacts) && <TaskCodePanel task={task} artifacts={artifacts} />}
 
       <ArtifactsPanel taskId={taskId} plan={plan} latest={artifacts} kind={kind} onKind={setKind} />
 

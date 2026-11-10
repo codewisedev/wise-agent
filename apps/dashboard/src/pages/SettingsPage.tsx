@@ -25,6 +25,7 @@ const TABS = [
   { id: "board", label: "Board" },
   { id: "indexing", label: "Indexing" },
   { id: "memory", label: "Memory" },
+  { id: "execution", label: "Execution" },
 ] as const;
 
 export function SettingsPage() {
@@ -92,6 +93,7 @@ export function SettingsPage() {
       {tab === "board" && <SettingsPanels only={["board_defaults"]} />}
       {tab === "indexing" && <SettingsPanels only={["indexing"]} />}
       {tab === "memory" && <SettingsPanels only={["memory"]} />}
+      {tab === "execution" && <SettingsPanels only={["execution"]} />}
 
       {tab === "general" && (
       <>

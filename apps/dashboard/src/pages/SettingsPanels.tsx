@@ -480,7 +480,64 @@ function MemoryEditor({ value, set }: { value: MemoryValue; set: (v: MemoryValue
   );
 }
 
+type ExecutionValue = {
+  limits: { cpus: number; memory_mb: number; pids: number };
+  egress_allowlist: string[]; command_timeout_s: number; setup_timeout_s: number; max_output_kb: number;
+  retention_days: number; max_fix_rounds: number; branch_template: string;
+  commit_author: { name: string; email: string }; images: Record<string, string>;
+};
+
+function ExecutionEditor({ value, set }: { value: ExecutionValue; set: (v: ExecutionValue) => void }) {
+  const lim = (k: keyof ExecutionValue["limits"]) => (e: React.ChangeEvent<HTMLInputElement>) =>
+    set({ ...value, limits: { ...value.limits, [k]: Number(e.target.value) } });
+  const num = (k: "command_timeout_s" | "setup_timeout_s" | "max_output_kb" | "retention_days" | "max_fix_rounds") =>
+    (e: React.ChangeEvent<HTMLInputElement>) => set({ ...value, [k]: Number(e.target.value) });
+  const images = Object.entries(value.images ?? {});
+  return (
+    <div className="settings-form">
+      <h3>Sandbox resources (per task)</h3>
+      <div className="form-grid">
+        <Field label="CPUs"><input type="number" min={0.25} max={32} step={0.25} value={value.limits.cpus} onChange={lim("cpus")} /></Field>
+        <Field label="Memory (MB)"><input type="number" min={256} max={131072} step={256} value={value.limits.memory_mb} onChange={lim("memory_mb")} /></Field>
+        <Field label="Processes"><input type="number" min={64} max={32768} value={value.limits.pids} onChange={lim("pids")} /></Field>
+      </div>
+      <Lines label="Hosts sandboxes may reach" hint="Package registries, one host per line; *.example.org allows subdomains. Private and local addresses are always refused." value={value.egress_allowlist} onChange={(v) => set({ ...value, egress_allowlist: v })} rows={8} />
+      <h3>Commands</h3>
+      <div className="form-grid">
+        <Field label="Command timeout (s)" hint="Checks and agents' commands"><input type="number" min={10} max={21600} value={value.command_timeout_s} onChange={num("command_timeout_s")} /></Field>
+        <Field label="Setup timeout (s)" hint="Each setup command"><input type="number" min={10} max={21600} value={value.setup_timeout_s} onChange={num("setup_timeout_s")} /></Field>
+        <Field label="Output given to agents (KB)"><input type="number" min={4} max={1024} value={value.max_output_kb} onChange={num("max_output_kb")} /></Field>
+      </div>
+      <h3>Quality gate and delivery</h3>
+      <div className="form-grid">
+        <Field label="Fix rounds before asking you"><input type="number" min={0} max={10} value={value.max_fix_rounds} onChange={num("max_fix_rounds")} /></Field>
+        <Field label="Keep finished workspaces (days)"><input type="number" min={1} max={365} value={value.retention_days} onChange={num("retention_days")} /></Field>
+        <Field label="Branch name" hint="{slug} title, {id} short task id, {external} source key" grow>
+          <input className="mono" value={value.branch_template} onChange={(e) => set({ ...value, branch_template: e.target.value })} />
+        </Field>
+      </div>
+      <div className="form-grid">
+        <Field label="Commit author name" hint="Empty = the repository's git identity">
+          <input value={value.commit_author.name} onChange={(e) => set({ ...value, commit_author: { ...value.commit_author, name: e.target.value } })} />
+        </Field>
+        <Field label="Commit author email">
+          <input type="email" value={value.commit_author.email} onChange={(e) => set({ ...value, commit_author: { ...value.commit_author, email: e.target.value } })} />
+        </Field>
+      </div>
+      <h3>Toolchain images offered by Detect</h3>
+      <div className="form-grid">
+        {images.map(([lang, img]) => (
+          <Field key={lang} label={lang}>
+            <input className="mono" value={img} onChange={(e) => set({ ...value, images: { ...value.images, [lang]: e.target.value } })} />
+          </Field>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 const EDITORS: Record<string, (v: any, set: (v: any) => void) => ReactNode> = {
+  execution: (v, set) => <ExecutionEditor value={v as ExecutionValue} set={set} />,
   models: (v, set) => <ModelsEditor value={v as ModelsValue} set={set} />,
   model_policy: (v, set) => <PolicyEditor value={v as PolicyValue} set={set} />,
   workflow_defaults: (v, set) => <WorkflowEditor value={v as WorkflowValue} set={set} />,

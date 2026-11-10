@@ -3,7 +3,7 @@ import {
   type Edge, type EdgeProps, type Node, type NodeProps,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { AlertTriangle, ArrowLeft, ArrowRight, Bot, Diamond, FileText, Flag, Inbox, KeyRound, Plus, Trash2 } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ArrowRight, Bot, Diamond, FileText, Flag, FolderGit2, GitBranch, Inbox, KeyRound, ListChecks, Plus, ShieldCheck, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import type { Schemas } from "../api/client";
 import { useTheme } from "../theme";
@@ -22,6 +22,17 @@ export interface StepView {
   model?: string;
   review: boolean;
 }
+
+type StepType = Schemas["StepType"];
+/** Engineering step types: what they do and what they produce. */
+export const STEP_TYPES: Record<StepType, { label: string; hint: string; produces?: string; icon: ReactNode }> = {
+  agent: { label: "Agent", hint: "Runs an agent", icon: <Bot size={11} aria-hidden /> },
+  workspace: { label: "Workspace", hint: "Clones the repository into a private workspace on the task branch and starts its sandbox (needs an earlier review, e.g. the plan approval)", produces: "task workspace", icon: <FolderGit2 size={11} aria-hidden /> },
+  quality: { label: "Quality checks", hint: "Runs the repository's format, lint, type and test commands in the sandbox", produces: "quality report", icon: <ListChecks size={11} aria-hidden /> },
+  gate: { label: "Quality gate", hint: "Passes when checks and reviews pass; otherwise runs fix rounds. Then commits the change for your review", produces: "changeset", icon: <ShieldCheck size={11} aria-hidden /> },
+  deliver: { label: "Deliver branch", hint: "Writes the approved commit into your repository as the task branch (needs a reviewed gate)", produces: "branch", icon: <GitBranch size={11} aria-hidden /> },
+};
+const typeOf = (s: TemplateStep): StepType => s.type ?? "agent";
 
 const COLUMN_LABEL: Record<string, string> = { backlog: "Backlog", todo: "To do", in_progress: "In progress", review: "Review", done: "Done" };
 
@@ -45,9 +56,19 @@ function StepNode({ data }: NodeProps<Node<StepData>>) {
     >
       <Handle type="target" position={Position.Left} isConnectable={false} />
       <span className="flow-step-name">{issues.length > 0 && <AlertTriangle size={12} aria-hidden />}{step.name || step.id}</span>
-      <span className="flow-step-agent mono"><Bot size={11} aria-hidden />{step.agent}</span>
-      <span className="flow-step-acct mono"><KeyRound size={11} aria-hidden />{view.account ? `${view.account}${view.model ? ` · ${view.model}` : ""}` : "default routing"}</span>
-      {agent?.produces && <span className="flow-step-kind">→ {label(agent.produces)}</span>}
+      {typeOf(step) === "agent" ? (
+        <>
+          <span className="flow-step-agent mono"><Bot size={11} aria-hidden />{step.agent}</span>
+          <span className="flow-step-acct mono"><KeyRound size={11} aria-hidden />{view.account ? `${view.account}${view.model ? ` · ${view.model}` : ""}` : "default routing"}</span>
+          {agent?.produces && <span className="flow-step-kind">→ {label(agent.produces)}</span>}
+        </>
+      ) : (
+        <>
+          <span className="flow-step-agent">{STEP_TYPES[typeOf(step)].icon}{STEP_TYPES[typeOf(step)].label}</span>
+          {step.diagnoseWith && <span className="flow-step-acct mono"><Bot size={11} aria-hidden />fix rounds · {step.diagnoseWith}</span>}
+          <span className="flow-step-kind">→ {STEP_TYPES[typeOf(step)].produces}</span>
+        </>
+      )}
       {!view.enabled && <span className="flow-step-off">skipped</span>}
       <Handle type="source" position={Position.Right} isConnectable={false} />
     </button>
@@ -190,8 +211,8 @@ export function WorkflowFlow({ def, views, issues, agents, selected, onSelect, o
             <li key={`${s.id}-${i}`}>
               <button type="button" className={`flow-step${selected === s.id ? " selected" : ""}${v.enabled ? "" : " disabled"}${probs.length ? " invalid" : ""}`} onClick={() => onSelect(selected === s.id ? undefined : s.id)}>
                 <span className="flow-step-name">{probs.length > 0 && <AlertTriangle size={12} aria-hidden />}{s.name || s.id}</span>
-                <span className="flow-step-agent mono">{s.agent}</span>
-                <span className="flow-step-acct mono">{v.account ?? "default routing"}</span>
+                <span className="flow-step-agent mono">{typeOf(s) === "agent" ? s.agent : STEP_TYPES[typeOf(s)].label}</span>
+                {typeOf(s) === "agent" && <span className="flow-step-acct mono">{v.account ?? "default routing"}</span>}
               </button>
               {v.review && v.enabled && <span className="flow-list-gate"><Diamond size={13} aria-hidden /> review</span>}
               {onInsert && <button type="button" className="btn btn-ghost btn-sm" onClick={() => onInsert(i + 1)}><Plus size={12} aria-hidden /> step</button>}
@@ -238,6 +259,8 @@ export function StepInspector({
   const v = view ?? viewOf(step);
   const earlier = def.steps.slice(0, index);
   const agent = agents.find((a) => a.name === step.agent);
+  const type = typeOf(step);
+  const reviewable = type === "agent" || type === "quality" || type === "gate";
   const setV = (patch: Partial<StepView>) => {
     if (mode === "task") onViewChange?.({ ...v, ...patch });
     else onChange?.({ ...step, ...("enabled" in patch ? { enabled: patch.enabled } : {}), ...("account" in patch ? { account: patch.account || undefined } : {}),
@@ -264,14 +287,43 @@ export function StepInspector({
           <Field label="Step id" hint="Lowercase; referenced by reviews">
             <input className="mono" value={step.id} onChange={(e) => onChange?.({ ...step, id: e.target.value.toLowerCase() })} maxLength={41} />
           </Field>
-          <Field label="Agent" hint={agent ? `${agent.description}` : undefined}>
-            <select value={step.agent} onChange={(e) => onChange?.({ ...step, agent: e.target.value })}>
-              {agents.filter((a) => a.enabled || a.name === step.agent).map((a) => (
-                <option key={a.name} value={a.name} disabled={!a.enabled}>{a.name}{a.enabled ? "" : " (later phase)"}</option>
-              ))}
+          <Field label="Type" hint={STEP_TYPES[type].hint}>
+            <select value={type} onChange={(e) => {
+              const t = e.target.value as StepType;
+              onChange?.(t === "agent"
+                ? { ...step, type: undefined, agent: step.agent || agents.find((a) => a.enabled)?.name, fixFrom: undefined, diagnoseWith: undefined }
+                : { ...step, type: t, agent: undefined, account: undefined, model: undefined, ...(t === "gate" ? {} : { fixFrom: undefined, diagnoseWith: undefined }),
+                  ...(t === "workspace" || t === "deliver" ? { review: false } : {}) });
+            }}>
+              {(Object.keys(STEP_TYPES) as StepType[]).map((t) => <option key={t} value={t}>{STEP_TYPES[t].label}</option>)}
             </select>
           </Field>
-          {agent && (
+          {type === "agent" && (
+            <Field label="Agent" hint={agent ? `${agent.description}` : undefined}>
+              <select value={step.agent ?? ""} onChange={(e) => onChange?.({ ...step, agent: e.target.value })}>
+                {agents.filter((a) => a.enabled || a.name === step.agent).map((a) => (
+                  <option key={a.name} value={a.name} disabled={!a.enabled}>{a.name}{a.enabled ? "" : " (later phase)"}</option>
+                ))}
+              </select>
+            </Field>
+          )}
+          {type === "gate" && (
+            <>
+              <Field label="Fix failures with" hint="The implementing step re-run with the failed checks and findings">
+                <select value={step.fixFrom ?? ""} onChange={(e) => onChange?.({ ...step, fixFrom: e.target.value || undefined })}>
+                  <option value="">the nearest implementing step</option>
+                  {earlier.filter((s) => typeOf(s) === "agent").map((s) => <option key={s.id} value={s.id}>{s.name || s.id}</option>)}
+                </select>
+              </Field>
+              <Field label="Diagnose failures with" hint="An agent that explains failures before each fix round">
+                <select value={step.diagnoseWith ?? ""} onChange={(e) => onChange?.({ ...step, diagnoseWith: e.target.value || undefined })}>
+                  <option value="">no diagnosis</option>
+                  {agents.filter((a) => a.enabled).map((a) => <option key={a.name} value={a.name}>{a.name}</option>)}
+                </select>
+              </Field>
+            </>
+          )}
+          {type === "agent" && agent && (
             <p className="small faint">
               produces <code className="chip">{agent.produces ?? "—"}</code>
               {agent.consumes && Object.keys(agent.consumes).length > 0 && <> · reads {Object.values(agent.consumes).map((k) => <code key={k} className="chip">{k}</code>)}</>}
@@ -283,18 +335,22 @@ export function StepInspector({
         <input type="checkbox" checked={v.enabled} onChange={(e) => setV({ enabled: e.target.checked })} />
         <span>Run this step</span>
       </label>
-      <Field label="Account" hint="Who runs the step; default = the agent's model alias with fallbacks">
-        <AccountSelect value={v.account ?? ""} onChange={(a) => setV({ account: a, ...(a ? {} : { model: "" }) })} defaultLabel="default routing" />
-      </Field>
-      {v.account && (
+      {type === "agent" && (
+        <Field label="Account" hint="Who runs the step; default = the agent's model alias with fallbacks">
+          <AccountSelect value={v.account ?? ""} onChange={(a) => setV({ account: a, ...(a ? {} : { model: "" }) })} defaultLabel="default routing" />
+        </Field>
+      )}
+      {type === "agent" && v.account && (
         <Field label="Model" hint="Empty = the account's default model">
           <input value={v.model ?? ""} onChange={(e) => setV({ model: e.target.value })} />
         </Field>
       )}
-      <label className="checkbox">
-        <input type="checkbox" checked={v.review} onChange={(e) => setV({ review: e.target.checked })} />
-        <span>Review the result before passing it on</span>
-      </label>
+      {reviewable && (
+        <label className="checkbox">
+          <input type="checkbox" checked={v.review} onChange={(e) => setV({ review: e.target.checked })} />
+          <span>{type === "gate" ? "Review the code before it is delivered" : "Review the result before passing it on"}</span>
+        </label>
+      )}
       {mode === "template" && v.review && earlier.length > 0 && (
         <>
           <fieldset className="inspector-set">

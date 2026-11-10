@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Archive, ArrowRight, CalendarRange, ChevronRight, FileText, GitBranch, KanbanSquare, Link2, Plus, RefreshCw, ScanSearch, Trash2 } from "lucide-react";
+import { Archive, ArrowRight, CalendarRange, ChevronRight, FileText, GitBranch, KanbanSquare, Link2, Plus, RefreshCw, ScanSearch, TerminalSquare, Trash2 } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { api, unwrap, type Repository, type Schemas } from "../api/client";
@@ -7,6 +7,7 @@ import {
   Badge, CopyText, Empty, ErrorNote, Field, Panel, formatDate, label, relativeTime, shortSha, type Tone,
 } from "../components/ui";
 import { SourcesPanel } from "./IntegrationsPage";
+import { RepoExecutionEditor } from "../components/RepoExecution";
 import { projectsKey } from "./ProjectsPage";
 
 const ROLES: Schemas["RepositoryRole"][] = [
@@ -163,6 +164,8 @@ function RepositoryRow({ repo, onChange }: { repo: Repository; onChange: () => v
   const remove = useMutation({ mutationFn: () => unwrap(api.DELETE("/repositories/{repositoryId}", path)), onSuccess: onChange });
   const error = inspect.error ?? index.error ?? remove.error;
   const location = repo.localPath ?? repo.remoteUrl ?? "";
+  const [execOpen, setExecOpen] = useState(false);
+  const configured = Boolean((repo.settings as { execution?: { image?: string } })?.execution?.image);
 
   return (
     <>
@@ -228,6 +231,12 @@ function RepositoryRow({ repo, onChange }: { repo: Repository; onChange: () => v
               <ScanSearch size={13} aria-hidden /> {repo.indexedSha ? "Re-index" : "Index"}
             </button>
           )}
+          {repo.sourceType === "local" && (
+            <button className="btn btn-sm" onClick={() => setExecOpen((o) => !o)} aria-expanded={execOpen}
+              title="How Wise builds and checks this repository in task sandboxes">
+              <TerminalSquare size={13} aria-hidden /> Execution{!configured && <Badge tone="warn" dot={false}>not set</Badge>}
+            </button>
+          )}
           <button
             className="btn btn-sm btn-danger btn-icon"
             onClick={() => confirm(`Unregister "${repo.name}"? Files on disk are not touched.`) && remove.mutate()}
@@ -239,6 +248,13 @@ function RepositoryRow({ repo, onChange }: { repo: Repository; onChange: () => v
           </button>
         </td>
       </tr>
+      {execOpen && (
+        <tr className="detail-row">
+          <td colSpan={6}>
+            <RepoExecutionEditor repositoryId={repo.id} onDone={() => { setExecOpen(false); onChange(); }} />
+          </td>
+        </tr>
+      )}
       {(error || repo.gitError || (repo.indexStatus === "failed" && repo.indexError)) && (
         <tr className="detail-row">
           <td colSpan={6}>

@@ -48,6 +48,14 @@ const KNOWN_KINDS: Record<string, string> = {
   plan: "Plan",
   architecture_review: "Architecture",
   final_report: "Report",
+  implementation: "Implementation",
+  quality_report: "Checks",
+  code_review: "Code review",
+  security_review: "Security review",
+  qa: "Diagnosis",
+  quality_gate: "Quality gate",
+  changeset: "Changes",
+  delivery: "Delivery",
 };
 
 /** Human label for an artifact kind (any agent may declare its own). */
@@ -57,6 +65,7 @@ export const kindLabel = (kind: string) => KNOWN_KINDS[kind] ?? label(kind).repl
 export function stepName(plan: Plan | undefined, id: string): string {
   const st = plan?.steps.find((s) => s.id === id);
   if (st) return st.name;
+  if (id.endsWith(":diagnose")) return `${stepName(plan, id.slice(0, -":diagnose".length))} (diagnosis)`;
   if (id === "report") return "Final report";
   if (id === "completed") return "Completed";
   return label(id.toLowerCase());

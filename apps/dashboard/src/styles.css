@@ -709,3 +709,24 @@ pre.diff span.del { color: var(--danger, #e5484d); background: color-mix(in srgb
 .profile-actions { display: flex; gap: 4px; flex-shrink: 0; }
 .example-form { display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .example-form input { height: 28px; width: 200px; }
+
+/* ---- Code: diffs, logs, delivered branch ---- */
+.diff { display: grid; gap: 8px; margin-top: 12px; }
+.diff-file { border: 1px solid var(--border); border-radius: var(--radius, 8px); overflow: hidden; }
+.diff-file > summary { padding: 6px 10px; background: var(--surface-2); cursor: pointer; }
+.diff-body { margin: 0; padding: 8px 0; overflow-x: auto; font-size: 12.5px; line-height: 1.5; max-height: 640px; }
+.diff-body > span { display: block; padding: 0 12px; white-space: pre; min-height: 1.5em; }
+.diff-add { background: color-mix(in srgb, var(--ok) 14%, transparent); }
+.diff-del { background: color-mix(in srgb, var(--danger) 14%, transparent); }
+.diff-hunk { color: var(--info); background: color-mix(in srgb, var(--info) 8%, transparent); }
+.diff-meta { color: var(--text-faint); }
+.diff-add-text { color: var(--ok); font-variant-numeric: tabular-nums; }
+.diff-del-text { color: var(--danger); font-variant-numeric: tabular-nums; }
+.file-list li { padding: 4px 0; }
+.commit-msg { white-space: pre-wrap; padding: 8px 10px; border-left: 3px solid var(--border); margin: 8px 0; }
+.log { max-height: 360px; overflow: auto; font-size: 12px; white-space: pre-wrap; word-break: break-word; padding: 8px 10px;
+  background: var(--surface-2); border-radius: 6px; }
+.delivered { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 10px 12px; margin-bottom: 10px;
+  border: 1px solid color-mix(in srgb, var(--ok) 40%, var(--border)); border-radius: 8px;
+  background: color-mix(in srgb, var(--ok) 8%, transparent); }
+.env-list { border: 0; padding: 0; margin: 0; display: grid; gap: 6px; }
