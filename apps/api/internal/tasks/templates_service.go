@@ -203,6 +203,15 @@ func (s *Service) planFor(ctx context.Context, q *dbgen.Queries, task dbgen.Task
 	}
 	ov := ParseOverrides(task.WorkflowOverrides)
 	plan, issues := Resolve(ctx, def, ov, stepByStep, s.Agents, s.Accounts, s.maxRevisions())
+	if s.RuntimeCheck != nil {
+		for _, st := range plan.Steps {
+			if st.Enabled && st.Runtime != "" {
+				if err := s.RuntimeCheck(ctx, task.ProjectID, st.Runtime); err != nil {
+					issues = append(issues, Issue{StepID: st.ID, Message: err.Error()})
+				}
+			}
+		}
+	}
 	plan.TemplateID, plan.TemplateName, plan.TemplateVersion = tmpl.ID.String(), tmpl.Name, tmpl.Version
 	return TaskWorkflow{Template: tmpl, Overrides: ov, Plan: plan, Issues: issues}, nil
 }

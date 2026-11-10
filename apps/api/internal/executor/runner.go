@@ -240,6 +240,10 @@ func (m *Manager) runRunner(ctx context.Context, st State, runID, token string, 
 	defer func() {
 		cctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		_ = m.rt.RemoveRunner(cctx, runID)
+		if req.ModelProxy {
+			// The proxy joins a run's network only for that run.
+			_ = m.rt.DetachModelProxy(cctx, st.ID)
+		}
 		cancel()
 	}()
 

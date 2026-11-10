@@ -484,7 +484,7 @@ type ExecutionValue = {
   limits: { cpus: number; memory_mb: number; pids: number };
   egress_allowlist: string[]; command_timeout_s: number; setup_timeout_s: number; max_output_kb: number;
   retention_days: number; max_fix_rounds: number; branch_template: string;
-  commit_author: { name: string; email: string }; images: Record<string, string>;
+  commit_author: { name: string; email: string }; images: Record<string, string>; protected_paths?: string[];
 };
 
 function ExecutionEditor({ value, set }: { value: ExecutionValue; set: (v: ExecutionValue) => void }) {
@@ -524,6 +524,8 @@ function ExecutionEditor({ value, set }: { value: ExecutionValue; set: (v: Execu
           <input type="email" value={value.commit_author.email} onChange={(e) => set({ ...value, commit_author: { ...value.commit_author, email: e.target.value } })} />
         </Field>
       </div>
+      <Lines label="Protected paths" hint="Globs a task's change may never touch (any runtime); a change that does fails the quality gate. ** matches any directories."
+        value={value.protected_paths ?? []} onChange={(v) => set({ ...value, protected_paths: v })} rows={6} />
       <h3>Toolchain images offered by Detect</h3>
       <div className="form-grid">
         {images.map(([lang, img]) => (
@@ -578,6 +580,12 @@ function CodingEditor({ value, set }: { value: CodingValue; set: (v: CodingValue
               <Field label="Account" hint={r.credential.mode === "proxy" ? rt.proxyKind : rt.subKind}>
                 <input className="mono" value={r.credential.account} onChange={(e) => put(rt.id, { ...r, credential: { ...r.credential, account: e.target.value } })} />
               </Field>
+              {rt.id === "claude-code" && (
+                <Field label="Tools" hint="Built-in tools offered: Bash, Read, Edit, Write, NotebookEdit, Task, TodoWrite (Glob and Grep run through Bash)">
+                  <input className="mono" value={(r.tools ?? []).join(", ")}
+                    onChange={(e) => put(rt.id, { ...r, tools: e.target.value.split(/[\s,]+/).filter(Boolean) })} />
+                </Field>
+              )}
               {rt.id === "codex" && (
                 <Field label="Sandbox" hint="danger-full-access: Wise's container is the sandbox">
                   <select value={r.sandbox || "danger-full-access"} onChange={(e) => put(rt.id, { ...r, sandbox: e.target.value })}>

@@ -34,4 +34,26 @@ describe("SettingsPanels", () => {
     const [, init] = put.mock.calls[0] as unknown as [string, { body: unknown }];
     expect(init.body).toEqual({ value: { max_revisions: 1 }, version: 3 });
   });
+
+  it("edits protected paths and Claude Code's tools in the panel", async () => {
+    const execution = { key: "execution", title: "Execution", description: "", version: 1, updatedAt: new Date().toISOString(),
+      value: { limits: { cpus: 2, memory_mb: 4096, pids: 1024 }, egress_allowlist: [], command_timeout_s: 600, setup_timeout_s: 900,
+        max_output_kb: 64, retention_days: 7, max_fix_rounds: 3, branch_template: "wise/{slug}-{id}", commit_author: { name: "", email: "" },
+        images: {} }, default: {} };
+    const runtime = { enabled: true, model: "sonnet", tools: ["Bash", "Read"], credential: { mode: "subscription", account: "" },
+      prices: { input_per_mtok: 3, output_per_mtok: 15 }, limits: { wall_clock_s: 1800, idle_s: 300, max_turns: 60, max_cost_usd: 3 } };
+    const coding = { key: "coding_runtimes", title: "Coding runtimes", description: "", version: 1, updatedAt: new Date().toISOString(),
+      value: { runtimes: { "claude-code": runtime } }, default: {} };
+    vi.spyOn(api, "GET").mockResolvedValue({ data: { items: [execution, coding] }, response: new Response(null, { status: 200 }) } as never);
+    render(<QueryClientProvider client={new QueryClient()}><SettingsPanels only={["execution", "coding_runtimes"]} /></QueryClientProvider>);
+
+    const paths = await screen.findByLabelText(/^Protected paths/);
+    fireEvent.change(paths, { target: { value: ".github/workflows/**\n**/.env" } });
+    fireEvent.click(screen.getAllByRole("button", { name: /JSON/ })[0]!);
+    expect(JSON.parse((screen.getByLabelText("Execution JSON") as HTMLTextAreaElement).value).protected_paths).toEqual([".github/workflows/**", "**/.env"]);
+
+    const tools = screen.getByLabelText(/^Tools/) as HTMLInputElement;
+    expect(tools.value).toBe("Bash, Read");
+    expect(screen.getByRole("note")).toHaveTextContent("any command it runs");
+  });
 });

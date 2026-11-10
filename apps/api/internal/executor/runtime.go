@@ -61,4 +61,6 @@ type Runtime interface {
 	ExecRunner(ctx context.Context, runID string, cmd []string, env []string, stdin io.Reader, out io.Writer) (int, error)
 	// RemoveRunner deletes a runner container.
 	RemoveRunner(ctx context.Context, runID string) error
+	// DetachModelProxy takes the Runtime Proxy off a workspace's network.
+	DetachModelProxy(ctx context.Context, workspaceID string) error
 }

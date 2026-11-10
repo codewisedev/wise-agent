@@ -4,9 +4,11 @@ package main
 import (
 	"bufio"
 	"context"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
+	"github.com/google/uuid"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -227,6 +229,11 @@ func serve(ctx context.Context) error {
 		return runQueue.ContextFor(ctx, run)
 	}
 	settings.RegisterCodingRuntimes(settingsSvc, cfg.CodingDefaults, codingSvc)
+	codingSvc.SaveArtifact = func(ctx context.Context, wf, task uuid.UUID, kind string, content json.RawMessage, run *uuid.UUID) error {
+		_, err := taskSvc.SaveArtifact(ctx, wf, task, kind, content, run)
+		return err
+	}
+	taskSvc.RuntimeCheck = codingSvc.CheckRuntime
 	runQueue.ContextFor = func(ctx context.Context, run dbgen.AgentRun) (string, error) {
 		p, err := memorySvc.ForRun(ctx, run)
 		return p.Text, err

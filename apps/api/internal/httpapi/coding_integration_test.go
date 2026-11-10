@@ -80,6 +80,13 @@ func TestExternalCodingRuns(t *testing.T) {
 		t.Fatalf("runner request: %+v", req)
 	}
 
+	// The rendered instructions are kept as an artifact, without the credential.
+	var art string
+	if err := e.db.Pool.QueryRow(ctx, "SELECT content::text FROM artifacts WHERE task_id = $1 AND kind = 'runtime_instructions' ORDER BY version DESC LIMIT 1", tid).Scan(&art); err != nil ||
+		!strings.Contains(art, "Add farewell()") || strings.Contains(art, "oauth-token-for-test") {
+		t.Fatalf("instructions artifact: %v %.200s", err, art)
+	}
+
 	// The runtime's mapped external events are accepted by the events API.
 	evs := map[string]any{"events": []map[string]any{
 		{"type": "external.started", "payload": map[string]any{"runtime": "claude-code", "mode": "subscription", "reducedIsolation": true}},
@@ -181,5 +188,25 @@ func TestCodingRuntimeStepValidation(t *testing.T) {
 	res := e.expect(e.do("POST", "/workflow-templates", map[string]any{"name": "Bad runtime", "definition": bad}), 400)
 	if !strings.Contains(stringify(res), "only agents that implement the change") {
 		t.Fatalf("validation: %v", res)
+	}
+}
+
+func TestTaskWorkflowRefusesRuntimeTheProjectHasNotEnabled(t *testing.T) {
+	e := setup(t)
+	e.login()
+	taskID, _ := e.workspaceTask(t)
+	tpls := e.expect(e.do("GET", "/workflow-templates", nil), 200)["items"].([]any)
+	var code string
+	for _, it := range tpls {
+		if m := it.(map[string]any); m["slug"] == "engineering-code" {
+			code = m["id"].(string)
+		}
+	}
+	// Choosing a runtime the project has not enabled is refused when the
+	// workflow is configured — before analysis and planning spend anything.
+	r := e.do("PUT", "/tasks/"+taskID+"/workflow", map[string]any{"templateId": code,
+		"steps": map[string]any{"implement": map[string]any{"runtime": "claude-code"}}})
+	if r.status != 400 || !strings.Contains(stringify(r.body), "has not enabled claude-code") {
+		t.Fatalf("refusal: %d %v", r.status, r.body)
 	}
 }

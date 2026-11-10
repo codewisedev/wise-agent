@@ -24,10 +24,13 @@ type RunCanceller interface {
 }
 
 type Service struct {
-	db    *db.DB
-	cfgMu sync.RWMutex
-	cfg   WorkflowConfig
-	board BoardDefaults
+	// RuntimeCheck refuses an external coding runtime the task's project has not
+	// enabled (checked when the plan is resolved, before anything runs).
+	RuntimeCheck func(ctx context.Context, projectID uuid.UUID, runtime string) error
+	db           *db.DB
+	cfgMu        sync.RWMutex
+	cfg          WorkflowConfig
+	board        BoardDefaults
 	// Runs, when set, lets CancelTask stop running agents immediately instead of
 	// waiting for the workflow's activity to notice the cancellation.
 	Runs RunCanceller

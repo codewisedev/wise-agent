@@ -53,7 +53,7 @@ touch /opt/cli/x 2>/dev/null && echo cli-writable=yes || echo cli-writable=no
 touch /usr/x 2>/dev/null && echo rootfs-writable=yes || echo rootfs-writable=no
 [ -e /var/run/docker.sock ] && echo docker-socket=yes || echo docker-socket=no
 [ -e /workspaces ] && echo other-workspaces=yes || echo other-workspaces=no
-echo "secret-env=$(env | grep -ciE 'api_key|oauth|secret|password' )"
+echo "secret-env=$(env | grep -cE '=(sk-|sk-ant-|ghp_|github_pat_|xox[baprs]-|AIza)' )"
 cat > /tmp/c.mjs <<'JS'
 import net from 'node:net';
 const u = new URL(process.env.HTTPS_PROXY);

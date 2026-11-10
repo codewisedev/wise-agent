@@ -53,6 +53,8 @@ func (l *local) CreateRunner(_ context.Context, s RunnerSpec) error {
 	return nil
 }
 
+func (l *local) DetachModelProxy(context.Context, string) error { return nil }
+
 func (l *local) RemoveRunner(_ context.Context, runID string) error {
 	l.mu.Lock()
 	defer l.mu.Unlock()

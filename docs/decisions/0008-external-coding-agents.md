@@ -115,8 +115,25 @@ Changing a project's runtime policy is audited with its old and new values.
     checks and reviews, and its approved change was delivered as a `wise/…`
     branch;
   - the escape checks pass (`make escape-check REPO=…`).
-- Codex is covered by documentation-based fixtures and stand-ins until a Codex
-  account is added.
+- Codex ran live in a runner through the Runtime Proxy with a deliberately
+  wrong key (recorded fixture; classified `auth_error`). It still tries
+  `chatgpt.com` and `github.com` despite its update and analytics switches;
+  egress refuses them and the run is unaffected. A real Codex task needs a Codex
+  account.
+- Cancelling a run removes its runner within a second and revokes its grant.
+- Rendered instructions (without the credential) are stored per run as a
+  `runtime_instructions` artifact. The normalized events in the run timeline
+  serve as the transcript (§9.7); no separate raw transcript is stored.
+- A runtime the project has not enabled is refused when the task's workflow is
+  configured or started, before anything runs.
+- Deferred:
+  - changing `coding_runtimes` after a plan approval does not invalidate that
+    approval (§9.5 rule 4; the step's runtime itself is frozen in the plan);
+  - the escape checks cover environment values but not the proxy-mode
+    runner's files.
+- Existing stacks: the `execution` setting stored before Phase 5b has no
+  `protected_paths`. Add them in Settings → Execution, or reset that setting to
+  its default.
 - Proxy mode is verified end to end with a fake key: the runner reaches the
   proxy, which reaches Anthropic with the injected key.
 - Upgrading a CLI means rebuilding `wise-coding-clis` and re-recording the

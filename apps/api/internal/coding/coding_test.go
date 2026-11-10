@@ -232,3 +232,13 @@ func TestSpecMatchesContract(t *testing.T) {
 		t.Fatalf("spec does not match the contract: %v", err)
 	}
 }
+
+// Recorded from Codex 0.163.0 in a Wise runner, through the Runtime Proxy with
+// a deliberately wrong key: the outcome must be an auth error, not retried.
+func TestCodexRecordedAuthError(t *testing.T) {
+	a := Codex{}
+	o := a.Outcome(executor.RunnerResult{ExitCode: 1}, ParseAll(a, fixture(t, "codex-0.163.0-auth-error.jsonl")))
+	if o.Class != AuthError || Retryable(o.Class) {
+		t.Fatalf("outcome: %+v", o)
+	}
+}

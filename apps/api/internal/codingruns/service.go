@@ -66,7 +66,9 @@ type Service struct {
 	ContextFor func(ctx context.Context, run dbgen.AgentRun) (string, error)
 	// EnvToken is the Claude Code token from .env (subscription mode, no account).
 	EnvToken string
-	log      *slog.Logger
+	// SaveArtifact stores the rendered instructions of each run (tasks.Service.SaveArtifact).
+	SaveArtifact func(ctx context.Context, workflowRunID, taskID uuid.UUID, kind string, content json.RawMessage, agentRunID *uuid.UUID) error
+	log          *slog.Logger
 
 	mu       sync.RWMutex
 	settings Settings
@@ -151,6 +153,24 @@ func (s *Service) SetProjectPolicy(ctx context.Context, projectID uuid.UUID, in 
 			Payload: map[string]any{"from": old, "to": in}})
 	})
 	return in, err
+}
+
+// CheckRuntime reports why a project's tasks cannot use a runtime (nil = they can).
+func (s *Service) CheckRuntime(ctx context.Context, projectID uuid.UUID, runtime string) error {
+	if rs, ok := s.Settings().Runtimes[runtime]; !ok || !rs.Enabled {
+		return fmt.Errorf("%s is disabled in Settings → Coding runtimes", runtime)
+	}
+	pol, err := s.ProjectPolicy(ctx, projectID)
+	if err != nil {
+		return err
+	}
+	if !slices.Contains(pol.Enabled, runtime) {
+		return fmt.Errorf("the project has not enabled %s (Project → Coding runtimes)", runtime)
+	}
+	if s.Settings().Runtimes[runtime].Credential.Mode == coding.ModeSubscription && !pol.AllowSubscription {
+		return fmt.Errorf("%s uses a subscription, which the project does not allow (reduced isolation)", runtime)
+	}
+	return nil
 }
 
 // ---- sessions ----
@@ -275,6 +295,16 @@ func (s *Service) Start(ctx context.Context, run dbgen.AgentRun) (Start, error) 
 	if err != nil {
 		s.revoke(sess)
 		return Start{}, apperr.BadRequest(err.Error())
+	}
+	if s.SaveArtifact != nil && run.WorkflowRunID != nil && spec.TaskID != "" {
+		art, _ := json.Marshal(map[string]any{"runtime": runtime, "cliVersion": spec.CLIVersion, "mode": cred.Mode, "model": spec.Model,
+			"limits": spec.Limits, "tools": spec.Tools, "sandbox": spec.Sandbox, "protectedPaths": spec.ProtectedPaths,
+			"instructions": spec.Instructions, "prompt": spec.Prompt()})
+		if tid, err := uuid.Parse(spec.TaskID); err == nil {
+			if err := s.SaveArtifact(ctx, *run.WorkflowRunID, tid, "runtime_instructions", art, &run.ID); err != nil {
+				s.log.Warn("store runtime instructions", "run", run.ID, "err", err)
+			}
+		}
 	}
 	job, err := s.runner.Runner(ctx, w.ID.String(), req)
 	if err != nil {

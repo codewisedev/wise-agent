@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"github.com/google/uuid"
 	"io"
 	"log/slog"
 	"net/http"
@@ -133,6 +134,11 @@ func setup(t *testing.T) *env {
 	codingSvc := codingruns.New(d, fx, fp, wsSvc, accountSvc, gw, log)
 	codingSvc.EnvToken = ""
 	settings.RegisterCodingRuntimes(settingsSvc, filepath.Join("..", "..", "..", "..", "configs", "coding-runtimes", "defaults.yaml"), codingSvc)
+	taskSvc.RuntimeCheck = codingSvc.CheckRuntime
+	codingSvc.SaveArtifact = func(ctx context.Context, wf, task uuid.UUID, kind string, content json.RawMessage, run *uuid.UUID) error {
+		_, err := taskSvc.SaveArtifact(ctx, wf, task, kind, content, run)
+		return err
+	}
 	settings.RegisterDefaults(settingsSvc, testSettingFiles(t), gw, accountSvc, taskSvc)
 	if err := settingsSvc.Start(context.Background()); err != nil {
 		t.Fatal(err)

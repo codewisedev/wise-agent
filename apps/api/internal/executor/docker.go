@@ -308,6 +308,20 @@ func (d *Docker) RemoveRunner(ctx context.Context, runID string) error {
 	return nil
 }
 
+func (d *Docker) DetachModelProxy(ctx context.Context, id string) error {
+	res, err := d.cli.ContainerList(ctx, client.ContainerListOptions{Filters: make(client.Filters).Add("label", "wise.role=model-proxy")})
+	if err != nil {
+		return err
+	}
+	for _, c := range res.Items {
+		if _, err := d.cli.NetworkDisconnect(ctx, name(id), client.NetworkDisconnectOptions{Container: c.ID, Force: true}); err != nil &&
+			!cerrdefs.IsNotFound(err) && !strings.Contains(err.Error(), "is not connected") {
+			return err
+		}
+	}
+	return nil
+}
+
 func (d *Docker) Exec(ctx context.Context, id string, cmd []string, env []string, stdin io.Reader, out io.Writer) (int, error) {
 	return d.execIn(ctx, name(id), cmd, env, stdin, out)
 }
