@@ -722,11 +722,15 @@ func (e RepositorySourceType) Valid() bool {
 
 // Defines values for RuntimeEventType.
 const (
-	AgentMessage    RuntimeEventType = "agent.message"
-	ArtifactCreated RuntimeEventType = "artifact.created"
-	OutputInvalid   RuntimeEventType = "output.invalid"
-	ToolCall        RuntimeEventType = "tool.call"
-	ToolResult      RuntimeEventType = "tool.result"
+	AgentMessage     RuntimeEventType = "agent.message"
+	AgentWarning     RuntimeEventType = "agent.warning"
+	ArtifactCreated  RuntimeEventType = "artifact.created"
+	ExternalFinished RuntimeEventType = "external.finished"
+	ExternalStarted  RuntimeEventType = "external.started"
+	FileChanged      RuntimeEventType = "file.changed"
+	OutputInvalid    RuntimeEventType = "output.invalid"
+	ToolCall         RuntimeEventType = "tool.call"
+	ToolResult       RuntimeEventType = "tool.result"
 )
 
 // Valid indicates whether the value is a known member of the RuntimeEventType enum.
@@ -734,7 +738,15 @@ func (e RuntimeEventType) Valid() bool {
 	switch e {
 	case AgentMessage:
 		return true
+	case AgentWarning:
+		return true
 	case ArtifactCreated:
+		return true
+	case ExternalFinished:
+		return true
+	case ExternalStarted:
+		return true
+	case FileChanged:
 		return true
 	case OutputInvalid:
 		return true

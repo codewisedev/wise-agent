@@ -120,7 +120,8 @@ func detectNode(pkg string, read func(string) (string, bool)) RepoSettings {
 	case exists(read, "package-lock.json"):
 		rs.Setup = []string{"npm ci"}
 	default:
-		rs.Setup = []string{"npm install"}
+		// No lockfile: do not create one (it would show up in the task's change).
+		rs.Setup = []string{"npm install --no-package-lock"}
 	}
 	// pnpm is installed with npm, so the pnpm preflight check would run
 	// before it exists: check it after setup instead.

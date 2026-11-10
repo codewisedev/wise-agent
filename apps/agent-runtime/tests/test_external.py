@@ -41,6 +41,8 @@ def test_events_are_forwarded_and_the_report_returned() -> None:
     assert out == {"summary": "ok"}
     types = [t for t, _ in c.events.items]  # type: ignore[attr-defined]
     assert types == ["external.started", "tool.call", "agent.message"]
+    assert c.events.items[1][1] == {"tool": "Bash", "input": {"summary": "npm test"}}  # type: ignore[attr-defined]
+    assert c.events.items[2][1] == {"thought": "done"}  # type: ignore[attr-defined]
     assert c.events.items[0][1]["reducedIsolation"] is True  # type: ignore[attr-defined]
 
 

@@ -3512,7 +3512,7 @@ export interface components {
         };
         RuntimeEvent: {
             /** @enum {string} */
-            type: "tool.call" | "tool.result" | "agent.message" | "output.invalid" | "artifact.created";
+            type: "tool.call" | "tool.result" | "agent.message" | "output.invalid" | "artifact.created" | "external.started" | "external.finished" | "file.changed" | "agent.warning";
             payload: {
                 [key: string]: unknown;
             };

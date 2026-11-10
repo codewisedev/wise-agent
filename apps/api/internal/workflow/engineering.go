@@ -392,7 +392,7 @@ func (a *Activities) Snapshot(ctx context.Context, req EngRequest) (SnapshotResu
 			CommitMessage string `json:"commit_message"`
 		}
 		if art, ok := arts[tasks.KindImplementation]; ok && json.Unmarshal(art.Content, &impl) == nil && strings.TrimSpace(impl.CommitMessage) != "" {
-			msg = strings.TrimSpace(impl.CommitMessage)
+			msg = commitMessage(impl.CommitMessage)
 		}
 	}
 	msg += fmt.Sprintf("\n\nWise-Task: %s (%s)", info.Task.Title, req.TaskID.String()[:8])
@@ -487,4 +487,14 @@ func (a *Activities) StopWorkspace(ctx context.Context, taskID uuid.UUID) error 
 		activity.GetLogger(ctx).Warn("stop workspace sandbox", "workspace", w.ID, "err", err)
 	}
 	return nil
+}
+
+// commitMessage cleans an agent's commit message: some agents escape the
+// newlines inside their JSON report ("\\n" arrives as backslash-n).
+func commitMessage(m string) string {
+	m = strings.TrimSpace(m)
+	if !strings.Contains(m, "\n") && strings.Contains(m, `\n`) {
+		m = strings.ReplaceAll(m, `\n`, "\n")
+	}
+	return m
 }

@@ -252,3 +252,8 @@ func TestCodeWorkflowProtectedPathsFailTheGate(t *testing.T) {
 	require.Contains(t, impl[1].FixFeedback, ".github/workflows/ci.yml")
 	require.Len(t, e.delivered, 1)
 }
+
+func TestCommitMessageUnescapesNewlines(t *testing.T) {
+	require.Equal(t, "feat: x\n\nbody", commitMessage(`feat: x\n\nbody`))
+	require.Equal(t, "feat: x\n\nwith a literal \\n", commitMessage("feat: x\n\nwith a literal \\n"))
+}

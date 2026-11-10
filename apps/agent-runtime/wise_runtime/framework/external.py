@@ -15,18 +15,37 @@ from typing import Any
 from ..client import ApiError
 from .base import RunCancelled, RunContext, RunFailed
 
-# Normalized runtime events → agent event types shown in the run timeline.
-_EVENT_TYPES = {
-    "run.message": "agent.message",
-    "run.tool_call": "tool.call",
-    "run.tool_result": "tool.result",
-    "run.command": "tool.result",
-    "run.file_changed": "file.changed",
-    "run.usage": "usage",
-    "run.warning": "agent.warning",
-    "run.completed": "external.finished",
-    "run.failed": "external.finished",
-}
+
+# Normalized runtime events → the agent event types the timeline shows.
+def _agent_event(ev: dict[str, Any]) -> tuple[str, dict[str, Any]] | None:
+    kind = ev.get("type", "")
+    if kind == "run.message":
+        return "agent.message", {"thought": ev.get("text", "")}
+    if kind == "run.tool_call":
+        summary = ev.get("command") or ev.get("input", "")
+        return "tool.call", {"tool": ev.get("tool") or "shell", "input": {"summary": summary}}
+    if kind in ("run.tool_result", "run.command"):
+        error = bool(ev.get("isError"))
+        payload: dict[str, Any] = {
+            "tool": ev.get("tool") or ("shell" if kind == "run.command" else "tool"),
+            "status": "error" if error else "ok",
+            "input": {"summary": ev.get("command", "")},
+            "output": ev.get("output", ""),
+        }
+        if error:
+            payload["error"] = (ev.get("output") or "failed")[:500]
+        return "tool.result", payload
+    if kind == "run.file_changed":
+        return "file.changed", {"path": ev.get("path", ""), "change": ev.get("text") or ev.get("tool", "")}
+    if kind in ("run.completed", "run.failed"):
+        return "external.finished", {
+            "ok": kind == "run.completed",
+            "text": ev.get("text", ""),
+            "usage": ev.get("usage"),
+        }
+    if kind == "run.warning":
+        return "agent.warning", {"text": ev.get("text", "")}
+    return None  # usage is recorded by the control plane
 
 
 class ExternalCoding:
@@ -67,11 +86,9 @@ class ExternalCoding:
                         raise RunFailed("the coding session was lost; retrying", retryable=True) from e
                     raise
                 for ev in news.get("events", []):
-                    kind = ev.get("type", "")
-                    payload = {k: v for k, v in ev.items() if k != "type" and v not in (None, "", False)}
-                    ctx.events.emit(
-                        _EVENT_TYPES.get(kind, "agent.warning"), {"runtimeEvent": kind, **payload}
-                    )
+                    mapped = _agent_event(ev)
+                    if mapped:
+                        ctx.events.emit(*mapped)
                 if news.get("done"):
                     return self._result(news.get("outcome") or {})
         except (RunCancelled, RunFailed):

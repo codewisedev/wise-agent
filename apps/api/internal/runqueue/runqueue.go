@@ -155,6 +155,8 @@ type RuntimeEvent struct {
 
 var runtimeEventTypes = map[string]bool{
 	"tool.call": true, "tool.result": true, "agent.message": true, "output.invalid": true, "artifact.created": true,
+	// External coding runtimes (Claude Code, Codex).
+	"external.started": true, "external.finished": true, "file.changed": true, "agent.warning": true,
 }
 
 // AppendEvents stores runtime events; tool.result events are also recorded as tool_calls.
