@@ -2446,6 +2446,36 @@ paths:
       responses:
         "204": { description: Removed. }
         "401": { $ref: "#/components/responses/Problem" }
+  /insights:
+    get:
+      tags: [improvement]
+      operationId: getInsights
+      description: How agents, models and workflows performed over a window (evaluation replays excluded).
+      parameters:
+        - { name: window, in: query, schema: { type: string, enum: [7d, 30d, 90d] } }
+      responses:
+        "200":
+          description: Insights.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/InsightsReport" }
+        "401": { $ref: "#/components/responses/Problem" }
+  /insights/agents/{agentName}:
+    parameters:
+      - { name: agentName, in: path, required: true, schema: { type: string } }
+    get:
+      tags: [improvement]
+      operationId: getAgentInsights
+      description: One agent's versions, daily trend, repeated failures, review comments and your thumbs-down notes.
+      parameters:
+        - { name: window, in: query, schema: { type: string, enum: [7d, 30d, 90d] } }
+      responses:
+        "200":
+          description: Agent insights.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AgentInsights" }
+        "401": { $ref: "#/components/responses/Problem" }
 components:
   securitySchemes:
     cookieAuth:
@@ -4023,6 +4053,119 @@ components:
         events: { type: array, items: { $ref: "#/components/schemas/ExternalEvent" } }
         done: { type: boolean }
         outcome: { $ref: "#/components/schemas/ExternalOutcome" }
+    AgentStat:
+      type: object
+      required: [agent, version, definitionId, runs, succeeded, failed, cancelled, retries, invalidOutputs, medianSeconds, p90Seconds, costUsd, tokens, reviewed, rejected, gateFixRounds, thumbsUp, thumbsDown, successRate, rejectionRate, costPerRunUsd, invalidRate]
+      properties:
+        agent: { type: string }
+        version: { type: string }
+        definitionId: { type: string, format: uuid }
+        runs: { type: integer, format: int64 }
+        succeeded: { type: integer, format: int64 }
+        failed: { type: integer, format: int64 }
+        cancelled: { type: integer, format: int64 }
+        retries: { type: integer, format: int64 }
+        invalidOutputs: { type: integer, format: int64 }
+        medianSeconds: { type: number }
+        p90Seconds: { type: number }
+        costUsd: { type: number }
+        tokens: { type: integer, format: int64 }
+        reviewed: { type: integer, format: int64, description: Decided reviews this agent's work was part of (steps re-run on rejection). }
+        rejected: { type: integer, format: int64 }
+        gateFixRounds: { type: integer, format: int64, description: Failed quality-gate rounds this implementing agent had to fix. }
+        thumbsUp: { type: integer, format: int64 }
+        thumbsDown: { type: integer, format: int64 }
+        successRate: { type: number }
+        rejectionRate: { type: number }
+        costPerRunUsd: { type: number }
+        invalidRate: { type: number }
+    InsightCluster:
+      type: object
+      required: [agent, text, count]
+      properties:
+        agent: { type: string }
+        text: { type: string }
+        count: { type: integer }
+        runIds: { type: array, items: { type: string, format: uuid } }
+        sources: { type: array, items: { type: string, format: uuid }, description: Approval ids (review comments). }
+    InsightsReport:
+      type: object
+      required: [window, since, agents, providers, templates, stalls, failures, comments]
+      properties:
+        window: { type: string }
+        since: { type: string, format: date-time }
+        agents: { type: array, items: { $ref: "#/components/schemas/AgentStat" } }
+        providers:
+          type: array
+          items:
+            type: object
+            required: [provider, model, calls, errors, rejected, medianLatencyMs, costUsd, tokens, errorRate]
+            properties:
+              provider: { type: string }
+              model: { type: string }
+              calls: { type: integer, format: int64 }
+              errors: { type: integer, format: int64 }
+              rejected: { type: integer, format: int64 }
+              medianLatencyMs: { type: number }
+              costUsd: { type: number }
+              tokens: { type: integer, format: int64 }
+              errorRate: { type: number }
+        templates:
+          type: array
+          items:
+            type: object
+            required: [template, runs, completed, failed, cancelled, stalled, medianSeconds, costUsd]
+            properties:
+              template: { type: string }
+              runs: { type: integer, format: int64 }
+              completed: { type: integer, format: int64 }
+              failed: { type: integer, format: int64 }
+              cancelled: { type: integer, format: int64 }
+              stalled: { type: integer, format: int64 }
+              medianSeconds: { type: number }
+              costUsd: { type: number }
+        stalls:
+          type: array
+          items:
+            type: object
+            required: [template, stage, waiting]
+            properties:
+              template: { type: string }
+              stage: { type: string }
+              waiting: { type: integer, format: int64 }
+        failures: { type: array, items: { $ref: "#/components/schemas/InsightCluster" } }
+        comments: { type: array, items: { $ref: "#/components/schemas/InsightCluster" } }
+    AgentInsights:
+      type: object
+      required: [agent, window, versions, days, failures, comments, feedback]
+      properties:
+        agent: { type: string }
+        window: { type: string }
+        versions: { type: array, items: { $ref: "#/components/schemas/AgentStat" } }
+        days:
+          type: array
+          items:
+            type: object
+            required: [day, runs, succeeded, costUsd]
+            properties:
+              day: { type: string }
+              runs: { type: integer, format: int64 }
+              succeeded: { type: integer, format: int64 }
+              costUsd: { type: number }
+        failures: { type: array, items: { $ref: "#/components/schemas/InsightCluster" } }
+        comments: { type: array, items: { $ref: "#/components/schemas/InsightCluster" } }
+        feedback:
+          type: array
+          items:
+            type: object
+            required: [id, targetType, targetId, note, at]
+            properties:
+              id: { type: string, format: uuid }
+              targetType: { type: string }
+              targetId: { type: string, format: uuid }
+              runId: { type: string, format: uuid, nullable: true }
+              note: { type: string }
+              at: { type: string, format: date-time }
     FeedbackInput:
       type: object
       required: [targetType, targetId, rating]

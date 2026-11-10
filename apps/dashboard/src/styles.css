@@ -736,3 +736,16 @@ pre.diff span.del { color: var(--danger, #e5484d); background: color-mix(in srgb
 .feedback .btn.active { color: var(--accent, var(--ok)); background: color-mix(in srgb, var(--ok) 12%, transparent); }
 .feedback-note { display: inline-flex; gap: 6px; align-items: center; }
 .feedback-note input { min-width: 240px; }
+
+/* ---- Insights ---- */
+.segmented { display: inline-flex; gap: 2px; }
+.segmented .btn.active { background: var(--surface-2, rgba(127,127,127,.15)); font-weight: 600; }
+th.num, td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.clusters { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.clusters li { display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; }
+.clusters .count { min-width: 3ch; color: var(--text-faint, inherit); }
+.clusters .text { flex: 1 1 320px; overflow-wrap: anywhere; }
+.sparkbars { display: flex; align-items: flex-end; gap: 2px; height: 48px; margin: 12px 0; }
+.sparkbars span { flex: 1; min-width: 3px; max-width: 16px; background: var(--ok); border-radius: 2px 2px 0 0; }
+.sparkbars span.warn { background: var(--warn); }
+.pad { padding: 8px 12px; }

@@ -1206,6 +1206,48 @@ func (e ListFeedbackParamsRating) Valid() bool {
 	}
 }
 
+// Defines values for GetInsightsParamsWindow.
+const (
+	GetInsightsParamsWindowN30d GetInsightsParamsWindow = "30d"
+	GetInsightsParamsWindowN7d  GetInsightsParamsWindow = "7d"
+	GetInsightsParamsWindowN90d GetInsightsParamsWindow = "90d"
+)
+
+// Valid indicates whether the value is a known member of the GetInsightsParamsWindow enum.
+func (e GetInsightsParamsWindow) Valid() bool {
+	switch e {
+	case GetInsightsParamsWindowN30d:
+		return true
+	case GetInsightsParamsWindowN7d:
+		return true
+	case GetInsightsParamsWindowN90d:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetAgentInsightsParamsWindow.
+const (
+	GetAgentInsightsParamsWindowN30d GetAgentInsightsParamsWindow = "30d"
+	GetAgentInsightsParamsWindowN7d  GetAgentInsightsParamsWindow = "7d"
+	GetAgentInsightsParamsWindowN90d GetAgentInsightsParamsWindow = "90d"
+)
+
+// Valid indicates whether the value is a known member of the GetAgentInsightsParamsWindow enum.
+func (e GetAgentInsightsParamsWindow) Valid() bool {
+	switch e {
+	case GetAgentInsightsParamsWindowN30d:
+		return true
+	case GetAgentInsightsParamsWindowN7d:
+		return true
+	case GetAgentInsightsParamsWindowN90d:
+		return true
+	default:
+		return false
+	}
+}
+
 // Account defines model for Account.
 type Account struct {
 	BaseUrl string `json:"baseUrl"`
@@ -1304,6 +1346,29 @@ type AgentInput struct {
 	Prompt     string                 `json:"prompt"`
 }
 
+// AgentInsights defines model for AgentInsights.
+type AgentInsights struct {
+	Agent    string           `json:"agent"`
+	Comments []InsightCluster `json:"comments"`
+	Days     []struct {
+		CostUsd   float32 `json:"costUsd"`
+		Day       string  `json:"day"`
+		Runs      int64   `json:"runs"`
+		Succeeded int64   `json:"succeeded"`
+	} `json:"days"`
+	Failures []InsightCluster `json:"failures"`
+	Feedback []struct {
+		At         time.Time           `json:"at"`
+		Id         openapi_types.UUID  `json:"id"`
+		Note       string              `json:"note"`
+		RunId      *openapi_types.UUID `json:"runId,omitempty"`
+		TargetId   openapi_types.UUID  `json:"targetId"`
+		TargetType string              `json:"targetType"`
+	} `json:"feedback"`
+	Versions []AgentStat `json:"versions"`
+	Window   string      `json:"window"`
+}
+
 // AgentList defines model for AgentList.
 type AgentList struct {
 	Items []AgentSummary `json:"items"`
@@ -1341,6 +1406,36 @@ type AgentRunList struct {
 
 // AgentRunStatus defines model for AgentRunStatus.
 type AgentRunStatus string
+
+// AgentStat defines model for AgentStat.
+type AgentStat struct {
+	Agent         string             `json:"agent"`
+	Cancelled     int64              `json:"cancelled"`
+	CostPerRunUsd float32            `json:"costPerRunUsd"`
+	CostUsd       float32            `json:"costUsd"`
+	DefinitionId  openapi_types.UUID `json:"definitionId"`
+	Failed        int64              `json:"failed"`
+
+	// GateFixRounds Failed quality-gate rounds this implementing agent had to fix.
+	GateFixRounds  int64   `json:"gateFixRounds"`
+	InvalidOutputs int64   `json:"invalidOutputs"`
+	InvalidRate    float32 `json:"invalidRate"`
+	MedianSeconds  float32 `json:"medianSeconds"`
+	P90Seconds     float32 `json:"p90Seconds"`
+	Rejected       int64   `json:"rejected"`
+	RejectionRate  float32 `json:"rejectionRate"`
+	Retries        int64   `json:"retries"`
+
+	// Reviewed Decided reviews this agent's work was part of (steps re-run on rejection).
+	Reviewed    int64   `json:"reviewed"`
+	Runs        int64   `json:"runs"`
+	Succeeded   int64   `json:"succeeded"`
+	SuccessRate float32 `json:"successRate"`
+	ThumbsDown  int64   `json:"thumbsDown"`
+	ThumbsUp    int64   `json:"thumbsUp"`
+	Tokens      int64   `json:"tokens"`
+	Version     string  `json:"version"`
+}
 
 // AgentSummary defines model for AgentSummary.
 type AgentSummary struct {
@@ -1935,6 +2030,52 @@ type IndexSymbol struct {
 type IndexUpload struct {
 	Deleted *[]string    `json:"deleted,omitempty"`
 	Files   *[]IndexFile `json:"files,omitempty"`
+}
+
+// InsightCluster defines model for InsightCluster.
+type InsightCluster struct {
+	Agent  string                `json:"agent"`
+	Count  int                   `json:"count"`
+	RunIds *[]openapi_types.UUID `json:"runIds,omitempty"`
+
+	// Sources Approval ids (review comments).
+	Sources *[]openapi_types.UUID `json:"sources,omitempty"`
+	Text    string                `json:"text"`
+}
+
+// InsightsReport defines model for InsightsReport.
+type InsightsReport struct {
+	Agents    []AgentStat      `json:"agents"`
+	Comments  []InsightCluster `json:"comments"`
+	Failures  []InsightCluster `json:"failures"`
+	Providers []struct {
+		Calls           int64   `json:"calls"`
+		CostUsd         float32 `json:"costUsd"`
+		ErrorRate       float32 `json:"errorRate"`
+		Errors          int64   `json:"errors"`
+		MedianLatencyMs float32 `json:"medianLatencyMs"`
+		Model           string  `json:"model"`
+		Provider        string  `json:"provider"`
+		Rejected        int64   `json:"rejected"`
+		Tokens          int64   `json:"tokens"`
+	} `json:"providers"`
+	Since  time.Time `json:"since"`
+	Stalls []struct {
+		Stage    string `json:"stage"`
+		Template string `json:"template"`
+		Waiting  int64  `json:"waiting"`
+	} `json:"stalls"`
+	Templates []struct {
+		Cancelled     int64   `json:"cancelled"`
+		Completed     int64   `json:"completed"`
+		CostUsd       float32 `json:"costUsd"`
+		Failed        int64   `json:"failed"`
+		MedianSeconds float32 `json:"medianSeconds"`
+		Runs          int64   `json:"runs"`
+		Stalled       int64   `json:"stalled"`
+		Template      string  `json:"template"`
+	} `json:"templates"`
+	Window string `json:"window"`
 }
 
 // Integration defines model for Integration.
@@ -3087,6 +3228,22 @@ type ListFeedbackParamsTargetType string
 // ListFeedbackParamsRating defines parameters for ListFeedback.
 type ListFeedbackParamsRating string
 
+// GetInsightsParams defines parameters for GetInsights.
+type GetInsightsParams struct {
+	Window *GetInsightsParamsWindow `form:"window,omitempty" json:"window,omitempty"`
+}
+
+// GetInsightsParamsWindow defines parameters for GetInsights.
+type GetInsightsParamsWindow string
+
+// GetAgentInsightsParams defines parameters for GetAgentInsights.
+type GetAgentInsightsParams struct {
+	Window *GetAgentInsightsParamsWindow `form:"window,omitempty" json:"window,omitempty"`
+}
+
+// GetAgentInsightsParamsWindow defines parameters for GetAgentInsights.
+type GetAgentInsightsParamsWindow string
+
 // ListMemoriesParams defines parameters for ListMemories.
 type ListMemoriesParams struct {
 	Status    *MemoryStatus       `form:"status,omitempty" json:"status,omitempty"`
@@ -3525,6 +3682,12 @@ type ServerInterface interface {
 
 	// (GET /healthz)
 	GetHealth(w http.ResponseWriter, r *http.Request)
+
+	// (GET /insights)
+	GetInsights(w http.ResponseWriter, r *http.Request, params GetInsightsParams)
+
+	// (GET /insights/agents/{agentName})
+	GetAgentInsights(w http.ResponseWriter, r *http.Request, agentName string, params GetAgentInsightsParams)
 
 	// (DELETE /integrations/{integrationId})
 	DeleteIntegration(w http.ResponseWriter, r *http.Request, integrationId IntegrationId)
@@ -4044,6 +4207,16 @@ func (_ Unimplemented) SetFeedback(w http.ResponseWriter, r *http.Request) {
 
 // (GET /healthz)
 func (_ Unimplemented) GetHealth(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (GET /insights)
+func (_ Unimplemented) GetInsights(w http.ResponseWriter, r *http.Request, params GetInsightsParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (GET /insights/agents/{agentName})
+func (_ Unimplemented) GetAgentInsights(w http.ResponseWriter, r *http.Request, agentName string, params GetAgentInsightsParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -5599,6 +5772,81 @@ func (siw *ServerInterfaceWrapper) GetHealth(w http.ResponseWriter, r *http.Requ
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetHealth(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetInsights operation middleware
+func (siw *ServerInterfaceWrapper) GetInsights(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetInsightsParams
+
+	// ------------- Optional query parameter "window" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "window", r.URL.Query(), &params.Window, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "window"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "window", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetInsights(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetAgentInsights operation middleware
+func (siw *ServerInterfaceWrapper) GetAgentInsights(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "agentName" -------------
+	var agentName string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "agentName", chi.URLParam(r, "agentName"), &agentName, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "agentName", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetAgentInsightsParams
+
+	// ------------- Optional query parameter "window" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "window", r.URL.Query(), &params.Window, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "window"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "window", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetAgentInsights(w, r, agentName, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -9265,6 +9513,12 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	r.Group(func(r chi.Router) {
 		r.Put(options.BaseURL+"/feedback", wrapper.SetFeedback)
 	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/insights", wrapper.GetInsights)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/insights/agents/{agentName}", wrapper.GetAgentInsights)
+	})
 
 	return r
 }
@@ -11584,6 +11838,83 @@ func (response GetHealth200JSONResponse) VisitGetHealthResponse(w http.ResponseW
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetInsightsRequestObject struct {
+	Params GetInsightsParams
+}
+
+type GetInsightsResponseObject interface {
+	VisitGetInsightsResponse(w http.ResponseWriter) error
+}
+
+type GetInsights200JSONResponse InsightsReport
+
+func (response GetInsights200JSONResponse) VisitGetInsightsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetInsights401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response GetInsights401ApplicationProblemPlusJSONResponse) VisitGetInsightsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAgentInsightsRequestObject struct {
+	AgentName string `json:"agentName"`
+	Params    GetAgentInsightsParams
+}
+
+type GetAgentInsightsResponseObject interface {
+	VisitGetAgentInsightsResponse(w http.ResponseWriter) error
+}
+
+type GetAgentInsights200JSONResponse AgentInsights
+
+func (response GetAgentInsights200JSONResponse) VisitGetAgentInsightsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAgentInsights401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response GetAgentInsights401ApplicationProblemPlusJSONResponse) VisitGetAgentInsightsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
 	_, err := buf.WriteTo(w)
 	return err
 }
@@ -18409,6 +18740,12 @@ type StrictServerInterface interface {
 	// (GET /healthz)
 	GetHealth(ctx context.Context, request GetHealthRequestObject) (GetHealthResponseObject, error)
 
+	// (GET /insights)
+	GetInsights(ctx context.Context, request GetInsightsRequestObject) (GetInsightsResponseObject, error)
+
+	// (GET /insights/agents/{agentName})
+	GetAgentInsights(ctx context.Context, request GetAgentInsightsRequestObject) (GetAgentInsightsResponseObject, error)
+
 	// (DELETE /integrations/{integrationId})
 	DeleteIntegration(ctx context.Context, request DeleteIntegrationRequestObject) (DeleteIntegrationResponseObject, error)
 
@@ -19840,6 +20177,59 @@ func (sh *strictHandler) GetHealth(w http.ResponseWriter, r *http.Request) {
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(GetHealthResponseObject); ok {
 		if err := validResponse.VisitGetHealthResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetInsights operation middleware
+func (sh *strictHandler) GetInsights(w http.ResponseWriter, r *http.Request, params GetInsightsParams) {
+	var request GetInsightsRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetInsights(ctx, request.(GetInsightsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetInsights")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetInsightsResponseObject); ok {
+		if err := validResponse.VisitGetInsightsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetAgentInsights operation middleware
+func (sh *strictHandler) GetAgentInsights(w http.ResponseWriter, r *http.Request, agentName string, params GetAgentInsightsParams) {
+	var request GetAgentInsightsRequestObject
+
+	request.AgentName = agentName
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetAgentInsights(ctx, request.(GetAgentInsightsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetAgentInsights")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetAgentInsightsResponseObject); ok {
+		if err := validResponse.VisitGetAgentInsightsResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

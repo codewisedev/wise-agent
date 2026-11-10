@@ -14,8 +14,9 @@ import (
 )
 
 const agentCostSince = `-- name: AgentCostSince :one
-SELECT coalesce(sum(cost_usd), 0)::float8 FROM model_calls
-WHERE agent_name = $1 AND created_at >= $2 AND status = 'ok'
+SELECT coalesce(sum(mc.cost_usd), 0)::float8 FROM model_calls mc
+WHERE mc.agent_name = $1 AND mc.created_at >= $2 AND mc.status = 'ok'
+  AND NOT EXISTS (SELECT 1 FROM agent_runs r WHERE r.id = mc.run_id AND r.purpose = 'eval')
 `
 
 type AgentCostSinceParams struct {
@@ -23,6 +24,7 @@ type AgentCostSinceParams struct {
 	CreatedAt time.Time
 }
 
+// An agent's spend today counts real work only (evaluation replays have their own cap).
 func (q *Queries) AgentCostSince(ctx context.Context, arg AgentCostSinceParams) (float64, error) {
 	row := q.db.QueryRow(ctx, agentCostSince, arg.AgentName, arg.CreatedAt)
 	var column_1 float64

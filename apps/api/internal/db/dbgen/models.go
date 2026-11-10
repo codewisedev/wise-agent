@@ -419,6 +419,7 @@ type AgentRun struct {
 	IdempotencyKey    *string
 	ModelOverride     []byte
 	Context           []byte
+	Purpose           string
 }
 
 type ApiToken struct {

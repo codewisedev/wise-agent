@@ -1,5 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { Bot, Brain, Cpu, FolderGit2, Inbox, ListChecks, LogOut, Monitor, Moon, Settings, Sun, UserRound, Workflow } from "lucide-react";
+import { BarChart3, Bot, Brain, Cpu, FolderGit2, Inbox, ListChecks, LogOut, Monitor, Moon, Settings, Sun, UserRound, Workflow } from "lucide-react";
 import { useMemo } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router";
 import { useEventSocket, type WorkflowEvent } from "../api/events";
@@ -44,6 +44,7 @@ export function Layout() {
       "g y": () => navigate("/memory"),
       "g f": () => navigate("/profile"),
       "g m": () => navigate("/models"),
+      "g n": () => navigate("/insights"),
       "g s": () => navigate("/settings"),
       t: cycle,
     }),
@@ -95,6 +96,9 @@ export function Layout() {
           </NavLink>
           <NavLink to="/profile">
             <UserRound size={16} aria-hidden /> Profile <Kbd keys={["g", "f"]} />
+          </NavLink>
+          <NavLink to="/insights">
+            <BarChart3 size={16} aria-hidden /> Insights <Kbd keys={["g", "n"]} />
           </NavLink>
           <NavLink to="/models">
             <Cpu size={16} aria-hidden /> Models <Kbd keys={["g", "m"]} />

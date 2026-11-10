@@ -6,6 +6,7 @@ import { api, unwrap } from "../api/client";
 import { AccountSelect } from "../components/AccountSelect";
 import { Badge, ErrorNote, Field, Panel } from "../components/ui";
 import { AgentEditor } from "./AgentEditor";
+import { AgentInsights } from "./InsightsPage";
 import { RunsTable } from "./RunsTable";
 
 type JsonSchema = { properties?: Record<string, { type?: string; description?: string }>; required?: string[] };
@@ -136,6 +137,8 @@ export function AgentDetailPage() {
           </form>
         </Panel>
       )}
+
+      <AgentInsights agent={a.name} />
 
       <AgentEditor key={a.name} agent={a} />
 

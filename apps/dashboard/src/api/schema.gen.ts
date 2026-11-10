@@ -2030,6 +2030,42 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/insights": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description How agents, models and workflows performed over a window (evaluation replays excluded). */
+        get: operations["getInsights"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/insights/agents/{agentName}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agentName: string;
+            };
+            cookie?: never;
+        };
+        /** @description One agent's versions, daily trend, repeated failures, review comments and your thumbs-down notes. */
+        get: operations["getAgentInsights"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -3508,6 +3544,128 @@ export interface components {
             events: components["schemas"]["ExternalEvent"][];
             done: boolean;
             outcome?: components["schemas"]["ExternalOutcome"];
+        };
+        AgentStat: {
+            agent: string;
+            version: string;
+            /** Format: uuid */
+            definitionId: string;
+            /** Format: int64 */
+            runs: number;
+            /** Format: int64 */
+            succeeded: number;
+            /** Format: int64 */
+            failed: number;
+            /** Format: int64 */
+            cancelled: number;
+            /** Format: int64 */
+            retries: number;
+            /** Format: int64 */
+            invalidOutputs: number;
+            medianSeconds: number;
+            p90Seconds: number;
+            costUsd: number;
+            /** Format: int64 */
+            tokens: number;
+            /**
+             * Format: int64
+             * @description Decided reviews this agent's work was part of (steps re-run on rejection).
+             */
+            reviewed: number;
+            /** Format: int64 */
+            rejected: number;
+            /**
+             * Format: int64
+             * @description Failed quality-gate rounds this implementing agent had to fix.
+             */
+            gateFixRounds: number;
+            /** Format: int64 */
+            thumbsUp: number;
+            /** Format: int64 */
+            thumbsDown: number;
+            successRate: number;
+            rejectionRate: number;
+            costPerRunUsd: number;
+            invalidRate: number;
+        };
+        InsightCluster: {
+            agent: string;
+            text: string;
+            count: number;
+            runIds?: string[];
+            /** @description Approval ids (review comments). */
+            sources?: string[];
+        };
+        InsightsReport: {
+            window: string;
+            /** Format: date-time */
+            since: string;
+            agents: components["schemas"]["AgentStat"][];
+            providers: {
+                provider: string;
+                model: string;
+                /** Format: int64 */
+                calls: number;
+                /** Format: int64 */
+                errors: number;
+                /** Format: int64 */
+                rejected: number;
+                medianLatencyMs: number;
+                costUsd: number;
+                /** Format: int64 */
+                tokens: number;
+                errorRate: number;
+            }[];
+            templates: {
+                template: string;
+                /** Format: int64 */
+                runs: number;
+                /** Format: int64 */
+                completed: number;
+                /** Format: int64 */
+                failed: number;
+                /** Format: int64 */
+                cancelled: number;
+                /** Format: int64 */
+                stalled: number;
+                medianSeconds: number;
+                costUsd: number;
+            }[];
+            stalls: {
+                template: string;
+                stage: string;
+                /** Format: int64 */
+                waiting: number;
+            }[];
+            failures: components["schemas"]["InsightCluster"][];
+            comments: components["schemas"]["InsightCluster"][];
+        };
+        AgentInsights: {
+            agent: string;
+            window: string;
+            versions: components["schemas"]["AgentStat"][];
+            days: {
+                day: string;
+                /** Format: int64 */
+                runs: number;
+                /** Format: int64 */
+                succeeded: number;
+                costUsd: number;
+            }[];
+            failures: components["schemas"]["InsightCluster"][];
+            comments: components["schemas"]["InsightCluster"][];
+            feedback: {
+                /** Format: uuid */
+                id: string;
+                targetType: string;
+                /** Format: uuid */
+                targetId: string;
+                /** Format: uuid */
+                runId?: string | null;
+                note: string;
+                /** Format: date-time */
+                at: string;
+            }[];
         };
         FeedbackInput: {
             /** @enum {string} */
@@ -7453,6 +7611,54 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            401: components["responses"]["Problem"];
+        };
+    };
+    getInsights: {
+        parameters: {
+            query?: {
+                window?: "7d" | "30d" | "90d";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Insights. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InsightsReport"];
+                };
+            };
+            401: components["responses"]["Problem"];
+        };
+    };
+    getAgentInsights: {
+        parameters: {
+            query?: {
+                window?: "7d" | "30d" | "90d";
+            };
+            header?: never;
+            path: {
+                agentName: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Agent insights. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentInsights"];
+                };
             };
             401: components["responses"]["Problem"];
         };
