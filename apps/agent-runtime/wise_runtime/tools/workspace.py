@@ -35,8 +35,12 @@ class Workspace:
         project: dict[str, Any] | None,
         allowed_roots: tuple[str, ...] = (),
         context: Callable[[str, dict[str, Any]], dict[str, Any]] | None = None,
+        task_workspace: Callable[[str, dict[str, Any]], dict[str, Any]] | None = None,
     ):
         self.project = project
+        # The run's task workspace (its sandbox), through the control plane;
+        # None when the run has no workspace.
+        self.task_workspace = task_workspace
         # Index queries go through the control plane (scoped to the run's project).
         self.context = context
         self.repos: dict[str, Repo] = {}

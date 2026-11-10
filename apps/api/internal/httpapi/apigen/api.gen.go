@@ -773,14 +773,17 @@ func (e TaskStatus) Valid() bool {
 
 // Defines values for ToolDefinitionSideEffects.
 const (
-	ToolDefinitionSideEffectsNone  ToolDefinitionSideEffects = "none"
-	ToolDefinitionSideEffectsRead  ToolDefinitionSideEffects = "read"
-	ToolDefinitionSideEffectsWrite ToolDefinitionSideEffects = "write"
+	ToolDefinitionSideEffectsExecute ToolDefinitionSideEffects = "execute"
+	ToolDefinitionSideEffectsNone    ToolDefinitionSideEffects = "none"
+	ToolDefinitionSideEffectsRead    ToolDefinitionSideEffects = "read"
+	ToolDefinitionSideEffectsWrite   ToolDefinitionSideEffects = "write"
 )
 
 // Valid indicates whether the value is a known member of the ToolDefinitionSideEffects enum.
 func (e ToolDefinitionSideEffects) Valid() bool {
 	switch e {
+	case ToolDefinitionSideEffectsExecute:
+		return true
 	case ToolDefinitionSideEffectsNone:
 		return true
 	case ToolDefinitionSideEffectsRead:
@@ -2036,6 +2039,9 @@ type RuntimeClaim struct {
 	// RunToken Bearer token scoped to this run; invalid once it ends.
 	RunToken string           `json:"runToken"`
 	Tools    []ToolDefinition `json:"tools"`
+
+	// Workspace The run works in its task's workspace (write and execute tools are available).
+	Workspace *bool `json:"workspace,omitempty"`
 }
 
 // RuntimeClaimRequest defines model for RuntimeClaimRequest.
@@ -2513,6 +2519,13 @@ type WorkflowTemplateList struct {
 	Items []WorkflowTemplate `json:"items"`
 }
 
+// WorkingDiff defines model for WorkingDiff.
+type WorkingDiff struct {
+	Patch     string `json:"patch"`
+	Stat      string `json:"stat"`
+	Truncated *bool  `json:"truncated,omitempty"`
+}
+
 // Workspace defines model for Workspace.
 type Workspace struct {
 	BaseBranch *string `json:"baseBranch,omitempty"`
@@ -2541,6 +2554,20 @@ type Workspace struct {
 	ToolVersions  []string            `json:"toolVersions"`
 	UpdatedAt     time.Time           `json:"updatedAt"`
 	WorkflowRunId *openapi_types.UUID `json:"workflowRunId,omitempty"`
+}
+
+// WorkspaceCommandResult defines model for WorkspaceCommandResult.
+type WorkspaceCommandResult struct {
+	DurationMs int64 `json:"durationMs"`
+	ExitCode   *int  `json:"exitCode,omitempty"`
+
+	// Output Combined output; long output keeps its start and end.
+	Output string `json:"output"`
+
+	// Status succeeded (it ran; see exitCode), failed or cancelled.
+	Status    string `json:"status"`
+	TimedOut  *bool  `json:"timedOut,omitempty"`
+	Truncated *bool  `json:"truncated,omitempty"`
 }
 
 // WorkspaceStatus defines model for WorkspaceStatus.
@@ -2698,6 +2725,15 @@ type RuntimeMemorySearchParams struct {
 	Q string `form:"q" json:"q"`
 }
 
+// RuntimeWorkspaceCommandJSONBody defines parameters for RuntimeWorkspaceCommand.
+type RuntimeWorkspaceCommandJSONBody struct {
+	Command  string `json:"command"`
+	TimeoutS *int   `json:"timeoutS,omitempty"`
+}
+
+// RuntimeWorkspaceFsJSONBody defines parameters for RuntimeWorkspaceFs.
+type RuntimeWorkspaceFsJSONBody map[string]interface{}
+
 // ListTasksParams defines parameters for ListTasks.
 type ListTasksParams struct {
 	ProjectId *openapi_types.UUID `form:"projectId,omitempty" json:"projectId,omitempty"`
@@ -2824,6 +2860,12 @@ type RuntimeFailRunJSONRequestBody = RuntimeFailRequest
 
 // RuntimeModelTurnJSONRequestBody defines body for RuntimeModelTurn for application/json ContentType.
 type RuntimeModelTurnJSONRequestBody = ModelTurnRequest
+
+// RuntimeWorkspaceCommandJSONRequestBody defines body for RuntimeWorkspaceCommand for application/json ContentType.
+type RuntimeWorkspaceCommandJSONRequestBody RuntimeWorkspaceCommandJSONBody
+
+// RuntimeWorkspaceFsJSONRequestBody defines body for RuntimeWorkspaceFs for application/json ContentType.
+type RuntimeWorkspaceFsJSONRequestBody RuntimeWorkspaceFsJSONBody
 
 // UpdateSettingJSONRequestBody defines body for UpdateSetting for application/json ContentType.
 type UpdateSettingJSONRequestBody = UpdateSettingRequest
@@ -3166,6 +3208,15 @@ type ServerInterface interface {
 
 	// (POST /runtime/v1/runs/{runId}/model-turn)
 	RuntimeModelTurn(w http.ResponseWriter, r *http.Request, runId RunId)
+
+	// (POST /runtime/v1/runs/{runId}/workspace/command)
+	RuntimeWorkspaceCommand(w http.ResponseWriter, r *http.Request, runId RunId)
+
+	// (GET /runtime/v1/runs/{runId}/workspace/diff)
+	RuntimeWorkspaceDiff(w http.ResponseWriter, r *http.Request, runId RunId)
+
+	// (POST /runtime/v1/runs/{runId}/workspace/fs)
+	RuntimeWorkspaceFs(w http.ResponseWriter, r *http.Request, runId RunId)
 
 	// (GET /settings)
 	ListSettings(w http.ResponseWriter, r *http.Request)
@@ -3782,6 +3833,21 @@ func (_ Unimplemented) RuntimeMemorySearch(w http.ResponseWriter, r *http.Reques
 
 // (POST /runtime/v1/runs/{runId}/model-turn)
 func (_ Unimplemented) RuntimeModelTurn(w http.ResponseWriter, r *http.Request, runId RunId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (POST /runtime/v1/runs/{runId}/workspace/command)
+func (_ Unimplemented) RuntimeWorkspaceCommand(w http.ResponseWriter, r *http.Request, runId RunId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (GET /runtime/v1/runs/{runId}/workspace/diff)
+func (_ Unimplemented) RuntimeWorkspaceDiff(w http.ResponseWriter, r *http.Request, runId RunId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (POST /runtime/v1/runs/{runId}/workspace/fs)
+func (_ Unimplemented) RuntimeWorkspaceFs(w http.ResponseWriter, r *http.Request, runId RunId) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -6870,6 +6936,84 @@ func (siw *ServerInterfaceWrapper) RuntimeModelTurn(w http.ResponseWriter, r *ht
 	handler.ServeHTTP(w, r)
 }
 
+// RuntimeWorkspaceCommand operation middleware
+func (siw *ServerInterfaceWrapper) RuntimeWorkspaceCommand(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "runId" -------------
+	var runId RunId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "runId", chi.URLParam(r, "runId"), &runId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "runId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RuntimeWorkspaceCommand(w, r, runId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RuntimeWorkspaceDiff operation middleware
+func (siw *ServerInterfaceWrapper) RuntimeWorkspaceDiff(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "runId" -------------
+	var runId RunId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "runId", chi.URLParam(r, "runId"), &runId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "runId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RuntimeWorkspaceDiff(w, r, runId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RuntimeWorkspaceFs operation middleware
+func (siw *ServerInterfaceWrapper) RuntimeWorkspaceFs(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "runId" -------------
+	var runId RunId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "runId", chi.URLParam(r, "runId"), &runId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "runId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RuntimeWorkspaceFs(w, r, runId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListSettings operation middleware
 func (siw *ServerInterfaceWrapper) ListSettings(w http.ResponseWriter, r *http.Request) {
 
@@ -8171,6 +8315,15 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/runtime/v1/runs/{runId}/memory/search", wrapper.RuntimeMemorySearch)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/runtime/v1/runs/{runId}/workspace/fs", wrapper.RuntimeWorkspaceFs)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/runtime/v1/runs/{runId}/workspace/command", wrapper.RuntimeWorkspaceCommand)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/runtime/v1/runs/{runId}/workspace/diff", wrapper.RuntimeWorkspaceDiff)
 	})
 	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/runtime/v1/runs/claim", wrapper.RuntimeClaimRun)
@@ -14699,6 +14852,234 @@ func (response RuntimeModelTurn502ApplicationProblemPlusJSONResponse) VisitRunti
 	return err
 }
 
+type RuntimeWorkspaceCommandRequestObject struct {
+	RunId RunId `json:"runId"`
+	Body  *RuntimeWorkspaceCommandJSONRequestBody
+}
+
+type RuntimeWorkspaceCommandResponseObject interface {
+	VisitRuntimeWorkspaceCommandResponse(w http.ResponseWriter) error
+}
+
+type RuntimeWorkspaceCommand200JSONResponse WorkspaceCommandResult
+
+func (response RuntimeWorkspaceCommand200JSONResponse) VisitRuntimeWorkspaceCommandResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RuntimeWorkspaceCommand400ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response RuntimeWorkspaceCommand400ApplicationProblemPlusJSONResponse) VisitRuntimeWorkspaceCommandResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RuntimeWorkspaceCommand401ApplicationProblemPlusJSONResponse Problem
+
+func (response RuntimeWorkspaceCommand401ApplicationProblemPlusJSONResponse) VisitRuntimeWorkspaceCommandResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RuntimeWorkspaceCommand403ApplicationProblemPlusJSONResponse Problem
+
+func (response RuntimeWorkspaceCommand403ApplicationProblemPlusJSONResponse) VisitRuntimeWorkspaceCommandResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RuntimeWorkspaceCommand409ApplicationProblemPlusJSONResponse Problem
+
+func (response RuntimeWorkspaceCommand409ApplicationProblemPlusJSONResponse) VisitRuntimeWorkspaceCommandResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RuntimeWorkspaceDiffRequestObject struct {
+	RunId RunId `json:"runId"`
+}
+
+type RuntimeWorkspaceDiffResponseObject interface {
+	VisitRuntimeWorkspaceDiffResponse(w http.ResponseWriter) error
+}
+
+type RuntimeWorkspaceDiff200JSONResponse WorkingDiff
+
+func (response RuntimeWorkspaceDiff200JSONResponse) VisitRuntimeWorkspaceDiffResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RuntimeWorkspaceDiff401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response RuntimeWorkspaceDiff401ApplicationProblemPlusJSONResponse) VisitRuntimeWorkspaceDiffResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RuntimeWorkspaceDiff403ApplicationProblemPlusJSONResponse Problem
+
+func (response RuntimeWorkspaceDiff403ApplicationProblemPlusJSONResponse) VisitRuntimeWorkspaceDiffResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RuntimeWorkspaceDiff409ApplicationProblemPlusJSONResponse Problem
+
+func (response RuntimeWorkspaceDiff409ApplicationProblemPlusJSONResponse) VisitRuntimeWorkspaceDiffResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RuntimeWorkspaceFsRequestObject struct {
+	RunId RunId `json:"runId"`
+	Body  *RuntimeWorkspaceFsJSONRequestBody
+}
+
+type RuntimeWorkspaceFsResponseObject interface {
+	VisitRuntimeWorkspaceFsResponse(w http.ResponseWriter) error
+}
+
+type RuntimeWorkspaceFs200JSONResponse map[string]interface{}
+
+func (response RuntimeWorkspaceFs200JSONResponse) VisitRuntimeWorkspaceFsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RuntimeWorkspaceFs400ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response RuntimeWorkspaceFs400ApplicationProblemPlusJSONResponse) VisitRuntimeWorkspaceFsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RuntimeWorkspaceFs401ApplicationProblemPlusJSONResponse Problem
+
+func (response RuntimeWorkspaceFs401ApplicationProblemPlusJSONResponse) VisitRuntimeWorkspaceFsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RuntimeWorkspaceFs403ApplicationProblemPlusJSONResponse Problem
+
+func (response RuntimeWorkspaceFs403ApplicationProblemPlusJSONResponse) VisitRuntimeWorkspaceFsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RuntimeWorkspaceFs409ApplicationProblemPlusJSONResponse Problem
+
+func (response RuntimeWorkspaceFs409ApplicationProblemPlusJSONResponse) VisitRuntimeWorkspaceFsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type ListSettingsRequestObject struct {
 }
 
@@ -16868,6 +17249,15 @@ type StrictServerInterface interface {
 
 	// (POST /runtime/v1/runs/{runId}/model-turn)
 	RuntimeModelTurn(ctx context.Context, request RuntimeModelTurnRequestObject) (RuntimeModelTurnResponseObject, error)
+
+	// (POST /runtime/v1/runs/{runId}/workspace/command)
+	RuntimeWorkspaceCommand(ctx context.Context, request RuntimeWorkspaceCommandRequestObject) (RuntimeWorkspaceCommandResponseObject, error)
+
+	// (GET /runtime/v1/runs/{runId}/workspace/diff)
+	RuntimeWorkspaceDiff(ctx context.Context, request RuntimeWorkspaceDiffRequestObject) (RuntimeWorkspaceDiffResponseObject, error)
+
+	// (POST /runtime/v1/runs/{runId}/workspace/fs)
+	RuntimeWorkspaceFs(ctx context.Context, request RuntimeWorkspaceFsRequestObject) (RuntimeWorkspaceFsResponseObject, error)
 
 	// (GET /settings)
 	ListSettings(ctx context.Context, request ListSettingsRequestObject) (ListSettingsResponseObject, error)
@@ -19932,6 +20322,98 @@ func (sh *strictHandler) RuntimeModelTurn(w http.ResponseWriter, r *http.Request
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(RuntimeModelTurnResponseObject); ok {
 		if err := validResponse.VisitRuntimeModelTurnResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RuntimeWorkspaceCommand operation middleware
+func (sh *strictHandler) RuntimeWorkspaceCommand(w http.ResponseWriter, r *http.Request, runId RunId) {
+	var request RuntimeWorkspaceCommandRequestObject
+
+	request.RunId = runId
+
+	var body RuntimeWorkspaceCommandJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RuntimeWorkspaceCommand(ctx, request.(RuntimeWorkspaceCommandRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RuntimeWorkspaceCommand")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RuntimeWorkspaceCommandResponseObject); ok {
+		if err := validResponse.VisitRuntimeWorkspaceCommandResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RuntimeWorkspaceDiff operation middleware
+func (sh *strictHandler) RuntimeWorkspaceDiff(w http.ResponseWriter, r *http.Request, runId RunId) {
+	var request RuntimeWorkspaceDiffRequestObject
+
+	request.RunId = runId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RuntimeWorkspaceDiff(ctx, request.(RuntimeWorkspaceDiffRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RuntimeWorkspaceDiff")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RuntimeWorkspaceDiffResponseObject); ok {
+		if err := validResponse.VisitRuntimeWorkspaceDiffResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RuntimeWorkspaceFs operation middleware
+func (sh *strictHandler) RuntimeWorkspaceFs(w http.ResponseWriter, r *http.Request, runId RunId) {
+	var request RuntimeWorkspaceFsRequestObject
+
+	request.RunId = runId
+
+	var body RuntimeWorkspaceFsJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RuntimeWorkspaceFs(ctx, request.(RuntimeWorkspaceFsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RuntimeWorkspaceFs")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RuntimeWorkspaceFsResponseObject); ok {
+		if err := validResponse.VisitRuntimeWorkspaceFsResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

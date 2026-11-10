@@ -296,3 +296,30 @@ def test_search_memory_tool_calls_the_memory_endpoint() -> None:
     ws = Workspace({"name": "p", "repositories": []}, (), context=remote)
     _, err, _ = ToolRegistry(defs, ws).execute("search_memory", {"query": "retries"})
     assert err is None and calls == [("memory", {"q": "retries"})]
+
+
+def test_workspace_tools_need_a_workspace_and_call_the_control_plane() -> None:
+    import pytest
+
+    calls: list[tuple[str, dict]] = []
+
+    def remote(op: str, body: dict) -> dict:
+        calls.append((op, body))
+        if body.get("op") == "edit":
+            return {"error": "the old text occurs 2 times in a.go; include more surrounding lines"}
+        return {"ok": True}
+
+    defs = [
+        {"name": "ws_write_file", "sideEffects": "write", "inputSchema": {"type": "object"}},
+        {"name": "ws_edit_file", "sideEffects": "write", "inputSchema": {"type": "object"}},
+        {"name": "ws_run_command", "sideEffects": "execute", "inputSchema": {"type": "object"}},
+    ]
+    with pytest.raises(ValueError, match="needs a task workspace"):
+        ToolRegistry(defs, Workspace({"name": "p", "repositories": []}, ()))
+    reg = ToolRegistry(defs, Workspace({"name": "p", "repositories": []}, (), task_workspace=remote))
+    _, err, _ = reg.execute("ws_write_file", {"path": "a.go", "content": ""})
+    assert err is None and calls[-1] == ("fs", {"op": "write", "path": "a.go", "content": ""})
+    _, err, _ = reg.execute("ws_edit_file", {"path": "a.go", "old_text": "x", "new_text": ""})
+    assert err and "occurs 2 times" in err
+    reg.execute("ws_run_command", {"command": "go test ./...", "timeout_s": 120})
+    assert calls[-1] == ("command", {"command": "go test ./...", "timeoutS": 120})

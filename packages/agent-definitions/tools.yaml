@@ -1,5 +1,5 @@
 # Tool catalog. Implementations live in apps/agent-runtime/wise_runtime/tools.
-# Phase 2 ships read-only tools only; write tools arrive with isolated workspaces (Phase 5).
+# Read-only tools work on the registered repositories; ws_* tools work in a task workspace (Phase 5).
 - name: get_project_context
   description: Return the project this run belongs to and its repositories (name, role, branch, HEAD SHA). Call this first when a project is attached.
   side_effects: none
@@ -94,3 +94,94 @@
     required: [query]
     properties:
       query: { type: string, minLength: 1, maxLength: 500 }
+# ---- Task workspace tools (Phase 5): the task's private clone in its sandbox.
+# Write and execute tools are only available to runs that have a workspace.
+- name: ws_list_files
+  description: List files in the task workspace (your working copy of the repository). Without a glob, lists one directory; with a glob (e.g. "**/*.go"), finds files recursively.
+  side_effects: read
+  permissions_required: [workspace:read]
+  input_schema:
+    type: object
+    additionalProperties: false
+    properties:
+      path: { type: string, description: Directory relative to the workspace root. Defaults to the root. }
+      glob: { type: string, maxLength: 200 }
+      limit: { type: integer, minimum: 1, maximum: 1000 }
+- name: ws_read_file
+  description: Read a text file from the task workspace. Use start_line and lines to page through large files.
+  side_effects: read
+  permissions_required: [workspace:read]
+  input_schema:
+    type: object
+    additionalProperties: false
+    required: [path]
+    properties:
+      path: { type: string }
+      start_line: { type: integer, minimum: 1 }
+      lines: { type: integer, minimum: 1, maximum: 5000 }
+- name: ws_search
+  description: Search the task workspace's files for text (case-insensitive) or a regular expression. Returns paths, line numbers and lines.
+  side_effects: read
+  permissions_required: [workspace:read]
+  input_schema:
+    type: object
+    additionalProperties: false
+    required: [query]
+    properties:
+      query: { type: string, minLength: 1, maxLength: 500 }
+      regex: { type: boolean }
+      path: { type: string, description: Limit to a directory. }
+      glob: { type: string, description: 'File filter, e.g. "*.ts" or "**/*_test.go".' }
+      limit: { type: integer, minimum: 1, maximum: 500 }
+- name: ws_git_diff
+  description: Show your changes in the task workspace so far (stat and unified diff against the commit the task started from).
+  side_effects: read
+  permissions_required: [workspace:read]
+  input_schema: { type: object, properties: {}, additionalProperties: false }
+- name: ws_write_file
+  description: Create or replace a file in the task workspace with the given content. Prefer ws_edit_file for changes to existing files.
+  side_effects: write
+  permissions_required: [workspace:write]
+  input_schema:
+    type: object
+    additionalProperties: false
+    required: [path, content]
+    properties:
+      path: { type: string }
+      content: { type: string, maxLength: 2000000 }
+- name: ws_edit_file
+  description: Replace one exact occurrence of old_text with new_text in a workspace file. old_text must match exactly once (copy it from ws_read_file, including indentation); add surrounding lines to make it unique.
+  side_effects: write
+  permissions_required: [workspace:write]
+  input_schema:
+    type: object
+    additionalProperties: false
+    required: [path, old_text, new_text]
+    properties:
+      path: { type: string }
+      old_text: { type: string, minLength: 1 }
+      new_text: { type: string }
+- name: ws_delete_file
+  description: Delete a file from the task workspace.
+  side_effects: write
+  permissions_required: [workspace:write]
+  input_schema:
+    type: object
+    additionalProperties: false
+    required: [path]
+    properties:
+      path: { type: string }
+- name: ws_run_command
+  description: >-
+    Run a shell command in the task sandbox (the workspace is the working directory), e.g. tests, a linter, a
+    build or a package install. Returns the exit code and output (long output keeps its start and end). The
+    sandbox reaches only package registries; there is no other network access.
+  side_effects: execute
+  permissions_required: [workspace:execute]
+  input_schema:
+    type: object
+    additionalProperties: false
+    required: [command]
+    properties:
+      command: { type: string, minLength: 1, maxLength: 8000 }
+      timeout_s: { type: integer, minimum: 1, maximum: 21600, description: Defaults to the configured command timeout (also the maximum). }

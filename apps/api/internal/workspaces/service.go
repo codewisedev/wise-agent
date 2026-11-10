@@ -31,6 +31,7 @@ type Executor interface {
 	Remove(ctx context.Context, id string) error
 	Stop(ctx context.Context, id string) error
 	SetEgress(ctx context.Context, hosts []string) error
+	Ops
 }
 
 // Service is the workspace service.

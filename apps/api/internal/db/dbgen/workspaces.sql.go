@@ -553,3 +553,40 @@ func (q *Queries) SetWorkspaceStatus(ctx context.Context, arg SetWorkspaceStatus
 	)
 	return i, err
 }
+
+const workspaceForWorkflowRun = `-- name: WorkspaceForWorkflowRun :one
+SELECT w.id, w.task_id, w.workflow_run_id, w.repository_id, w.status, w.branch, w.base_branch, w.base_sha, w.image, w.job_id, w.log, w.error, w.tool_versions, w.scrubbed, w.head_sha, w.delivered_branch, w.delivered_sha, w.delivered_at, w.created_by, w.created_at, w.updated_at, w.finished_at FROM workspaces w JOIN workflow_runs r ON r.task_id = w.task_id
+WHERE r.id = $1 AND w.status IN ('preparing', 'ready', 'stopped')
+ORDER BY w.created_at DESC LIMIT 1
+`
+
+// The live workspace of a workflow run's task.
+func (q *Queries) WorkspaceForWorkflowRun(ctx context.Context, id uuid.UUID) (Workspace, error) {
+	row := q.db.QueryRow(ctx, workspaceForWorkflowRun, id)
+	var i Workspace
+	err := row.Scan(
+		&i.ID,
+		&i.TaskID,
+		&i.WorkflowRunID,
+		&i.RepositoryID,
+		&i.Status,
+		&i.Branch,
+		&i.BaseBranch,
+		&i.BaseSha,
+		&i.Image,
+		&i.JobID,
+		&i.Log,
+		&i.Error,
+		&i.ToolVersions,
+		&i.Scrubbed,
+		&i.HeadSha,
+		&i.DeliveredBranch,
+		&i.DeliveredSha,
+		&i.DeliveredAt,
+		&i.CreatedBy,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.FinishedAt,
+	)
+	return i, err
+}

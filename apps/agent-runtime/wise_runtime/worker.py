@@ -112,6 +112,11 @@ class Worker:
                 claim.get("project"),
                 self.config.repo_roots,
                 context=lambda kind, params: self.client.context(run_id, token, kind, params),
+                task_workspace=(
+                    (lambda op, body: self.client.workspace(run_id, token, op, body))
+                    if claim.get("workspace")
+                    else None
+                ),
             )
             ctx = RunContext(
                 run=run,

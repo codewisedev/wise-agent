@@ -95,7 +95,8 @@ func bearerToken(r *http.Request) (string, bool) {
 // isLongRunning marks requests exempt from the default request timeout:
 // model turns (a provider call can take minutes) and WebSocket streams.
 func isLongRunning(r *http.Request) bool {
-	return r.URL.Path == wsPath || (strings.HasPrefix(r.URL.Path, runsPrefix) && strings.HasSuffix(r.URL.Path, "/model-turn"))
+	return r.URL.Path == wsPath || (strings.HasPrefix(r.URL.Path, runsPrefix) &&
+		(strings.HasSuffix(r.URL.Path, "/model-turn") || strings.HasSuffix(r.URL.Path, "/workspace/command")))
 }
 
 // extendDeadlines lifts the server's read/write deadlines for long requests.
@@ -106,6 +107,8 @@ func extendDeadlines(next http.Handler) http.Handler {
 			if r.URL.Path == wsPath {
 				_ = rc.SetReadDeadline(time.Time{})
 				_ = rc.SetWriteDeadline(time.Time{})
+			} else if strings.HasSuffix(r.URL.Path, "/workspace/command") {
+				_ = rc.SetWriteDeadline(time.Now().Add(6*time.Hour + 5*time.Minute)) // the command timeout's upper bound
 			} else {
 				_ = rc.SetWriteDeadline(time.Now().Add(20 * time.Minute))
 			}

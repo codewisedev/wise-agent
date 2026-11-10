@@ -150,6 +150,12 @@ func (c *Client) Deliver(ctx context.Context, id string, req DeliverRequest) (De
 	return r, c.do(ctx, http.MethodPost, "/v1/workspaces/"+url.PathEscape(id)+"/deliver", req, &r)
 }
 
+// Diff returns the workspace's current (unverified) changes.
+func (c *Client) Diff(ctx context.Context, id string, maxBytes int) (WorkingDiff, error) {
+	var r WorkingDiff
+	return r, c.do(ctx, http.MethodGet, "/v1/workspaces/"+url.PathEscape(id)+"/diff?maxBytes="+strconv.Itoa(maxBytes), nil, &r)
+}
+
 // SetEgress replaces the egress allowlist.
 func (c *Client) SetEgress(ctx context.Context, hosts []string) error {
 	return c.do(ctx, http.MethodPut, "/v1/egress", map[string]any{"hosts": hosts}, nil)

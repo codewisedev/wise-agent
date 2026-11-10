@@ -1743,6 +1743,63 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/runtime/v1/runs/{runId}/workspace/fs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                runId: components["parameters"]["RunId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description A file operation in the run's task workspace (list, read, search, write, edit, delete). Writes need a write tool. */
+        post: operations["runtimeWorkspaceFs"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/runtime/v1/runs/{runId}/workspace/command": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                runId: components["parameters"]["RunId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Runs a shell command in the run's task sandbox and waits for it (bounded by the execution setting's timeout). */
+        post: operations["runtimeWorkspaceCommand"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/runtime/v1/runs/{runId}/workspace/diff": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                runId: components["parameters"]["RunId"];
+            };
+            cookie?: never;
+        };
+        /** @description The workspace's changes since its base commit. */
+        get: operations["runtimeWorkspaceDiff"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/runtime/v1/runs/claim": {
         parameters: {
             query?: never;
@@ -3287,7 +3344,7 @@ export interface components {
                 [key: string]: unknown;
             };
             /** @enum {string} */
-            sideEffects: "none" | "read" | "write";
+            sideEffects: "none" | "read" | "write" | "execute";
             permissionsRequired: string[];
         };
         RuntimeRepository: {
@@ -3320,6 +3377,24 @@ export interface components {
             prompt: string;
             tools: components["schemas"]["ToolDefinition"][];
             project?: components["schemas"]["RuntimeProject"];
+            /** @description The run works in its task's workspace (write and execute tools are available). */
+            workspace?: boolean;
+        };
+        WorkspaceCommandResult: {
+            exitCode?: number | null;
+            /** @description succeeded (it ran; see exitCode), failed or cancelled. */
+            status: string;
+            /** @description Combined output; long output keeps its start and end. */
+            output: string;
+            truncated?: boolean;
+            timedOut?: boolean;
+            /** Format: int64 */
+            durationMs: number;
+        };
+        WorkingDiff: {
+            stat: string;
+            patch: string;
+            truncated?: boolean;
         };
         RuntimeHeartbeat: {
             cancelRequested: boolean;
@@ -6601,6 +6676,98 @@ export interface operations {
             400: components["responses"]["Problem"];
             401: components["responses"]["Problem"];
             403: components["responses"]["Problem"];
+        };
+    };
+    runtimeWorkspaceFs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                runId: components["parameters"]["RunId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    [key: string]: unknown;
+                };
+            };
+        };
+        responses: {
+            /** @description The operation's result (an "error" field reports a refused or failed operation). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+        };
+    };
+    runtimeWorkspaceCommand: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                runId: components["parameters"]["RunId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    command: string;
+                    timeoutS?: number;
+                };
+            };
+        };
+        responses: {
+            /** @description The finished command. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkspaceCommandResult"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+        };
+    };
+    runtimeWorkspaceDiff: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                runId: components["parameters"]["RunId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Diff. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkingDiff"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
         };
     };
     runtimeClaimRun: {

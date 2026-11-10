@@ -98,7 +98,7 @@ def test_no_project(repo_tree):
 
 
 def test_write_tools_are_refused(repo_tree):
-    with pytest.raises(ValueError, match="side effects"):
+    with pytest.raises(ValueError, match="needs a task workspace"):
         ToolRegistry([{**PRODUCT_TOOLS[0], "sideEffects": "write"}], Workspace(None))
     assert os.path.exists(repo_tree["outside"])  # nothing touched
 

@@ -440,3 +440,23 @@ func newRunToken() (string, []byte, error) {
 }
 
 func ptr[T any](v T) *T { return &v }
+
+// RunTools returns the side effects of each tool a run's agent definition
+// lists (by tool name).
+func (s *Service) RunTools(ctx context.Context, run dbgen.AgentRun) (map[string]string, error) {
+	defRow, err := s.db.GetAgentDefinition(ctx, run.AgentDefinitionID)
+	if err != nil {
+		return nil, err
+	}
+	def, err := agents.ParseDefinition(defRow.Definition)
+	if err != nil {
+		return nil, err
+	}
+	out := map[string]string{}
+	for _, name := range def.Tools {
+		if t, ok := s.tools[name]; ok {
+			out[name] = t.SideEffects
+		}
+	}
+	return out, nil
+}

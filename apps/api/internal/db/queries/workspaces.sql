@@ -60,3 +60,9 @@ UPDATE tasks SET target_repository_id = $2, updated_at = now() WHERE id = $1;
 
 -- name: SetRepositorySettings :one
 UPDATE repositories SET settings = $2, updated_at = now() WHERE id = $1 RETURNING *;
+
+-- name: WorkspaceForWorkflowRun :one
+-- The live workspace of a workflow run's task.
+SELECT w.* FROM workspaces w JOIN workflow_runs r ON r.task_id = w.task_id
+WHERE r.id = $1 AND w.status IN ('preparing', 'ready', 'stopped')
+ORDER BY w.created_at DESC LIMIT 1;

@@ -2,6 +2,7 @@ package httpapi_test
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -10,6 +11,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
+
+	"wise/apps/api/internal/agents"
 	"wise/apps/api/internal/executor"
 )
 
@@ -20,6 +24,9 @@ type fakeExecutor struct {
 	removed  []string
 	egress   []string
 	fail     string
+	fsCalls  []map[string]any
+	commands []string
+	timeouts []int
 }
 
 func (f *fakeExecutor) Prepare(_ context.Context, req executor.PrepareRequest) (string, error) {
@@ -30,6 +37,11 @@ func (f *fakeExecutor) Prepare(_ context.Context, req executor.PrepareRequest) (
 }
 
 func (f *fakeExecutor) Wait(_ context.Context, jobID string, onOutput func(string), beat func()) (executor.JobStatus, error) {
+	if jobID == "cmd-1" {
+		onOutput("ok  example/pkg 0.01s\n")
+		code := 0
+		return executor.JobStatus{ID: jobID, Status: executor.JobSucceeded, ExitCode: &code}, nil
+	}
 	f.mu.Lock()
 	fail := f.fail
 	req := f.prepared[len(f.prepared)-1]
@@ -55,6 +67,33 @@ func (f *fakeExecutor) Remove(_ context.Context, id string) error {
 	return nil
 }
 func (f *fakeExecutor) Stop(context.Context, string) error { return nil }
+
+func (f *fakeExecutor) FS(_ context.Context, id string, req any) (json.RawMessage, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.fsCalls = append(f.fsCalls, req.(map[string]any))
+	return json.RawMessage(`{"content":"hello\n","totalLines":1}`), nil
+}
+
+func (f *fakeExecutor) Command(_ context.Context, id, command string, timeoutS int) (string, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.commands = append(f.commands, command)
+	f.timeouts = append(f.timeouts, timeoutS)
+	return "cmd-1", nil
+}
+
+func (f *fakeExecutor) Diff(context.Context, string, int) (executor.WorkingDiff, error) {
+	return executor.WorkingDiff{Stat: " a.go | 1 +", Patch: "+x"}, nil
+}
+
+func (f *fakeExecutor) Snapshot(_ context.Context, id string, req executor.SnapshotRequest) (executor.Changeset, error) {
+	return executor.Changeset{BaseSHA: strings.Repeat("a", 40), HeadSHA: strings.Repeat("b", 40), Branch: "wise/x", Message: req.Message}, nil
+}
+
+func (f *fakeExecutor) Deliver(_ context.Context, id string, req executor.DeliverRequest) (executor.Delivery, error) {
+	return executor.Delivery{Branch: "wise/x", SHA: req.SHA, RepoPath: "/repo"}, nil
+}
 func (f *fakeExecutor) SetEgress(_ context.Context, hosts []string) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -202,4 +241,89 @@ func makeRepo(t *testing.T, dir string, files map[string]string) {
 			t.Fatalf("git %v: %v %s", args, err, out)
 		}
 	}
+}
+
+// workspaceTask creates a project with a configured local repository, a task
+// and its ready workspace.
+func (e *env) workspaceTask(t *testing.T) (taskID, workspaceID string) {
+	t.Helper()
+	dir := filepath.Join(e.repoRoot, "svc")
+	makeRepo(t, dir, map[string]string{"go.mod": "module svc\n\ngo 1.26\n"})
+	pid := e.expect(e.do("POST", "/projects", map[string]any{"name": "Svc"}), 201)["id"].(string)
+	rid := e.expect(e.do("POST", "/projects/"+pid+"/repositories", map[string]any{"name": "svc", "sourceType": "local", "localPath": dir}), 201)["id"].(string)
+	e.expect(e.do("PUT", "/repositories/"+rid+"/execution", map[string]any{"image": "wise-toolchain-go:1.26", "setup": []string{},
+		"commands": map[string]string{"format": "", "lint": "", "typecheck": "", "test": "go test ./..."}, "tools": []string{"go"}, "baseBranch": "", "env": map[string]string{}}), 200)
+	taskID = e.expect(e.do("POST", "/projects/"+pid+"/tasks", map[string]any{"title": "Add health check", "start": false}), 201)["task"].(map[string]any)["id"].(string)
+	e.expect(e.do("POST", "/tasks/"+taskID+"/workspace", nil), 202)
+	for i := 0; i < 50; i++ {
+		w := e.do("GET", "/tasks/"+taskID+"/workspace", nil).body["workspace"].(map[string]any)
+		if w["status"] == "ready" {
+			return taskID, w["id"].(string)
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	t.Fatal("workspace not ready")
+	return "", ""
+}
+
+func TestRuntimeWorkspaceTools(t *testing.T) {
+	e := setup(t)
+	e.login()
+	taskID, _ := e.workspaceTask(t)
+	tid := uuid.MustParse(taskID)
+	wfID, _ := uuid.NewV7()
+	if _, err := e.db.Pool.Exec(context.Background(), "INSERT INTO workflow_runs (id, task_id, workflow_type, status) VALUES ($1, $2, 'pipeline', 'running')", wfID, tid); err != nil {
+		t.Fatal(err)
+	}
+	// A read-only agent in the task's workflow: it may read the workspace, not change it.
+	if _, err := e.agents.Enqueue(context.Background(), "product-agent", map[string]any{"request": "Add a health check endpoint"}, agents.RunOptions{WorkflowRunID: &wfID}); err != nil {
+		t.Fatal(err)
+	}
+	c := e.expect(e.runtimeDo(runtimeToken, "POST", "/runtime/v1/runs/claim", map[string]string{"runtimeId": "rt"}), 200)
+	if c["workspace"] != true {
+		t.Fatalf("claim should report the workspace: %v", c["workspace"])
+	}
+	runID, tok := c["run"].(map[string]any)["id"].(string), c["runToken"].(string)
+	base := "/runtime/v1/runs/" + runID + "/workspace/"
+	if r := e.expect(e.runtimeDo(tok, "POST", base+"fs", map[string]any{"op": "read", "path": "go.mod"}), 200); r["content"] != "hello\n" {
+		t.Fatalf("read: %v", r)
+	}
+	e.expect(e.runtimeDo(tok, "POST", base+"fs", map[string]any{"op": "write", "path": "a.go", "content": "x"}), 403)
+	e.expect(e.runtimeDo(tok, "POST", base+"fs", map[string]any{"op": "chmod", "path": "a.go"}), 400)
+	e.expect(e.runtimeDo(tok, "POST", base+"command", map[string]any{"command": "go test ./..."}), 403)
+	if r := e.expect(e.runtimeDo(tok, "GET", base+"diff", nil), 200); r["patch"] != "+x" {
+		t.Fatalf("diff: %v", r)
+	}
+	e.exec.mu.Lock()
+	n := len(e.exec.fsCalls)
+	maxBytes := e.exec.fsCalls[0]["maxBytes"]
+	e.exec.mu.Unlock()
+	if n != 1 || maxBytes != float64(64<<10) && maxBytes != 64<<10 {
+		t.Fatalf("fs calls %d, maxBytes %v", n, maxBytes)
+	}
+
+	// Give the agent write and execute tools (as the coding agents have).
+	if _, err := e.db.Pool.Exec(context.Background(), `UPDATE agent_definitions SET definition = jsonb_set(definition, '{tools}', '["ws_read_file","ws_write_file","ws_run_command"]') WHERE name = 'product-agent'`); err != nil {
+		t.Fatal(err)
+	}
+	e.expect(e.runtimeDo(tok, "POST", base+"fs", map[string]any{"op": "write", "path": "a.go", "content": "x"}), 200)
+	r := e.expect(e.runtimeDo(tok, "POST", base+"command", map[string]any{"command": "go test ./...", "timeoutS": 3600}), 200)
+	if r["exitCode"] != float64(0) || !strings.Contains(r["output"].(string), "ok  example/pkg") {
+		t.Fatalf("command: %v", r)
+	}
+	e.exec.mu.Lock()
+	timeout := e.exec.timeouts[0]
+	e.exec.mu.Unlock()
+	if timeout != 600 {
+		t.Fatalf("timeout should be capped at the setting: %d", timeout)
+	}
+
+	// A run outside any workflow has no workspace.
+	pid := e.expect(e.do("POST", "/projects", map[string]any{"name": "Loose"}), 201)["id"].(string)
+	e.createRunInProject("product-agent", pid)
+	c2 := e.expect(e.runtimeDo(runtimeToken, "POST", "/runtime/v1/runs/claim", map[string]string{"runtimeId": "rt"}), 200)
+	if c2["workspace"] == true {
+		t.Fatal("a run without a workflow has no workspace")
+	}
+	e.expect(e.runtimeDo(c2["runToken"].(string), "POST", "/runtime/v1/runs/"+c2["run"].(map[string]any)["id"].(string)+"/workspace/fs", map[string]any{"op": "list"}), 409)
 }

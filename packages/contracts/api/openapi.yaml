@@ -2052,6 +2052,74 @@ paths:
         "400": { $ref: "#/components/responses/Problem" }
         "401": { $ref: "#/components/responses/Problem" }
         "403": { $ref: "#/components/responses/Problem" }
+  /runtime/v1/runs/{runId}/workspace/fs:
+    parameters:
+      - $ref: "#/components/parameters/RunId"
+    post:
+      tags: [runtime]
+      operationId: runtimeWorkspaceFs
+      description: A file operation in the run's task workspace (list, read, search, write, edit, delete). Writes need a write tool.
+      security: [{ runtimeAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: true }
+      responses:
+        "200":
+          description: The operation's result (an "error" field reports a refused or failed operation).
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+  /runtime/v1/runs/{runId}/workspace/command:
+    parameters:
+      - $ref: "#/components/parameters/RunId"
+    post:
+      tags: [runtime]
+      operationId: runtimeWorkspaceCommand
+      description: Runs a shell command in the run's task sandbox and waits for it (bounded by the execution setting's timeout).
+      security: [{ runtimeAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [command]
+              properties:
+                command: { type: string, minLength: 1, maxLength: 8000 }
+                timeoutS: { type: integer, minimum: 1, maximum: 21600 }
+      responses:
+        "200":
+          description: The finished command.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WorkspaceCommandResult" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+  /runtime/v1/runs/{runId}/workspace/diff:
+    parameters:
+      - $ref: "#/components/parameters/RunId"
+    get:
+      tags: [runtime]
+      operationId: runtimeWorkspaceDiff
+      description: The workspace's changes since its base commit.
+      security: [{ runtimeAuth: [] }]
+      responses:
+        "200":
+          description: Diff.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WorkingDiff" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
   /runtime/v1/runs/claim:
     post:
       tags: [runtime]
@@ -3735,7 +3803,7 @@ components:
         name: { type: string }
         description: { type: string }
         inputSchema: { type: object, additionalProperties: true }
-        sideEffects: { type: string, enum: [none, read, write] }
+        sideEffects: { type: string, enum: [none, read, write, execute] }
         permissionsRequired: { type: array, items: { type: string } }
     RuntimeRepository:
       type: object
@@ -3769,6 +3837,24 @@ components:
         prompt: { type: string }
         tools: { type: array, items: { $ref: "#/components/schemas/ToolDefinition" } }
         project: { $ref: "#/components/schemas/RuntimeProject" }
+        workspace: { type: boolean, description: "The run works in its task's workspace (write and execute tools are available)." }
+    WorkspaceCommandResult:
+      type: object
+      required: [status, output, durationMs]
+      properties:
+        exitCode: { type: integer, nullable: true }
+        status: { type: string, description: "succeeded (it ran; see exitCode), failed or cancelled." }
+        output: { type: string, description: "Combined output; long output keeps its start and end." }
+        truncated: { type: boolean }
+        timedOut: { type: boolean }
+        durationMs: { type: integer, format: int64 }
+    WorkingDiff:
+      type: object
+      required: [stat, patch]
+      properties:
+        stat: { type: string }
+        patch: { type: string }
+        truncated: { type: boolean }
     RuntimeHeartbeat:
       type: object
       required: [cancelRequested, leaseSeconds]

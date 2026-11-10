@@ -400,10 +400,16 @@ func (s *Server) RuntimeClaimRun(ctx context.Context, req apigen.RuntimeClaimRun
 	if c == nil {
 		return apigen.RuntimeClaimRun204Response{}, nil
 	}
+	hasWS := false
+	if s.Workspaces != nil {
+		if w, err := s.Workspaces.ForRun(ctx, c.Run); err == nil && w != nil && (w.Status == "ready" || w.Status == "stopped") {
+			hasWS = true
+		}
+	}
 	return apigen.RuntimeClaimRun200JSONResponse{
 		Run: toAgentRun(c.Run), RunToken: c.Token, LeaseSeconds: s.RunQueue.LeaseSeconds(),
 		Definition: jsonObject(c.Definition), Prompt: c.Prompt, Tools: mapSlice(c.Tools, toToolDefinition),
-		Project: toRuntimeProject(c.Project),
+		Project: toRuntimeProject(c.Project), Workspace: &hasWS,
 	}, nil
 }
 

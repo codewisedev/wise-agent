@@ -11,8 +11,9 @@ from .base import ToolError
 from .context import IMPLEMENTATIONS as CONTEXT_TOOLS
 from .fs import IMPLEMENTATIONS as FS_TOOLS
 from .workspace import Workspace
+from .ws import IMPLEMENTATIONS as WS_TOOLS
 
-IMPLEMENTATIONS = {**FS_TOOLS, **CONTEXT_TOOLS}
+IMPLEMENTATIONS = {**FS_TOOLS, **CONTEXT_TOOLS, **WS_TOOLS}
 
 
 class ToolRegistry:
@@ -25,9 +26,15 @@ class ToolRegistry:
         if missing:
             raise ValueError(f"runtime does not implement tools: {missing}")
         for d in definitions:
-            if d.get("sideEffects") not in ("none", "read"):
-                # Write tools need an isolated workspace (Phase 5) and are refused here.
-                raise ValueError(f"tool {d['name']} has side effects {d.get('sideEffects')!r}; not allowed")
+            effect = d.get("sideEffects")
+            if effect in ("none", "read"):
+                continue
+            if effect in ("write", "execute") and workspace.task_workspace is not None:
+                continue  # confined to the task's sandbox
+            raise ValueError(
+                f"tool {d['name']} ({effect}) needs a task workspace; run this agent in a workflow "
+                "with a workspace step"
+            )
 
     def execute(self, name: str, args: dict[str, Any]) -> tuple[dict[str, Any] | None, str | None, int]:
         """Returns (output, error, duration_ms). Errors are reported to the model, not raised."""
@@ -46,6 +53,6 @@ class ToolRegistry:
         except OSError as e:
             return None, f"filesystem error: {e.strerror or e}", int((time.monotonic() - start) * 1000)
         except ApiError as e:
-            return None, f"index error {e.status}: {e.detail}", int((time.monotonic() - start) * 1000)
+            return None, f"control plane error {e.status}: {e.detail}", int((time.monotonic() - start) * 1000)
         except httpx.HTTPError as e:
-            return None, f"index unreachable: {e}", int((time.monotonic() - start) * 1000)
+            return None, f"control plane unreachable: {e}", int((time.monotonic() - start) * 1000)

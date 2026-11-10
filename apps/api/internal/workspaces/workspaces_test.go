@@ -72,3 +72,19 @@ func TestCommandsOrder(t *testing.T) {
 		t.Fatalf("%v", l)
 	}
 }
+
+func TestHeadTailKeepsStartAndEnd(t *testing.T) {
+	h := newHeadTail(100)
+	for i := 0; i < 50; i++ {
+		h.add("0123456789")
+	}
+	out, trunc := h.text()
+	if !trunc || len(out) > 160 || out[:10] != "0123456789" || out[len(out)-10:] != "0123456789" {
+		t.Fatalf("%v %q", trunc, out)
+	}
+	small := newHeadTail(100)
+	small.add("short")
+	if out, trunc := small.text(); trunc || out != "short" {
+		t.Fatalf("%q", out)
+	}
+}

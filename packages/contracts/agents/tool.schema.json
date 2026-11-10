@@ -10,7 +10,7 @@
     "description": { "type": "string", "minLength": 1 },
     "input_schema": { "type": "object" },
     "output_schema": { "type": "object" },
-    "side_effects": { "enum": ["none", "read", "write"] },
+    "side_effects": { "enum": ["none", "read", "write", "execute"] },
     "permissions_required": { "type": "array", "items": { "type": "string" } }
   }
 }

@@ -387,3 +387,49 @@ var hostPattern = regexp.MustCompile(`^(\*\.)?([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])
 
 // ValidHost reports whether h is an acceptable allowlist entry.
 func ValidHost(h string) bool { return hostPattern.MatchString(strings.ToLower(strings.TrimSpace(h))) }
+
+// WorkingDiff is the workspace's current changes against its base, computed
+// in the sandbox: untrusted, for agents to review their own work (approvals
+// use the verified Snapshot).
+type WorkingDiff struct {
+	Stat      string `json:"stat"`
+	Patch     string `json:"patch"`
+	Truncated bool   `json:"truncated,omitempty"`
+}
+
+// Diff returns the workspace's changes since its base.
+func (m *Manager) Diff(ctx context.Context, ws string, maxPatch int) (WorkingDiff, error) {
+	st, err := m.load(ws)
+	if err != nil {
+		return WorkingDiff{}, err
+	}
+	if !st.Prepared {
+		return WorkingDiff{}, bad("the workspace is not ready")
+	}
+	if err := m.rt.Ensure(ctx, ws); err != nil {
+		return WorkingDiff{}, err
+	}
+	if maxPatch <= 0 {
+		maxPatch = 200 << 10
+	}
+	var out bytes.Buffer
+	if code, err := m.sandboxGit(ctx, ws, nil, &out, "add", "-A"); err != nil || code != 0 {
+		return WorkingDiff{}, fmt.Errorf("git add failed in the sandbox: %v %s", err, clip(out.String(), 300))
+	}
+	out.Reset()
+	if _, err := m.sandboxGit(ctx, ws, nil, &out, "diff", "--cached", "--no-ext-diff", "--stat", st.BaseSHA); err != nil {
+		return WorkingDiff{}, err
+	}
+	d := WorkingDiff{Stat: secretguard.Redact(out.String())}
+	var patch bytes.Buffer
+	if _, err := m.rt.Exec(ctx, ws, []string{"git", "-c", "core.fsmonitor=false", "diff", "--cached", "--no-ext-diff", "--no-textconv", "--no-color", st.BaseSHA},
+		nil, nil, &limitWriter{w: &patch, n: maxPatch + 1}); err != nil {
+		return WorkingDiff{}, err
+	}
+	p := patch.String()
+	if len(p) > maxPatch {
+		p, d.Truncated = p[:maxPatch], true
+	}
+	d.Patch = secretguard.Redact(p)
+	return d, nil
+}

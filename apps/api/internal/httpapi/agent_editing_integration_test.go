@@ -14,7 +14,7 @@ func TestAgentsEditCreateResetAndVersions(t *testing.T) {
 	e := setup(t)
 	e.login()
 
-	if tools := e.expect(e.do("GET", "/tools", nil), 200)["items"].([]any); len(tools) != 8 {
+	if tools := e.expect(e.do("GET", "/tools", nil), 200)["items"].([]any); len(tools) != 16 {
 		t.Fatalf("tools: %v", tools)
 	}
 	detail := e.expect(e.do("GET", "/agents/product-agent", nil), 200)

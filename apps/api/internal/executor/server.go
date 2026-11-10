@@ -29,6 +29,7 @@ func Handler(m *Manager, token, egressToken string, log *slog.Logger) http.Handl
 	mux.HandleFunc("POST /v1/workspaces/{id}/commands", h.command)
 	mux.HandleFunc("POST /v1/workspaces/{id}/snapshot", h.snapshot)
 	mux.HandleFunc("POST /v1/workspaces/{id}/deliver", h.deliver)
+	mux.HandleFunc("GET /v1/workspaces/{id}/diff", h.diff)
 	mux.HandleFunc("GET /v1/jobs/{id}", h.job)
 	mux.HandleFunc("DELETE /v1/jobs/{id}", h.cancel)
 	mux.HandleFunc("GET /v1/egress", h.getEgress)
@@ -178,6 +179,16 @@ func (h *handler) deliver(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	d, err := h.m.Deliver(r.Context(), r.PathValue("id"), req)
+	if err != nil {
+		h.fail(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, d)
+}
+
+func (h *handler) diff(w http.ResponseWriter, r *http.Request) {
+	maxBytes, _ := strconv.Atoi(r.URL.Query().Get("maxBytes"))
+	d, err := h.m.Diff(r.Context(), r.PathValue("id"), maxBytes)
 	if err != nil {
 		h.fail(w, err)
 		return
