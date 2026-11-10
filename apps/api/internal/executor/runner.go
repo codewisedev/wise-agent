@@ -24,8 +24,8 @@ type RunnerRequest struct {
 	Version    string            `json:"version"` // bundle version, e.g. 2.1.319
 	Command    []string          `json:"command"` // argv; "{cli}" is replaced by the CLI path
 	Env        map[string]string `json:"env,omitempty"`
-	Files      map[string]string `json:"files,omitempty"`   // written into the fresh run home before start
-	Collect    []string          `json:"collect,omitempty"` // home-relative files read back after the run
+	Files      map[string]string `json:"files,omitempty"`     // written into the fresh run home before start
+	Collect    []string          `json:"collect,omitempty"`   // home-relative files read back after the run
 	StdinFile  string            `json:"stdinFile,omitempty"` // home-relative file fed to the command's stdin
 	GrantHosts []string          `json:"grantHosts,omitempty"`
 	ModelProxy bool              `json:"modelProxy,omitempty"` // reach wise-model-proxy (API-key mode)
