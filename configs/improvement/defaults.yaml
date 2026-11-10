@@ -1,0 +1,18 @@
+# Self-improvement (implementation-plan §13). Shipped defaults; edit them in Settings → Improvement.
+
+# The weekly analysis ("digest"). The hour is in UTC. Analyses also run on demand ("Analyse now").
+schedule:
+  enabled: true
+  weekday: monday
+  hour: 7
+
+# How far back an analysis looks, and how many runs an agent needs before its numbers count.
+window_days: 30
+min_runs: 3
+# At most this many proposals per analysis.
+max_proposals: 5
+
+# Who runs the analysis (empty account = the improvement agent's own model routing).
+analysis:
+  account: ""
+  model: ""

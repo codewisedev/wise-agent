@@ -11,6 +11,7 @@ import { IntegrationsPage } from "./pages/IntegrationsPage";
 import { ApprovalsPage } from "./pages/ApprovalsPage";
 import { ModelsPage } from "./pages/ModelsPage";
 import { InsightsPage } from "./pages/InsightsPage";
+import { ImprovementsPage } from "./pages/ImprovementsPage";
 import { RunPage } from "./pages/RunPage";
 import { RequireAuth } from "./components/RequireAuth";
 import { LoginPage } from "./pages/LoginPage";
@@ -48,6 +49,7 @@ export const router = createBrowserRouter([
       { path: "/runs/:runId", element: <RunPage /> },
       { path: "/models", element: <ModelsPage /> },
       { path: "/insights", element: <InsightsPage /> },
+      { path: "/improvements", element: <ImprovementsPage /> },
       { path: "/settings", element: <SettingsPage /> },
       { path: "*", element: <p>Page not found.</p> },
     ],

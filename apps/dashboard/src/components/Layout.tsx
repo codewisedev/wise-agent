@@ -1,11 +1,12 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { BarChart3, Bot, Brain, Cpu, FolderGit2, Inbox, ListChecks, LogOut, Monitor, Moon, Settings, Sun, UserRound, Workflow } from "lucide-react";
+import { BarChart3, Bot, Brain, Cpu, Sparkles, FolderGit2, Inbox, ListChecks, LogOut, Monitor, Moon, Settings, Sun, UserRound, Workflow } from "lucide-react";
 import { useMemo } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router";
 import { useEventSocket, type WorkflowEvent } from "../api/events";
 import { useLogout, useSession } from "../auth";
 import { usePendingApprovals } from "../pages/ApprovalsPage";
 import { useMemoryInbox } from "../pages/MemoryPage";
+import { useImprovementInbox } from "../pages/ImprovementsPage";
 import { useShortcuts } from "../shortcuts";
 import { useTheme } from "../theme";
 import { Kbd } from "./ui";
@@ -26,6 +27,7 @@ export function Layout() {
   const pending = usePendingApprovals();
   const pendingCount = pending.data?.pendingCount ?? 0;
   const memoryInbox = useMemoryInbox().data?.candidates ?? 0;
+  const improvementInbox = useImprovementInbox().data?.openCount ?? 0;
   // Every workflow's events: keeps the approvals badge and inbox current.
   useEventSocket<WorkflowEvent>("stream=workflows", true, (ev) => {
     if (ev.type.startsWith("approval.") || ev.type === "workflow.status") {
@@ -45,6 +47,7 @@ export function Layout() {
       "g f": () => navigate("/profile"),
       "g m": () => navigate("/models"),
       "g n": () => navigate("/insights"),
+      "g v": () => navigate("/improvements"),
       "g s": () => navigate("/settings"),
       t: cycle,
     }),
@@ -99,6 +102,15 @@ export function Layout() {
           </NavLink>
           <NavLink to="/insights">
             <BarChart3 size={16} aria-hidden /> Insights <Kbd keys={["g", "n"]} />
+          </NavLink>
+          <NavLink to="/improvements">
+            <Sparkles size={16} aria-hidden /> Improvements
+            {improvementInbox > 0 && (
+              <span className="nav-count" aria-label={`${improvementInbox} to review`}>
+                {improvementInbox}
+              </span>
+            )}
+            <Kbd keys={["g", "v"]} />
           </NavLink>
           <NavLink to="/models">
             <Cpu size={16} aria-hidden /> Models <Kbd keys={["g", "m"]} />

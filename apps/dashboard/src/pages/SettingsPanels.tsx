@@ -1,3 +1,4 @@
+import { AccountSelect } from "../components/AccountSelect";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowDown, ArrowUp, Braces, History, Plus, RotateCcw, Save, Trash2 } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
@@ -480,6 +481,52 @@ function MemoryEditor({ value, set }: { value: MemoryValue; set: (v: MemoryValue
   );
 }
 
+type ImprovementValue = {
+  schedule: { enabled: boolean; weekday: string; hour: number };
+  window_days: number; min_runs: number; max_proposals: number;
+  analysis: { account: string; model: string };
+};
+
+const WEEKDAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
+
+function ImprovementEditor({ value, set }: { value: ImprovementValue; set: (v: ImprovementValue) => void }) {
+  const sched = value.schedule;
+  return (
+    <div className="settings-form">
+      <h3>Weekly analysis</h3>
+      <label className="checkbox">
+        <input type="checkbox" checked={sched.enabled} onChange={(e) => set({ ...value, schedule: { ...sched, enabled: e.target.checked } })} />{" "}
+        Analyse Wise's performance every week (you can always click Analyse now)
+      </label>
+      <div className="form-grid">
+        <Field label="Day">
+          <select value={sched.weekday} disabled={!sched.enabled} onChange={(e) => set({ ...value, schedule: { ...sched, weekday: e.target.value } })}>
+            {WEEKDAYS.map((d) => <option key={d} value={d}>{d}</option>)}
+          </select>
+        </Field>
+        <Field label="Hour (UTC)">
+          <input type="number" min={0} max={23} value={sched.hour} disabled={!sched.enabled} onChange={(e) => set({ ...value, schedule: { ...sched, hour: Number(e.target.value) } })} />
+        </Field>
+      </div>
+      <h3>What an analysis looks at</h3>
+      <div className="form-grid">
+        <Field label="Look back (days)"><input type="number" min={1} max={365} value={value.window_days} onChange={(e) => set({ ...value, window_days: Number(e.target.value) })} /></Field>
+        <Field label="Runs before an agent's numbers count"><input type="number" min={1} max={1000} value={value.min_runs} onChange={(e) => set({ ...value, min_runs: Number(e.target.value) })} /></Field>
+        <Field label="Proposals per analysis (at most)"><input type="number" min={1} max={8} value={value.max_proposals} onChange={(e) => set({ ...value, max_proposals: Number(e.target.value) })} /></Field>
+      </div>
+      <h3>Who analyses</h3>
+      <div className="form-grid">
+        <Field label="Account" hint="The improvement agent's own routing by default; the cloud policy still applies">
+          <AccountSelect value={value.analysis.account} onChange={(a) => set({ ...value, analysis: { account: a, model: a ? value.analysis.model : "" } })} />
+        </Field>
+        <Field label="Model" hint="Empty = the account's default">
+          <input value={value.analysis.model} disabled={!value.analysis.account} onChange={(e) => set({ ...value, analysis: { ...value.analysis, model: e.target.value } })} />
+        </Field>
+      </div>
+    </div>
+  );
+}
+
 type ExecutionValue = {
   limits: { cpus: number; memory_mb: number; pids: number };
   egress_allowlist: string[]; command_timeout_s: number; setup_timeout_s: number; max_output_kb: number;
@@ -629,6 +676,7 @@ const EDITORS: Record<string, (v: any, set: (v: any) => void) => ReactNode> = {
   board_defaults: (v, set) => <ColumnsEditor value={v as BoardValue} set={set} />,
   indexing: (v, set) => <IndexingEditor value={v as IndexingValue} set={set} />,
   memory: (v, set) => <MemoryEditor value={v as MemoryValue} set={set} />,
+  improvement: (v, set) => <ImprovementEditor value={v as ImprovementValue} set={set} />,
 };
 
 /** Every panel-managed setting; unknown keys fall back to the JSON editor. */

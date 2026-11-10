@@ -2476,6 +2476,92 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/AgentInsights" }
         "401": { $ref: "#/components/responses/Problem" }
+  /improvements/analyses:
+    get:
+      tags: [improvement]
+      operationId: listImprovementAnalyses
+      description: Recent analyses of Wise's own performance (newest first).
+      responses:
+        "200":
+          description: Analyses.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items: { type: array, items: { $ref: "#/components/schemas/ImprovementAnalysis" } }
+        "401": { $ref: "#/components/responses/Problem" }
+    post:
+      tags: [improvement]
+      operationId: startImprovementAnalysis
+      description: Analyses recent performance now and proposes improvements (runs the improvement agent).
+      responses:
+        "202":
+          description: Started (or skipped when there is too little to analyse).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ImprovementAnalysis" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+  /improvements/proposals:
+    get:
+      tags: [improvement]
+      operationId: listImprovementProposals
+      description: Improvement proposals (open ones whose target changed since are marked stale).
+      parameters:
+        - { name: status, in: query, schema: { type: string, enum: [proposed, evaluating, evaluated, applied, rejected, rolled_back, stale] } }
+        - { name: kind, in: query, schema: { type: string, enum: [prompt, memory, routing, template] } }
+        - { name: target, in: query, schema: { type: string } }
+      responses:
+        "200":
+          description: Proposals.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, openCount]
+                properties:
+                  items: { type: array, items: { $ref: "#/components/schemas/ImprovementProposal" } }
+                  openCount: { type: integer, format: int64, description: Proposals waiting for a decision. }
+        "401": { $ref: "#/components/responses/Problem" }
+  /improvements/proposals/{proposalId}:
+    parameters:
+      - { name: proposalId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [improvement]
+      operationId: getImprovementProposal
+      responses:
+        "200":
+          description: The proposal.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ImprovementProposal" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+  /improvements/proposals/{proposalId}/reject:
+    parameters:
+      - { name: proposalId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [improvement]
+      operationId: rejectImprovementProposal
+      description: Declines a proposal. It is kept, with your note, so later analyses do not repeat it.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                note: { type: string, maxLength: 2000 }
+      responses:
+        "200":
+          description: Rejected.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ImprovementProposal" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
 components:
   securitySchemes:
     cookieAuth:
@@ -4166,6 +4252,60 @@ components:
               runId: { type: string, format: uuid, nullable: true }
               note: { type: string }
               at: { type: string, format: date-time }
+    ImprovementAnalysis:
+      type: object
+      required: [id, trigger, windowDays, status, proposals, refused, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        trigger: { type: string, enum: [manual, scheduled] }
+        period: { type: string, nullable: true }
+        windowDays: { type: integer }
+        status: { type: string, enum: [running, succeeded, failed, skipped] }
+        agentRunId: { type: string, format: uuid, nullable: true }
+        proposals: { type: integer, description: Proposals stored. }
+        refused:
+          type: array
+          description: Proposals refused by the hard rule, the evidence check or as duplicates, with the reason.
+          items:
+            type: object
+            required: [kind, target, title, reason]
+            properties:
+              kind: { type: string }
+              target: { type: string }
+              title: { type: string }
+              reason: { type: string }
+        error: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+        finishedAt: { type: string, format: date-time, nullable: true }
+    ImprovementProposal:
+      type: object
+      required: [id, kind, target, title, rationale, evidence, change, before, base, status, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        analysisId: { type: string, format: uuid, nullable: true }
+        kind: { type: string, enum: [prompt, memory, routing, template] }
+        target: { type: string, description: "The agent, setting (models, model_policy), template id, or \"memory\"." }
+        title: { type: string }
+        rationale: { type: string }
+        evidence:
+          type: object
+          properties:
+            run_ids: { type: array, items: { type: string } }
+            approval_ids: { type: array, items: { type: string } }
+            feedback_ids: { type: array, items: { type: string } }
+            memory_ids: { type: array, items: { type: string } }
+        change: { type: object, additionalProperties: true, description: The typed change applying would write. }
+        before: { type: object, additionalProperties: true, description: The target when the proposal was made (for the diff). }
+        base: { type: object, additionalProperties: true, description: The versions the proposal was written against. }
+        status: { type: string, enum: [proposed, evaluating, evaluated, applied, rejected, rolled_back, stale] }
+        metricsBefore: { nullable: true, description: The target's metrics when proposed. }
+        applied: { type: object, additionalProperties: true, nullable: true, description: What applying produced and replaced. }
+        decisionNote: { type: string, nullable: true }
+        decidedAt: { type: string, format: date-time, nullable: true }
+        appliedAt: { type: string, format: date-time, nullable: true }
+        rolledBackAt: { type: string, format: date-time, nullable: true }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
     FeedbackInput:
       type: object
       required: [targetType, targetId, rating]

@@ -566,6 +566,46 @@ type Feedback struct {
 	UpdatedAt         time.Time
 }
 
+type ImprovementAnalysis struct {
+	ID         uuid.UUID
+	Trigger    string
+	Period     *string
+	WindowDays int32
+	Status     string
+	AgentRunID *uuid.UUID
+	Digest     json.RawMessage
+	Proposals  int32
+	Refused    json.RawMessage
+	Error      *string
+	CreatedBy  *uuid.UUID
+	CreatedAt  time.Time
+	FinishedAt *time.Time
+}
+
+type ImprovementProposal struct {
+	ID            uuid.UUID
+	AnalysisID    *uuid.UUID
+	Kind          string
+	Target        string
+	Title         string
+	Rationale     string
+	Evidence      json.RawMessage
+	Change        json.RawMessage
+	Before        json.RawMessage
+	Base          json.RawMessage
+	Fingerprint   string
+	Status        string
+	MetricsBefore []byte
+	Applied       []byte
+	DecisionNote  *string
+	DecidedBy     *uuid.UUID
+	DecidedAt     *time.Time
+	AppliedAt     *time.Time
+	RolledBackAt  *time.Time
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
+}
+
 type IndexJob struct {
 	ID             uuid.UUID
 	RepositoryID   uuid.UUID

@@ -115,6 +115,9 @@ func oneOf(v string, list []string) bool {
 	return false
 }
 
+// ValidateInput normalizes and checks a memory's content (as Create does).
+func ValidateInput(in *Input) error { return in.validate() }
+
 func (in *Input) validate() error {
 	in.Title, in.Body = strings.TrimSpace(in.Title), strings.TrimSpace(in.Body)
 	if in.Category == "" {

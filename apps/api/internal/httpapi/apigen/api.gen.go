@@ -372,6 +372,105 @@ func (e FeedbackInputTargetType) Valid() bool {
 	}
 }
 
+// Defines values for ImprovementAnalysisStatus.
+const (
+	ImprovementAnalysisStatusFailed    ImprovementAnalysisStatus = "failed"
+	ImprovementAnalysisStatusRunning   ImprovementAnalysisStatus = "running"
+	ImprovementAnalysisStatusSkipped   ImprovementAnalysisStatus = "skipped"
+	ImprovementAnalysisStatusSucceeded ImprovementAnalysisStatus = "succeeded"
+)
+
+// Valid indicates whether the value is a known member of the ImprovementAnalysisStatus enum.
+func (e ImprovementAnalysisStatus) Valid() bool {
+	switch e {
+	case ImprovementAnalysisStatusFailed:
+		return true
+	case ImprovementAnalysisStatusRunning:
+		return true
+	case ImprovementAnalysisStatusSkipped:
+		return true
+	case ImprovementAnalysisStatusSucceeded:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ImprovementAnalysisTrigger.
+const (
+	ImprovementAnalysisTriggerManual    ImprovementAnalysisTrigger = "manual"
+	ImprovementAnalysisTriggerScheduled ImprovementAnalysisTrigger = "scheduled"
+)
+
+// Valid indicates whether the value is a known member of the ImprovementAnalysisTrigger enum.
+func (e ImprovementAnalysisTrigger) Valid() bool {
+	switch e {
+	case ImprovementAnalysisTriggerManual:
+		return true
+	case ImprovementAnalysisTriggerScheduled:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ImprovementProposalKind.
+const (
+	ImprovementProposalKindMemory   ImprovementProposalKind = "memory"
+	ImprovementProposalKindPrompt   ImprovementProposalKind = "prompt"
+	ImprovementProposalKindRouting  ImprovementProposalKind = "routing"
+	ImprovementProposalKindTemplate ImprovementProposalKind = "template"
+)
+
+// Valid indicates whether the value is a known member of the ImprovementProposalKind enum.
+func (e ImprovementProposalKind) Valid() bool {
+	switch e {
+	case ImprovementProposalKindMemory:
+		return true
+	case ImprovementProposalKindPrompt:
+		return true
+	case ImprovementProposalKindRouting:
+		return true
+	case ImprovementProposalKindTemplate:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ImprovementProposalStatus.
+const (
+	ImprovementProposalStatusApplied    ImprovementProposalStatus = "applied"
+	ImprovementProposalStatusEvaluated  ImprovementProposalStatus = "evaluated"
+	ImprovementProposalStatusEvaluating ImprovementProposalStatus = "evaluating"
+	ImprovementProposalStatusProposed   ImprovementProposalStatus = "proposed"
+	ImprovementProposalStatusRejected   ImprovementProposalStatus = "rejected"
+	ImprovementProposalStatusRolledBack ImprovementProposalStatus = "rolled_back"
+	ImprovementProposalStatusStale      ImprovementProposalStatus = "stale"
+)
+
+// Valid indicates whether the value is a known member of the ImprovementProposalStatus enum.
+func (e ImprovementProposalStatus) Valid() bool {
+	switch e {
+	case ImprovementProposalStatusApplied:
+		return true
+	case ImprovementProposalStatusEvaluated:
+		return true
+	case ImprovementProposalStatusEvaluating:
+		return true
+	case ImprovementProposalStatusProposed:
+		return true
+	case ImprovementProposalStatusRejected:
+		return true
+	case ImprovementProposalStatusRolledBack:
+		return true
+	case ImprovementProposalStatusStale:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for IndexChunkKind.
 const (
 	IndexChunkKindCode   IndexChunkKind = "code"
@@ -1206,6 +1305,63 @@ func (e ListFeedbackParamsRating) Valid() bool {
 	}
 }
 
+// Defines values for ListImprovementProposalsParamsStatus.
+const (
+	ListImprovementProposalsParamsStatusApplied    ListImprovementProposalsParamsStatus = "applied"
+	ListImprovementProposalsParamsStatusEvaluated  ListImprovementProposalsParamsStatus = "evaluated"
+	ListImprovementProposalsParamsStatusEvaluating ListImprovementProposalsParamsStatus = "evaluating"
+	ListImprovementProposalsParamsStatusProposed   ListImprovementProposalsParamsStatus = "proposed"
+	ListImprovementProposalsParamsStatusRejected   ListImprovementProposalsParamsStatus = "rejected"
+	ListImprovementProposalsParamsStatusRolledBack ListImprovementProposalsParamsStatus = "rolled_back"
+	ListImprovementProposalsParamsStatusStale      ListImprovementProposalsParamsStatus = "stale"
+)
+
+// Valid indicates whether the value is a known member of the ListImprovementProposalsParamsStatus enum.
+func (e ListImprovementProposalsParamsStatus) Valid() bool {
+	switch e {
+	case ListImprovementProposalsParamsStatusApplied:
+		return true
+	case ListImprovementProposalsParamsStatusEvaluated:
+		return true
+	case ListImprovementProposalsParamsStatusEvaluating:
+		return true
+	case ListImprovementProposalsParamsStatusProposed:
+		return true
+	case ListImprovementProposalsParamsStatusRejected:
+		return true
+	case ListImprovementProposalsParamsStatusRolledBack:
+		return true
+	case ListImprovementProposalsParamsStatusStale:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListImprovementProposalsParamsKind.
+const (
+	ListImprovementProposalsParamsKindMemory   ListImprovementProposalsParamsKind = "memory"
+	ListImprovementProposalsParamsKindPrompt   ListImprovementProposalsParamsKind = "prompt"
+	ListImprovementProposalsParamsKindRouting  ListImprovementProposalsParamsKind = "routing"
+	ListImprovementProposalsParamsKindTemplate ListImprovementProposalsParamsKind = "template"
+)
+
+// Valid indicates whether the value is a known member of the ListImprovementProposalsParamsKind enum.
+func (e ListImprovementProposalsParamsKind) Valid() bool {
+	switch e {
+	case ListImprovementProposalsParamsKindMemory:
+		return true
+	case ListImprovementProposalsParamsKindPrompt:
+		return true
+	case ListImprovementProposalsParamsKindRouting:
+		return true
+	case ListImprovementProposalsParamsKindTemplate:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GetInsightsParamsWindow.
 const (
 	GetInsightsParamsWindowN30d GetInsightsParamsWindow = "30d"
@@ -1930,6 +2086,82 @@ type Health struct {
 	// Status Example: ok
 	Status string `json:"status"`
 }
+
+// ImprovementAnalysis defines model for ImprovementAnalysis.
+type ImprovementAnalysis struct {
+	AgentRunId *openapi_types.UUID `json:"agentRunId,omitempty"`
+	CreatedAt  time.Time           `json:"createdAt"`
+	Error      *string             `json:"error,omitempty"`
+	FinishedAt *time.Time          `json:"finishedAt,omitempty"`
+	Id         openapi_types.UUID  `json:"id"`
+	Period     *string             `json:"period,omitempty"`
+
+	// Proposals Proposals stored.
+	Proposals int `json:"proposals"`
+
+	// Refused Proposals refused by the hard rule, the evidence check or as duplicates, with the reason.
+	Refused []struct {
+		Kind   string `json:"kind"`
+		Reason string `json:"reason"`
+		Target string `json:"target"`
+		Title  string `json:"title"`
+	} `json:"refused"`
+	Status     ImprovementAnalysisStatus  `json:"status"`
+	Trigger    ImprovementAnalysisTrigger `json:"trigger"`
+	WindowDays int                        `json:"windowDays"`
+}
+
+// ImprovementAnalysisStatus defines model for ImprovementAnalysis.Status.
+type ImprovementAnalysisStatus string
+
+// ImprovementAnalysisTrigger defines model for ImprovementAnalysis.Trigger.
+type ImprovementAnalysisTrigger string
+
+// ImprovementProposal defines model for ImprovementProposal.
+type ImprovementProposal struct {
+	AnalysisId *openapi_types.UUID `json:"analysisId,omitempty"`
+
+	// Applied What applying produced and replaced.
+	Applied   *map[string]interface{} `json:"applied,omitempty"`
+	AppliedAt *time.Time              `json:"appliedAt,omitempty"`
+
+	// Base The versions the proposal was written against.
+	Base map[string]interface{} `json:"base"`
+
+	// Before The target when the proposal was made (for the diff).
+	Before map[string]interface{} `json:"before"`
+
+	// Change The typed change applying would write.
+	Change       map[string]interface{} `json:"change"`
+	CreatedAt    time.Time              `json:"createdAt"`
+	DecidedAt    *time.Time             `json:"decidedAt,omitempty"`
+	DecisionNote *string                `json:"decisionNote,omitempty"`
+	Evidence     struct {
+		ApprovalIds *[]string `json:"approval_ids,omitempty"`
+		FeedbackIds *[]string `json:"feedback_ids,omitempty"`
+		MemoryIds   *[]string `json:"memory_ids,omitempty"`
+		RunIds      *[]string `json:"run_ids,omitempty"`
+	} `json:"evidence"`
+	Id   openapi_types.UUID      `json:"id"`
+	Kind ImprovementProposalKind `json:"kind"`
+
+	// MetricsBefore The target's metrics when proposed.
+	MetricsBefore interface{}               `json:"metricsBefore,omitempty"`
+	Rationale     string                    `json:"rationale"`
+	RolledBackAt  *time.Time                `json:"rolledBackAt,omitempty"`
+	Status        ImprovementProposalStatus `json:"status"`
+
+	// Target The agent, setting (models, model_policy), template id, or "memory".
+	Target    string    `json:"target"`
+	Title     string    `json:"title"`
+	UpdatedAt time.Time `json:"updatedAt"`
+}
+
+// ImprovementProposalKind defines model for ImprovementProposal.Kind.
+type ImprovementProposalKind string
+
+// ImprovementProposalStatus defines model for ImprovementProposal.Status.
+type ImprovementProposalStatus string
 
 // IndexChunk defines model for IndexChunk.
 type IndexChunk struct {
@@ -3228,6 +3460,24 @@ type ListFeedbackParamsTargetType string
 // ListFeedbackParamsRating defines parameters for ListFeedback.
 type ListFeedbackParamsRating string
 
+// ListImprovementProposalsParams defines parameters for ListImprovementProposals.
+type ListImprovementProposalsParams struct {
+	Status *ListImprovementProposalsParamsStatus `form:"status,omitempty" json:"status,omitempty"`
+	Kind   *ListImprovementProposalsParamsKind   `form:"kind,omitempty" json:"kind,omitempty"`
+	Target *string                               `form:"target,omitempty" json:"target,omitempty"`
+}
+
+// ListImprovementProposalsParamsStatus defines parameters for ListImprovementProposals.
+type ListImprovementProposalsParamsStatus string
+
+// ListImprovementProposalsParamsKind defines parameters for ListImprovementProposals.
+type ListImprovementProposalsParamsKind string
+
+// RejectImprovementProposalJSONBody defines parameters for RejectImprovementProposal.
+type RejectImprovementProposalJSONBody struct {
+	Note *string `json:"note,omitempty"`
+}
+
 // GetInsightsParams defines parameters for GetInsights.
 type GetInsightsParams struct {
 	Window *GetInsightsParamsWindow `form:"window,omitempty" json:"window,omitempty"`
@@ -3385,6 +3635,9 @@ type UpdateColumnJSONRequestBody = ColumnInput
 
 // SetFeedbackJSONRequestBody defines body for SetFeedback for application/json ContentType.
 type SetFeedbackJSONRequestBody = FeedbackInput
+
+// RejectImprovementProposalJSONRequestBody defines body for RejectImprovementProposal for application/json ContentType.
+type RejectImprovementProposalJSONRequestBody RejectImprovementProposalJSONBody
 
 // UpdateIntegrationJSONRequestBody defines body for UpdateIntegration for application/json ContentType.
 type UpdateIntegrationJSONRequestBody = IntegrationInput
@@ -3682,6 +3935,21 @@ type ServerInterface interface {
 
 	// (GET /healthz)
 	GetHealth(w http.ResponseWriter, r *http.Request)
+
+	// (GET /improvements/analyses)
+	ListImprovementAnalyses(w http.ResponseWriter, r *http.Request)
+
+	// (POST /improvements/analyses)
+	StartImprovementAnalysis(w http.ResponseWriter, r *http.Request)
+
+	// (GET /improvements/proposals)
+	ListImprovementProposals(w http.ResponseWriter, r *http.Request, params ListImprovementProposalsParams)
+
+	// (GET /improvements/proposals/{proposalId})
+	GetImprovementProposal(w http.ResponseWriter, r *http.Request, proposalId openapi_types.UUID)
+
+	// (POST /improvements/proposals/{proposalId}/reject)
+	RejectImprovementProposal(w http.ResponseWriter, r *http.Request, proposalId openapi_types.UUID)
 
 	// (GET /insights)
 	GetInsights(w http.ResponseWriter, r *http.Request, params GetInsightsParams)
@@ -4207,6 +4475,31 @@ func (_ Unimplemented) SetFeedback(w http.ResponseWriter, r *http.Request) {
 
 // (GET /healthz)
 func (_ Unimplemented) GetHealth(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (GET /improvements/analyses)
+func (_ Unimplemented) ListImprovementAnalyses(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (POST /improvements/analyses)
+func (_ Unimplemented) StartImprovementAnalysis(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (GET /improvements/proposals)
+func (_ Unimplemented) ListImprovementProposals(w http.ResponseWriter, r *http.Request, params ListImprovementProposalsParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (GET /improvements/proposals/{proposalId})
+func (_ Unimplemented) GetImprovementProposal(w http.ResponseWriter, r *http.Request, proposalId openapi_types.UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (POST /improvements/proposals/{proposalId}/reject)
+func (_ Unimplemented) RejectImprovementProposal(w http.ResponseWriter, r *http.Request, proposalId openapi_types.UUID) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -5772,6 +6065,145 @@ func (siw *ServerInterfaceWrapper) GetHealth(w http.ResponseWriter, r *http.Requ
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetHealth(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListImprovementAnalyses operation middleware
+func (siw *ServerInterfaceWrapper) ListImprovementAnalyses(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListImprovementAnalyses(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// StartImprovementAnalysis operation middleware
+func (siw *ServerInterfaceWrapper) StartImprovementAnalysis(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.StartImprovementAnalysis(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListImprovementProposals operation middleware
+func (siw *ServerInterfaceWrapper) ListImprovementProposals(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListImprovementProposalsParams
+
+	// ------------- Optional query parameter "status" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "status", r.URL.Query(), &params.Status, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "status"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "status", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "kind" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "kind", r.URL.Query(), &params.Kind, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "kind"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "kind", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "target" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "target", r.URL.Query(), &params.Target, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "target"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "target", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListImprovementProposals(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetImprovementProposal operation middleware
+func (siw *ServerInterfaceWrapper) GetImprovementProposal(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "proposalId" -------------
+	var proposalId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "proposalId", chi.URLParam(r, "proposalId"), &proposalId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "proposalId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetImprovementProposal(w, r, proposalId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RejectImprovementProposal operation middleware
+func (siw *ServerInterfaceWrapper) RejectImprovementProposal(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "proposalId" -------------
+	var proposalId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "proposalId", chi.URLParam(r, "proposalId"), &proposalId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "proposalId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RejectImprovementProposal(w, r, proposalId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -9519,6 +9951,21 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/insights/agents/{agentName}", wrapper.GetAgentInsights)
 	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/improvements/analyses", wrapper.ListImprovementAnalyses)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/improvements/analyses", wrapper.StartImprovementAnalysis)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/improvements/proposals", wrapper.ListImprovementProposals)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/improvements/proposals/{proposalId}", wrapper.GetImprovementProposal)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/improvements/proposals/{proposalId}/reject", wrapper.RejectImprovementProposal)
+	})
 
 	return r
 }
@@ -11838,6 +12285,258 @@ func (response GetHealth200JSONResponse) VisitGetHealthResponse(w http.ResponseW
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListImprovementAnalysesRequestObject struct {
+}
+
+type ListImprovementAnalysesResponseObject interface {
+	VisitListImprovementAnalysesResponse(w http.ResponseWriter) error
+}
+
+type ListImprovementAnalyses200JSONResponse struct {
+	Items []ImprovementAnalysis `json:"items"`
+}
+
+func (response ListImprovementAnalyses200JSONResponse) VisitListImprovementAnalysesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListImprovementAnalyses401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response ListImprovementAnalyses401ApplicationProblemPlusJSONResponse) VisitListImprovementAnalysesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type StartImprovementAnalysisRequestObject struct {
+}
+
+type StartImprovementAnalysisResponseObject interface {
+	VisitStartImprovementAnalysisResponse(w http.ResponseWriter) error
+}
+
+type StartImprovementAnalysis202JSONResponse ImprovementAnalysis
+
+func (response StartImprovementAnalysis202JSONResponse) VisitStartImprovementAnalysisResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(202)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type StartImprovementAnalysis401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response StartImprovementAnalysis401ApplicationProblemPlusJSONResponse) VisitStartImprovementAnalysisResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type StartImprovementAnalysis409ApplicationProblemPlusJSONResponse Problem
+
+func (response StartImprovementAnalysis409ApplicationProblemPlusJSONResponse) VisitStartImprovementAnalysisResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListImprovementProposalsRequestObject struct {
+	Params ListImprovementProposalsParams
+}
+
+type ListImprovementProposalsResponseObject interface {
+	VisitListImprovementProposalsResponse(w http.ResponseWriter) error
+}
+
+type ListImprovementProposals200JSONResponse struct {
+	Items []ImprovementProposal `json:"items"`
+
+	// OpenCount Proposals waiting for a decision.
+	OpenCount int64 `json:"openCount"`
+}
+
+func (response ListImprovementProposals200JSONResponse) VisitListImprovementProposalsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListImprovementProposals401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response ListImprovementProposals401ApplicationProblemPlusJSONResponse) VisitListImprovementProposalsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetImprovementProposalRequestObject struct {
+	ProposalId openapi_types.UUID `json:"proposalId"`
+}
+
+type GetImprovementProposalResponseObject interface {
+	VisitGetImprovementProposalResponse(w http.ResponseWriter) error
+}
+
+type GetImprovementProposal200JSONResponse ImprovementProposal
+
+func (response GetImprovementProposal200JSONResponse) VisitGetImprovementProposalResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetImprovementProposal401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response GetImprovementProposal401ApplicationProblemPlusJSONResponse) VisitGetImprovementProposalResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetImprovementProposal404ApplicationProblemPlusJSONResponse Problem
+
+func (response GetImprovementProposal404ApplicationProblemPlusJSONResponse) VisitGetImprovementProposalResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RejectImprovementProposalRequestObject struct {
+	ProposalId openapi_types.UUID `json:"proposalId"`
+	Body       *RejectImprovementProposalJSONRequestBody
+}
+
+type RejectImprovementProposalResponseObject interface {
+	VisitRejectImprovementProposalResponse(w http.ResponseWriter) error
+}
+
+type RejectImprovementProposal200JSONResponse ImprovementProposal
+
+func (response RejectImprovementProposal200JSONResponse) VisitRejectImprovementProposalResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RejectImprovementProposal401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response RejectImprovementProposal401ApplicationProblemPlusJSONResponse) VisitRejectImprovementProposalResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RejectImprovementProposal404ApplicationProblemPlusJSONResponse Problem
+
+func (response RejectImprovementProposal404ApplicationProblemPlusJSONResponse) VisitRejectImprovementProposalResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RejectImprovementProposal409ApplicationProblemPlusJSONResponse Problem
+
+func (response RejectImprovementProposal409ApplicationProblemPlusJSONResponse) VisitRejectImprovementProposalResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
 	_, err := buf.WriteTo(w)
 	return err
 }
@@ -18740,6 +19439,21 @@ type StrictServerInterface interface {
 	// (GET /healthz)
 	GetHealth(ctx context.Context, request GetHealthRequestObject) (GetHealthResponseObject, error)
 
+	// (GET /improvements/analyses)
+	ListImprovementAnalyses(ctx context.Context, request ListImprovementAnalysesRequestObject) (ListImprovementAnalysesResponseObject, error)
+
+	// (POST /improvements/analyses)
+	StartImprovementAnalysis(ctx context.Context, request StartImprovementAnalysisRequestObject) (StartImprovementAnalysisResponseObject, error)
+
+	// (GET /improvements/proposals)
+	ListImprovementProposals(ctx context.Context, request ListImprovementProposalsRequestObject) (ListImprovementProposalsResponseObject, error)
+
+	// (GET /improvements/proposals/{proposalId})
+	GetImprovementProposal(ctx context.Context, request GetImprovementProposalRequestObject) (GetImprovementProposalResponseObject, error)
+
+	// (POST /improvements/proposals/{proposalId}/reject)
+	RejectImprovementProposal(ctx context.Context, request RejectImprovementProposalRequestObject) (RejectImprovementProposalResponseObject, error)
+
 	// (GET /insights)
 	GetInsights(ctx context.Context, request GetInsightsRequestObject) (GetInsightsResponseObject, error)
 
@@ -20177,6 +20891,142 @@ func (sh *strictHandler) GetHealth(w http.ResponseWriter, r *http.Request) {
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(GetHealthResponseObject); ok {
 		if err := validResponse.VisitGetHealthResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListImprovementAnalyses operation middleware
+func (sh *strictHandler) ListImprovementAnalyses(w http.ResponseWriter, r *http.Request) {
+	var request ListImprovementAnalysesRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListImprovementAnalyses(ctx, request.(ListImprovementAnalysesRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListImprovementAnalyses")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListImprovementAnalysesResponseObject); ok {
+		if err := validResponse.VisitListImprovementAnalysesResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// StartImprovementAnalysis operation middleware
+func (sh *strictHandler) StartImprovementAnalysis(w http.ResponseWriter, r *http.Request) {
+	var request StartImprovementAnalysisRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.StartImprovementAnalysis(ctx, request.(StartImprovementAnalysisRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "StartImprovementAnalysis")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(StartImprovementAnalysisResponseObject); ok {
+		if err := validResponse.VisitStartImprovementAnalysisResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListImprovementProposals operation middleware
+func (sh *strictHandler) ListImprovementProposals(w http.ResponseWriter, r *http.Request, params ListImprovementProposalsParams) {
+	var request ListImprovementProposalsRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListImprovementProposals(ctx, request.(ListImprovementProposalsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListImprovementProposals")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListImprovementProposalsResponseObject); ok {
+		if err := validResponse.VisitListImprovementProposalsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetImprovementProposal operation middleware
+func (sh *strictHandler) GetImprovementProposal(w http.ResponseWriter, r *http.Request, proposalId openapi_types.UUID) {
+	var request GetImprovementProposalRequestObject
+
+	request.ProposalId = proposalId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetImprovementProposal(ctx, request.(GetImprovementProposalRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetImprovementProposal")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetImprovementProposalResponseObject); ok {
+		if err := validResponse.VisitGetImprovementProposalResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RejectImprovementProposal operation middleware
+func (sh *strictHandler) RejectImprovementProposal(w http.ResponseWriter, r *http.Request, proposalId openapi_types.UUID) {
+	var request RejectImprovementProposalRequestObject
+
+	request.ProposalId = proposalId
+
+	var body RejectImprovementProposalJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		if !errors.Is(err, io.EOF) {
+			sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+			return
+		}
+	} else {
+		request.Body = &body
+	}
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RejectImprovementProposal(ctx, request.(RejectImprovementProposalRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RejectImprovementProposal")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RejectImprovementProposalResponseObject); ok {
+		if err := validResponse.VisitRejectImprovementProposalResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

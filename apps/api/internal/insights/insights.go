@@ -129,6 +129,16 @@ func Since(window string, now time.Time) (string, time.Time) {
 // Report computes the insights over a window.
 func (s *Service) Report(ctx context.Context, window string) (Report, error) {
 	window, since := Since(window, time.Now())
+	return s.ReportSince(ctx, window, since)
+}
+
+// ReportDays computes the insights over the last n days.
+func (s *Service) ReportDays(ctx context.Context, days int) (Report, error) {
+	return s.ReportSince(ctx, fmt.Sprintf("%dd", days), time.Now().AddDate(0, 0, -days))
+}
+
+// ReportSince computes the insights since a time.
+func (s *Service) ReportSince(ctx context.Context, window string, since time.Time) (Report, error) {
 	rep := Report{Window: window, Since: since, Agents: []AgentStat{}, Providers: []ProviderStat{}, Templates: []TemplateStat{},
 		Stalls: []Stall{}, Failures: []Cluster{}, Comments: []Cluster{}}
 	rows, err := s.db.InsightAgentStats(ctx, since)

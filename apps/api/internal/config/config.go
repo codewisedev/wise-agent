@@ -12,62 +12,64 @@ import (
 )
 
 type Config struct {
-	HTTPAddr          string
-	DatabaseURL       string
-	SessionTTL        time.Duration
-	CookieSecure      bool
-	RepoRoots         []string
-	AutoMigrate       bool
-	BootstrapUser     string
-	BootstrapPassword string
-	LogLevel          string
-	CORSOrigins       []string
-	RuntimeToken      string
-	ModelsConfig      string
-	ModelsPolicy      string
-	WorkflowsConfig   string
-	BoardDefaults     string
-	IndexingDefaults  string
-	MemoryDefaults    string
-	ExecutionDefaults string
-	CodingDefaults    string
-	ModelProxyURL     string
-	ModelProxyToken   string
-	ExecutorURL       string
-	ExecutorToken     string
-	TemporalAddress   string
-	TemporalNamespace string
-	SecretsKey        string
-	CLIRunnerURL      string
-	CLIRunnerToken    string
+	HTTPAddr            string
+	DatabaseURL         string
+	SessionTTL          time.Duration
+	CookieSecure        bool
+	RepoRoots           []string
+	AutoMigrate         bool
+	BootstrapUser       string
+	BootstrapPassword   string
+	LogLevel            string
+	CORSOrigins         []string
+	RuntimeToken        string
+	ModelsConfig        string
+	ModelsPolicy        string
+	WorkflowsConfig     string
+	BoardDefaults       string
+	IndexingDefaults    string
+	MemoryDefaults      string
+	ExecutionDefaults   string
+	CodingDefaults      string
+	ImprovementDefaults string
+	ModelProxyURL       string
+	ModelProxyToken     string
+	ExecutorURL         string
+	ExecutorToken       string
+	TemporalAddress     string
+	TemporalNamespace   string
+	SecretsKey          string
+	CLIRunnerURL        string
+	CLIRunnerToken      string
 }
 
 // Load reads configuration from WISE_* environment variables.
 func Load() (Config, error) {
 	c := Config{
-		HTTPAddr:          getenv("WISE_HTTP_ADDR", ":8080"),
-		DatabaseURL:       os.Getenv("WISE_DATABASE_URL"),
-		BootstrapUser:     os.Getenv("WISE_BOOTSTRAP_ADMIN_USER"),
-		BootstrapPassword: os.Getenv("WISE_BOOTSTRAP_ADMIN_PASSWORD"),
-		LogLevel:          getenv("WISE_LOG_LEVEL", "info"),
-		RuntimeToken:      os.Getenv("WISE_RUNTIME_TOKEN"),
-		ModelsConfig:      getenv("WISE_MODELS_CONFIG", "configs/models/models.yaml"),
-		ModelsPolicy:      getenv("WISE_MODELS_POLICY", "configs/policies/models.yaml"),
-		WorkflowsConfig:   getenv("WISE_WORKFLOWS_CONFIG", "configs/workflows/engineering.yaml"),
-		BoardDefaults:     getenv("WISE_BOARD_DEFAULTS", "configs/board/defaults.yaml"),
-		IndexingDefaults:  getenv("WISE_INDEXING_DEFAULTS", "configs/indexing/defaults.yaml"),
-		MemoryDefaults:    getenv("WISE_MEMORY_DEFAULTS", "configs/memory/defaults.yaml"),
-		ExecutionDefaults: getenv("WISE_EXECUTION_DEFAULTS", "configs/execution/defaults.yaml"),
-		CodingDefaults:    getenv("WISE_CODING_RUNTIMES_DEFAULTS", "configs/coding-runtimes/defaults.yaml"),
-		ModelProxyURL:     getenv("WISE_MODEL_PROXY_URL", ""),
-		ModelProxyToken:   getenv("WISE_MODEL_PROXY_TOKEN", ""),
-		ExecutorURL:       getenv("WISE_EXECUTOR_URL", ""),
-		ExecutorToken:     getenv("WISE_EXECUTOR_TOKEN", ""),
-		TemporalAddress:   getenv("WISE_TEMPORAL_ADDRESS", "127.0.0.1:7233"),
-		TemporalNamespace: getenv("WISE_TEMPORAL_NAMESPACE", "wise"),
-		SecretsKey:        os.Getenv("WISE_SECRETS_KEY"),
-		CLIRunnerURL:      os.Getenv("WISE_CLI_RUNNER_URL"),
-		CLIRunnerToken:    os.Getenv("WISE_CLI_RUNNER_TOKEN"),
+		HTTPAddr:            getenv("WISE_HTTP_ADDR", ":8080"),
+		DatabaseURL:         os.Getenv("WISE_DATABASE_URL"),
+		BootstrapUser:       os.Getenv("WISE_BOOTSTRAP_ADMIN_USER"),
+		BootstrapPassword:   os.Getenv("WISE_BOOTSTRAP_ADMIN_PASSWORD"),
+		LogLevel:            getenv("WISE_LOG_LEVEL", "info"),
+		RuntimeToken:        os.Getenv("WISE_RUNTIME_TOKEN"),
+		ModelsConfig:        getenv("WISE_MODELS_CONFIG", "configs/models/models.yaml"),
+		ModelsPolicy:        getenv("WISE_MODELS_POLICY", "configs/policies/models.yaml"),
+		WorkflowsConfig:     getenv("WISE_WORKFLOWS_CONFIG", "configs/workflows/engineering.yaml"),
+		BoardDefaults:       getenv("WISE_BOARD_DEFAULTS", "configs/board/defaults.yaml"),
+		IndexingDefaults:    getenv("WISE_INDEXING_DEFAULTS", "configs/indexing/defaults.yaml"),
+		MemoryDefaults:      getenv("WISE_MEMORY_DEFAULTS", "configs/memory/defaults.yaml"),
+		ExecutionDefaults:   getenv("WISE_EXECUTION_DEFAULTS", "configs/execution/defaults.yaml"),
+		CodingDefaults:      getenv("WISE_CODING_RUNTIMES_DEFAULTS", "configs/coding-runtimes/defaults.yaml"),
+		ImprovementDefaults: getenv("WISE_IMPROVEMENT_DEFAULTS", "configs/improvement/defaults.yaml"),
+		ModelProxyURL:       getenv("WISE_MODEL_PROXY_URL", ""),
+		ModelProxyToken:     getenv("WISE_MODEL_PROXY_TOKEN", ""),
+		ExecutorURL:         getenv("WISE_EXECUTOR_URL", ""),
+		ExecutorToken:       getenv("WISE_EXECUTOR_TOKEN", ""),
+		TemporalAddress:     getenv("WISE_TEMPORAL_ADDRESS", "127.0.0.1:7233"),
+		TemporalNamespace:   getenv("WISE_TEMPORAL_NAMESPACE", "wise"),
+		SecretsKey:          os.Getenv("WISE_SECRETS_KEY"),
+		CLIRunnerURL:        os.Getenv("WISE_CLI_RUNNER_URL"),
+		CLIRunnerToken:      os.Getenv("WISE_CLI_RUNNER_TOKEN"),
 	}
 	var errs []error
 

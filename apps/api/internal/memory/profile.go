@@ -20,7 +20,9 @@ const ProfileAgent = "profile-agent"
 var inferredKinds = map[string]bool{"preference": true, "convention": true, "example": true}
 
 // extractorAgents never get memory context (they produce it), whatever the setting says.
-var extractorAgents = map[string]bool{ExtractorAgent: true, ProfileAgent: true}
+var extractorAgents = map[string]bool{ExtractorAgent: true, ProfileAgent: true,
+	// Wise's own analysis agents: memory must not bias the analysis or evaluation of memory itself.
+	"improvement-agent": true, "eval-judge-agent": true}
 
 // InferProfile asks the profile agent to propose preferences from what the
 // project's indexed repositories show (dependencies, tooling and lint

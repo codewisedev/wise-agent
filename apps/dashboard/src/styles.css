@@ -749,3 +749,26 @@ th.num, td.num { text-align: right; font-variant-numeric: tabular-nums; }
 .sparkbars span { flex: 1; min-width: 3px; max-width: 16px; background: var(--ok); border-radius: 2px 2px 0 0; }
 .sparkbars span.warn { background: var(--warn); }
 .pad { padding: 8px 12px; }
+
+/* ---- Improvements ---- */
+.proposals { display: grid; gap: 10px; }
+.proposal { border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; }
+.proposal header { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; }
+.proposal .proposal-title { padding: 0; text-align: left; white-space: normal; }
+.proposal .meta { display: inline-flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.proposal-body { display: grid; gap: 8px; margin-top: 8px; }
+.proposal-body p { margin: 0; }
+.proposal-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.proposal-actions input { flex: 1 1 260px; }
+.evidence { display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; }
+.text-diff { margin: 0; max-height: 420px; overflow: auto; font-size: 12px; line-height: 1.5; border: 1px solid var(--border); border-radius: 6px; padding: 6px 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.text-diff > span { display: block; padding: 0 10px; }
+.text-diff .sign { display: inline-block; width: 1.5ch; user-select: none; }
+.text-diff .add { background: color-mix(in srgb, var(--ok) 14%, transparent); }
+.text-diff .del { background: color-mix(in srgb, var(--bad) 14%, transparent); }
+.text-diff .gap { color: var(--text-faint, inherit); font-style: italic; }
+.memory-ops { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.memory-ops .mem-old s { opacity: .8; }
+.refused { margin: 4px 0 0; padding-left: 18px; }
+.warn-text { color: var(--warn); }
+.bad-text { color: var(--bad); }
