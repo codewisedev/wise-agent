@@ -8,6 +8,7 @@ import { Link, useParams } from "react-router";
 import { api, unwrap } from "../api/client";
 import { useRunEvents, type AgentEvent } from "../api/events";
 import { Json } from "../components/Json";
+import { FeedbackButtons } from "../components/FeedbackButtons";
 import { Badge, CopyText, ErrorNote, Panel, formatDate, relativeTime } from "../components/ui";
 import { RunStatus, formatCost, formatTokens } from "./RunsTable";
 
@@ -131,6 +132,7 @@ export function RunPage() {
             {r.projectId && <Link to={`/projects/${r.projectId}`} className="small">project</Link>}
             <span className="small faint" title={formatDate(r.createdAt)}>created {relativeTime(r.createdAt)}</span>
             {active && <Badge tone={connected ? "ok" : "neutral"} pulse={connected}>{connected ? "live" : "connecting"}</Badge>}
+            {!active && <FeedbackButtons targetType="run" targetId={r.id} />}
           </div>
         </div>
         {active && !r.cancelRequested && (

@@ -19,6 +19,7 @@ import (
 	"wise/apps/api/internal/codeindex"
 	"wise/apps/api/internal/codingruns"
 	"wise/apps/api/internal/db/dbgen"
+	"wise/apps/api/internal/feedback"
 	"wise/apps/api/internal/memory"
 	"wise/apps/api/internal/workspaces"
 
@@ -150,6 +151,7 @@ func setup(t *testing.T) *env {
 		Memory:       memorySvc,
 		Workspaces:   wsSvc,
 		CodingRuns:   codingSvc,
+		Feedback:     feedback.New(d),
 		Agents:       agentSvc, RunQueue: queue, Gateway: gw, Hub: hub, Tasks: taskSvc, Accounts: accountSvc, Integrations: integrationSvc, Settings: settingsSvc,
 		Cookie:       httpapi.CookieConfig{TTL: time.Hour},
 		RuntimeToken: runtimeToken,

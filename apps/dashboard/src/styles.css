@@ -730,3 +730,9 @@ pre.diff span.del { color: var(--danger, #e5484d); background: color-mix(in srgb
   border: 1px solid color-mix(in srgb, var(--ok) 40%, var(--border)); border-radius: 8px;
   background: color-mix(in srgb, var(--ok) 8%, transparent); }
 .env-list { border: 0; padding: 0; margin: 0; display: grid; gap: 6px; }
+
+/* ---- Feedback ---- */
+.feedback { display: inline-flex; align-items: center; gap: 2px; flex-wrap: wrap; }
+.feedback .btn.active { color: var(--accent, var(--ok)); background: color-mix(in srgb, var(--ok) 12%, transparent); }
+.feedback-note { display: inline-flex; gap: 6px; align-items: center; }
+.feedback-note input { min-width: 240px; }

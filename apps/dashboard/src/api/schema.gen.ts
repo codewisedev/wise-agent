@@ -2011,6 +2011,25 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/feedback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Ratings of agent results (newest first). */
+        get: operations["listFeedback"];
+        /** @description Rates a run or an artifact (replaces your earlier rating of it). */
+        put: operations["setFeedback"];
+        post?: never;
+        /** @description Removes your rating of a run or an artifact. */
+        delete: operations["clearFeedback"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -3489,6 +3508,39 @@ export interface components {
             events: components["schemas"]["ExternalEvent"][];
             done: boolean;
             outcome?: components["schemas"]["ExternalOutcome"];
+        };
+        FeedbackInput: {
+            /** @enum {string} */
+            targetType: "run" | "artifact";
+            /** Format: uuid */
+            targetId: string;
+            /** @enum {string} */
+            rating: "up" | "down";
+            note?: string;
+        };
+        Feedback: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            targetType: "run" | "artifact";
+            /** Format: uuid */
+            targetId: string;
+            /** @description The agent that produced the result (none for Wise's own artifacts). */
+            agentName?: string | null;
+            /** Format: uuid */
+            agentDefinitionId?: string | null;
+            /** Format: uuid */
+            taskId?: string | null;
+            /** @enum {string} */
+            rating: "up" | "down";
+            note: string;
+            /** Format: uuid */
+            userId: string;
+            username?: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
         };
         WorkspaceCommandResult: {
             exitCode?: number | null;
@@ -7317,6 +7369,85 @@ export interface operations {
         requestBody?: never;
         responses: {
             /** @description Stopped. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Problem"];
+        };
+    };
+    listFeedback: {
+        parameters: {
+            query?: {
+                targetType?: "run" | "artifact";
+                targetId?: string;
+                agent?: string;
+                rating?: "up" | "down";
+                taskId?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Ratings. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["Feedback"][];
+                    };
+                };
+            };
+            401: components["responses"]["Problem"];
+        };
+    };
+    setFeedback: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FeedbackInput"];
+            };
+        };
+        responses: {
+            /** @description Saved. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Feedback"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    clearFeedback: {
+        parameters: {
+            query: {
+                targetType: "run" | "artifact";
+                targetId: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Removed. */
             204: {
                 headers: {
                     [name: string]: unknown;

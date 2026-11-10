@@ -300,6 +300,78 @@ func (e ExternalStartMode) Valid() bool {
 	}
 }
 
+// Defines values for FeedbackRating.
+const (
+	FeedbackRatingDown FeedbackRating = "down"
+	FeedbackRatingUp   FeedbackRating = "up"
+)
+
+// Valid indicates whether the value is a known member of the FeedbackRating enum.
+func (e FeedbackRating) Valid() bool {
+	switch e {
+	case FeedbackRatingDown:
+		return true
+	case FeedbackRatingUp:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for FeedbackTargetType.
+const (
+	FeedbackTargetTypeArtifact FeedbackTargetType = "artifact"
+	FeedbackTargetTypeRun      FeedbackTargetType = "run"
+)
+
+// Valid indicates whether the value is a known member of the FeedbackTargetType enum.
+func (e FeedbackTargetType) Valid() bool {
+	switch e {
+	case FeedbackTargetTypeArtifact:
+		return true
+	case FeedbackTargetTypeRun:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for FeedbackInputRating.
+const (
+	FeedbackInputRatingDown FeedbackInputRating = "down"
+	FeedbackInputRatingUp   FeedbackInputRating = "up"
+)
+
+// Valid indicates whether the value is a known member of the FeedbackInputRating enum.
+func (e FeedbackInputRating) Valid() bool {
+	switch e {
+	case FeedbackInputRatingDown:
+		return true
+	case FeedbackInputRatingUp:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for FeedbackInputTargetType.
+const (
+	FeedbackInputTargetTypeArtifact FeedbackInputTargetType = "artifact"
+	FeedbackInputTargetTypeRun      FeedbackInputTargetType = "run"
+)
+
+// Valid indicates whether the value is a known member of the FeedbackInputTargetType enum.
+func (e FeedbackInputTargetType) Valid() bool {
+	switch e {
+	case FeedbackInputTargetTypeArtifact:
+		return true
+	case FeedbackInputTargetTypeRun:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for IndexChunkKind.
 const (
 	IndexChunkKindCode   IndexChunkKind = "code"
@@ -1080,6 +1152,60 @@ func (e WorkspaceStatus) Valid() bool {
 	}
 }
 
+// Defines values for ClearFeedbackParamsTargetType.
+const (
+	ClearFeedbackParamsTargetTypeArtifact ClearFeedbackParamsTargetType = "artifact"
+	ClearFeedbackParamsTargetTypeRun      ClearFeedbackParamsTargetType = "run"
+)
+
+// Valid indicates whether the value is a known member of the ClearFeedbackParamsTargetType enum.
+func (e ClearFeedbackParamsTargetType) Valid() bool {
+	switch e {
+	case ClearFeedbackParamsTargetTypeArtifact:
+		return true
+	case ClearFeedbackParamsTargetTypeRun:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListFeedbackParamsTargetType.
+const (
+	ListFeedbackParamsTargetTypeArtifact ListFeedbackParamsTargetType = "artifact"
+	ListFeedbackParamsTargetTypeRun      ListFeedbackParamsTargetType = "run"
+)
+
+// Valid indicates whether the value is a known member of the ListFeedbackParamsTargetType enum.
+func (e ListFeedbackParamsTargetType) Valid() bool {
+	switch e {
+	case ListFeedbackParamsTargetTypeArtifact:
+		return true
+	case ListFeedbackParamsTargetTypeRun:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListFeedbackParamsRating.
+const (
+	ListFeedbackParamsRatingDown ListFeedbackParamsRating = "down"
+	ListFeedbackParamsRatingUp   ListFeedbackParamsRating = "up"
+)
+
+// Valid indicates whether the value is a known member of the ListFeedbackParamsRating enum.
+func (e ListFeedbackParamsRating) Valid() bool {
+	switch e {
+	case ListFeedbackParamsRatingDown:
+		return true
+	case ListFeedbackParamsRatingUp:
+		return true
+	default:
+		return false
+	}
+}
+
 // Account defines model for Account.
 type Account struct {
 	BaseUrl string `json:"baseUrl"`
@@ -1653,6 +1779,44 @@ type ExternalStart struct {
 
 // ExternalStartMode defines model for ExternalStart.Mode.
 type ExternalStartMode string
+
+// Feedback defines model for Feedback.
+type Feedback struct {
+	AgentDefinitionId *openapi_types.UUID `json:"agentDefinitionId,omitempty"`
+
+	// AgentName The agent that produced the result (none for Wise's own artifacts).
+	AgentName  *string             `json:"agentName,omitempty"`
+	CreatedAt  time.Time           `json:"createdAt"`
+	Id         openapi_types.UUID  `json:"id"`
+	Note       string              `json:"note"`
+	Rating     FeedbackRating      `json:"rating"`
+	TargetId   openapi_types.UUID  `json:"targetId"`
+	TargetType FeedbackTargetType  `json:"targetType"`
+	TaskId     *openapi_types.UUID `json:"taskId,omitempty"`
+	UpdatedAt  time.Time           `json:"updatedAt"`
+	UserId     openapi_types.UUID  `json:"userId"`
+	Username   *string             `json:"username,omitempty"`
+}
+
+// FeedbackRating defines model for Feedback.Rating.
+type FeedbackRating string
+
+// FeedbackTargetType defines model for Feedback.TargetType.
+type FeedbackTargetType string
+
+// FeedbackInput defines model for FeedbackInput.
+type FeedbackInput struct {
+	Note       *string                 `json:"note,omitempty"`
+	Rating     FeedbackInputRating     `json:"rating"`
+	TargetId   openapi_types.UUID      `json:"targetId"`
+	TargetType FeedbackInputTargetType `json:"targetType"`
+}
+
+// FeedbackInputRating defines model for FeedbackInput.Rating.
+type FeedbackInputRating string
+
+// FeedbackInputTargetType defines model for FeedbackInput.TargetType.
+type FeedbackInputTargetType string
 
 // FieldError defines model for FieldError.
 type FieldError struct {
@@ -2898,6 +3062,31 @@ type DeleteColumnParams struct {
 	MoveTo *openapi_types.UUID `form:"moveTo,omitempty" json:"moveTo,omitempty"`
 }
 
+// ClearFeedbackParams defines parameters for ClearFeedback.
+type ClearFeedbackParams struct {
+	TargetType ClearFeedbackParamsTargetType `form:"targetType" json:"targetType"`
+	TargetId   openapi_types.UUID            `form:"targetId" json:"targetId"`
+}
+
+// ClearFeedbackParamsTargetType defines parameters for ClearFeedback.
+type ClearFeedbackParamsTargetType string
+
+// ListFeedbackParams defines parameters for ListFeedback.
+type ListFeedbackParams struct {
+	TargetType *ListFeedbackParamsTargetType `form:"targetType,omitempty" json:"targetType,omitempty"`
+	TargetId   *openapi_types.UUID           `form:"targetId,omitempty" json:"targetId,omitempty"`
+	Agent      *string                       `form:"agent,omitempty" json:"agent,omitempty"`
+	Rating     *ListFeedbackParamsRating     `form:"rating,omitempty" json:"rating,omitempty"`
+	TaskId     *openapi_types.UUID           `form:"taskId,omitempty" json:"taskId,omitempty"`
+	Limit      *int                          `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
+// ListFeedbackParamsTargetType defines parameters for ListFeedback.
+type ListFeedbackParamsTargetType string
+
+// ListFeedbackParamsRating defines parameters for ListFeedback.
+type ListFeedbackParamsRating string
+
 // ListMemoriesParams defines parameters for ListMemories.
 type ListMemoriesParams struct {
 	Status    *MemoryStatus       `form:"status,omitempty" json:"status,omitempty"`
@@ -3036,6 +3225,9 @@ type CreateApiTokenJSONRequestBody = CreateApiTokenRequest
 
 // UpdateColumnJSONRequestBody defines body for UpdateColumn for application/json ContentType.
 type UpdateColumnJSONRequestBody = ColumnInput
+
+// SetFeedbackJSONRequestBody defines body for SetFeedback for application/json ContentType.
+type SetFeedbackJSONRequestBody = FeedbackInput
 
 // UpdateIntegrationJSONRequestBody defines body for UpdateIntegration for application/json ContentType.
 type UpdateIntegrationJSONRequestBody = IntegrationInput
@@ -3321,6 +3513,15 @@ type ServerInterface interface {
 
 	// (GET /context/embeddings)
 	GetEmbeddingStatus(w http.ResponseWriter, r *http.Request)
+
+	// (DELETE /feedback)
+	ClearFeedback(w http.ResponseWriter, r *http.Request, params ClearFeedbackParams)
+
+	// (GET /feedback)
+	ListFeedback(w http.ResponseWriter, r *http.Request, params ListFeedbackParams)
+
+	// (PUT /feedback)
+	SetFeedback(w http.ResponseWriter, r *http.Request)
 
 	// (GET /healthz)
 	GetHealth(w http.ResponseWriter, r *http.Request)
@@ -3823,6 +4024,21 @@ func (_ Unimplemented) UpdateColumn(w http.ResponseWriter, r *http.Request, colu
 
 // (GET /context/embeddings)
 func (_ Unimplemented) GetEmbeddingStatus(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (DELETE /feedback)
+func (_ Unimplemented) ClearFeedback(w http.ResponseWriter, r *http.Request, params ClearFeedbackParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (GET /feedback)
+func (_ Unimplemented) ListFeedback(w http.ResponseWriter, r *http.Request, params ListFeedbackParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (PUT /feedback)
+func (_ Unimplemented) SetFeedback(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -5211,6 +5427,164 @@ func (siw *ServerInterfaceWrapper) GetEmbeddingStatus(w http.ResponseWriter, r *
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetEmbeddingStatus(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ClearFeedback operation middleware
+func (siw *ServerInterfaceWrapper) ClearFeedback(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ClearFeedbackParams
+
+	// ------------- Required query parameter "targetType" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "targetType", r.URL.Query(), &params.TargetType, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "targetType"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "targetType", Err: err})
+		}
+		return
+	}
+
+	// ------------- Required query parameter "targetId" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "targetId", r.URL.Query(), &params.TargetId, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "targetId"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "targetId", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ClearFeedback(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListFeedback operation middleware
+func (siw *ServerInterfaceWrapper) ListFeedback(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListFeedbackParams
+
+	// ------------- Optional query parameter "targetType" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "targetType", r.URL.Query(), &params.TargetType, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "targetType"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "targetType", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "targetId" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "targetId", r.URL.Query(), &params.TargetId, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "targetId"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "targetId", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "agent" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "agent", r.URL.Query(), &params.Agent, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "agent"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "agent", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "rating" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "rating", r.URL.Query(), &params.Rating, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "rating"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "rating", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "taskId" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "taskId", r.URL.Query(), &params.TaskId, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "taskId"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "taskId", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListFeedback(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SetFeedback operation middleware
+func (siw *ServerInterfaceWrapper) SetFeedback(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetFeedback(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -8882,6 +9256,15 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/runtime/v1/runs/{runId}/external", wrapper.RuntimeExternalStart)
 	})
+	r.Group(func(r chi.Router) {
+		r.Delete(options.BaseURL+"/feedback", wrapper.ClearFeedback)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/feedback", wrapper.ListFeedback)
+	})
+	r.Group(func(r chi.Router) {
+		r.Put(options.BaseURL+"/feedback", wrapper.SetFeedback)
+	})
 
 	return r
 }
@@ -11042,6 +11425,144 @@ func (response GetEmbeddingStatus401ApplicationProblemPlusJSONResponse) VisitGet
 	}
 	w.Header().Set("Content-Type", "application/problem+json")
 	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ClearFeedbackRequestObject struct {
+	Params ClearFeedbackParams
+}
+
+type ClearFeedbackResponseObject interface {
+	VisitClearFeedbackResponse(w http.ResponseWriter) error
+}
+
+type ClearFeedback204Response struct {
+}
+
+func (response ClearFeedback204Response) VisitClearFeedbackResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type ClearFeedback401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response ClearFeedback401ApplicationProblemPlusJSONResponse) VisitClearFeedbackResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListFeedbackRequestObject struct {
+	Params ListFeedbackParams
+}
+
+type ListFeedbackResponseObject interface {
+	VisitListFeedbackResponse(w http.ResponseWriter) error
+}
+
+type ListFeedback200JSONResponse struct {
+	Items []Feedback `json:"items"`
+}
+
+func (response ListFeedback200JSONResponse) VisitListFeedbackResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListFeedback401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response ListFeedback401ApplicationProblemPlusJSONResponse) VisitListFeedbackResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetFeedbackRequestObject struct {
+	Body *SetFeedbackJSONRequestBody
+}
+
+type SetFeedbackResponseObject interface {
+	VisitSetFeedbackResponse(w http.ResponseWriter) error
+}
+
+type SetFeedback200JSONResponse Feedback
+
+func (response SetFeedback200JSONResponse) VisitSetFeedbackResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetFeedback400ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response SetFeedback400ApplicationProblemPlusJSONResponse) VisitSetFeedbackResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetFeedback401ApplicationProblemPlusJSONResponse Problem
+
+func (response SetFeedback401ApplicationProblemPlusJSONResponse) VisitSetFeedbackResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetFeedback404ApplicationProblemPlusJSONResponse Problem
+
+func (response SetFeedback404ApplicationProblemPlusJSONResponse) VisitSetFeedbackResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
 	_, err := buf.WriteTo(w)
 	return err
 }
@@ -17876,6 +18397,15 @@ type StrictServerInterface interface {
 	// (GET /context/embeddings)
 	GetEmbeddingStatus(ctx context.Context, request GetEmbeddingStatusRequestObject) (GetEmbeddingStatusResponseObject, error)
 
+	// (DELETE /feedback)
+	ClearFeedback(ctx context.Context, request ClearFeedbackRequestObject) (ClearFeedbackResponseObject, error)
+
+	// (GET /feedback)
+	ListFeedback(ctx context.Context, request ListFeedbackRequestObject) (ListFeedbackResponseObject, error)
+
+	// (PUT /feedback)
+	SetFeedback(ctx context.Context, request SetFeedbackRequestObject) (SetFeedbackResponseObject, error)
+
 	// (GET /healthz)
 	GetHealth(ctx context.Context, request GetHealthRequestObject) (GetHealthResponseObject, error)
 
@@ -19203,6 +19733,89 @@ func (sh *strictHandler) GetEmbeddingStatus(w http.ResponseWriter, r *http.Reque
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(GetEmbeddingStatusResponseObject); ok {
 		if err := validResponse.VisitGetEmbeddingStatusResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ClearFeedback operation middleware
+func (sh *strictHandler) ClearFeedback(w http.ResponseWriter, r *http.Request, params ClearFeedbackParams) {
+	var request ClearFeedbackRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ClearFeedback(ctx, request.(ClearFeedbackRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ClearFeedback")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ClearFeedbackResponseObject); ok {
+		if err := validResponse.VisitClearFeedbackResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListFeedback operation middleware
+func (sh *strictHandler) ListFeedback(w http.ResponseWriter, r *http.Request, params ListFeedbackParams) {
+	var request ListFeedbackRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListFeedback(ctx, request.(ListFeedbackRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListFeedback")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListFeedbackResponseObject); ok {
+		if err := validResponse.VisitListFeedbackResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// SetFeedback operation middleware
+func (sh *strictHandler) SetFeedback(w http.ResponseWriter, r *http.Request) {
+	var request SetFeedbackRequestObject
+
+	var body SetFeedbackJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.SetFeedback(ctx, request.(SetFeedbackRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SetFeedback")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(SetFeedbackResponseObject); ok {
+		if err := validResponse.VisitSetFeedbackResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

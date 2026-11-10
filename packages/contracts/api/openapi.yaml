@@ -35,6 +35,7 @@ tags:
   - name: context
   - name: memory
   - name: execution
+  - name: improvement
 
 paths:
   /healthz:
@@ -2394,6 +2395,57 @@ paths:
       responses:
         "204": { description: Stopped. }
         "401": { $ref: "#/components/responses/Problem" }
+  /feedback:
+    get:
+      tags: [improvement]
+      operationId: listFeedback
+      description: Ratings of agent results (newest first).
+      parameters:
+        - { name: targetType, in: query, schema: { type: string, enum: [run, artifact] } }
+        - { name: targetId, in: query, schema: { type: string, format: uuid } }
+        - { name: agent, in: query, schema: { type: string } }
+        - { name: rating, in: query, schema: { type: string, enum: [up, down] } }
+        - { name: taskId, in: query, schema: { type: string, format: uuid } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 500 } }
+      responses:
+        "200":
+          description: Ratings.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items: { type: array, items: { $ref: "#/components/schemas/Feedback" } }
+        "401": { $ref: "#/components/responses/Problem" }
+    put:
+      tags: [improvement]
+      operationId: setFeedback
+      description: Rates a run or an artifact (replaces your earlier rating of it).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/FeedbackInput" }
+      responses:
+        "200":
+          description: Saved.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Feedback" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+    delete:
+      tags: [improvement]
+      operationId: clearFeedback
+      description: Removes your rating of a run or an artifact.
+      parameters:
+        - { name: targetType, in: query, required: true, schema: { type: string, enum: [run, artifact] } }
+        - { name: targetId, in: query, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "204": { description: Removed. }
+        "401": { $ref: "#/components/responses/Problem" }
 components:
   securitySchemes:
     cookieAuth:
@@ -3971,6 +4023,30 @@ components:
         events: { type: array, items: { $ref: "#/components/schemas/ExternalEvent" } }
         done: { type: boolean }
         outcome: { $ref: "#/components/schemas/ExternalOutcome" }
+    FeedbackInput:
+      type: object
+      required: [targetType, targetId, rating]
+      properties:
+        targetType: { type: string, enum: [run, artifact] }
+        targetId: { type: string, format: uuid }
+        rating: { type: string, enum: [up, down] }
+        note: { type: string, maxLength: 2000 }
+    Feedback:
+      type: object
+      required: [id, targetType, targetId, rating, note, userId, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        targetType: { type: string, enum: [run, artifact] }
+        targetId: { type: string, format: uuid }
+        agentName: { type: string, nullable: true, description: The agent that produced the result (none for Wise's own artifacts). }
+        agentDefinitionId: { type: string, format: uuid, nullable: true }
+        taskId: { type: string, format: uuid, nullable: true }
+        rating: { type: string, enum: [up, down] }
+        note: { type: string }
+        userId: { type: string, format: uuid }
+        username: { type: string }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
     WorkspaceCommandResult:
       type: object
       required: [status, output, durationMs]

@@ -549,6 +549,22 @@ type CodeSymbol struct {
 	Doc          string
 }
 
+type Feedback struct {
+	ID                uuid.UUID
+	TargetType        string
+	TargetID          uuid.UUID
+	RunID             *uuid.UUID
+	ArtifactID        *uuid.UUID
+	AgentName         *string
+	AgentDefinitionID *uuid.UUID
+	TaskID            *uuid.UUID
+	Rating            string
+	Note              string
+	UserID            uuid.UUID
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
+}
+
 type IndexJob struct {
 	ID             uuid.UUID
 	RepositoryID   uuid.UUID

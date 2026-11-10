@@ -21,6 +21,7 @@ import (
 	"wise/apps/api/internal/codingruns"
 	"wise/apps/api/internal/db/dbgen"
 	"wise/apps/api/internal/executor"
+	"wise/apps/api/internal/feedback"
 	"wise/apps/api/internal/memory"
 	"wise/apps/api/internal/modelproxy"
 	"wise/apps/api/internal/workspaces"
@@ -261,6 +262,7 @@ func serve(ctx context.Context) error {
 		Memory:           memorySvc,
 		Workspaces:       workspaceSvc,
 		CodingRuns:       codingSvc,
+		Feedback:         feedback.New(d),
 		Agents:           agentSvc,
 		RunQueue:         runQueue,
 		Gateway:          gateway,
