@@ -132,6 +132,43 @@ var sectionRenderers = map[string]func(*strings.Builder, map[string]any){
 		})
 		list(b, "Concerns", ar["concerns"], nil)
 	},
+	tasks.KindImplementation: func(b *strings.Builder, im map[string]any) {
+		para(b, im["summary"])
+		list(b, "Changed files", im["changed_files"], func(m map[string]any) string {
+			return fmt.Sprintf("`%s` (%s) — %s", str(m["path"]), str(m["change"]), str(m["why"]))
+		})
+		list(b, "Tests", im["tests"], func(m map[string]any) string {
+			return fmt.Sprintf("`%s` — %s", str(m["path"]), str(m["description"]))
+		})
+		list(b, "Notes", im["notes"], nil)
+	},
+	tasks.KindQualityReport: func(b *strings.Builder, q map[string]any) {
+		list(b, "Checks", q["checks"], func(m map[string]any) string {
+			return fmt.Sprintf("**%s** `%s`: %s", str(m["name"]), str(m["command"]), str(m["status"]))
+		})
+		if n := str(q["note"]); n != "" {
+			para(b, n)
+		}
+	},
+	tasks.KindChangeset: func(b *strings.Builder, cs map[string]any) {
+		head := str(cs["headSha"])
+		if head == "" {
+			b.WriteString("No changes.\n\n")
+			return
+		}
+		fmt.Fprintf(b, "Commit `%s` on `%s` (base `%s`): +%v −%v\n\n", head[:min(12, len(head))], str(cs["branch"]),
+			str(cs["baseSha"])[:min(12, len(str(cs["baseSha"])))], cs["additions"], cs["deletions"])
+		list(b, "Files", cs["files"], func(m map[string]any) string {
+			return fmt.Sprintf("`%s` %s (+%v −%v)", str(m["path"]), str(m["status"]), m["additions"], m["deletions"])
+		})
+	},
+	tasks.KindDelivery: func(b *strings.Builder, d map[string]any) {
+		if br := str(d["branch"]); br != "" {
+			fmt.Fprintf(b, "Branch **`%s`** is in your repository at `%s`. Check it out with `git switch %s`.\n\n", br, str(d["sha"])[:min(12, len(str(d["sha"])))], br)
+		} else {
+			para(b, d["note"])
+		}
+	},
 }
 
 // genericSection renders any agent output: summary first, then lists and text.

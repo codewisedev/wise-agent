@@ -75,6 +75,7 @@ func PipelineWorkflow(ctx workflow.Context, in Input) (Result, error) {
 	dctx, cancel := workflow.NewDisconnectedContext(ctx)
 	defer cancel()
 	dctx = workflow.WithActivityOptions(dctx, shortOpts)
+	w.stopWorkspace(dctx)
 	if isCanceled(ctx, err) {
 		_ = workflow.ExecuteActivity(dctx, a.MarkCancelled, CancelRequest{WorkflowRunID: in.WorkflowRunID, Reason: "cancelled by user"}).Get(dctx, nil)
 		return Result{}, err
@@ -151,15 +152,24 @@ func (w *pipeline) run(ctx workflow.Context) (Result, error) {
 			return Result{}, err
 		}
 	}
+	w.stopWorkspace(ctx)
 	if err := w.setState(ctx, tasks.RunCompleted, StageCompleted, nil); err != nil {
 		return Result{}, err
 	}
 	return Result{ReportArtifactID: reportID}, nil
 }
 
-// runStep runs one agent step. A failed agent run parks the workflow in
-// awaiting_retry until a human sends the retry signal (or cancels).
+// runStep runs one step. A failed step parks the workflow in awaiting_retry
+// until a human sends the retry signal (or cancels).
 func (w *pipeline) runStep(ctx workflow.Context, st tasks.PlanStep, revision int, feedback string) error {
+	if !st.IsAgent() {
+		return w.runEngineering(ctx, st, revision)
+	}
+	return w.runAgent(ctx, st, revision, feedback, 0, "")
+}
+
+// runAgent runs an agent step (fixRound > 0: a quality-gate fix round).
+func (w *pipeline) runAgent(ctx workflow.Context, st tasks.PlanStep, revision int, feedback string, fixRound int, fixFeedback string) error {
 	for attempt := int32(1); ; attempt++ {
 		if err := w.setState(ctx, tasks.RunRunning, st.ID, nil); err != nil {
 			return err
@@ -170,7 +180,7 @@ func (w *pipeline) runStep(ctx workflow.Context, st tasks.PlanStep, revision int
 		err := workflow.ExecuteActivity(actx, a.RunStage, StageRequest{
 			WorkflowRunID: w.in.WorkflowRunID, TaskID: w.in.TaskID, ProjectID: w.in.ProjectID, CreatedBy: w.in.CreatedBy,
 			Stage: st.ID, Agent: st.Agent, Kind: st.Kind, Attempt: attempt, Revision: revision, Feedback: feedback,
-			Step: w.runs[st.ID],
+			Step: w.runs[st.ID], FixRound: fixRound, FixFeedback: fixFeedback,
 		}).Get(ctx, &res)
 		if err == nil {
 			w.notes[st.ID] = res.Notes
@@ -302,4 +312,158 @@ func errMessage(err error) string {
 		err = u
 	}
 	return err.Error()
+}
+
+// engOpts run engineering steps: preparing a workspace and running checks
+// can take long; they heartbeat while they wait.
+var engOpts = workflow.ActivityOptions{
+	StartToCloseTimeout: 8 * time.Hour,
+	HeartbeatTimeout:    2 * time.Minute,
+	WaitForCancellation: true,
+	RetryPolicy: &temporal.RetryPolicy{
+		InitialInterval: 2 * time.Second, BackoffCoefficient: 2, MaximumInterval: time.Minute,
+		NonRetryableErrorTypes: []string{ErrTypeAgentFailed},
+	},
+}
+
+// retrying runs an engineering activity call, parking in awaiting_retry when
+// it fails until a human retries.
+func (w *pipeline) retrying(ctx workflow.Context, st tasks.PlanStep, call func(actx workflow.Context, req EngRequest) error) error {
+	for {
+		if err := w.setState(ctx, tasks.RunRunning, st.ID, nil); err != nil {
+			return err
+		}
+		w.runs[st.ID]++
+		req := EngRequest{WorkflowRunID: w.in.WorkflowRunID, TaskID: w.in.TaskID, CreatedBy: w.in.CreatedBy, Stage: st.ID, Step: w.runs[st.ID]}
+		err := call(workflow.WithActivityOptions(ctx, engOpts), req)
+		if err == nil {
+			return nil
+		}
+		if isCanceled(ctx, err) {
+			return err
+		}
+		if err := w.park(ctx, st.ID, errMessage(err)); err != nil {
+			return err
+		}
+	}
+}
+
+// park waits in awaiting_retry for the retry signal.
+func (w *pipeline) park(ctx workflow.Context, stage, msg string) error {
+	for w.retryCh.ReceiveAsync(nil) {
+	}
+	if err := w.setState(ctx, tasks.RunAwaitingRetry, stage, &msg); err != nil {
+		return err
+	}
+	return w.await(ctx, w.retryCh, nil)
+}
+
+// runEngineering runs a workspace, quality, gate or deliver step.
+func (w *pipeline) runEngineering(ctx workflow.Context, st tasks.PlanStep, revision int) error {
+	switch st.Type {
+	case tasks.StepWorkspace:
+		return w.retrying(ctx, st, func(actx workflow.Context, req EngRequest) error {
+			return workflow.ExecuteActivity(actx, a.PrepareWorkspace, req).Get(ctx, nil)
+		})
+	case tasks.StepQuality:
+		return w.retrying(ctx, st, func(actx workflow.Context, req EngRequest) error {
+			return workflow.ExecuteActivity(actx, a.RunQuality, req).Get(ctx, nil)
+		})
+	case tasks.StepGate:
+		return w.runGate(ctx, st, revision)
+	case tasks.StepDeliver:
+		gate := ""
+		_, idx, _ := w.in.Plan.Step(st.ID)
+		for j := idx - 1; j >= 0; j-- {
+			if s := w.in.Plan.Steps[j]; s.Enabled && s.Type == tasks.StepGate && s.Review {
+				gate = s.ID
+				break
+			}
+		}
+		return w.retrying(ctx, st, func(actx workflow.Context, req EngRequest) error {
+			return workflow.ExecuteActivity(actx, a.Deliver, DeliverRequest{EngRequest: req, Gate: gate}).Get(ctx, nil)
+		})
+	}
+	return temporal.NewNonRetryableApplicationError("unknown step type "+st.Type, "InvalidStage", nil)
+}
+
+// runGate evaluates the checks and reviews between the implementing step and
+// the gate. While they fail it runs fix rounds: the implementing agent gets
+// the failures (and the diagnosis), then the checks and reviews run again.
+// After the configured rounds it waits for a human retry. When everything
+// passes it snapshots the verified changeset that the gate's review approves.
+func (w *pipeline) runGate(ctx workflow.Context, st tasks.PlanStep, revision int) error {
+	steps := w.in.Plan.Steps
+	_, fixIdx, _ := w.in.Plan.Step(st.FixFrom)
+	_, gateIdx, _ := w.in.Plan.Step(st.ID)
+	var kinds []string
+	for _, s := range steps[fixIdx+1 : gateIdx] {
+		if s.Enabled && s.Kind != "" && s.Kind != tasks.KindImplementation {
+			kinds = append(kinds, s.Kind)
+		}
+	}
+	for round := 0; ; round++ {
+		var g GateResult
+		if err := w.retrying(ctx, st, func(actx workflow.Context, req EngRequest) error {
+			req.Kinds, req.Round = kinds, round
+			return workflow.ExecuteActivity(actx, a.EvaluateGate, req).Get(ctx, &g)
+		}); err != nil {
+			return err
+		}
+		w.notes[st.ID] = []string{"Quality gate: " + g.Summary}
+		if g.Passed {
+			break
+		}
+		if round >= g.MaxRounds {
+			msg := fmt.Sprintf("quality gate failed after %d fix round(s): %s Retry to run another fix round.", round, g.Summary)
+			if err := w.park(ctx, st.ID, msg); err != nil {
+				return err
+			}
+		}
+		feedback := g.Feedback
+		if st.DiagnoseWith != "" {
+			diag := tasks.PlanStep{ID: st.ID + tasks.DiagnoseSuffix, Name: st.Name + " (diagnosis)", Agent: st.DiagnoseWith, Kind: tasks.KindQA, Enabled: true}
+			if err := w.runAgent(ctx, diag, revision, "", round+1, ""); err != nil {
+				return err
+			}
+			var qa string
+			sctx := workflow.WithActivityOptions(ctx, shortOpts)
+			if err := workflow.ExecuteActivity(sctx, a.QAFeedback, w.in.TaskID).Get(ctx, &qa); err != nil {
+				return err
+			}
+			if qa != "" {
+				feedback = qa + "\n\n" + feedback
+			}
+		}
+		for _, s := range steps[fixIdx:gateIdx] {
+			if !s.Enabled {
+				continue
+			}
+			var err error
+			switch {
+			case s.ID == st.FixFrom:
+				err = w.runAgent(ctx, s, revision, "", round+1, feedback)
+			case s.IsAgent():
+				err = w.runAgent(ctx, s, revision, "", round+1, "")
+			default:
+				err = w.runEngineering(ctx, s, revision)
+			}
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return w.retrying(ctx, st, func(actx workflow.Context, req EngRequest) error {
+		var id uuid.UUID
+		return workflow.ExecuteActivity(actx, a.Snapshot, req).Get(ctx, &id)
+	})
+}
+
+// stopWorkspace stops the task sandbox when a workflow with a workspace ends.
+func (w *pipeline) stopWorkspace(ctx workflow.Context) {
+	if !w.in.Plan.HasType(tasks.StepWorkspace) {
+		return
+	}
+	sctx := workflow.WithActivityOptions(ctx, shortOpts)
+	_ = workflow.ExecuteActivity(sctx, a.StopWorkspace, w.in.TaskID).Get(ctx, nil)
 }

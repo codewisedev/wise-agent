@@ -3254,13 +3254,20 @@ components:
       type: object
       properties:
         stepByStep: { type: boolean, description: Pause after every step. }
+    StepType:
+      type: string
+      enum: [agent, workspace, quality, gate, deliver]
+      description: "agent runs an agent; workspace prepares the task workspace; quality runs the repository's checks; gate passes or fails on checks and reviews, runs fix rounds and produces the verified changeset; deliver writes the approved commit as the task branch."
     TemplateStep:
       type: object
-      required: [id, agent]
+      required: [id]
       properties:
         id: { type: string, pattern: "^[a-z][a-z0-9_-]{0,40}$" }
         name: { type: string, maxLength: 100 }
-        agent: { type: string }
+        type: { $ref: "#/components/schemas/StepType" }
+        agent: { type: string, description: The agent an agent step runs. }
+        fixFrom: { type: string, description: "Gate: the implementing step re-run with the failures (default: the nearest earlier implementing step)." }
+        diagnoseWith: { type: string, description: "Gate: an agent (e.g. qa-agent) that explains failures before each fix round." }
         account: { type: string, description: Account or models.yaml provider; empty = the agent's default routing. }
         model: { type: string }
         review: { type: boolean, description: Pause after this step until its result is approved. }
@@ -3628,7 +3635,10 @@ components:
       properties:
         id: { type: string }
         name: { type: string }
+        type: { type: string, description: "Empty for agent steps." }
         agent: { type: string }
+        fixFrom: { type: string }
+        diagnoseWith: { type: string }
         kind: { type: string, description: Artifact kind the step produces. }
         account: { type: string }
         model: { type: string }

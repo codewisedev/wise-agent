@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"time"
+	"wise/apps/api/internal/workspaces"
 
 	"go.temporal.io/api/serviceerror"
 	"go.temporal.io/api/workflowservice/v1"
@@ -25,6 +26,7 @@ type OrchestratorConfig struct {
 	TemporalAddress string
 	Namespace       string
 	Retention       time.Duration
+	Workspaces      *workspaces.Service // engineering steps; nil when the executor is not configured
 }
 
 // RunOrchestrator connects to Temporal (waiting for it to come up), makes sure
@@ -47,7 +49,7 @@ func RunOrchestrator(ctx context.Context, cfg OrchestratorConfig, d *db.DB, task
 
 	w := worker.New(c, TaskQueue, worker.Options{})
 	w.RegisterWorkflowWithOptions(PipelineWorkflow, workflow.RegisterOptions{Name: tasks.PipelineType})
-	w.RegisterActivity(&Activities{Tasks: taskSvc, Agents: agentSvc})
+	w.RegisterActivity(&Activities{Tasks: taskSvc, Agents: agentSvc, Workspaces: cfg.Workspaces})
 	if err := w.Start(); err != nil {
 		return fmt.Errorf("start temporal worker: %w", err)
 	}

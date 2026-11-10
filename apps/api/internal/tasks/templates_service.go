@@ -329,11 +329,57 @@ func (s *Service) CurrentStep(ctx context.Context, runID uuid.UUID, stepID strin
 	if !ok {
 		return PlanStep{}, fmt.Errorf("workflow run %s has no plan", runID)
 	}
+	if gate, ok := strings.CutSuffix(stepID, DiagnoseSuffix); ok {
+		// The gate's diagnosis run (not a step of its own).
+		g, _, found := p.Step(gate)
+		if !found || g.DiagnoseWith == "" {
+			return PlanStep{}, fmt.Errorf("step %q not in plan", stepID)
+		}
+		return PlanStep{ID: stepID, Name: g.Name + " (diagnosis)", Agent: g.DiagnoseWith, Kind: KindQA, Enabled: true,
+			Consumes: map[string]string{"plan": "plan", "requirements": "requirements", "implementation": KindImplementation,
+				"quality_report": KindQualityReport, "code_review": "code_review", "security_review": "security_review"}}, nil
+	}
 	st, _, ok := p.Step(stepID)
 	if !ok {
 		return PlanStep{}, fmt.Errorf("step %q not in plan", stepID)
 	}
 	return st, nil
+}
+
+// DiagnoseSuffix names a gate's diagnosis stage ("<gate>:diagnose").
+const DiagnoseSuffix = ":diagnose"
+
+// ApprovedArtifact returns the latest artifact of kind, provided the latest
+// decided approval of gate in the workflow run approved exactly that version.
+func (s *Service) ApprovedArtifact(ctx context.Context, runID, taskID uuid.UUID, gate, kind string) (dbgen.Artifact, uuid.UUID, error) {
+	latest, err := s.db.GetLatestArtifact(ctx, dbgen.GetLatestArtifactParams{TaskID: taskID, Kind: kind})
+	if err != nil {
+		return dbgen.Artifact{}, uuid.Nil, fmt.Errorf("no %s to deliver: %w", kind, err)
+	}
+	rows, err := s.db.ListApprovals(ctx, dbgen.ListApprovalsParams{TaskID: &taskID, RowLimit: 200})
+	if err != nil {
+		return dbgen.Artifact{}, uuid.Nil, err
+	}
+	for _, r := range rows { // newest first
+		ap := r.Approval
+		if ap.WorkflowRunID != runID || ap.Gate != gate || ap.Status == "pending" {
+			continue
+		}
+		if ap.Status != "approved" {
+			return dbgen.Artifact{}, uuid.Nil, fmt.Errorf("the latest %s approval is %s", gate, ap.Status)
+		}
+		var refs []ArtifactRef
+		if err := json.Unmarshal(ap.Artifacts, &refs); err != nil {
+			return dbgen.Artifact{}, uuid.Nil, err
+		}
+		for _, ref := range refs {
+			if ref.Kind == kind && ref.ArtifactID == latest.ID.String() && ref.Hash == latest.ContentHash {
+				return latest, ap.ID, nil
+			}
+		}
+		return dbgen.Artifact{}, uuid.Nil, fmt.Errorf("the approved %s is not the latest one; approve it again", kind)
+	}
+	return dbgen.Artifact{}, uuid.Nil, fmt.Errorf("%s has not been approved", gate)
 }
 
 // Preview resolves an unsaved template definition.

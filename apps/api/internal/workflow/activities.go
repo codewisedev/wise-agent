@@ -16,6 +16,7 @@ import (
 	"wise/apps/api/internal/apperr"
 	"wise/apps/api/internal/db/dbgen"
 	"wise/apps/api/internal/tasks"
+	"wise/apps/api/internal/workspaces"
 )
 
 // ErrTypeAgentFailed marks a stage failure that needs a human retry, not an automatic one.
@@ -23,8 +24,9 @@ const ErrTypeAgentFailed = "AgentRunFailed"
 
 // Activities are the workflow's only side effects. All are idempotent.
 type Activities struct {
-	Tasks  *tasks.Service
-	Agents *agents.Service
+	Tasks      *tasks.Service
+	Agents     *agents.Service
+	Workspaces *workspaces.Service // nil when the executor is not configured
 	// Poll is how often RunStage checks the agent run (default 2s).
 	Poll time.Duration
 }
@@ -64,6 +66,8 @@ type StageRequest struct {
 	Feedback      string // reviewer comment that triggered this revision
 	Step          int32  // n-th execution of this stage in the workflow (numbers workflow_steps)
 	CreatedBy     *uuid.UUID
+	FixRound      int    // quality-gate fix round (0 = none)
+	FixFeedback   string // failures the implementing agent must fix
 }
 
 // StageResult is what a finished stage produced.
@@ -79,6 +83,9 @@ type StageResult struct {
 // artifact version. Cancelling the activity cancels the agent run.
 func (a *Activities) RunStage(ctx context.Context, req StageRequest) (StageResult, error) {
 	key := fmt.Sprintf("wf:%s:%s:a%d:r%d", req.WorkflowRunID, req.Stage, req.Attempt, req.Revision)
+	if req.FixRound > 0 {
+		key += fmt.Sprintf(":f%d", req.FixRound)
+	}
 	// Read the step's live settings: its account and model may have been
 	// changed while the workflow waited.
 	step, err := a.Tasks.CurrentStep(ctx, req.WorkflowRunID, req.Stage)
@@ -235,6 +242,20 @@ func (a *Activities) agentInput(ctx context.Context, req StageRequest, step task
 	for prop, kind := range step.Consumes {
 		if v, ok := content(kind); ok {
 			in[prop] = v
+		}
+	}
+	if req.FixFeedback != "" && step.Accepts("fix_feedback") {
+		in["fix_feedback"] = req.FixFeedback
+	}
+	if step.Accepts("quality_commands") && a.Workspaces != nil {
+		if w, err := a.Workspaces.ForTask(ctx, req.TaskID); err == nil && w != nil {
+			if rs, _, err := a.Workspaces.RepoSettings(ctx, w.RepositoryID); err == nil {
+				cmds := map[string]string{}
+				for _, c := range rs.Commands.List() {
+					cmds[c[0]] = c[1]
+				}
+				in["quality_commands"] = cmds
+			}
 		}
 	}
 	if req.Revision > 0 && step.AcceptsFeedback {

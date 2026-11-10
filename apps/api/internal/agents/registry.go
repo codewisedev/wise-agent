@@ -13,6 +13,7 @@ import (
 	"log/slog"
 	"path"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 
@@ -301,6 +302,8 @@ type Info struct {
 	Consumes        map[string]string
 	RequiredInputs  []string
 	AcceptsFeedback bool
+	Inputs          []string // every input property (sorted)
+	NeedsWorkspace  bool     // lists task workspace (ws_*) tools
 }
 
 // Lookup returns a function resolving agent names to their workflow info.
@@ -323,8 +326,14 @@ func infoOf(d Definition) Info {
 	_ = json.Unmarshal(d.InputSchema, &in)
 	_, fb := in.Properties["feedback"]
 	_, prev := in.Properties["previous_output"]
+	inputs := make([]string, 0, len(in.Properties))
+	for k := range in.Properties {
+		inputs = append(inputs, k)
+	}
+	sort.Strings(inputs)
 	return Info{
 		Enabled: d.Enabled, Produces: d.Produces, Consumes: d.Consumes,
-		RequiredInputs: in.Required, AcceptsFeedback: fb && prev,
+		RequiredInputs: in.Required, AcceptsFeedback: fb && prev, Inputs: inputs,
+		NeedsWorkspace: slices.ContainsFunc(d.Tools, func(t string) bool { return strings.HasPrefix(t, "ws_") }),
 	}
 }

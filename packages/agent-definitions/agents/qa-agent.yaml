@@ -10,6 +10,8 @@ consumes:
   requirements: requirements
   implementation: implementation
   quality_report: quality_report
+  code_review: code_review
+  security_review: security_review
 responsibilities:
   - Read failing check output and find the root cause in the workspace
   - Turn failures and review findings into precise, ordered fix instructions

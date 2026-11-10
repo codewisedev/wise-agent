@@ -316,8 +316,13 @@ func orchestrator(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	var execClient workspaces.Executor
+	if c := executor.NewClient(cfg.ExecutorURL, cfg.ExecutorToken); c != nil {
+		execClient = c
+	}
 	return workflow.RunOrchestrator(ctx, workflow.OrchestratorConfig{
 		TemporalAddress: cfg.TemporalAddress, Namespace: cfg.TemporalNamespace,
+		Workspaces: workspaces.New(d, execClient, log.With("component", "workspaces")),
 	}, d, tasks.NewService(d, wfCfg), agents.NewService(d, events.NewHub(d)), log)
 }
 

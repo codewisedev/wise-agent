@@ -690,6 +690,33 @@ func (e SessionInfoAuthMethod) Valid() bool {
 	}
 }
 
+// Defines values for StepType.
+const (
+	StepTypeAgent     StepType = "agent"
+	StepTypeDeliver   StepType = "deliver"
+	StepTypeGate      StepType = "gate"
+	StepTypeQuality   StepType = "quality"
+	StepTypeWorkspace StepType = "workspace"
+)
+
+// Valid indicates whether the value is a known member of the StepType enum.
+func (e StepType) Valid() bool {
+	switch e {
+	case StepTypeAgent:
+		return true
+	case StepTypeDeliver:
+		return true
+	case StepTypeGate:
+		return true
+	case StepTypeQuality:
+		return true
+	case StepTypeWorkspace:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for TaskSource.
 const (
 	TaskSourceClickup TaskSource = "clickup"
@@ -1811,11 +1838,13 @@ type PlanPreview struct {
 
 // PlanStep defines model for PlanStep.
 type PlanStep struct {
-	Account  *string            `json:"account,omitempty"`
-	Agent    string             `json:"agent"`
-	Consumes *map[string]string `json:"consumes,omitempty"`
-	Enabled  bool               `json:"enabled"`
-	Id       string             `json:"id"`
+	Account      *string            `json:"account,omitempty"`
+	Agent        string             `json:"agent"`
+	Consumes     *map[string]string `json:"consumes,omitempty"`
+	DiagnoseWith *string            `json:"diagnoseWith,omitempty"`
+	Enabled      bool               `json:"enabled"`
+	FixFrom      *string            `json:"fixFrom,omitempty"`
+	Id           string             `json:"id"`
 
 	// Kind Artifact kind the step produces.
 	Kind        string   `json:"kind"`
@@ -1824,6 +1853,9 @@ type PlanStep struct {
 	Review      bool     `json:"review"`
 	ReviewKinds []string `json:"reviewKinds"`
 	ReviseFrom  *string  `json:"reviseFrom,omitempty"`
+
+	// Type Empty for agent steps.
+	Type *string `json:"type,omitempty"`
 }
 
 // Problem defines model for Problem.
@@ -2193,6 +2225,9 @@ type StepOverride struct {
 	Review  *bool   `json:"review,omitempty"`
 }
 
+// StepType agent runs an agent; workspace prepares the task workspace; quality runs the repository's checks; gate passes or fails on checks and reviews, runs fix rounds and produces the verified changeset; deliver writes the approved commit as the task branch.
+type StepType string
+
 // SyncResult defines model for SyncResult.
 type SyncResult struct {
 	// Archived Tasks the source no longer returns (archived).
@@ -2306,8 +2341,16 @@ type TemplateDefinition struct {
 type TemplateStep struct {
 	// Account Account or models.yaml provider; empty = the agent's default routing.
 	Account *string `json:"account,omitempty"`
-	Agent   string  `json:"agent"`
-	Enabled *bool   `json:"enabled,omitempty"`
+
+	// Agent The agent an agent step runs.
+	Agent *string `json:"agent,omitempty"`
+
+	// DiagnoseWith Gate: an agent (e.g. qa-agent) that explains failures before each fix round.
+	DiagnoseWith *string `json:"diagnoseWith,omitempty"`
+	Enabled      *bool   `json:"enabled,omitempty"`
+
+	// FixFrom Gate: the implementing step re-run with the failures (default: the nearest earlier implementing step).
+	FixFrom *string `json:"fixFrom,omitempty"`
 	Id      string  `json:"id"`
 	Model   *string `json:"model,omitempty"`
 	Name    *string `json:"name,omitempty"`
@@ -2320,6 +2363,9 @@ type TemplateStep struct {
 
 	// ReviseFrom Earliest step re-run when changes are requested.
 	ReviseFrom *string `json:"reviseFrom,omitempty"`
+
+	// Type agent runs an agent; workspace prepares the task workspace; quality runs the repository's checks; gate passes or fails on checks and reviews, runs fix rounds and produces the verified changeset; deliver writes the approved commit as the task branch.
+	Type *StepType `json:"type,omitempty"`
 }
 
 // TokenUsage defines model for TokenUsage.

@@ -15,7 +15,7 @@ func TestTemplatesAndTaskWorkflow(t *testing.T) {
 	e.login()
 
 	list := e.expect(e.do("GET", "/workflow-templates", nil), 200)["items"].([]any)
-	if len(list) != 3 || list[0].(map[string]any)["isDefault"] != true || list[0].(map[string]any)["slug"] != "engineering" {
+	if len(list) != 4 || list[0].(map[string]any)["isDefault"] != true || list[0].(map[string]any)["slug"] != "engineering" {
 		t.Fatalf("seeded templates: %v", list)
 	}
 

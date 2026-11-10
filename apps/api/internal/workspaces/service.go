@@ -75,6 +75,23 @@ func (s *Service) SetSettings(ctx context.Context, st Settings) error {
 	return nil
 }
 
+// Reload reads the execution setting from the database (for processes that
+// do not run the settings service, like the orchestrator).
+func (s *Service) Reload(ctx context.Context) error {
+	row, err := s.db.GetSetting(ctx, "execution")
+	if err != nil {
+		return fmt.Errorf("execution settings: %w", err)
+	}
+	st, err := ParseSettings(row.Value)
+	if err != nil {
+		return err
+	}
+	s.mu.Lock()
+	s.settings = st
+	s.mu.Unlock()
+	return nil
+}
+
 // Available reports whether the executor is configured.
 func (s *Service) Available() bool { return s.exec != nil }
 

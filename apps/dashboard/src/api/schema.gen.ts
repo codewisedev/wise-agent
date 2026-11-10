@@ -2795,10 +2795,21 @@ export interface components {
             /** @description Pause after every step. */
             stepByStep?: boolean;
         };
+        /**
+         * @description agent runs an agent; workspace prepares the task workspace; quality runs the repository's checks; gate passes or fails on checks and reviews, runs fix rounds and produces the verified changeset; deliver writes the approved commit as the task branch.
+         * @enum {string}
+         */
+        StepType: "agent" | "workspace" | "quality" | "gate" | "deliver";
         TemplateStep: {
             id: string;
             name?: string;
-            agent: string;
+            type?: components["schemas"]["StepType"];
+            /** @description The agent an agent step runs. */
+            agent?: string;
+            /** @description Gate: the implementing step re-run with the failures (default: the nearest earlier implementing step). */
+            fixFrom?: string;
+            /** @description Gate: an agent (e.g. qa-agent) that explains failures before each fix round. */
+            diagnoseWith?: string;
             /** @description Account or models.yaml provider; empty = the agent's default routing. */
             account?: string;
             model?: string;
@@ -3169,7 +3180,11 @@ export interface components {
         PlanStep: {
             id: string;
             name: string;
+            /** @description Empty for agent steps. */
+            type?: string;
             agent: string;
+            fixFrom?: string;
+            diagnoseWith?: string;
             /** @description Artifact kind the step produces. */
             kind: string;
             account?: string;

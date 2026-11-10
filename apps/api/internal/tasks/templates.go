@@ -22,11 +22,40 @@ type TemplateDef struct {
 	MaxRevisions *int        `json:"maxRevisions,omitempty"` // default from engineering.yaml
 }
 
-// StepDef is one agent step.
+// Step types. Agent steps run an agent; the others are engineering steps run
+// by Wise itself in the task's workspace.
+const (
+	StepAgent     = "agent"
+	StepWorkspace = "workspace" // prepare the task workspace (clone, branch, sandbox, setup)
+	StepQuality   = "quality"   // run the repository's checks
+	StepGate      = "gate"      // pass/fail on checks and reviews; fix rounds; verified changeset
+	StepDeliver   = "deliver"   // write the approved commit as the task branch
+)
+
+// StepTypes lists the step types.
+var StepTypes = []string{StepAgent, StepWorkspace, StepQuality, StepGate, StepDeliver}
+
+// Artifact kinds produced by engineering steps.
+const (
+	KindQualityReport  = "quality_report"
+	KindChangeset      = "changeset"
+	KindDelivery       = "delivery"
+	KindImplementation = "implementation"
+	KindQA             = "qa"
+	KindGate           = "quality_gate"
+)
+
+// StepDef is one workflow step.
 type StepDef struct {
 	ID    string `json:"id"`
 	Name  string `json:"name"`
-	Agent string `json:"agent"`
+	Type  string `json:"type,omitempty"` // default "agent"
+	Agent string `json:"agent,omitempty"`
+	// Gate steps: FixFrom is the implementing step re-run with the failures
+	// (default: the nearest earlier step producing an implementation);
+	// DiagnoseWith optionally runs an agent (e.g. qa-agent) to explain them.
+	FixFrom      string `json:"fixFrom,omitempty"`
+	DiagnoseWith string `json:"diagnoseWith,omitempty"`
 	// Account and Model pin who runs the step; empty = the agent's default routing.
 	Account string `json:"account,omitempty"`
 	Model   string `json:"model,omitempty"`
@@ -67,7 +96,11 @@ type Overrides struct {
 type PlanStep struct {
 	ID              string            `json:"id"`
 	Name            string            `json:"name"`
+	Type            string            `json:"type,omitempty"` // empty = agent (plans frozen before Phase 5)
 	Agent           string            `json:"agent"`
+	Inputs          []string          `json:"inputs,omitempty"`
+	FixFrom         string            `json:"fixFrom,omitempty"`
+	DiagnoseWith    string            `json:"diagnoseWith,omitempty"`
 	Kind            string            `json:"kind"`               // artifact kind the agent produces
 	Consumes        map[string]string `json:"consumes,omitempty"` // input property → artifact kind
 	AcceptsFeedback bool              `json:"acceptsFeedback"`
@@ -92,6 +125,17 @@ type Plan struct {
 	StepByStep      bool       `json:"stepByStep"`
 }
 
+// IsAgent reports whether the step runs an agent.
+func (s PlanStep) IsAgent() bool { return s.Type == "" || s.Type == StepAgent }
+
+// Accepts reports whether the step's agent takes an input property.
+func (s PlanStep) Accepts(prop string) bool { return slices.Contains(s.Inputs, prop) }
+
+// HasType reports whether an enabled step of type t exists.
+func (p Plan) HasType(t string) bool {
+	return slices.ContainsFunc(p.Steps, func(s PlanStep) bool { return s.Enabled && s.Type == t })
+}
+
 // Step finds a plan step by id.
 func (p Plan) Step(id string) (PlanStep, int, bool) {
 	for i, s := range p.Steps {
@@ -109,6 +153,8 @@ type AgentInfo struct {
 	Consumes        map[string]string
 	RequiredInputs  []string
 	AcceptsFeedback bool
+	Inputs          []string
+	NeedsWorkspace  bool
 }
 
 // AgentLookup resolves agent names (implemented over the agent registry).
@@ -157,6 +203,8 @@ func Resolve(ctx context.Context, def TemplateDef, ov Overrides, stepByStep bool
 	}
 	seen := map[string]int{}
 	produced := map[string]bool{} // kinds produced by earlier enabled steps
+	reviewed := map[string]bool{} // kinds an earlier enabled step's review approves
+	reviewedAny, workspace := false, false
 	for i, sd := range def.Steps {
 		st := PlanStep{ID: sd.ID, Name: strings.TrimSpace(sd.Name), Agent: sd.Agent, Account: sd.Account, Model: sd.Model,
 			Enabled: sd.Enabled == nil || *sd.Enabled, Review: sd.Review, ReviseFrom: sd.ReviseFrom}
@@ -174,7 +222,14 @@ func Resolve(ctx context.Context, def TemplateDef, ov Overrides, stepByStep bool
 				st.Review = *o.Review
 			}
 		}
-		if stepByStep && st.Enabled {
+		typ := sd.Type
+		if typ == "" {
+			typ = StepAgent
+		}
+		if typ != StepAgent {
+			st.Type = typ // agent steps keep an empty type, as plans always had
+		}
+		if stepByStep && st.Enabled && (typ == StepAgent || typ == StepGate) {
 			st.Review = true
 		}
 		if st.Name == "" {
@@ -189,25 +244,89 @@ func Resolve(ctx context.Context, def TemplateDef, ov Overrides, stepByStep bool
 			bad("duplicate step id")
 		}
 		seen[sd.ID] = i
-		info, ok := agents(sd.Agent)
-		switch {
-		case !ok:
-			bad("unknown agent %q", sd.Agent)
-		case !info.Enabled:
-			bad("agent %q is not executable yet", sd.Agent)
-		default:
-			st.Kind, st.Consumes, st.AcceptsFeedback = info.Produces, info.Consumes, info.AcceptsFeedback
-			if st.Enabled {
-				for _, in := range info.RequiredInputs {
-					kind, mapped := info.Consumes[in]
-					if !mapped {
-						continue // filled from the task itself (e.g. request)
+		switch typ {
+		case StepAgent:
+			info, ok := agents(sd.Agent)
+			switch {
+			case sd.Agent == "":
+				bad("an agent step needs an agent")
+			case !ok:
+				bad("unknown agent %q", sd.Agent)
+			case !info.Enabled:
+				bad("agent %q is not executable yet", sd.Agent)
+			default:
+				st.Kind, st.Consumes, st.AcceptsFeedback, st.Inputs = info.Produces, info.Consumes, info.AcceptsFeedback, info.Inputs
+				if st.Enabled {
+					for _, in := range info.RequiredInputs {
+						kind, mapped := info.Consumes[in]
+						if !mapped {
+							continue // filled from the task itself (e.g. request)
+						}
+						if !produced[kind] {
+							bad("%s needs %s, which no earlier enabled step produces", sd.Agent, kind)
+						}
 					}
-					if !produced[kind] {
-						bad("%s needs %s, which no earlier enabled step produces", sd.Agent, kind)
+					if info.NeedsWorkspace && !workspace {
+						bad("%s works in the task workspace: add a workspace step before it", sd.Agent)
 					}
 				}
 			}
+		case StepWorkspace, StepQuality, StepGate, StepDeliver:
+			if sd.Agent != "" && typ != StepGate {
+				bad("a %s step runs no agent", typ)
+			}
+			st.Agent = ""
+			if !st.Enabled {
+				break
+			}
+			switch typ {
+			case StepWorkspace:
+				if !reviewedAny {
+					bad("the workspace step needs an earlier reviewed step (approve the plan before code is written)")
+				}
+				if st.Review {
+					bad("a workspace step has nothing to review")
+				}
+			case StepQuality:
+				st.Kind = KindQualityReport
+				if !workspace {
+					bad("the quality step needs an earlier workspace step")
+				}
+			case StepGate:
+				st.Kind = KindChangeset
+				if !workspace || !produced[KindImplementation] {
+					bad("the gate needs earlier workspace and implementation steps")
+				}
+				fix := sd.FixFrom
+				if fix == "" {
+					for j := len(plan.Steps) - 1; j >= 0; j-- {
+						if plan.Steps[j].Enabled && plan.Steps[j].Kind == KindImplementation {
+							fix = plan.Steps[j].ID
+							break
+						}
+					}
+				}
+				if j, ok := seen[fix]; !ok || fix == sd.ID || plan.Steps[j].Kind != KindImplementation || !plan.Steps[j].Enabled {
+					bad("fixFrom must name an earlier enabled step that implements the change")
+				}
+				st.FixFrom = fix
+				if sd.DiagnoseWith != "" {
+					if info, ok := agents(sd.DiagnoseWith); !ok || !info.Enabled {
+						bad("diagnoseWith: agent %q is not executable", sd.DiagnoseWith)
+					}
+					st.DiagnoseWith = sd.DiagnoseWith
+				}
+			case StepDeliver:
+				st.Kind = KindDelivery
+				if !reviewed[KindChangeset] {
+					bad("the deliver step needs an earlier gate with a review (your final approval of the code)")
+				}
+				if st.Review {
+					bad("a deliver step has nothing to review")
+				}
+			}
+		default:
+			bad("unknown step type %q (%s)", sd.Type, strings.Join(StepTypes, ", "))
 		}
 		if st.Review {
 			st.ReviewKinds = []string{st.Kind}
@@ -237,6 +356,15 @@ func Resolve(ctx context.Context, def TemplateDef, ov Overrides, stepByStep bool
 		}
 		if st.Enabled && st.Kind != "" {
 			produced[st.Kind] = true
+		}
+		if st.Enabled && st.Review {
+			reviewedAny = true
+			for _, k := range st.ReviewKinds {
+				reviewed[k] = true
+			}
+		}
+		if st.Enabled && typ == StepWorkspace {
+			workspace = true
 		}
 		plan.Steps = append(plan.Steps, st)
 	}
@@ -290,6 +418,16 @@ func SeedTemplates() []struct {
 		all.Steps[i].Review = true
 	}
 	quick := TemplateDef{Steps: []StepDef{analysis}, Destination: Destination{Column: "review"}, FinalReport: boolPtr(false)}
+	code := TemplateDef{Steps: []StepDef{analysis, requirements, planning, architecture,
+		{ID: "workspace", Name: "Prepare workspace", Type: StepWorkspace},
+		{ID: "implement", Name: "Implement", Agent: "backend-agent"},
+		{ID: "quality", Name: "Quality checks", Type: StepQuality},
+		{ID: "code-review", Name: "Code review", Agent: "reviewer-agent"},
+		{ID: "security", Name: "Security review", Agent: "security-agent"},
+		{ID: "gate", Name: "Quality gate", Type: StepGate, FixFrom: "implement", DiagnoseWith: "qa-agent", Review: true,
+			ReviewIncludes: []string{"implement", "quality", "code-review", "security"}, ReviseFrom: "implement"},
+		{ID: "deliver", Name: "Deliver branch", Type: StepDeliver},
+	}, Destination: Destination{Column: "done"}}
 	return []struct {
 		Slug, Name, Description string
 		Default                 bool
@@ -298,6 +436,7 @@ func SeedTemplates() []struct {
 		{"engineering", "Engineering", "Analysis → requirements (review) → planning → architecture (review) → report.", true, eng},
 		{"step-by-step", "Step by step", "The engineering steps, pausing after every one so you pass each result on yourself.", false, all},
 		{"quick-analysis", "Quick analysis", "Product analysis only; the card moves to Review.", false, quick},
+		{"engineering-code", "Engineering → code", "The engineering steps, then Wise writes the code in an isolated workspace: implement → checks → code and security review → quality gate with fix rounds → your final approval of the diff → a wise/… branch in your repository.", false, code},
 	}
 }
 

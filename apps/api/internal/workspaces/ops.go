@@ -88,6 +88,12 @@ type CommandResult struct {
 // Command runs a shell command in the workspace's sandbox and waits for it.
 // The output kept is the start and the end, within max_output_kb.
 func (s *Service) Command(ctx context.Context, w dbgen.Workspace, command string, timeoutS int) (CommandResult, error) {
+	return s.CommandBeat(ctx, w, command, timeoutS, 0, nil)
+}
+
+// CommandBeat is Command with an output budget (0 = the setting) and a
+// heartbeat called while waiting.
+func (s *Service) CommandBeat(ctx context.Context, w dbgen.Workspace, command string, timeoutS, maxOutput int, beat func()) (CommandResult, error) {
 	o, err := s.ops()
 	if err != nil {
 		return CommandResult{}, err
@@ -104,8 +110,11 @@ func (s *Service) Command(ctx context.Context, w dbgen.Workspace, command string
 	if err != nil {
 		return CommandResult{}, err
 	}
-	out := newHeadTail(st.MaxOutputKB << 10)
-	res, err := s.exec.Wait(ctx, job, func(chunk string) { out.add(chunk) }, nil)
+	if maxOutput <= 0 {
+		maxOutput = st.MaxOutputKB << 10
+	}
+	out := newHeadTail(maxOutput)
+	res, err := s.exec.Wait(ctx, job, func(chunk string) { out.add(chunk) }, beat)
 	if err != nil {
 		return CommandResult{}, err
 	}
@@ -174,6 +183,18 @@ func (s *Service) Snapshot(ctx context.Context, w dbgen.Workspace, message strin
 		head = &cs.HeadSHA
 	}
 	return cs, s.db.SetWorkspaceHead(ctx, dbgen.SetWorkspaceHeadParams{ID: w.ID, HeadSha: head})
+}
+
+// StopSandbox stops a workspace's sandbox (its files stay).
+func (s *Service) StopSandbox(ctx context.Context, w dbgen.Workspace) error {
+	if err := s.available(); err != nil {
+		return err
+	}
+	if err := s.exec.Stop(ctx, w.ID.String()); err != nil {
+		return err
+	}
+	_, err := s.db.SetWorkspaceStatus(ctx, dbgen.SetWorkspaceStatusParams{ID: w.ID, Status: "stopped"})
+	return err
 }
 
 // Deliver writes an approved commit into the user's repository as the

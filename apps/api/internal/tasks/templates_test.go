@@ -14,6 +14,15 @@ var testAgents = map[string]AgentInfo{
 	"qa-agent":           {Enabled: false, Produces: "qa"},
 }
 
+// phase5Agents mirror the shipped coding and review agents.
+var phase5Agents = map[string]AgentInfo{
+	"backend-agent": {Enabled: true, Produces: KindImplementation, Consumes: map[string]string{"plan": "plan"}, RequiredInputs: []string{"request", "plan"},
+		AcceptsFeedback: true, NeedsWorkspace: true, Inputs: []string{"fix_feedback", "quality_commands"}},
+	"reviewer-agent": {Enabled: true, Produces: "code_review", NeedsWorkspace: true},
+	"security-agent": {Enabled: true, Produces: "security_review", NeedsWorkspace: true},
+	"qa-agent":       {Enabled: true, Produces: KindQA, NeedsWorkspace: true},
+}
+
 func lookup(name string) (AgentInfo, bool) { a, ok := testAgents[name]; return a, ok }
 
 func accounts(_ context.Context, name string) error {
@@ -35,6 +44,9 @@ func TestResolveSeededTemplatesAreValid(t *testing.T) {
 	agents := func(name string) (AgentInfo, bool) {
 		if name == "architect-agent" {
 			return AgentInfo{Enabled: true, Produces: "architecture_review", Consumes: map[string]string{"requirements": "requirements", "plan": "plan"}, RequiredInputs: []string{"requirements", "plan"}}, true
+		}
+		if a, ok := phase5Agents[name]; ok {
+			return a, true
 		}
 		return lookup(name)
 	}
@@ -106,5 +118,65 @@ func TestDisablingAProducerBreaksItsConsumer(t *testing.T) {
 	_, issues := Resolve(context.Background(), def, Overrides{Steps: map[string]StepOverride{"requirements": {Enabled: &f}}}, false, lookup, accounts, 5)
 	if !strings.Contains(messages(issues), "plan: planner-agent needs requirements") {
 		t.Fatalf("got %s", messages(issues))
+	}
+}
+
+func TestEngineeringStepRules(t *testing.T) {
+	agents := func(name string) (AgentInfo, bool) {
+		if a, ok := phase5Agents[name]; ok {
+			return a, true
+		}
+		return lookup(name)
+	}
+	resolve := func(steps ...StepDef) string {
+		_, is := Resolve(context.Background(), TemplateDef{Steps: steps}, Overrides{}, false, agents, accounts, 3)
+		return messages(is)
+	}
+	planning := []StepDef{{ID: "analysis", Agent: "product-agent"}, {ID: "req", Agent: "requirements-agent", Review: true}, {ID: "plan", Agent: "planner-agent"}}
+	with := func(more ...StepDef) []StepDef { return append(append([]StepDef{}, planning...), more...) }
+
+	// Code is written only after an approval, in a workspace.
+	msg := resolve(StepDef{ID: "ws", Type: StepWorkspace}, StepDef{ID: "x", Agent: "product-agent"})
+	if !strings.Contains(msg, "ws: the workspace step needs an earlier reviewed step") {
+		t.Errorf("workspace before approval: %s", msg)
+	}
+	if msg := resolve(with(StepDef{ID: "impl", Agent: "backend-agent"})...); !strings.Contains(msg, "add a workspace step before it") {
+		t.Errorf("coding agent without workspace: %s", msg)
+	}
+	if msg := resolve(with(StepDef{ID: "q", Type: StepQuality})...); !strings.Contains(msg, "needs an earlier workspace step") {
+		t.Errorf("quality without workspace: %s", msg)
+	}
+	if msg := resolve(with(StepDef{ID: "ws", Type: StepWorkspace}, StepDef{ID: "impl", Agent: "backend-agent"}, StepDef{ID: "d", Type: StepDeliver})...); !strings.Contains(msg, "needs an earlier gate with a review") {
+		t.Errorf("deliver without approved gate: %s", msg)
+	}
+	if msg := resolve(with(StepDef{ID: "ws", Type: StepWorkspace}, StepDef{ID: "g", Type: StepGate})...); !strings.Contains(msg, "the gate needs earlier workspace and implementation steps") {
+		t.Errorf("gate without implementation: %s", msg)
+	}
+	if msg := resolve(with(StepDef{ID: "w", Type: "deploy"})...); !strings.Contains(msg, "unknown step type") {
+		t.Errorf("bad type: %s", msg)
+	}
+
+	disabledFix := with(StepDef{ID: "ws", Type: StepWorkspace}, StepDef{ID: "impl", Agent: "backend-agent"},
+		StepDef{ID: "impl2", Agent: "backend-agent", Enabled: boolPtr(false)}, StepDef{ID: "g", Type: StepGate, FixFrom: "impl2"})
+	if msg := resolve(disabledFix...); !strings.Contains(msg, "fixFrom must name an earlier enabled step") {
+		t.Errorf("disabled fixFrom: %s", msg)
+	}
+
+	// A valid one: the gate defaults fixFrom to the implementing step, the
+	// deliver step needs its review.
+	plan, is := Resolve(context.Background(), TemplateDef{Steps: with(
+		StepDef{ID: "ws", Type: StepWorkspace}, StepDef{ID: "impl", Agent: "backend-agent"}, StepDef{ID: "q", Type: StepQuality},
+		StepDef{ID: "rev", Agent: "reviewer-agent"}, StepDef{ID: "g", Type: StepGate, Review: true, ReviewIncludes: []string{"q"}},
+		StepDef{ID: "d", Type: StepDeliver})}, Overrides{}, false, agents, accounts, 3)
+	if len(is) != 0 {
+		t.Fatalf("issues: %s", messages(is))
+	}
+	g, _, _ := plan.Step("g")
+	if g.FixFrom != "impl" || g.Kind != KindChangeset || strings.Join(g.ReviewKinds, ",") != "changeset,quality_report" {
+		t.Fatalf("gate: %+v", g)
+	}
+	impl, _, _ := plan.Step("impl")
+	if impl.Type != "" || !impl.Accepts("fix_feedback") || !plan.HasType(StepWorkspace) {
+		t.Fatalf("impl: %+v", impl)
 	}
 }

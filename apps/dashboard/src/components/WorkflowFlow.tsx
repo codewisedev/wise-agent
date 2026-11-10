@@ -156,7 +156,7 @@ export function WorkflowFlow({ def, views, issues, agents, selected, onSelect, o
       const id = `step:${s.id}:${i}`;
       nodes.push({
         id, type: "step", position: { x, y }, selectable: false,
-        data: { step: s, view: viewFor(s), issues: stepIssues(s.id), selected: selected === s.id, agent: agentByName.get(s.agent), onSelect: () => onSelect(selected === s.id ? undefined : s.id) },
+        data: { step: s, view: viewFor(s), issues: stepIssues(s.id), selected: selected === s.id, agent: agentByName.get(s.agent ?? ""), onSelect: () => onSelect(selected === s.id ? undefined : s.id) },
       });
       link(id, i);
       x += 230;
