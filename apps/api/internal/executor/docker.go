@@ -18,10 +18,14 @@ import (
 
 // Docker runs sandboxes as Docker containers (through the socket proxy).
 type Docker struct {
-	cli    *client.Client
-	volume string // the workspaces volume; sandboxes mount subpaths of it
-	egress string // label value of the egress proxy container (wise.role=egress)
+	cli       *client.Client
+	volume    string // the workspaces volume; sandboxes mount subpaths of it
+	egress    string // label value of the egress proxy container (wise.role=egress)
+	cliVolume string // the coding CLI bundle volume (runners mount a subpath read-only)
 }
+
+// SetCLIVolume names the coding CLI bundle volume.
+func (d *Docker) SetCLIVolume(v string) { d.cliVolume = v }
 
 // NewDocker connects to the Docker API at host (e.g. tcp://wise-docker-proxy:2375).
 func NewDocker(host, volume string) (*Docker, error) {
@@ -212,8 +216,76 @@ func (d *Docker) State(ctx context.Context, id string) (string, error) {
 	return "stopped", nil
 }
 
+func runnerName(runID string) string { return "wise-run-" + runID }
+
+func (d *Docker) CreateRunner(ctx context.Context, spec RunnerSpec) error {
+	if d.cliVolume == "" {
+		return errors.New("the coding CLI bundle is not configured (WISE_CODING_CLIS_VOLUME)")
+	}
+	if err := d.network(ctx, spec.WorkspaceID); err != nil {
+		return err
+	}
+	n := runnerName(spec.RunID)
+	labels := map[string]string{"wise.workspace": spec.WorkspaceID, "wise.role": "runner", "wise.run": spec.RunID}
+	vol := func(src, sub, target string, ro bool) mount.Mount {
+		return mount.Mount{Type: mount.TypeVolume, Source: src, Target: target, ReadOnly: ro,
+			VolumeOptions: &mount.VolumeOptions{NoCopy: true, Subpath: sub}}
+	}
+	pids := spec.Pids
+	_, err := d.cli.ContainerCreate(ctx, client.ContainerCreateOptions{
+		Name: n,
+		Config: &container.Config{
+			Image: spec.Image, User: spec.User, Env: spec.Env, WorkingDir: "/workspace", Labels: labels,
+			Entrypoint: []string{"/opt/wise/wise-sandbox"}, Cmd: []string{"idle"},
+		},
+		HostConfig: &container.HostConfig{
+			NetworkMode: container.NetworkMode(name(spec.WorkspaceID)),
+			Mounts: []mount.Mount{
+				vol(d.volume, spec.WorkspaceID+"/repo", "/workspace", false),
+				// The CLI never sees git metadata: an empty tmpfs hides .git.
+				{Type: mount.TypeTmpfs, Target: "/workspace/.git", TmpfsOptions: &mount.TmpfsOptions{SizeBytes: 1 << 20, Mode: 0o500}},
+				vol(d.volume, spec.WorkspaceID+"/runs/"+spec.RunID+"/home", "/home/wise", false),
+				vol(d.volume, spec.WorkspaceID+"/tools", "/opt/wise", true),
+				vol(d.cliVolume, spec.CLISubpath, "/opt/cli", true),
+			},
+			CapDrop:        []string{"ALL"},
+			SecurityOpt:    []string{"no-new-privileges:true"},
+			ReadonlyRootfs: true,
+			Tmpfs:          map[string]string{"/tmp": "rw,nosuid,nodev,exec,size=1g"},
+			Init:           ptr(true),
+			Resources: container.Resources{
+				NanoCPUs: int64(spec.CPUs * 1e9), Memory: spec.MemoryMB << 20, PidsLimit: &pids,
+			},
+			RestartPolicy: container.RestartPolicy{Name: container.RestartPolicyDisabled},
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("create runner: %w", err)
+	}
+	if _, err := d.cli.ContainerStart(ctx, n, client.ContainerStartOptions{}); err != nil {
+		_ = d.RemoveRunner(context.WithoutCancel(ctx), spec.RunID)
+		return fmt.Errorf("start runner: %w", err)
+	}
+	return nil
+}
+
+func (d *Docker) ExecRunner(ctx context.Context, runID string, cmd []string, env []string, stdin io.Reader, out io.Writer) (int, error) {
+	return d.execIn(ctx, runnerName(runID), cmd, env, stdin, out)
+}
+
+func (d *Docker) RemoveRunner(ctx context.Context, runID string) error {
+	if _, err := d.cli.ContainerRemove(ctx, runnerName(runID), client.ContainerRemoveOptions{Force: true}); err != nil && !cerrdefs.IsNotFound(err) {
+		return err
+	}
+	return nil
+}
+
 func (d *Docker) Exec(ctx context.Context, id string, cmd []string, env []string, stdin io.Reader, out io.Writer) (int, error) {
-	ex, err := d.cli.ExecCreate(ctx, name(id), client.ExecCreateOptions{
+	return d.execIn(ctx, name(id), cmd, env, stdin, out)
+}
+
+func (d *Docker) execIn(ctx context.Context, container string, cmd []string, env []string, stdin io.Reader, out io.Writer) (int, error) {
+	ex, err := d.cli.ExecCreate(ctx, container, client.ExecCreateOptions{
 		Cmd: cmd, Env: env, AttachStdout: true, AttachStderr: true, AttachStdin: stdin != nil, WorkingDir: "/workspace",
 	})
 	if err != nil {

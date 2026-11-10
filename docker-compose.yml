@@ -249,6 +249,16 @@ services:
       - wise-workspaces:/workspaces
     network_mode: none
 
+  # Copies the pinned coding CLIs (Claude Code, Codex) into their volume; runners
+  # mount it read-only. Build the image with `make toolchains`.
+  wise-clis-init:
+    image: wise-coding-clis:${CODING_CLIS_TAG:-2.1.319-0.163.0}
+    command: ["cp", "-a", "/clis/.", "/target/"]
+    restart: "no"
+    volumes:
+      - wise-coding-clis:/target
+    network_mode: none
+
   # Trusted execution worker: clones task workspaces, runs sandboxes and
   # delivers approved branches. The only service that can write to
   # repositories (only to add wise/… branches) and start containers.
@@ -268,7 +278,10 @@ services:
         condition: service_started
       wise-workspaces-init:
         condition: service_completed_successfully
+      wise-clis-init:
+        condition: service_completed_successfully
     environment:
+      WISE_CODING_CLIS_VOLUME: wise-coding-clis
       WISE_EXECUTOR_TOKEN: ${WISE_EXECUTOR_TOKEN:?set WISE_EXECUTOR_TOKEN in .env}
       WISE_EGRESS_TOKEN: ${WISE_EGRESS_TOKEN:?set WISE_EGRESS_TOKEN in .env}
       WISE_REPO_ROOTS: ${WISE_REPO_ROOT}
@@ -455,3 +468,5 @@ volumes:
   postgres-data: {}
   wise-workspaces:
     name: wise-workspaces
+  wise-coding-clis:
+    name: wise-coding-clis

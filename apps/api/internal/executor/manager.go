@@ -52,6 +52,8 @@ type Manager struct {
 
 	egressMu sync.RWMutex
 	egress   []string
+
+	grants grants
 }
 
 // NewManager returns a Manager.
@@ -107,6 +109,7 @@ type State struct {
 	Prepared bool     `json:"prepared"`
 	Tools    []string `json:"toolVersions,omitempty"`
 	Scrubbed []string `json:"scrubbed,omitempty"`
+	Limits   Limits   `json:"limits"`
 	// The author of the base commit: the default identity of task commits.
 	AuthorName  string    `json:"authorName,omitempty"`
 	AuthorEmail string    `json:"authorEmail,omitempty"`
@@ -298,7 +301,7 @@ func (m *Manager) prepare(ctx context.Context, req PrepareRequest, log io.Writer
 			return State{}, err
 		}
 	}
-	st := State{ID: req.ID, RepoPath: req.RepoPath, Branch: req.Branch, Base: req.Base, Image: req.Image, CreatedAt: time.Now().UTC()}
+	st := State{ID: req.ID, RepoPath: req.RepoPath, Branch: req.Branch, Base: req.Base, Image: req.Image, Limits: req.Limits, CreatedAt: time.Now().UTC()}
 
 	fmt.Fprintf(log, "cloning %s …\n", req.RepoPath)
 	repoDir := filepath.Join(m.dir(req.ID), "repo")

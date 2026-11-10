@@ -46,12 +46,23 @@ type job struct {
 	cancel   context.CancelFunc
 	done     chan struct{}
 	onCancel func()
+	last     time.Time // last output
+}
+
+func (j *job) lastWrite() time.Time {
+	j.mu.Lock()
+	defer j.mu.Unlock()
+	if j.last.IsZero() {
+		return j.st.StartedAt
+	}
+	return j.last
 }
 
 // Write appends output, keeping the last max bytes.
 func (j *job) Write(p []byte) (int, error) {
 	j.mu.Lock()
 	defer j.mu.Unlock()
+	j.last = time.Now()
 	j.buf = append(j.buf, p...)
 	if over := len(j.buf) - j.max; over > 0 {
 		j.buf = append([]byte(nil), j.buf[over:]...)

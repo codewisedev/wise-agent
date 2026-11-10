@@ -156,6 +156,12 @@ func (c *Client) Diff(ctx context.Context, id string, maxBytes int) (WorkingDiff
 	return r, c.do(ctx, http.MethodGet, "/v1/workspaces/"+url.PathEscape(id)+"/diff?maxBytes="+strconv.Itoa(maxBytes), nil, &r)
 }
 
+// Runner starts a coding CLI runner on a workspace; it returns the job id.
+func (c *Client) Runner(ctx context.Context, id string, req RunnerRequest) (string, error) {
+	var r jobRef
+	return r.JobID, c.do(ctx, http.MethodPost, "/v1/workspaces/"+url.PathEscape(id)+"/runners", req, &r)
+}
+
 // SetEgress replaces the egress allowlist.
 func (c *Client) SetEgress(ctx context.Context, hosts []string) error {
 	return c.do(ctx, http.MethodPut, "/v1/egress", map[string]any{"hosts": hosts}, nil)

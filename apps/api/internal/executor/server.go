@@ -30,6 +30,8 @@ func Handler(m *Manager, token, egressToken string, log *slog.Logger) http.Handl
 	mux.HandleFunc("POST /v1/workspaces/{id}/snapshot", h.snapshot)
 	mux.HandleFunc("POST /v1/workspaces/{id}/deliver", h.deliver)
 	mux.HandleFunc("GET /v1/workspaces/{id}/diff", h.diff)
+	mux.HandleFunc("POST /v1/workspaces/{id}/runners", h.runner)
+	mux.HandleFunc("GET /v1/egress/grants/{token}", h.grant)
 	mux.HandleFunc("GET /v1/jobs/{id}", h.job)
 	mux.HandleFunc("DELETE /v1/jobs/{id}", h.cancel)
 	mux.HandleFunc("GET /v1/egress", h.getEgress)
@@ -39,7 +41,8 @@ func Handler(m *Manager, token, egressToken string, log *slog.Logger) http.Handl
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		got := []byte(r.Header.Get("Authorization"))
 		full := subtle.ConstantTimeCompare(got, want) == 1
-		readEgress := egressToken != "" && r.Method == http.MethodGet && r.URL.Path == "/v1/egress" &&
+		readEgress := egressToken != "" && r.Method == http.MethodGet &&
+			(r.URL.Path == "/v1/egress" || strings.HasPrefix(r.URL.Path, "/v1/egress/grants/")) &&
 			subtle.ConstantTimeCompare(got, wantEgress) == 1
 		if r.URL.Path != "/healthz" && !full && !readEgress {
 			writeErr(w, http.StatusUnauthorized, "unauthorized")
@@ -194,6 +197,29 @@ func (h *handler) diff(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, d)
+}
+
+func (h *handler) runner(w http.ResponseWriter, r *http.Request) {
+	var req RunnerRequest
+	if err := decode(r, &req); err != nil {
+		h.fail(w, err)
+		return
+	}
+	id, err := h.m.Runner(r.Context(), r.PathValue("id"), req)
+	if err != nil {
+		h.fail(w, err)
+		return
+	}
+	writeJSON(w, http.StatusAccepted, map[string]string{"jobId": id})
+}
+
+func (h *handler) grant(w http.ResponseWriter, r *http.Request) {
+	g, ok := h.m.Grant(r.PathValue("token"))
+	if !ok {
+		writeErr(w, http.StatusNotFound, "no grant")
+		return
+	}
+	writeJSON(w, http.StatusOK, g)
 }
 
 func (h *handler) job(w http.ResponseWriter, r *http.Request) {

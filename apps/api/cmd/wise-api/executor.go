@@ -53,6 +53,7 @@ func executorCmd(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	rt.SetCLIVolume(os.Getenv("WISE_CODING_CLIS_VOLUME"))
 	pctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	if err := rt.Ping(pctx); err != nil {
 		log.Warn("docker api not reachable yet", "err", err)
@@ -85,8 +86,11 @@ func egressCmd(ctx context.Context) error {
 	}
 	allow := &egress.Allowlist{}
 	go egress.Follow(ctx, allow, envOr("WISE_EXECUTOR_URL", "http://wise-executor:8091"), token, log)
+	// Runners authenticate with their run token; their grants add hosts.
 	addr := envOr("WISE_EGRESS_ADDR", ":3128")
 	log.Info("egress proxy listening", "addr", addr)
-	return listen(ctx, &http.Server{Addr: addr, Handler: &egress.Proxy{Allow: allow, Log: log},
+	execURL := envOr("WISE_EXECUTOR_URL", "http://wise-executor:8091")
+	proxy := &egress.Proxy{Allow: allow, Log: log, Grants: egress.GrantLookup(execURL, token)}
+	return listen(ctx, &http.Server{Addr: addr, Handler: proxy,
 		ReadHeaderTimeout: 30 * time.Second, MaxHeaderBytes: 1 << 16})
 }

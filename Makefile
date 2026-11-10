@@ -58,6 +58,7 @@ toolchains: ## Build the sandbox toolchain images (Node, Go, Python with git)
 	docker build -q -t wise-toolchain-node:22 --build-arg APK_MIRROR=$${APK_MIRROR:-} infrastructure/toolchains/node
 	docker build -q -t wise-toolchain-go:1.26 --build-arg APK_MIRROR=$${APK_MIRROR:-} infrastructure/toolchains/go
 	docker build -q -t wise-toolchain-python:3.13 --build-arg APK_MIRROR=$${APK_MIRROR:-} infrastructure/toolchains/python
+	docker build -q -t wise-coding-clis:2.1.319-0.163.0 infrastructure/coding-clis
 
 .PHONY: up
 up: toolchains ## Build and start the full stack in Docker

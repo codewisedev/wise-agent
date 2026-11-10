@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log/slog"
 	"os"
@@ -38,6 +39,61 @@ type local struct {
 	dir     string
 	mu      sync.Mutex
 	running map[string]bool
+	runners map[string]RunnerSpec
+	cliDir  string // stands in for the CLI bundle
+}
+
+func (l *local) CreateRunner(_ context.Context, s RunnerSpec) error {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.runners == nil {
+		l.runners = map[string]RunnerSpec{}
+	}
+	l.runners[s.RunID] = s
+	return nil
+}
+
+func (l *local) RemoveRunner(_ context.Context, runID string) error {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	delete(l.runners, runID)
+	return nil
+}
+
+func (l *local) ExecRunner(ctx context.Context, runID string, cmd []string, env []string, stdin io.Reader, out io.Writer) (int, error) {
+	l.mu.Lock()
+	spec, ok := l.runners[runID]
+	l.mu.Unlock()
+	if !ok {
+		return -1, fmt.Errorf("no runner %s", runID)
+	}
+	args := make([]string, len(cmd))
+	for i, a := range cmd {
+		a = strings.ReplaceAll(a, "/opt/cli/", l.cliDir+"/")
+		args[i] = strings.ReplaceAll(a, "/home/wise/", filepath.Join(l.dir, spec.WorkspaceID, "runs", runID, "home")+"/")
+	}
+	if args[0] == "/opt/wise/wise-sandbox" {
+		args[0] = helperBin
+	}
+	c := exec.CommandContext(ctx, args[0], args[1:]...)
+	c.Dir = filepath.Join(l.dir, spec.WorkspaceID, "repo")
+	home := filepath.Join(l.dir, spec.WorkspaceID, "runs", runID, "home")
+	c.Env = append(append([]string{"PATH=" + os.Getenv("PATH"), "TMPDIR=" + home}, spec.Env...), env...)
+	for i, e := range c.Env { // the runner's HOME is its fresh run home
+		if strings.HasPrefix(e, "HOME=") {
+			c.Env[i] = "HOME=" + home
+		}
+	}
+	c.Stdin, c.Stdout, c.Stderr = stdin, out, out
+	c.WaitDelay = 200 * time.Millisecond
+	err := c.Run()
+	if ee, ok := err.(*exec.ExitError); ok {
+		return ee.ExitCode(), nil
+	}
+	if err != nil {
+		return -1, err
+	}
+	return 0, nil
 }
 
 func (l *local) EnsureImage(context.Context, string, io.Writer) error { return nil }
@@ -425,4 +481,112 @@ func TestHostPatterns(t *testing.T) {
 		}
 	}
 	_ = bytes.MinRead
+}
+
+func TestRunnerLifecycle(t *testing.T) {
+	f := setup(t)
+	f.m.cfg.Proxy = "http://wise-egress:3128"
+	f.prepare(t)
+	loc := f.m.rt.(*local)
+	loc.cliDir = t.TempDir()
+	// A stand-in CLI: prints JSON events and what it sees, writes a result file.
+	script := `#!/bin/sh
+echo '{"type":"start"}'
+echo "home-file: $(cat "$HOME/.config/cli/settings.json")"
+echo "proxy: $HTTPS_PROXY"
+echo "no-proxy: $NO_PROXY"
+echo "custom: $WISE_RUN_MODE"
+echo "args: $*"
+mkdir -p "$HOME/out" && echo '{"done":true}' > "$HOME/out/result.json"
+echo '{"type":"result"}'
+`
+	os.WriteFile(filepath.Join(loc.cliDir, "claude"), []byte(script), 0o755)
+
+	id, err := f.m.Runner(context.Background(), f.ws, RunnerRequest{
+		CLI: "claude-code", Version: "2.1.319", Command: []string{"{cli}", "-p", "it's fine"},
+		Env: map[string]string{"WISE_RUN_MODE": "test"}, Files: map[string]string{".config/cli/settings.json": `{"x":1}`},
+		Collect: []string{"out/result.json", "missing.json"}, GrantHosts: []string{"api.anthropic.com"}, NoProxy: []string{"wise-model-proxy"},
+		WallClockS: 60, IdleS: 30,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	st := waitJob(t, f.m, id)
+	if st.Status != JobSucceeded {
+		t.Fatalf("runner: %+v", st)
+	}
+	for _, want := range []string{`{"type":"start"}`, `home-file: {"x":1}`, "proxy: http://run:", "@wise-egress:3128",
+		"no-proxy: localhost,127.0.0.1,wise-model-proxy", "custom: test", "args: -p it's fine", `{"type":"result"}`} {
+		if !strings.Contains(st.Output, want) {
+			t.Errorf("output lacks %q:\n%s", want, st.Output)
+		}
+	}
+	raw, _ := json.Marshal(st.Result)
+	var res RunnerResult
+	json.Unmarshal(raw, &res)
+	if res.ExitCode != 0 || strings.TrimSpace(res.Collected["out/result.json"]) != `{"done":true}` || res.Collected["missing.json"] != "" {
+		t.Fatalf("result: %+v", res)
+	}
+	// The grant lived only during the run; the run directory is gone.
+	tok := st.Output[strings.Index(st.Output, "run:")+4 : strings.Index(st.Output, "@wise-egress")]
+	if _, ok := f.m.Grant(tok); ok {
+		t.Fatal("grant outlived the run")
+	}
+	if entries, _ := os.ReadDir(filepath.Join(f.root, "workspaces", f.ws, "runs")); len(entries) != 0 {
+		t.Fatalf("run directories left: %v", entries)
+	}
+	if len(loc.runners) != 0 {
+		t.Fatal("runner container left")
+	}
+}
+
+func TestRunnerGrantDuringRunAndIdleLimit(t *testing.T) {
+	f := setup(t)
+	f.m.cfg.Proxy = "http://wise-egress:3128"
+	f.prepare(t)
+	loc := f.m.rt.(*local)
+	loc.cliDir = t.TempDir()
+	os.WriteFile(filepath.Join(loc.cliDir, "codex"), []byte("#!/bin/sh\necho \"proxy: $HTTPS_PROXY\"\nsleep 30\n"), 0o755)
+	id, err := f.m.Runner(context.Background(), f.ws, RunnerRequest{CLI: "codex", Version: "0.163.0", Command: []string{"{cli}", "exec"},
+		GrantHosts: []string{"chatgpt.com"}, WallClockS: 60, IdleS: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var tok string
+	for i := 0; i < 50 && tok == ""; i++ {
+		st, _ := f.m.Job(context.Background(), id, 0, 200*time.Millisecond)
+		if i := strings.Index(st.Output, "run:"); i >= 0 {
+			tok = st.Output[i+4 : strings.Index(st.Output, "@")]
+		}
+	}
+	if g, ok := f.m.Grant(tok); !ok || g.Hosts[0] != "chatgpt.com" {
+		t.Fatalf("grant during the run: %v %+v", ok, g)
+	}
+	st := waitJob(t, f.m, id)
+	raw, _ := json.Marshal(st.Result)
+	var res RunnerResult
+	json.Unmarshal(raw, &res)
+	if !res.IdleOut || !strings.Contains(st.Output, "no output for 1 s") {
+		t.Fatalf("idle limit: %+v %s", res, st.Output)
+	}
+	if _, ok := f.m.Grant(tok); ok {
+		t.Fatal("grant outlived the run")
+	}
+}
+
+func TestRunnerValidation(t *testing.T) {
+	f := setup(t)
+	f.prepare(t)
+	for _, req := range []RunnerRequest{
+		{CLI: "bash", Version: "1", Command: []string{"x"}},
+		{CLI: "codex", Version: "1", Command: []string{"x"}, Env: map[string]string{"HTTPS_PROXY": "http://evil"}},
+		{CLI: "codex", Version: "1", Command: []string{"x"}, Files: map[string]string{"../escape": "x"}},
+		{CLI: "codex", Version: "1", Command: []string{"x"}, Files: map[string]string{"/etc/passwd": "x"}},
+		{CLI: "codex", Version: "1", Command: []string{"x"}, Collect: []string{"../../state.json"}},
+		{CLI: "codex", Version: "1", Command: []string{"x"}, GrantHosts: []string{"10.0.0.1"}},
+	} {
+		if _, err := f.m.Runner(context.Background(), f.ws, req); err == nil {
+			t.Errorf("accepted %+v", req)
+		}
+	}
 }

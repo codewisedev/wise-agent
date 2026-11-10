@@ -6,6 +6,7 @@ package egress
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -14,6 +15,7 @@ import (
 	"net"
 	"net/http"
 	"net/netip"
+	neturl "net/url"
 	"strconv"
 	"strings"
 	"sync"
@@ -97,6 +99,85 @@ type Proxy struct {
 	Ports map[int]bool
 	// public decides whether an address may be dialled (tests override).
 	public func(netip.Addr) bool
+	// Grants looks up the extra hosts a runner's token may reach (nil = none).
+	Grants func(ctx context.Context, token string) (Grant, bool)
+
+	cacheMu sync.Mutex
+	cache   map[string]cachedGrant
+}
+
+// Grant is a runner's extra hosts until Expires.
+type Grant struct {
+	Hosts   []string  `json:"hosts"`
+	Expires time.Time `json:"expires"`
+}
+
+type cachedGrant struct {
+	allow *Allowlist
+	ok    bool
+	until time.Time
+}
+
+// grantFor returns the extra allowlist of the request's runner token, if any.
+// Lookups are synchronous on first sight (no lag after a grant is created) and
+// cached briefly (a revoked grant stops working within the cache period).
+func (p *Proxy) grantFor(ctx context.Context, r *http.Request) *Allowlist {
+	if p.Grants == nil {
+		return nil
+	}
+	_, token, ok := proxyBasic(r.Header.Get("Proxy-Authorization"))
+	if !ok || token == "" {
+		return nil
+	}
+	now := time.Now()
+	p.cacheMu.Lock()
+	c, hit := p.cache[token]
+	p.cacheMu.Unlock()
+	if !hit || now.After(c.until) {
+		g, found := p.Grants(ctx, token)
+		c = cachedGrant{ok: found && now.Before(g.Expires), until: now.Add(2 * time.Second)}
+		if c.ok {
+			c.allow = &Allowlist{}
+			c.allow.Set(g.Hosts)
+			c.until = minTime(now.Add(15*time.Second), g.Expires)
+		}
+		p.cacheMu.Lock()
+		if p.cache == nil || len(p.cache) > 10000 {
+			p.cache = map[string]cachedGrant{}
+		}
+		p.cache[token] = c
+		p.cacheMu.Unlock()
+	}
+	if !c.ok {
+		return nil
+	}
+	return c.allow
+}
+
+func minTime(a, b time.Time) time.Time {
+	if a.Before(b) {
+		return a
+	}
+	return b
+}
+
+// proxyBasic decodes "Basic base64(user:pass)".
+func proxyBasic(h string) (string, string, bool) {
+	scheme, enc, ok := strings.Cut(h, " ")
+	if !ok || !strings.EqualFold(scheme, "basic") {
+		return "", "", false
+	}
+	raw, err := base64.StdEncoding.DecodeString(strings.TrimSpace(enc))
+	if err != nil {
+		return "", "", false
+	}
+	return strings.Cut(string(raw), ":")
+}
+
+// allows reports whether host is reachable for this request (the global
+// allowlist or the runner's grant).
+func (p *Proxy) allows(host string, grant *Allowlist) bool {
+	return p.Allow.Allows(host) || (grant != nil && grant.Allows(host))
 }
 
 func (p *Proxy) isPublic(ip netip.Addr) bool {
@@ -108,7 +189,7 @@ func (p *Proxy) isPublic(ip netip.Addr) bool {
 
 // dial connects to host:port after checking the allowlist and that the
 // address is public (no DNS tricks into the private network).
-func (p *Proxy) dial(ctx context.Context, hostport string) (net.Conn, error) {
+func (p *Proxy) dial(ctx context.Context, hostport string, grant *Allowlist) (net.Conn, error) {
 	host, portS, err := net.SplitHostPort(hostport)
 	if err != nil {
 		return nil, err
@@ -121,7 +202,7 @@ func (p *Proxy) dial(ctx context.Context, hostport string) (net.Conn, error) {
 	if !ports[port] {
 		return nil, fmt.Errorf("port %d is not allowed", port)
 	}
-	if !p.Allow.Allows(host) {
+	if !p.allows(host, grant) {
 		return nil, fmt.Errorf("%s is not on the egress allowlist", host)
 	}
 	lookup := p.lookup
@@ -164,8 +245,9 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "wise egress: this is a proxy", http.StatusBadRequest)
 		return
 	}
+	grant := p.grantFor(r.Context(), r)
 	if r.URL.Scheme != "http" {
-		if !p.Allow.Allows(r.URL.Hostname()) {
+		if !p.allows(r.URL.Hostname(), grant) {
 			p.deny(w, r, r.URL.Hostname(), errors.New("not on the egress allowlist"))
 			return
 		}
@@ -177,12 +259,12 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		hostport = net.JoinHostPort(r.URL.Hostname(), "80")
 	}
 	host, _, _ := net.SplitHostPort(hostport)
-	if !p.Allow.Allows(host) {
+	if !p.allows(host, grant) {
 		p.deny(w, r, host, errors.New("not on the egress allowlist"))
 		return
 	}
 	tr := &http.Transport{
-		DialContext:           func(ctx context.Context, _, addr string) (net.Conn, error) { return p.dial(ctx, addr) },
+		DialContext:           func(ctx context.Context, _, addr string) (net.Conn, error) { return p.dial(ctx, addr, grant) },
 		ResponseHeaderTimeout: time.Minute,
 	}
 	defer tr.CloseIdleConnections()
@@ -213,7 +295,7 @@ func (p *Proxy) connect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 20*time.Second)
-	up, err := p.dial(ctx, r.Host)
+	up, err := p.dial(ctx, r.Host, p.grantFor(ctx, r))
 	cancel()
 	if err != nil {
 		p.deny(w, r, host, err)
@@ -243,6 +325,28 @@ func (p *Proxy) connect(w http.ResponseWriter, r *http.Request) {
 	_, _ = io.Copy(conn, up)
 	up.Close()
 	conn.Close()
+}
+
+// GrantLookup asks the executor for a runner's grant (read-only egress token).
+func GrantLookup(url, token string) func(ctx context.Context, runToken string) (Grant, bool) {
+	c := &http.Client{Timeout: 5 * time.Second}
+	return func(ctx context.Context, runToken string) (Grant, bool) {
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url+"/v1/egress/grants/"+neturl.PathEscape(runToken), nil)
+		if err != nil {
+			return Grant{}, false
+		}
+		req.Header.Set("Authorization", "Bearer "+token)
+		res, err := c.Do(req)
+		if err != nil {
+			return Grant{}, false
+		}
+		defer res.Body.Close()
+		var g Grant
+		if res.StatusCode != http.StatusOK || json.NewDecoder(io.LimitReader(res.Body, 1<<16)).Decode(&g) != nil {
+			return Grant{}, false
+		}
+		return g, true
+	}
 }
 
 // Follow keeps the allowlist in sync with the executor until ctx is done.

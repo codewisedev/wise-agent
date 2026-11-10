@@ -3,6 +3,7 @@ package egress
 import (
 	"bufio"
 	"context"
+	"encoding/base64"
 	"fmt"
 	"io"
 	"log/slog"
@@ -12,6 +13,7 @@ import (
 	"net/netip"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestAllowlist(t *testing.T) {
@@ -91,4 +93,74 @@ func mustAtoi(s string) int {
 	var n int
 	fmt.Sscan(s, &n)
 	return n
+}
+
+func TestRunnerGrants(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { fmt.Fprint(w, "ok") }))
+	defer upstream.Close()
+	_, port, _ := net.SplitHostPort(upstream.Listener.Addr().String())
+	var a Allowlist
+	a.Set([]string{"registry.npmjs.org"})
+	live := map[string]Grant{"tok-1": {Hosts: []string{"api.anthropic.com"}, Expires: time.Now().Add(time.Hour)}}
+	var lookups int
+	p := &Proxy{Allow: &a, Log: slog.New(slog.NewTextHandler(io.Discard, nil)), Ports: map[int]bool{mustAtoi(port): true},
+		public: func(netip.Addr) bool { return true },
+		Grants: func(_ context.Context, tok string) (Grant, bool) { lookups++; g, ok := live[tok]; return g, ok }}
+	p.lookup = func(context.Context, string) ([]netip.Addr, error) {
+		return []netip.Addr{netip.MustParseAddr("127.0.0.1")}, nil
+	}
+	srv := httptest.NewServer(p)
+	defer srv.Close()
+	connect := func(host, auth string) string {
+		c, err := net.Dial("tcp", srv.Listener.Addr().String())
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer c.Close()
+		fmt.Fprintf(c, "CONNECT %s:%s HTTP/1.1\r\nHost: %s\r\n", host, port, host)
+		if auth != "" {
+			fmt.Fprintf(c, "Proxy-Authorization: Basic %s\r\n", base64.StdEncoding.EncodeToString([]byte("run:"+auth)))
+		}
+		fmt.Fprint(c, "\r\n")
+		l, _ := bufio.NewReader(c).ReadString('\n')
+		return l
+	}
+	if l := connect("api.anthropic.com", ""); !strings.Contains(l, "403") {
+		t.Errorf("vendor host without a grant: %q", l)
+	}
+	if l := connect("api.anthropic.com", "tok-1"); !strings.Contains(l, "200") {
+		t.Errorf("vendor host with the run's grant: %q", l)
+	}
+	if l := connect("evil.example.com", "tok-1"); !strings.Contains(l, "403") {
+		t.Errorf("a grant only adds its hosts: %q", l)
+	}
+	if l := connect("registry.npmjs.org", "tok-2"); !strings.Contains(l, "200") {
+		t.Errorf("the global allowlist applies to every runner: %q", l)
+	}
+	if l := connect("api.anthropic.com", "tok-2"); !strings.Contains(l, "403") {
+		t.Errorf("unknown token: %q", l)
+	}
+	// Cached briefly: a second request does not look the grant up again.
+	n := lookups
+	connect("api.anthropic.com", "tok-1")
+	if lookups != n {
+		t.Errorf("grant looked up again within the cache period")
+	}
+	// Revoked grants stop working once the cache entry expires.
+	delete(live, "tok-1")
+	p.cacheMu.Lock()
+	for k, c := range p.cache {
+		c.until = time.Now().Add(-time.Second)
+		p.cache[k] = c
+	}
+	p.cacheMu.Unlock()
+	if l := connect("api.anthropic.com", "tok-1"); !strings.Contains(l, "403") {
+		t.Errorf("revoked grant: %q", l)
+	}
+	// Private addresses stay refused even with a grant.
+	p.public = nil
+	live["tok-3"] = Grant{Hosts: []string{"api.anthropic.com"}, Expires: time.Now().Add(time.Hour)}
+	if l := connect("api.anthropic.com", "tok-3"); !strings.Contains(l, "403") {
+		t.Errorf("private address with a grant: %q", l)
+	}
 }
