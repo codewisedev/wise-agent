@@ -459,6 +459,21 @@ func (g *Gateway) callTarget(ctx context.Context, req TurnRequest, alias string,
 	return TurnResponse{}, lastErr
 }
 
+// DailyRemaining returns what an agent may still spend today (limited=false
+// when it has no daily budget).
+func (g *Gateway) DailyRemaining(ctx context.Context, agent string) (remaining float64, limited bool, err error) {
+	limit, ok := g.curPolicy().dailyBudget(agent)
+	if !ok {
+		return 0, false, nil
+	}
+	y, m, d := g.now().UTC().Date()
+	spent, err := g.db.AgentCostSince(ctx, dbgen.AgentCostSinceParams{AgentName: agent, CreatedAt: time.Date(y, m, d, 0, 0, 0, 0, time.UTC)})
+	if err != nil {
+		return 0, true, err
+	}
+	return limit - spent, true, nil
+}
+
 // budgetState returns whether cost-incurring (cloud) targets are blocked and the remaining run budget.
 func (g *Gateway) budgetState(ctx context.Context, req TurnRequest) (bool, float64, error) {
 	blocked := false

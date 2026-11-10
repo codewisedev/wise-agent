@@ -366,6 +366,7 @@ type SnapshotResult struct {
 	ArtifactID  uuid.UUID
 	SecretFound bool
 	Secrets     []string // credential-like files ("" when only a token was found in the diff)
+	Protected   []string // changed files under a protected path (execution setting)
 }
 
 // Snapshot commits the workspace's changes and stores the verified changeset.
@@ -407,13 +408,19 @@ func (a *Activities) Snapshot(ctx context.Context, req EngRequest) (SnapshotResu
 		return SnapshotResult{}, err
 	}
 	res := SnapshotResult{ArtifactID: art.ID, SecretFound: cs.SecretFound}
+	var paths []string
 	for _, f := range cs.Files {
 		if f.Secret {
 			res.Secrets = append(res.Secrets, f.Path)
 		}
+		paths = append(paths, f.Path)
+		if f.OldPath != "" {
+			paths = append(paths, f.OldPath)
+		}
 	}
-	if res.SecretFound {
-		msg := "the change contains credentials; a fix round removes them"
+	res.Protected = workspaces.Protected(ws.Settings().ProtectedPaths, paths)
+	if res.SecretFound || len(res.Protected) > 0 {
+		msg := "the change contains credentials or touches protected paths; a fix round undoes that"
 		return res, a.Tasks.RecordStep(ctx, req.WorkflowRunID, tasks.StepUpdate{Stage: req.Stage, Attempt: max(req.Step, 1), Status: "failed", ArtifactID: &art.ID, Error: &msg})
 	}
 	return res, a.succeeded(ctx, req, &art.ID)

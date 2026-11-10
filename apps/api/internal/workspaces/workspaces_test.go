@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"sigs.k8s.io/yaml"
@@ -86,5 +87,15 @@ func TestHeadTailKeepsStartAndEnd(t *testing.T) {
 	small.add("short")
 	if out, trunc := small.text(); trunc || out != "short" {
 		t.Fatalf("%q", out)
+	}
+}
+
+func TestProtectedPaths(t *testing.T) {
+	globs := []string{".github/workflows/**", "**/.env", "*.pem", "infra/*.tf"}
+	files := []string{".github/workflows/ci.yml", "src/app.go", "config/.env", ".env", "certs/server.pem", "infra/main.tf", "infra/mod/x.tf", "README.md"}
+	got := Protected(globs, files)
+	want := []string{".github/workflows/ci.yml", "config/.env", ".env", "certs/server.pem", "infra/main.tf"}
+	if strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Fatalf("got %v want %v", got, want)
 	}
 }

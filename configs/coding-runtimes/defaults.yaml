@@ -1,0 +1,32 @@
+# Default coding runtime settings (editable in Settings → Coding runtimes).
+# Implementing steps (e.g. backend-agent) can run on Claude Code or Codex
+# instead of Wise's own loop. A project must also enable a runtime
+# (Project → Coding runtimes) before its tasks can use it.
+runtimes:
+  claude-code:
+    enabled: true
+    model: sonnet
+    # Built-in tools offered (Glob and Grep run through Bash with ripgrep).
+    tools: [Bash, Read, Edit, Write, NotebookEdit]
+    credential:
+      # proxy: an Anthropic API-key account; the key stays in the Runtime Proxy.
+      # subscription: a Claude Code account (setup-token), or empty = the
+      # token in .env — reduced isolation, the project must allow it.
+      mode: subscription
+      account: ""
+    # Prices for proxy-mode cost accounting (USD per million tokens).
+    prices: { input_per_mtok: 3, output_per_mtok: 15 }
+    limits: { wall_clock_s: 1800, idle_s: 300, max_turns: 60, max_cost_usd: 3 }
+  codex:
+    enabled: true
+    model: ""
+    # danger-full-access: the Wise container is the sandbox (recommended);
+    # workspace-write: Codex's own sandbox as well (may not work in containers).
+    sandbox: danger-full-access
+    credential:
+      # proxy: an OpenAI-compatible account pointing at api.openai.com;
+      # subscription: a Codex account (auth.json).
+      mode: subscription
+      account: ""
+    prices: { input_per_mtok: 1.25, output_per_mtok: 10 }
+    limits: { wall_clock_s: 1800, idle_s: 300, max_turns: 60, max_cost_usd: 3 }

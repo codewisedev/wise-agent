@@ -242,7 +242,7 @@ func (s *Service) ModelTurn(ctx context.Context, run dbgen.AgentRun, msgs []mode
 		Temperature: def.ModelConfig.Temperature, MaxOutputTokens: def.ModelConfig.MaxOutputTokens,
 		MaxRunTokens: def.ExecutionLimits.MaxTokens, MaxRunCostUSD: def.ExecutionLimits.MaxCostUSD,
 	}
-	if o := agents.ParseModelOverride(run.ModelOverride); o != nil {
+	if o := agents.ParseModelOverride(run.ModelOverride); o != nil && o.Account != "" && o.Runtime == "" {
 		treq.Account, treq.Model = o.Account, o.Model
 	}
 	resp, err := s.gw.Complete(ctx, treq)

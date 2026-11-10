@@ -42,3 +42,6 @@ SELECT * FROM project_resources WHERE project_id = $1 ORDER BY kind, name;
 
 -- name: DeleteProjectResource :one
 DELETE FROM project_resources WHERE id = $1 RETURNING *;
+
+-- name: SetProjectCodingRuntimes :exec
+UPDATE projects SET coding_runtimes = $2, updated_at = now() WHERE id = $1;

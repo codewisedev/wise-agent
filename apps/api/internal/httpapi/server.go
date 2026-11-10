@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 	"wise/apps/api/internal/codeindex"
+	"wise/apps/api/internal/codingruns"
 	"wise/apps/api/internal/memory"
 	"wise/apps/api/internal/workspaces"
 
@@ -42,6 +43,7 @@ type Server struct {
 	Index        *codeindex.Service
 	Memory       *memory.Service
 	Workspaces   *workspaces.Service
+	CodingRuns   *codingruns.Service
 	Cookie       CookieConfig
 	// RuntimeToken authenticates agent runtimes claiming runs (empty disables the runtime API).
 	RuntimeToken string

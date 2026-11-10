@@ -83,6 +83,9 @@ type RunOptions struct {
 type ModelOverride struct {
 	Account string `json:"account"`
 	Model   string `json:"model,omitempty"`
+	// Runtime runs the step on an external coding CLI (claude-code, codex)
+	// instead of Wise's own loop; Account then names its credential.
+	Runtime string `json:"runtime,omitempty"`
 }
 
 // ParseModelOverride decodes agent_runs.model_override (nil when unset).
@@ -91,7 +94,7 @@ func ParseModelOverride(raw []byte) *ModelOverride {
 		return nil
 	}
 	var m ModelOverride
-	if json.Unmarshal(raw, &m) != nil || m.Account == "" {
+	if json.Unmarshal(raw, &m) != nil || (m.Account == "" && m.Runtime == "") {
 		return nil
 	}
 	return &m
@@ -157,7 +160,7 @@ func (s *Service) Enqueue(ctx context.Context, name string, input map[string]any
 			key = &opts.IdempotencyKey
 		}
 		var override []byte
-		if opts.Model != nil && opts.Model.Account != "" {
+		if opts.Model != nil && (opts.Model.Account != "" || opts.Model.Runtime != "") {
 			if override, err = json.Marshal(opts.Model); err != nil {
 				return err
 			}
@@ -177,6 +180,9 @@ func (s *Service) Enqueue(ctx context.Context, name string, input map[string]any
 		queued := map[string]any{"agent": name, "version": def.Version, "definitionId": row.ID}
 		if opts.Model != nil && opts.Model.Account != "" {
 			queued["account"], queued["model"] = opts.Model.Account, opts.Model.Model
+		}
+		if opts.Model != nil && opts.Model.Runtime != "" {
+			queued["runtime"] = opts.Model.Runtime
 		}
 		if ev, err = events.Record(ctx, q, id, "run.queued", queued); err != nil {
 			return err
@@ -282,4 +288,12 @@ func (s *Service) ListModelCalls(ctx context.Context, id uuid.UUID) ([]dbgen.Mod
 		return nil, err
 	}
 	return s.db.ListModelCallsForRun(ctx, &id)
+}
+
+// RunRuntime is the runtime a run uses ("native" unless an external one is pinned).
+func RunRuntime(run dbgen.AgentRun) string {
+	if o := ParseModelOverride(run.ModelOverride); o != nil && o.Runtime != "" {
+		return o.Runtime
+	}
+	return "native"
 }

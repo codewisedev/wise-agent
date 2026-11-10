@@ -54,6 +54,9 @@ type Manager struct {
 	egress   []string
 
 	grants grants
+
+	runnerMu sync.Mutex
+	runners  map[string]*job // the active runner job per workspace
 }
 
 // NewManager returns a Manager.

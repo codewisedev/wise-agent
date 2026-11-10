@@ -409,7 +409,7 @@ func (s *Server) RuntimeClaimRun(ctx context.Context, req apigen.RuntimeClaimRun
 	return apigen.RuntimeClaimRun200JSONResponse{
 		Run: toAgentRun(c.Run), RunToken: c.Token, LeaseSeconds: s.RunQueue.LeaseSeconds(),
 		Definition: jsonObject(c.Definition), Prompt: c.Prompt, Tools: mapSlice(c.Tools, toToolDefinition),
-		Project: toRuntimeProject(c.Project), Workspace: &hasWS,
+		Project: toRuntimeProject(c.Project), Workspace: &hasWS, Runtime: ptrTo(agents.RunRuntime(c.Run)),
 	}, nil
 }
 
@@ -513,3 +513,5 @@ func runFrom(ctx context.Context) (dbgen.AgentRun, error) {
 	}
 	return run, nil
 }
+
+func ptrTo[T any](v T) *T { return &v }

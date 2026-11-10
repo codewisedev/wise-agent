@@ -2318,6 +2318,82 @@ paths:
         "401": { $ref: "#/components/responses/Problem" }
         "404": { $ref: "#/components/responses/Problem" }
         "503": { $ref: "#/components/responses/Problem" }
+  /projects/{projectId}/coding-runtimes:
+    parameters:
+      - $ref: "#/components/parameters/ProjectId"
+    get:
+      tags: [execution]
+      operationId: getProjectCodingRuntimes
+      description: Which external coding runtimes (Claude Code, Codex) the project's tasks may use.
+      responses:
+        "200":
+          description: Policy.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProjectCodingRuntimes" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+    put:
+      tags: [execution]
+      operationId: setProjectCodingRuntimes
+      description: Changes the project's runtime policy (a security policy; audited with the old and new values).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ProjectCodingRuntimes" }
+      responses:
+        "200":
+          description: Saved.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProjectCodingRuntimes" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+  /runtime/v1/runs/{runId}/external:
+    parameters:
+      - $ref: "#/components/parameters/RunId"
+    post:
+      tags: [runtime]
+      operationId: runtimeExternalStart
+      description: Starts (or rejoins) the run's external coding session (the runtime pinned on the run).
+      security: [{ runtimeAuth: [] }]
+      responses:
+        "200":
+          description: Started.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ExternalStart" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+        "429": { $ref: "#/components/responses/Problem" }
+        "503": { $ref: "#/components/responses/Problem" }
+    get:
+      tags: [runtime]
+      operationId: runtimeExternalPoll
+      description: New normalized events of the session, waiting up to `wait` seconds; when it ended, its outcome.
+      security: [{ runtimeAuth: [] }]
+      parameters:
+        - { name: wait, in: query, schema: { type: integer, minimum: 0, maximum: 25 } }
+      responses:
+        "200":
+          description: Events.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ExternalPoll" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+    delete:
+      tags: [runtime]
+      operationId: runtimeExternalCancel
+      description: Stops the session (the runner is removed, its credentials revoked).
+      security: [{ runtimeAuth: [] }]
+      responses:
+        "204": { description: Stopped. }
+        "401": { $ref: "#/components/responses/Problem" }
 components:
   securitySchemes:
     cookieAuth:
@@ -3266,6 +3342,7 @@ components:
         name: { type: string, maxLength: 100 }
         type: { $ref: "#/components/schemas/StepType" }
         agent: { type: string, description: The agent an agent step runs. }
+        runtime: { type: string, enum: [native, claude-code, codex], description: "Implementing agent steps: run on an external coding CLI instead of Wise's own loop." }
         fixFrom: { type: string, description: "Gate: the implementing step re-run with the failures (default: the nearest earlier implementing step)." }
         diagnoseWith: { type: string, description: "Gate: an agent (e.g. qa-agent) that explains failures before each fix round." }
         account: { type: string, description: Account or models.yaml provider; empty = the agent's default routing. }
@@ -3637,6 +3714,7 @@ components:
         name: { type: string }
         type: { type: string, description: "Empty for agent steps." }
         agent: { type: string }
+        runtime: { type: string, description: "Empty = native." }
         fixFrom: { type: string }
         diagnoseWith: { type: string }
         kind: { type: string, description: Artifact kind the step produces. }
@@ -3676,6 +3754,7 @@ components:
     StepOverride:
       type: object
       properties:
+        runtime: { type: string, enum: [native, claude-code, codex], description: "Run this implementing step on a runtime the project enabled." }
         enabled: { type: boolean }
         account: { type: string }
         model: { type: string }
@@ -3848,6 +3927,50 @@ components:
         tools: { type: array, items: { $ref: "#/components/schemas/ToolDefinition" } }
         project: { $ref: "#/components/schemas/RuntimeProject" }
         workspace: { type: boolean, description: "The run works in its task's workspace (write and execute tools are available)." }
+        runtime: { type: string, description: "native, or an external coding runtime (claude-code, codex) that runs this agent." }
+    ProjectCodingRuntimes:
+      type: object
+      required: [enabled, allowSubscription]
+      properties:
+        enabled: { type: array, items: { type: string, enum: [claude-code, codex] }, description: Runtimes the project's tasks may use. }
+        allowSubscription: { type: boolean, description: "Allow subscription credentials (reduced isolation: the vendor token is inside the runner, readable by any command it runs)." }
+    ExternalStart:
+      type: object
+      required: [runtime, mode, reducedIsolation, cliVersion]
+      properties:
+        runtime: { type: string }
+        mode: { type: string, enum: [proxy, subscription] }
+        reducedIsolation: { type: boolean }
+        cliVersion: { type: string }
+    ExternalEvent:
+      type: object
+      required: [type]
+      additionalProperties: true
+      properties:
+        type: { type: string }
+    ExternalOutcome:
+      type: object
+      required: [class, usage]
+      properties:
+        class: { type: string, enum: [succeeded, auth_error, rate_limited, budget_exceeded, timeout, policy_violation, runtime_crash, incomplete] }
+        message: { type: string }
+        output: { type: object, additionalProperties: true }
+        usage:
+          type: object
+          required: [inputTokens, outputTokens, costUsd]
+          properties:
+            inputTokens: { type: integer, format: int64 }
+            outputTokens: { type: integer, format: int64 }
+            costUsd: { type: number }
+            turns: { type: integer }
+        retryable: { type: boolean }
+    ExternalPoll:
+      type: object
+      required: [events, done]
+      properties:
+        events: { type: array, items: { $ref: "#/components/schemas/ExternalEvent" } }
+        done: { type: boolean }
+        outcome: { $ref: "#/components/schemas/ExternalOutcome" }
     WorkspaceCommandResult:
       type: object
       required: [status, output, durationMs]

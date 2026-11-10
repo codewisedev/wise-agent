@@ -13,6 +13,7 @@ from .client import ApiError, ControlPlane
 from .config import Config
 from .events import EventEmitter
 from .framework import AgentFramework, RunCancelled, RunContext, RunFailed
+from .framework.external import ExternalCoding
 from .framework.wise_loop import WiseLoop
 from .tools import ToolRegistry
 from .tools.workspace import Workspace
@@ -130,7 +131,7 @@ class Worker:
                 deadline=time.monotonic()
                 + float(definition.get("execution_limits", {}).get("timeout_s", 600)),
             )
-            output = self.framework.run(ctx)
+            output = self._framework(claim, run_id, token).run(ctx)
             events.flush()
             self.client.complete(run_id, token, output)
             log.info("run succeeded", extra={"run_id": run_id})
@@ -160,6 +161,17 @@ class Worker:
         finally:
             heartbeat.stop()
             self._current_cancel = None
+
+    def _framework(self, claim: dict[str, Any], run_id: str, token: str):
+        """Wise's own loop, or an external coding runtime pinned on the run."""
+        runtime = claim.get("runtime") or "native"
+        if runtime == "native":
+            return self.framework
+        return ExternalCoding(
+            start=lambda: self.client.external(run_id, token, "POST"),
+            poll=lambda wait: self.client.external(run_id, token, "GET", wait),
+            cancel=lambda: self.client.external(run_id, token, "DELETE"),
+        )
 
     @staticmethod
     def _registry(tools: list[dict[str, Any]], workspace: Workspace) -> ToolRegistry:

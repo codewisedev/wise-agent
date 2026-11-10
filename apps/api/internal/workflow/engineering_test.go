@@ -32,15 +32,16 @@ func codePlan() tasks.Plan {
 
 // eng drives the engineering activities.
 type eng struct {
-	gateFails   int // evaluations that fail before one passes
-	maxRounds   int
-	prepared    int
-	quality     int
-	evaluations []EngRequest
-	snapshots   int
-	secretOnce  bool // the first snapshot finds a credential
-	delivered   []DeliverRequest
-	stopped     int
+	gateFails     int // evaluations that fail before one passes
+	maxRounds     int
+	prepared      int
+	quality       int
+	evaluations   []EngRequest
+	snapshots     int
+	secretOnce    bool // the first snapshot finds a credential
+	protectedOnce bool // the first snapshot touches a protected path
+	delivered     []DeliverRequest
+	stopped       int
 }
 
 func (e *eng) setup(env *testsuite.TestWorkflowEnvironment) {
@@ -59,6 +60,9 @@ func (e *eng) setup(env *testsuite.TestWorkflowEnvironment) {
 		e.snapshots++
 		if e.secretOnce && e.snapshots == 1 {
 			return SnapshotResult{ArtifactID: uuid.New(), SecretFound: true, Secrets: []string{"config/.env"}}, nil
+		}
+		if e.protectedOnce && e.snapshots == 1 {
+			return SnapshotResult{ArtifactID: uuid.New(), Protected: []string{".github/workflows/ci.yml"}}, nil
 		}
 		return SnapshotResult{ArtifactID: uuid.New()}, nil
 	})
@@ -226,5 +230,25 @@ func TestCodeWorkflowCredentialsFailTheGate(t *testing.T) {
 	require.Equal(t, 2, e.snapshots)
 	// The approval only ever pins the clean changeset.
 	require.Len(t, s.gates, 3)
+	require.Len(t, e.delivered, 1)
+}
+
+func TestCodeWorkflowProtectedPathsFailTheGate(t *testing.T) {
+	env := newEnv()
+	ids, dec := approvals(3)
+	s := &script{approvals: ids, decisions: dec}
+	s.setup(env)
+	e := &eng{maxRounds: 3, protectedOnce: true}
+	e.setup(env)
+	env.ExecuteWorkflow(PipelineWorkflow, input(codePlan()))
+	require.NoError(t, env.GetWorkflowError())
+	var impl []StageRequest
+	for _, c := range s.stageCalls {
+		if c.Stage == "implement" {
+			impl = append(impl, c)
+		}
+	}
+	require.Len(t, impl, 2)
+	require.Contains(t, impl[1].FixFeedback, ".github/workflows/ci.yml")
 	require.Len(t, e.delivered, 1)
 }

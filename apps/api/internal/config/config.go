@@ -30,6 +30,9 @@ type Config struct {
 	IndexingDefaults  string
 	MemoryDefaults    string
 	ExecutionDefaults string
+	CodingDefaults    string
+	ModelProxyURL     string
+	ModelProxyToken   string
 	ExecutorURL       string
 	ExecutorToken     string
 	TemporalAddress   string
@@ -55,6 +58,9 @@ func Load() (Config, error) {
 		IndexingDefaults:  getenv("WISE_INDEXING_DEFAULTS", "configs/indexing/defaults.yaml"),
 		MemoryDefaults:    getenv("WISE_MEMORY_DEFAULTS", "configs/memory/defaults.yaml"),
 		ExecutionDefaults: getenv("WISE_EXECUTION_DEFAULTS", "configs/execution/defaults.yaml"),
+		CodingDefaults:    getenv("WISE_CODING_RUNTIMES_DEFAULTS", "configs/coding-runtimes/defaults.yaml"),
+		ModelProxyURL:     getenv("WISE_MODEL_PROXY_URL", ""),
+		ModelProxyToken:   getenv("WISE_MODEL_PROXY_TOKEN", ""),
 		ExecutorURL:       getenv("WISE_EXECUTOR_URL", ""),
 		ExecutorToken:     getenv("WISE_EXECUTOR_TOKEN", ""),
 		TemporalAddress:   getenv("WISE_TEMPORAL_ADDRESS", "127.0.0.1:7233"),

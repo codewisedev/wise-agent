@@ -669,6 +669,7 @@ type Project struct {
 	UpdatedAt       time.Time
 	ArchivedAt      *time.Time
 	CurrentSprintID *uuid.UUID
+	CodingRuntimes  json.RawMessage
 }
 
 type ProjectResource struct {

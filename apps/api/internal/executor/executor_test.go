@@ -591,3 +591,26 @@ func TestRunnerValidation(t *testing.T) {
 		}
 	}
 }
+
+func TestOneRunnerPerWorkspace(t *testing.T) {
+	f := setup(t)
+	f.prepare(t)
+	loc := f.m.rt.(*local)
+	loc.cliDir = t.TempDir()
+	os.WriteFile(filepath.Join(loc.cliDir, "claude"), []byte("#!/bin/sh\necho started\nsleep 30\n"), 0o755)
+	req := RunnerRequest{CLI: "claude-code", Version: "1", Command: []string{"{cli}"}, WallClockS: 60, IdleS: 60}
+	first, err := f.m.Runner(context.Background(), f.ws, req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(300 * time.Millisecond)
+	second, err := f.m.Runner(context.Background(), f.ws, req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if st, _ := f.m.Job(context.Background(), first, 0, 0); st.Status != JobCancelled {
+		t.Fatalf("the first runner should be stopped: %s", st.Status)
+	}
+	f.m.CancelJob(second)
+	waitJob(t, f.m, second)
+}

@@ -111,6 +111,27 @@ class ControlPlane:
             raise ApiError(res.status_code, detail, data)
         return data
 
+    def external(self, run_id: str, token: str, method: str, wait: int = 0) -> dict[str, Any]:
+        """The run's external coding session: POST starts, GET polls, DELETE stops."""
+        url = f"{self._base}/runs/{run_id}/external"
+        headers = {"Authorization": f"Bearer {token}"}
+        if method == "GET":
+            res = self._http.get(
+                url, params={"wait": wait}, headers=headers, timeout=self._timeout + wait + 10
+            )
+        else:
+            res = self._http.request(method, url, headers=headers, timeout=self._timeout)
+        if res.status_code == 204:
+            return {}
+        try:
+            data = res.json()
+        except ValueError:
+            data = {}
+        if res.status_code >= 300:
+            detail = data.get("detail") or data.get("title") or res.text[:300]
+            raise ApiError(res.status_code, detail, data)
+        return data
+
     def context(self, run_id: str, token: str, kind: str, params: dict[str, Any]) -> dict[str, Any]:
         """Index and memory queries for a run (search, symbols, dependencies, memory)."""
         path = "memory/search" if kind == "memory" else f"context/{kind}"

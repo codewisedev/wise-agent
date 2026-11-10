@@ -15,6 +15,7 @@ import (
 
 	"wise/apps/api/internal/agents"
 	"wise/apps/api/internal/executor"
+	"wise/apps/api/internal/modelproxy"
 	"wise/apps/api/internal/workflow"
 )
 
@@ -29,6 +30,61 @@ type fakeExecutor struct {
 	commands   []string
 	timeouts   []int
 	deliveries []string
+	runners    []executor.RunnerRequest
+	runnerOut  string // the CLI's stdout for the next runner job
+	cancelled  []string
+}
+
+func (f *fakeExecutor) Runner(_ context.Context, id string, req executor.RunnerRequest) (string, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.runners = append(f.runners, req)
+	return "runner-job", nil
+}
+
+func (f *fakeExecutor) Job(_ context.Context, jobID string, offset int64, wait int) (executor.JobStatus, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	out := f.runnerOut
+	if offset >= int64(len(out)) {
+		out = ""
+	} else {
+		out = out[offset:]
+	}
+	return executor.JobStatus{ID: jobID, Status: executor.JobSucceeded, Output: out, Offset: offset, NextOffset: offset + int64(len(out)),
+		Result: executor.RunnerResult{ExitCode: 0}}, nil
+}
+
+func (f *fakeExecutor) CancelJob(_ context.Context, jobID string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.cancelled = append(f.cancelled, jobID)
+	return nil
+}
+
+// fakeProxy stands in for the Runtime Proxy.
+type fakeProxy struct {
+	mu         sync.Mutex
+	registered map[string]modelproxy.Run
+	revoked    []string
+}
+
+func (p *fakeProxy) Register(_ context.Context, token string, run modelproxy.Run) error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.registered == nil {
+		p.registered = map[string]modelproxy.Run{}
+	}
+	p.registered[token] = run
+	return nil
+}
+
+func (p *fakeProxy) Revoke(_ context.Context, token string) (modelproxy.Usage, error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.revoked = append(p.revoked, token)
+	return modelproxy.Usage{InputTokens: 900, OutputTokens: 100, CostUSD: 0.0042,
+		Calls: []modelproxy.Call{{Model: "claude-sonnet", Status: 200, InputTokens: 900, OutputTokens: 100, CostUSD: 0.0042}}}, nil
 }
 
 func (f *fakeExecutor) Prepare(_ context.Context, req executor.PrepareRequest) (string, error) {

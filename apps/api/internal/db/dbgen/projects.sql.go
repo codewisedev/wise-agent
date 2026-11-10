@@ -28,7 +28,7 @@ func (q *Queries) ArchiveProject(ctx context.Context, id uuid.UUID) (int64, erro
 const createProject = `-- name: CreateProject :one
 INSERT INTO projects (id, slug, name, description, metadata)
 VALUES ($1, $2, $3, $4, $5)
-RETURNING id, slug, name, description, metadata, created_at, updated_at, archived_at, current_sprint_id
+RETURNING id, slug, name, description, metadata, created_at, updated_at, archived_at, current_sprint_id, coding_runtimes
 `
 
 type CreateProjectParams struct {
@@ -58,6 +58,7 @@ func (q *Queries) CreateProject(ctx context.Context, arg CreateProjectParams) (P
 		&i.UpdatedAt,
 		&i.ArchivedAt,
 		&i.CurrentSprintID,
+		&i.CodingRuntimes,
 	)
 	return i, err
 }
@@ -121,7 +122,7 @@ func (q *Queries) DeleteProjectResource(ctx context.Context, id uuid.UUID) (Proj
 }
 
 const getProject = `-- name: GetProject :one
-SELECT p.id, p.slug, p.name, p.description, p.metadata, p.created_at, p.updated_at, p.archived_at, p.current_sprint_id,
+SELECT p.id, p.slug, p.name, p.description, p.metadata, p.created_at, p.updated_at, p.archived_at, p.current_sprint_id, p.coding_runtimes,
        (SELECT count(*) FROM repositories r WHERE r.project_id = p.id) AS repository_count
 FROM projects p
 WHERE p.id = $1
@@ -145,6 +146,7 @@ func (q *Queries) GetProject(ctx context.Context, id uuid.UUID) (GetProjectRow, 
 		&i.Project.UpdatedAt,
 		&i.Project.ArchivedAt,
 		&i.Project.CurrentSprintID,
+		&i.Project.CodingRuntimes,
 		&i.RepositoryCount,
 	)
 	return i, err
@@ -184,7 +186,7 @@ func (q *Queries) ListProjectResources(ctx context.Context, projectID uuid.UUID)
 }
 
 const listProjects = `-- name: ListProjects :many
-SELECT p.id, p.slug, p.name, p.description, p.metadata, p.created_at, p.updated_at, p.archived_at, p.current_sprint_id,
+SELECT p.id, p.slug, p.name, p.description, p.metadata, p.created_at, p.updated_at, p.archived_at, p.current_sprint_id, p.coding_runtimes,
        (SELECT count(*) FROM repositories r WHERE r.project_id = p.id) AS repository_count
 FROM projects p
 WHERE $1::boolean OR p.archived_at IS NULL
@@ -215,6 +217,7 @@ func (q *Queries) ListProjects(ctx context.Context, includeArchived bool) ([]Lis
 			&i.Project.UpdatedAt,
 			&i.Project.ArchivedAt,
 			&i.Project.CurrentSprintID,
+			&i.Project.CodingRuntimes,
 			&i.RepositoryCount,
 		); err != nil {
 			return nil, err
@@ -238,6 +241,20 @@ func (q *Queries) LockActiveProject(ctx context.Context, id uuid.UUID) (uuid.UUI
 	return id_2, err
 }
 
+const setProjectCodingRuntimes = `-- name: SetProjectCodingRuntimes :exec
+UPDATE projects SET coding_runtimes = $2, updated_at = now() WHERE id = $1
+`
+
+type SetProjectCodingRuntimesParams struct {
+	ID             uuid.UUID
+	CodingRuntimes json.RawMessage
+}
+
+func (q *Queries) SetProjectCodingRuntimes(ctx context.Context, arg SetProjectCodingRuntimesParams) error {
+	_, err := q.db.Exec(ctx, setProjectCodingRuntimes, arg.ID, arg.CodingRuntimes)
+	return err
+}
+
 const updateProject = `-- name: UpdateProject :one
 UPDATE projects SET
     name        = coalesce($1, name),
@@ -245,7 +262,7 @@ UPDATE projects SET
     metadata    = coalesce($3, metadata),
     updated_at  = now()
 WHERE id = $4
-RETURNING id, slug, name, description, metadata, created_at, updated_at, archived_at, current_sprint_id
+RETURNING id, slug, name, description, metadata, created_at, updated_at, archived_at, current_sprint_id, coding_runtimes
 `
 
 type UpdateProjectParams struct {
@@ -273,6 +290,7 @@ func (q *Queries) UpdateProject(ctx context.Context, arg UpdateProjectParams) (P
 		&i.UpdatedAt,
 		&i.ArchivedAt,
 		&i.CurrentSprintID,
+		&i.CodingRuntimes,
 	)
 	return i, err
 }

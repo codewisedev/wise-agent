@@ -16,9 +16,11 @@ import (
 	"syscall"
 	"time"
 	"wise/apps/api/internal/codeindex"
+	"wise/apps/api/internal/codingruns"
 	"wise/apps/api/internal/db/dbgen"
 	"wise/apps/api/internal/executor"
 	"wise/apps/api/internal/memory"
+	"wise/apps/api/internal/modelproxy"
 	"wise/apps/api/internal/workspaces"
 
 	"golang.org/x/term"
@@ -208,6 +210,23 @@ func serve(ctx context.Context) error {
 	}
 	workspaceSvc := workspaces.New(d, execClient, log.With("component", "workspaces"))
 	settings.RegisterExecution(settingsSvc, cfg.ExecutionDefaults, workspaceSvc)
+	var codingRunner codingruns.Runner
+	if c := executor.NewClient(cfg.ExecutorURL, cfg.ExecutorToken); c != nil {
+		codingRunner = c
+	}
+	var codingProxy codingruns.Proxy
+	if c := modelproxy.NewClient(cfg.ModelProxyURL, cfg.ModelProxyToken); c != nil {
+		codingProxy = c
+	}
+	codingSvc := codingruns.New(d, codingRunner, codingProxy, workspaceSvc, accountSvc, gateway, log.With("component", "coding-runs"))
+	// Same context as native runs (rules and relevant memories); resolved per call.
+	codingSvc.ContextFor = func(ctx context.Context, run dbgen.AgentRun) (string, error) {
+		if runQueue.ContextFor == nil {
+			return "", nil
+		}
+		return runQueue.ContextFor(ctx, run)
+	}
+	settings.RegisterCodingRuntimes(settingsSvc, cfg.CodingDefaults, codingSvc)
 	runQueue.ContextFor = func(ctx context.Context, run dbgen.AgentRun) (string, error) {
 		p, err := memorySvc.ForRun(ctx, run)
 		return p.Text, err
@@ -234,6 +253,7 @@ func serve(ctx context.Context) error {
 		Index:            indexSvc,
 		Memory:           memorySvc,
 		Workspaces:       workspaceSvc,
+		CodingRuns:       codingSvc,
 		Agents:           agentSvc,
 		RunQueue:         runQueue,
 		Gateway:          gateway,

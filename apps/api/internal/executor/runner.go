@@ -158,10 +158,28 @@ func (m *Manager) Runner(ctx context.Context, ws string, req RunnerRequest) (str
 	}
 	runID := newID()
 	token := newID() + newID()
+	// One runner per workspace: a new one (e.g. a retried run after an API
+	// restart) stops the previous one before it starts editing.
+	m.runnerMu.Lock()
+	defer m.runnerMu.Unlock()
+	if m.runners == nil {
+		m.runners = map[string]*job{}
+	}
+	if prev := m.runners[ws]; prev != nil {
+		prev.cancel()
+		select {
+		case <-prev.done:
+		case <-time.After(60 * time.Second):
+			return "", fmt.Errorf("the previous runner of this workspace did not stop")
+		case <-ctx.Done():
+			return "", ctx.Err()
+		}
+	}
 	j := m.jobs.start(ws, "runner", func(ctx context.Context, j *job) (int, any, error) {
 		res, err := m.runRunner(ctx, st, runID, token, req, j)
 		return res.ExitCode, res, err
 	})
+	m.runners[ws] = j
 	return j.st.ID, nil
 }
 

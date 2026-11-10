@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"wise/apps/api/internal/codeindex"
+	"wise/apps/api/internal/codingruns"
 	"wise/apps/api/internal/memory"
 	"wise/apps/api/internal/workspaces"
 
@@ -136,6 +137,29 @@ func RegisterMemory(s *Service, file string, mem *memory.Service) {
 			st, err := memory.ParseSettings(v)
 			if err == nil {
 				mem.SetSettings(st)
+			}
+			return err
+		},
+	})
+}
+
+// RegisterCodingRuntimes declares the "coding_runtimes" setting (Claude Code, Codex).
+func RegisterCodingRuntimes(s *Service, file string, cr *codingruns.Service) {
+	s.Register(Def{
+		Key: "coding_runtimes", Title: "Coding runtimes",
+		Description: "External coding CLIs implementing steps can run on (Claude Code, Codex): whether each is available, its model, tools, sandbox, credential (Runtime Proxy with an API-key account, or a subscription in reduced-isolation mode), prices for proxy accounting and per-run limits. Projects choose which they allow.",
+		Default:     FileDefault(file),
+		Validate: func(_ context.Context, v json.RawMessage) (json.RawMessage, error) {
+			st, err := codingruns.ParseSettings(v)
+			if err != nil {
+				return nil, err
+			}
+			return json.Marshal(st)
+		},
+		Apply: func(_ context.Context, v json.RawMessage) error {
+			st, err := codingruns.ParseSettings(v)
+			if err == nil {
+				cr.SetSettings(st)
 			}
 			return err
 		},

@@ -246,6 +246,60 @@ func (e ContextKind) Valid() bool {
 	}
 }
 
+// Defines values for ExternalOutcomeClass.
+const (
+	ExternalOutcomeClassAuthError       ExternalOutcomeClass = "auth_error"
+	ExternalOutcomeClassBudgetExceeded  ExternalOutcomeClass = "budget_exceeded"
+	ExternalOutcomeClassIncomplete      ExternalOutcomeClass = "incomplete"
+	ExternalOutcomeClassPolicyViolation ExternalOutcomeClass = "policy_violation"
+	ExternalOutcomeClassRateLimited     ExternalOutcomeClass = "rate_limited"
+	ExternalOutcomeClassRuntimeCrash    ExternalOutcomeClass = "runtime_crash"
+	ExternalOutcomeClassSucceeded       ExternalOutcomeClass = "succeeded"
+	ExternalOutcomeClassTimeout         ExternalOutcomeClass = "timeout"
+)
+
+// Valid indicates whether the value is a known member of the ExternalOutcomeClass enum.
+func (e ExternalOutcomeClass) Valid() bool {
+	switch e {
+	case ExternalOutcomeClassAuthError:
+		return true
+	case ExternalOutcomeClassBudgetExceeded:
+		return true
+	case ExternalOutcomeClassIncomplete:
+		return true
+	case ExternalOutcomeClassPolicyViolation:
+		return true
+	case ExternalOutcomeClassRateLimited:
+		return true
+	case ExternalOutcomeClassRuntimeCrash:
+		return true
+	case ExternalOutcomeClassSucceeded:
+		return true
+	case ExternalOutcomeClassTimeout:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ExternalStartMode.
+const (
+	Proxy        ExternalStartMode = "proxy"
+	Subscription ExternalStartMode = "subscription"
+)
+
+// Valid indicates whether the value is a known member of the ExternalStartMode enum.
+func (e ExternalStartMode) Valid() bool {
+	switch e {
+	case Proxy:
+		return true
+	case Subscription:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for IndexChunkKind.
 const (
 	IndexChunkKindCode   IndexChunkKind = "code"
@@ -522,6 +576,24 @@ func (e ModelTurnAction) Valid() bool {
 	}
 }
 
+// Defines values for ProjectCodingRuntimesEnabled.
+const (
+	ProjectCodingRuntimesEnabledClaudeCode ProjectCodingRuntimesEnabled = "claude-code"
+	ProjectCodingRuntimesEnabledCodex      ProjectCodingRuntimesEnabled = "codex"
+)
+
+// Valid indicates whether the value is a known member of the ProjectCodingRuntimesEnabled enum.
+func (e ProjectCodingRuntimesEnabled) Valid() bool {
+	switch e {
+	case ProjectCodingRuntimesEnabledClaudeCode:
+		return true
+	case ProjectCodingRuntimesEnabledCodex:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ProjectResourceKind.
 const (
 	ProjectResourceKindDatabaseDefinition ProjectResourceKind = "database_definition"
@@ -693,6 +765,27 @@ func (e SessionInfoAuthMethod) Valid() bool {
 	}
 }
 
+// Defines values for StepOverrideRuntime.
+const (
+	StepOverrideRuntimeClaudeCode StepOverrideRuntime = "claude-code"
+	StepOverrideRuntimeCodex      StepOverrideRuntime = "codex"
+	StepOverrideRuntimeNative     StepOverrideRuntime = "native"
+)
+
+// Valid indicates whether the value is a known member of the StepOverrideRuntime enum.
+func (e StepOverrideRuntime) Valid() bool {
+	switch e {
+	case StepOverrideRuntimeClaudeCode:
+		return true
+	case StepOverrideRuntimeCodex:
+		return true
+	case StepOverrideRuntimeNative:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for StepType.
 const (
 	StepTypeAgent     StepType = "agent"
@@ -795,6 +888,27 @@ func (e TaskStatus) Valid() bool {
 	case TaskStatusInProgress:
 		return true
 	case TaskStatusOpen:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for TemplateStepRuntime.
+const (
+	TemplateStepRuntimeClaudeCode TemplateStepRuntime = "claude-code"
+	TemplateStepRuntimeCodex      TemplateStepRuntime = "codex"
+	TemplateStepRuntimeNative     TemplateStepRuntime = "native"
+)
+
+// Valid indicates whether the value is a known member of the TemplateStepRuntime enum.
+func (e TemplateStepRuntime) Valid() bool {
+	switch e {
+	case TemplateStepRuntimeClaudeCode:
+		return true
+	case TemplateStepRuntimeCodex:
+		return true
+	case TemplateStepRuntimeNative:
 		return true
 	default:
 		return false
@@ -1487,6 +1601,47 @@ type ExecutionDetection struct {
 	Settings RepositoryExecution `json:"settings"`
 }
 
+// ExternalEvent defines model for ExternalEvent.
+type ExternalEvent struct {
+	Type                 string                 `json:"type"`
+	AdditionalProperties map[string]interface{} `json:"-"`
+}
+
+// ExternalOutcome defines model for ExternalOutcome.
+type ExternalOutcome struct {
+	Class     ExternalOutcomeClass    `json:"class"`
+	Message   *string                 `json:"message,omitempty"`
+	Output    *map[string]interface{} `json:"output,omitempty"`
+	Retryable *bool                   `json:"retryable,omitempty"`
+	Usage     struct {
+		CostUsd      float32 `json:"costUsd"`
+		InputTokens  int64   `json:"inputTokens"`
+		OutputTokens int64   `json:"outputTokens"`
+		Turns        *int    `json:"turns,omitempty"`
+	} `json:"usage"`
+}
+
+// ExternalOutcomeClass defines model for ExternalOutcome.Class.
+type ExternalOutcomeClass string
+
+// ExternalPoll defines model for ExternalPoll.
+type ExternalPoll struct {
+	Done    bool             `json:"done"`
+	Events  []ExternalEvent  `json:"events"`
+	Outcome *ExternalOutcome `json:"outcome,omitempty"`
+}
+
+// ExternalStart defines model for ExternalStart.
+type ExternalStart struct {
+	CliVersion       string            `json:"cliVersion"`
+	Mode             ExternalStartMode `json:"mode"`
+	ReducedIsolation bool              `json:"reducedIsolation"`
+	Runtime          string            `json:"runtime"`
+}
+
+// ExternalStartMode defines model for ExternalStart.Mode.
+type ExternalStartMode string
+
 // FieldError defines model for FieldError.
 type FieldError struct {
 	Field   string `json:"field"`
@@ -1857,6 +2012,9 @@ type PlanStep struct {
 	ReviewKinds []string `json:"reviewKinds"`
 	ReviseFrom  *string  `json:"reviseFrom,omitempty"`
 
+	// Runtime Empty = native.
+	Runtime *string `json:"runtime,omitempty"`
+
 	// Type Empty for agent steps.
 	Type *string `json:"type,omitempty"`
 }
@@ -1884,6 +2042,18 @@ type Project struct {
 	Slug            string                 `json:"slug"`
 	UpdatedAt       time.Time              `json:"updatedAt"`
 }
+
+// ProjectCodingRuntimes defines model for ProjectCodingRuntimes.
+type ProjectCodingRuntimes struct {
+	// AllowSubscription Allow subscription credentials (reduced isolation: the vendor token is inside the runner, readable by any command it runs).
+	AllowSubscription bool `json:"allowSubscription"`
+
+	// Enabled Runtimes the project's tasks may use.
+	Enabled []ProjectCodingRuntimesEnabled `json:"enabled"`
+}
+
+// ProjectCodingRuntimesEnabled defines model for ProjectCodingRuntimes.Enabled.
+type ProjectCodingRuntimesEnabled string
 
 // ProjectList defines model for ProjectList.
 type ProjectList struct {
@@ -2072,8 +2242,11 @@ type RuntimeClaim struct {
 	Run          AgentRun               `json:"run"`
 
 	// RunToken Bearer token scoped to this run; invalid once it ends.
-	RunToken string           `json:"runToken"`
-	Tools    []ToolDefinition `json:"tools"`
+	RunToken string `json:"runToken"`
+
+	// Runtime native, or an external coding runtime (claude-code, codex) that runs this agent.
+	Runtime *string          `json:"runtime,omitempty"`
+	Tools   []ToolDefinition `json:"tools"`
 
 	// Workspace The run works in its task's workspace (write and execute tools are available).
 	Workspace *bool `json:"workspace,omitempty"`
@@ -2226,7 +2399,13 @@ type StepOverride struct {
 	Enabled *bool   `json:"enabled,omitempty"`
 	Model   *string `json:"model,omitempty"`
 	Review  *bool   `json:"review,omitempty"`
+
+	// Runtime Run this implementing step on a runtime the project enabled.
+	Runtime *StepOverrideRuntime `json:"runtime,omitempty"`
 }
+
+// StepOverrideRuntime Run this implementing step on a runtime the project enabled.
+type StepOverrideRuntime string
 
 // StepType agent runs an agent; workspace prepares the task workspace; quality runs the repository's checks; gate passes or fails on checks and reviews, runs fix rounds and produces the verified changeset; deliver writes the approved commit as the task branch.
 type StepType string
@@ -2367,9 +2546,15 @@ type TemplateStep struct {
 	// ReviseFrom Earliest step re-run when changes are requested.
 	ReviseFrom *string `json:"reviseFrom,omitempty"`
 
+	// Runtime Implementing agent steps: run on an external coding CLI instead of Wise's own loop.
+	Runtime *TemplateStepRuntime `json:"runtime,omitempty"`
+
 	// Type agent runs an agent; workspace prepares the task workspace; quality runs the repository's checks; gate passes or fails on checks and reviews, runs fix rounds and produces the verified changeset; deliver writes the approved commit as the task branch.
 	Type *StepType `json:"type,omitempty"`
 }
+
+// TemplateStepRuntime Implementing agent steps: run on an external coding CLI instead of Wise's own loop.
+type TemplateStepRuntime string
 
 // TokenUsage defines model for TokenUsage.
 type TokenUsage struct {
@@ -2769,6 +2954,11 @@ type RuntimeContextSymbolsParams struct {
 	Repository *string `form:"repository,omitempty" json:"repository,omitempty"`
 }
 
+// RuntimeExternalPollParams defines parameters for RuntimeExternalPoll.
+type RuntimeExternalPollParams struct {
+	Wait *int `form:"wait,omitempty" json:"wait,omitempty"`
+}
+
 // RuntimeMemorySearchParams defines parameters for RuntimeMemorySearch.
 type RuntimeMemorySearchParams struct {
 	Q string `form:"q" json:"q"`
@@ -2852,6 +3042,9 @@ type CreateProjectJSONRequestBody = CreateProjectRequest
 
 // UpdateProjectJSONRequestBody defines body for UpdateProject for application/json ContentType.
 type UpdateProjectJSONRequestBody = UpdateProjectRequest
+
+// SetProjectCodingRuntimesJSONRequestBody defines body for SetProjectCodingRuntimes for application/json ContentType.
+type SetProjectCodingRuntimesJSONRequestBody = ProjectCodingRuntimes
 
 // CreateColumnJSONRequestBody defines body for CreateColumn for application/json ContentType.
 type CreateColumnJSONRequestBody = ColumnInput
@@ -2942,6 +3135,72 @@ type UpdateWorkflowTemplateJSONRequestBody = WorkflowTemplateInput
 
 // ChangeWorkflowStepJSONRequestBody defines body for ChangeWorkflowStep for application/json ContentType.
 type ChangeWorkflowStepJSONRequestBody = ChangeStepRequest
+
+// Getter for additional properties for ExternalEvent. Returns the specified
+// element and whether it was found
+func (a ExternalEvent) Get(fieldName string) (value interface{}, found bool) {
+	if a.AdditionalProperties != nil {
+		value, found = a.AdditionalProperties[fieldName]
+	}
+	return
+}
+
+// Setter for additional properties for ExternalEvent
+func (a *ExternalEvent) Set(fieldName string, value interface{}) {
+	if a.AdditionalProperties == nil {
+		a.AdditionalProperties = make(map[string]interface{})
+	}
+	a.AdditionalProperties[fieldName] = value
+}
+
+// Override default JSON handling for ExternalEvent to handle AdditionalProperties
+func (a *ExternalEvent) UnmarshalJSON(b []byte) error {
+	object := make(map[string]json.RawMessage)
+	err := json.Unmarshal(b, &object)
+	if err != nil {
+		return err
+	}
+
+	if raw, found := object["type"]; found {
+		err = json.Unmarshal(raw, &a.Type)
+		if err != nil {
+			return fmt.Errorf("error reading 'type': %w", err)
+		}
+		delete(object, "type")
+	}
+
+	if len(object) != 0 {
+		a.AdditionalProperties = make(map[string]interface{})
+		for fieldName, fieldBuf := range object {
+			var fieldVal interface{}
+			err := json.Unmarshal(fieldBuf, &fieldVal)
+			if err != nil {
+				return fmt.Errorf("error unmarshaling field %s: %w", fieldName, err)
+			}
+			a.AdditionalProperties[fieldName] = fieldVal
+		}
+	}
+	return nil
+}
+
+// Override default JSON handling for ExternalEvent to handle AdditionalProperties
+func (a ExternalEvent) MarshalJSON() ([]byte, error) {
+	var err error
+	object := make(map[string]json.RawMessage)
+
+	object["type"], err = json.Marshal(a.Type)
+	if err != nil {
+		return nil, fmt.Errorf("error marshaling 'type': %w", err)
+	}
+
+	for fieldName, field := range a.AdditionalProperties {
+		object[fieldName], err = json.Marshal(field)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling '%s': %w", fieldName, err)
+		}
+	}
+	return json.Marshal(object)
+}
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
@@ -3120,6 +3379,12 @@ type ServerInterface interface {
 	// (GET /projects/{projectId}/board)
 	GetBoard(w http.ResponseWriter, r *http.Request, projectId ProjectId)
 
+	// (GET /projects/{projectId}/coding-runtimes)
+	GetProjectCodingRuntimes(w http.ResponseWriter, r *http.Request, projectId ProjectId)
+
+	// (PUT /projects/{projectId}/coding-runtimes)
+	SetProjectCodingRuntimes(w http.ResponseWriter, r *http.Request, projectId ProjectId)
+
 	// (GET /projects/{projectId}/columns)
 	ListColumns(w http.ResponseWriter, r *http.Request, projectId ProjectId)
 
@@ -3245,6 +3510,15 @@ type ServerInterface interface {
 
 	// (POST /runtime/v1/runs/{runId}/events)
 	RuntimeAppendEvents(w http.ResponseWriter, r *http.Request, runId RunId)
+
+	// (DELETE /runtime/v1/runs/{runId}/external)
+	RuntimeExternalCancel(w http.ResponseWriter, r *http.Request, runId RunId)
+
+	// (GET /runtime/v1/runs/{runId}/external)
+	RuntimeExternalPoll(w http.ResponseWriter, r *http.Request, runId RunId, params RuntimeExternalPollParams)
+
+	// (POST /runtime/v1/runs/{runId}/external)
+	RuntimeExternalStart(w http.ResponseWriter, r *http.Request, runId RunId)
 
 	// (POST /runtime/v1/runs/{runId}/fail)
 	RuntimeFailRun(w http.ResponseWriter, r *http.Request, runId RunId)
@@ -3655,6 +3929,16 @@ func (_ Unimplemented) GetBoard(w http.ResponseWriter, r *http.Request, projectI
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
+// (GET /projects/{projectId}/coding-runtimes)
+func (_ Unimplemented) GetProjectCodingRuntimes(w http.ResponseWriter, r *http.Request, projectId ProjectId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (PUT /projects/{projectId}/coding-runtimes)
+func (_ Unimplemented) SetProjectCodingRuntimes(w http.ResponseWriter, r *http.Request, projectId ProjectId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
 // (GET /projects/{projectId}/columns)
 func (_ Unimplemented) ListColumns(w http.ResponseWriter, r *http.Request, projectId ProjectId) {
 	w.WriteHeader(http.StatusNotImplemented)
@@ -3862,6 +4146,21 @@ func (_ Unimplemented) RuntimeContextSymbols(w http.ResponseWriter, r *http.Requ
 
 // (POST /runtime/v1/runs/{runId}/events)
 func (_ Unimplemented) RuntimeAppendEvents(w http.ResponseWriter, r *http.Request, runId RunId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (DELETE /runtime/v1/runs/{runId}/external)
+func (_ Unimplemented) RuntimeExternalCancel(w http.ResponseWriter, r *http.Request, runId RunId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (GET /runtime/v1/runs/{runId}/external)
+func (_ Unimplemented) RuntimeExternalPoll(w http.ResponseWriter, r *http.Request, runId RunId, params RuntimeExternalPollParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (POST /runtime/v1/runs/{runId}/external)
+func (_ Unimplemented) RuntimeExternalStart(w http.ResponseWriter, r *http.Request, runId RunId) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -5567,6 +5866,58 @@ func (siw *ServerInterfaceWrapper) GetBoard(w http.ResponseWriter, r *http.Reque
 	handler.ServeHTTP(w, r)
 }
 
+// GetProjectCodingRuntimes operation middleware
+func (siw *ServerInterfaceWrapper) GetProjectCodingRuntimes(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "projectId" -------------
+	var projectId ProjectId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "projectId", chi.URLParam(r, "projectId"), &projectId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "projectId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetProjectCodingRuntimes(w, r, projectId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SetProjectCodingRuntimes operation middleware
+func (siw *ServerInterfaceWrapper) SetProjectCodingRuntimes(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "projectId" -------------
+	var projectId ProjectId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "projectId", chi.URLParam(r, "projectId"), &projectId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "projectId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetProjectCodingRuntimes(w, r, projectId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListColumns operation middleware
 func (siw *ServerInterfaceWrapper) ListColumns(w http.ResponseWriter, r *http.Request) {
 
@@ -6856,6 +7207,100 @@ func (siw *ServerInterfaceWrapper) RuntimeAppendEvents(w http.ResponseWriter, r 
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.RuntimeAppendEvents(w, r, runId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RuntimeExternalCancel operation middleware
+func (siw *ServerInterfaceWrapper) RuntimeExternalCancel(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "runId" -------------
+	var runId RunId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "runId", chi.URLParam(r, "runId"), &runId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "runId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RuntimeExternalCancel(w, r, runId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RuntimeExternalPoll operation middleware
+func (siw *ServerInterfaceWrapper) RuntimeExternalPoll(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "runId" -------------
+	var runId RunId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "runId", chi.URLParam(r, "runId"), &runId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "runId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params RuntimeExternalPollParams
+
+	// ------------- Optional query parameter "wait" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "wait", r.URL.Query(), &params.Wait, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "wait"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "wait", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RuntimeExternalPoll(w, r, runId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RuntimeExternalStart operation middleware
+func (siw *ServerInterfaceWrapper) RuntimeExternalStart(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "runId" -------------
+	var runId RunId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "runId", chi.URLParam(r, "runId"), &runId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "runId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RuntimeExternalStart(w, r, runId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -8409,6 +8854,21 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/tasks/{taskId}/workspace", wrapper.PrepareTaskWorkspace)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/projects/{projectId}/coding-runtimes", wrapper.GetProjectCodingRuntimes)
+	})
+	r.Group(func(r chi.Router) {
+		r.Put(options.BaseURL+"/projects/{projectId}/coding-runtimes", wrapper.SetProjectCodingRuntimes)
+	})
+	r.Group(func(r chi.Router) {
+		r.Delete(options.BaseURL+"/runtime/v1/runs/{runId}/external", wrapper.RuntimeExternalCancel)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/runtime/v1/runs/{runId}/external", wrapper.RuntimeExternalPoll)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/runtime/v1/runs/{runId}/external", wrapper.RuntimeExternalStart)
 	})
 
 	return r
@@ -12005,6 +12465,125 @@ func (response GetBoard404ApplicationProblemPlusJSONResponse) VisitGetBoardRespo
 	return err
 }
 
+type GetProjectCodingRuntimesRequestObject struct {
+	ProjectId ProjectId `json:"projectId"`
+}
+
+type GetProjectCodingRuntimesResponseObject interface {
+	VisitGetProjectCodingRuntimesResponse(w http.ResponseWriter) error
+}
+
+type GetProjectCodingRuntimes200JSONResponse ProjectCodingRuntimes
+
+func (response GetProjectCodingRuntimes200JSONResponse) VisitGetProjectCodingRuntimesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetProjectCodingRuntimes401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response GetProjectCodingRuntimes401ApplicationProblemPlusJSONResponse) VisitGetProjectCodingRuntimesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetProjectCodingRuntimes404ApplicationProblemPlusJSONResponse Problem
+
+func (response GetProjectCodingRuntimes404ApplicationProblemPlusJSONResponse) VisitGetProjectCodingRuntimesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetProjectCodingRuntimesRequestObject struct {
+	ProjectId ProjectId `json:"projectId"`
+	Body      *SetProjectCodingRuntimesJSONRequestBody
+}
+
+type SetProjectCodingRuntimesResponseObject interface {
+	VisitSetProjectCodingRuntimesResponse(w http.ResponseWriter) error
+}
+
+type SetProjectCodingRuntimes200JSONResponse ProjectCodingRuntimes
+
+func (response SetProjectCodingRuntimes200JSONResponse) VisitSetProjectCodingRuntimesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetProjectCodingRuntimes400ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response SetProjectCodingRuntimes400ApplicationProblemPlusJSONResponse) VisitSetProjectCodingRuntimesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetProjectCodingRuntimes401ApplicationProblemPlusJSONResponse Problem
+
+func (response SetProjectCodingRuntimes401ApplicationProblemPlusJSONResponse) VisitSetProjectCodingRuntimesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetProjectCodingRuntimes404ApplicationProblemPlusJSONResponse Problem
+
+func (response SetProjectCodingRuntimes404ApplicationProblemPlusJSONResponse) VisitSetProjectCodingRuntimesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type ListColumnsRequestObject struct {
 	ProjectId ProjectId `json:"projectId"`
 }
@@ -14640,6 +15219,199 @@ func (response RuntimeAppendEvents403ApplicationProblemPlusJSONResponse) VisitRu
 	return err
 }
 
+type RuntimeExternalCancelRequestObject struct {
+	RunId RunId `json:"runId"`
+}
+
+type RuntimeExternalCancelResponseObject interface {
+	VisitRuntimeExternalCancelResponse(w http.ResponseWriter) error
+}
+
+type RuntimeExternalCancel204Response struct {
+}
+
+func (response RuntimeExternalCancel204Response) VisitRuntimeExternalCancelResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type RuntimeExternalCancel401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response RuntimeExternalCancel401ApplicationProblemPlusJSONResponse) VisitRuntimeExternalCancelResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RuntimeExternalPollRequestObject struct {
+	RunId  RunId `json:"runId"`
+	Params RuntimeExternalPollParams
+}
+
+type RuntimeExternalPollResponseObject interface {
+	VisitRuntimeExternalPollResponse(w http.ResponseWriter) error
+}
+
+type RuntimeExternalPoll200JSONResponse ExternalPoll
+
+func (response RuntimeExternalPoll200JSONResponse) VisitRuntimeExternalPollResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RuntimeExternalPoll401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response RuntimeExternalPoll401ApplicationProblemPlusJSONResponse) VisitRuntimeExternalPollResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RuntimeExternalPoll404ApplicationProblemPlusJSONResponse Problem
+
+func (response RuntimeExternalPoll404ApplicationProblemPlusJSONResponse) VisitRuntimeExternalPollResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RuntimeExternalStartRequestObject struct {
+	RunId RunId `json:"runId"`
+}
+
+type RuntimeExternalStartResponseObject interface {
+	VisitRuntimeExternalStartResponse(w http.ResponseWriter) error
+}
+
+type RuntimeExternalStart200JSONResponse ExternalStart
+
+func (response RuntimeExternalStart200JSONResponse) VisitRuntimeExternalStartResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RuntimeExternalStart400ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response RuntimeExternalStart400ApplicationProblemPlusJSONResponse) VisitRuntimeExternalStartResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RuntimeExternalStart401ApplicationProblemPlusJSONResponse Problem
+
+func (response RuntimeExternalStart401ApplicationProblemPlusJSONResponse) VisitRuntimeExternalStartResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RuntimeExternalStart403ApplicationProblemPlusJSONResponse Problem
+
+func (response RuntimeExternalStart403ApplicationProblemPlusJSONResponse) VisitRuntimeExternalStartResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RuntimeExternalStart409ApplicationProblemPlusJSONResponse Problem
+
+func (response RuntimeExternalStart409ApplicationProblemPlusJSONResponse) VisitRuntimeExternalStartResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RuntimeExternalStart429ApplicationProblemPlusJSONResponse Problem
+
+func (response RuntimeExternalStart429ApplicationProblemPlusJSONResponse) VisitRuntimeExternalStartResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(429)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RuntimeExternalStart503ApplicationProblemPlusJSONResponse Problem
+
+func (response RuntimeExternalStart503ApplicationProblemPlusJSONResponse) VisitRuntimeExternalStartResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(503)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type RuntimeFailRunRequestObject struct {
 	RunId RunId `json:"runId"`
 	Body  *RuntimeFailRunJSONRequestBody
@@ -17161,6 +17933,12 @@ type StrictServerInterface interface {
 	// (GET /projects/{projectId}/board)
 	GetBoard(ctx context.Context, request GetBoardRequestObject) (GetBoardResponseObject, error)
 
+	// (GET /projects/{projectId}/coding-runtimes)
+	GetProjectCodingRuntimes(ctx context.Context, request GetProjectCodingRuntimesRequestObject) (GetProjectCodingRuntimesResponseObject, error)
+
+	// (PUT /projects/{projectId}/coding-runtimes)
+	SetProjectCodingRuntimes(ctx context.Context, request SetProjectCodingRuntimesRequestObject) (SetProjectCodingRuntimesResponseObject, error)
+
 	// (GET /projects/{projectId}/columns)
 	ListColumns(ctx context.Context, request ListColumnsRequestObject) (ListColumnsResponseObject, error)
 
@@ -17286,6 +18064,15 @@ type StrictServerInterface interface {
 
 	// (POST /runtime/v1/runs/{runId}/events)
 	RuntimeAppendEvents(ctx context.Context, request RuntimeAppendEventsRequestObject) (RuntimeAppendEventsResponseObject, error)
+
+	// (DELETE /runtime/v1/runs/{runId}/external)
+	RuntimeExternalCancel(ctx context.Context, request RuntimeExternalCancelRequestObject) (RuntimeExternalCancelResponseObject, error)
+
+	// (GET /runtime/v1/runs/{runId}/external)
+	RuntimeExternalPoll(ctx context.Context, request RuntimeExternalPollRequestObject) (RuntimeExternalPollResponseObject, error)
+
+	// (POST /runtime/v1/runs/{runId}/external)
+	RuntimeExternalStart(ctx context.Context, request RuntimeExternalStartRequestObject) (RuntimeExternalStartResponseObject, error)
 
 	// (POST /runtime/v1/runs/{runId}/fail)
 	RuntimeFailRun(ctx context.Context, request RuntimeFailRunRequestObject) (RuntimeFailRunResponseObject, error)
@@ -19047,6 +19834,65 @@ func (sh *strictHandler) GetBoard(w http.ResponseWriter, r *http.Request, projec
 	}
 }
 
+// GetProjectCodingRuntimes operation middleware
+func (sh *strictHandler) GetProjectCodingRuntimes(w http.ResponseWriter, r *http.Request, projectId ProjectId) {
+	var request GetProjectCodingRuntimesRequestObject
+
+	request.ProjectId = projectId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetProjectCodingRuntimes(ctx, request.(GetProjectCodingRuntimesRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetProjectCodingRuntimes")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetProjectCodingRuntimesResponseObject); ok {
+		if err := validResponse.VisitGetProjectCodingRuntimesResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// SetProjectCodingRuntimes operation middleware
+func (sh *strictHandler) SetProjectCodingRuntimes(w http.ResponseWriter, r *http.Request, projectId ProjectId) {
+	var request SetProjectCodingRuntimesRequestObject
+
+	request.ProjectId = projectId
+
+	var body SetProjectCodingRuntimesJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.SetProjectCodingRuntimes(ctx, request.(SetProjectCodingRuntimesRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SetProjectCodingRuntimes")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(SetProjectCodingRuntimesResponseObject); ok {
+		if err := validResponse.VisitSetProjectCodingRuntimesResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // ListColumns operation middleware
 func (sh *strictHandler) ListColumns(w http.ResponseWriter, r *http.Request, projectId ProjectId) {
 	var request ListColumnsRequestObject
@@ -20252,6 +21098,85 @@ func (sh *strictHandler) RuntimeAppendEvents(w http.ResponseWriter, r *http.Requ
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(RuntimeAppendEventsResponseObject); ok {
 		if err := validResponse.VisitRuntimeAppendEventsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RuntimeExternalCancel operation middleware
+func (sh *strictHandler) RuntimeExternalCancel(w http.ResponseWriter, r *http.Request, runId RunId) {
+	var request RuntimeExternalCancelRequestObject
+
+	request.RunId = runId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RuntimeExternalCancel(ctx, request.(RuntimeExternalCancelRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RuntimeExternalCancel")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RuntimeExternalCancelResponseObject); ok {
+		if err := validResponse.VisitRuntimeExternalCancelResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RuntimeExternalPoll operation middleware
+func (sh *strictHandler) RuntimeExternalPoll(w http.ResponseWriter, r *http.Request, runId RunId, params RuntimeExternalPollParams) {
+	var request RuntimeExternalPollRequestObject
+
+	request.RunId = runId
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RuntimeExternalPoll(ctx, request.(RuntimeExternalPollRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RuntimeExternalPoll")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RuntimeExternalPollResponseObject); ok {
+		if err := validResponse.VisitRuntimeExternalPollResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RuntimeExternalStart operation middleware
+func (sh *strictHandler) RuntimeExternalStart(w http.ResponseWriter, r *http.Request, runId RunId) {
+	var request RuntimeExternalStartRequestObject
+
+	request.RunId = runId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RuntimeExternalStart(ctx, request.(RuntimeExternalStartRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RuntimeExternalStart")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RuntimeExternalStartResponseObject); ok {
+		if err := validResponse.VisitRuntimeExternalStartResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

@@ -1970,6 +1970,47 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/projects/{projectId}/coding-runtimes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: components["parameters"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        /** @description Which external coding runtimes (Claude Code, Codex) the project's tasks may use. */
+        get: operations["getProjectCodingRuntimes"];
+        /** @description Changes the project's runtime policy (a security policy; audited with the old and new values). */
+        put: operations["setProjectCodingRuntimes"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/runtime/v1/runs/{runId}/external": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                runId: components["parameters"]["RunId"];
+            };
+            cookie?: never;
+        };
+        /** @description New normalized events of the session, waiting up to `wait` seconds; when it ended, its outcome. */
+        get: operations["runtimeExternalPoll"];
+        put?: never;
+        /** @description Starts (or rejoins) the run's external coding session (the runtime pinned on the run). */
+        post: operations["runtimeExternalStart"];
+        /** @description Stops the session (the runner is removed, its credentials revoked). */
+        delete: operations["runtimeExternalCancel"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -2806,6 +2847,11 @@ export interface components {
             type?: components["schemas"]["StepType"];
             /** @description The agent an agent step runs. */
             agent?: string;
+            /**
+             * @description Implementing agent steps: run on an external coding CLI instead of Wise's own loop.
+             * @enum {string}
+             */
+            runtime?: "native" | "claude-code" | "codex";
             /** @description Gate: the implementing step re-run with the failures (default: the nearest earlier implementing step). */
             fixFrom?: string;
             /** @description Gate: an agent (e.g. qa-agent) that explains failures before each fix round. */
@@ -3183,6 +3229,8 @@ export interface components {
             /** @description Empty for agent steps. */
             type?: string;
             agent: string;
+            /** @description Empty = native. */
+            runtime?: string;
             fixFrom?: string;
             diagnoseWith?: string;
             /** @description Artifact kind the step produces. */
@@ -3216,6 +3264,11 @@ export interface components {
             issues: components["schemas"]["PlanIssue"][];
         };
         StepOverride: {
+            /**
+             * @description Run this implementing step on a runtime the project enabled.
+             * @enum {string}
+             */
+            runtime?: "native" | "claude-code" | "codex";
             enabled?: boolean;
             account?: string;
             model?: string;
@@ -3394,6 +3447,48 @@ export interface components {
             project?: components["schemas"]["RuntimeProject"];
             /** @description The run works in its task's workspace (write and execute tools are available). */
             workspace?: boolean;
+            /** @description native, or an external coding runtime (claude-code, codex) that runs this agent. */
+            runtime?: string;
+        };
+        ProjectCodingRuntimes: {
+            /** @description Runtimes the project's tasks may use. */
+            enabled: ("claude-code" | "codex")[];
+            /** @description Allow subscription credentials (reduced isolation: the vendor token is inside the runner, readable by any command it runs). */
+            allowSubscription: boolean;
+        };
+        ExternalStart: {
+            runtime: string;
+            /** @enum {string} */
+            mode: "proxy" | "subscription";
+            reducedIsolation: boolean;
+            cliVersion: string;
+        };
+        ExternalEvent: {
+            type: string;
+        } & {
+            [key: string]: unknown;
+        };
+        ExternalOutcome: {
+            /** @enum {string} */
+            class: "succeeded" | "auth_error" | "rate_limited" | "budget_exceeded" | "timeout" | "policy_violation" | "runtime_crash" | "incomplete";
+            message?: string;
+            output?: {
+                [key: string]: unknown;
+            };
+            usage: {
+                /** Format: int64 */
+                inputTokens: number;
+                /** Format: int64 */
+                outputTokens: number;
+                costUsd: number;
+                turns?: number;
+            };
+            retryable?: boolean;
+        };
+        ExternalPoll: {
+            events: components["schemas"]["ExternalEvent"][];
+            done: boolean;
+            outcome?: components["schemas"]["ExternalOutcome"];
         };
         WorkspaceCommandResult: {
             exitCode?: number | null;
@@ -7101,6 +7196,134 @@ export interface operations {
             401: components["responses"]["Problem"];
             404: components["responses"]["Problem"];
             503: components["responses"]["Problem"];
+        };
+    };
+    getProjectCodingRuntimes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: components["parameters"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Policy. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectCodingRuntimes"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    setProjectCodingRuntimes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: components["parameters"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProjectCodingRuntimes"];
+            };
+        };
+        responses: {
+            /** @description Saved. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectCodingRuntimes"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    runtimeExternalPoll: {
+        parameters: {
+            query?: {
+                wait?: number;
+            };
+            header?: never;
+            path: {
+                runId: components["parameters"]["RunId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Events. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExternalPoll"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    runtimeExternalStart: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                runId: components["parameters"]["RunId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Started. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExternalStart"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            429: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    runtimeExternalCancel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                runId: components["parameters"]["RunId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Stopped. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Problem"];
         };
     };
 }

@@ -99,8 +99,8 @@ func (a *Activities) RunStage(ctx context.Context, req StageRequest) (StageResul
 	opts := agents.RunOptions{
 		ProjectID: &req.ProjectID, UserID: req.CreatedBy, WorkflowRunID: &req.WorkflowRunID, IdempotencyKey: key,
 	}
-	if step.Account != "" {
-		opts.Model = &agents.ModelOverride{Account: step.Account, Model: step.Model}
+	if step.Account != "" || step.Runtime != "" {
+		opts.Model = &agents.ModelOverride{Account: step.Account, Model: step.Model, Runtime: step.Runtime}
 	}
 	run, err := a.Agents.Enqueue(ctx, req.Agent, input, opts)
 	if err != nil {

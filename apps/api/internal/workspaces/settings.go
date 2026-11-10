@@ -3,6 +3,7 @@ package workspaces
 import (
 	"encoding/json"
 	"fmt"
+	"path"
 	"regexp"
 	"strings"
 
@@ -22,6 +23,9 @@ type Settings struct {
 	BranchTemplate  string            `json:"branch_template"`
 	CommitAuthor    Author            `json:"commit_author"`
 	Images          map[string]string `json:"images"`
+	// ProtectedPaths are globs a task's change may not touch (checked on the
+	// verified changeset at the quality gate, for every runtime).
+	ProtectedPaths []string `json:"protected_paths,omitempty"`
 }
 
 // Limits bound a sandbox.
@@ -88,6 +92,13 @@ func ParseSettings(raw json.RawMessage) (Settings, error) {
 	}
 	if (s.CommitAuthor.Name == "") != (s.CommitAuthor.Email == "") || (s.CommitAuthor.Email != "" && !strings.Contains(s.CommitAuthor.Email, "@")) {
 		add("commit_author", "set both a name and an email, or neither")
+	}
+	for i, g := range s.ProtectedPaths {
+		if strings.TrimSpace(g) == "" || len(g) > 300 {
+			add(fmt.Sprintf("protected_paths[%d]", i), "a glob like .github/workflows/**")
+		} else if _, err := path.Match(strings.ReplaceAll(g, "**", "*"), "x"); err != nil {
+			add(fmt.Sprintf("protected_paths[%d]", i), "invalid glob")
+		}
 	}
 	for k, v := range s.Images {
 		if !imageRe.MatchString(v) {
@@ -194,4 +205,45 @@ func RepoSettingsFrom(settings []byte) RepoSettings {
 	}
 	_ = json.Unmarshal(settings, &all)
 	return all.Execution
+}
+
+// Protected reports the files of a change that match a protected glob
+// ("**" matches any number of directories).
+func Protected(globs []string, files []string) []string {
+	var hit []string
+	for _, f := range files {
+		for _, g := range globs {
+			if matchGlob(g, f) {
+				hit = append(hit, f)
+				break
+			}
+		}
+	}
+	return hit
+}
+
+func matchGlob(g, f string) bool {
+	if !strings.Contains(g, "**") {
+		ok, _ := path.Match(g, f)
+		if !ok && !strings.Contains(g, "/") {
+			ok, _ = path.Match(g, path.Base(f)) // "*.pem" matches anywhere
+		}
+		return ok
+	}
+	parts := strings.SplitN(g, "**", 2)
+	prefix, rest := parts[0], strings.TrimPrefix(parts[1], "/")
+	if !strings.HasPrefix(f, prefix) {
+		return false
+	}
+	tail := strings.TrimPrefix(f, prefix)
+	if rest == "" {
+		return true
+	}
+	segs := strings.Split(tail, "/")
+	for i := range segs {
+		if matchGlob(rest, strings.Join(segs[i:], "/")) {
+			return true
+		}
+	}
+	return false
 }

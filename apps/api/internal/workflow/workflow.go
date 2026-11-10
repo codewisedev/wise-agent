@@ -421,11 +421,19 @@ func (w *pipeline) runGate(ctx workflow.Context, st tasks.PlanStep, revision int
 			}); err != nil {
 				return err
 			}
-			if !snap.SecretFound {
+			if !snap.SecretFound && len(snap.Protected) == 0 {
 				return nil
 			}
-			g.Summary = "the change contains credentials."
-			feedback, diagnose = secretFeedback(snap.Secrets), false
+			feedback, diagnose = "", false
+			if snap.SecretFound {
+				g.Summary = "the change contains credentials."
+				feedback = secretFeedback(snap.Secrets)
+			}
+			if len(snap.Protected) > 0 {
+				g.Summary = strings.TrimSpace(g.Summary + " the change touches protected paths.")
+				feedback = strings.TrimSpace(feedback + "\n\n### Protected paths changed\nThese files may not be changed by a task; revert your changes to them: " +
+					strings.Join(snap.Protected, ", "))
+			}
 			w.notes[st.ID] = []string{"Quality gate: " + g.Summary}
 		}
 		if round >= g.MaxRounds {

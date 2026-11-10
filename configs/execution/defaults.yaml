@@ -31,6 +31,15 @@ branch_template: "wise/{slug}-{id}"
 commit_author:
   name: ""
   email: ""
+# Paths a task's change may never touch (any runtime); a change that does
+# fails the quality gate. "**" matches any number of directories.
+protected_paths:
+  - .github/workflows/**
+  - .gitlab-ci.yml
+  - "**/.env"
+  - "**/.env.*"
+  - "*.pem"
+  - "*.key"
 # Toolchain images offered by "Detect" (build them with `make toolchains`).
 images:
   node: wise-toolchain-node:22

@@ -32,6 +32,9 @@ const (
 	StepDeliver   = "deliver"   // write the approved commit as the task branch
 )
 
+// ExternalRuntimes are the coding CLIs an implementing step may run on.
+var ExternalRuntimes = []string{"claude-code", "codex"}
+
 // StepTypes lists the step types.
 var StepTypes = []string{StepAgent, StepWorkspace, StepQuality, StepGate, StepDeliver}
 
@@ -56,6 +59,9 @@ type StepDef struct {
 	// DiagnoseWith optionally runs an agent (e.g. qa-agent) to explain them.
 	FixFrom      string `json:"fixFrom,omitempty"`
 	DiagnoseWith string `json:"diagnoseWith,omitempty"`
+	// Runtime runs an implementing agent on an external coding CLI
+	// (claude-code, codex); empty or "native" = Wise's own loop.
+	Runtime string `json:"runtime,omitempty"`
 	// Account and Model pin who runs the step; empty = the agent's default routing.
 	Account string `json:"account,omitempty"`
 	Model   string `json:"model,omitempty"`
@@ -80,6 +86,7 @@ type Destination struct {
 
 // StepOverride is a task's change to one template step.
 type StepOverride struct {
+	Runtime *string `json:"runtime,omitempty"`
 	Enabled *bool   `json:"enabled,omitempty"`
 	Account *string `json:"account,omitempty"`
 	Model   *string `json:"model,omitempty"`
@@ -101,6 +108,7 @@ type PlanStep struct {
 	Inputs          []string          `json:"inputs,omitempty"`
 	FixFrom         string            `json:"fixFrom,omitempty"`
 	DiagnoseWith    string            `json:"diagnoseWith,omitempty"`
+	Runtime         string            `json:"runtime,omitempty"`  // empty = native
 	Kind            string            `json:"kind"`               // artifact kind the agent produces
 	Consumes        map[string]string `json:"consumes,omitempty"` // input property → artifact kind
 	AcceptsFeedback bool              `json:"acceptsFeedback"`
@@ -207,8 +215,11 @@ func Resolve(ctx context.Context, def TemplateDef, ov Overrides, stepByStep bool
 	reviewedAny, workspace := false, false
 	for i, sd := range def.Steps {
 		st := PlanStep{ID: sd.ID, Name: strings.TrimSpace(sd.Name), Agent: sd.Agent, Account: sd.Account, Model: sd.Model,
-			Enabled: sd.Enabled == nil || *sd.Enabled, Review: sd.Review, ReviseFrom: sd.ReviseFrom}
+			Enabled: sd.Enabled == nil || *sd.Enabled, Review: sd.Review, ReviseFrom: sd.ReviseFrom, Runtime: sd.Runtime}
 		if o, ok := ov.Steps[sd.ID]; ok {
+			if o.Runtime != nil {
+				st.Runtime = *o.Runtime
+			}
 			if o.Enabled != nil {
 				st.Enabled = *o.Enabled
 			}
@@ -269,9 +280,22 @@ func Resolve(ctx context.Context, def TemplateDef, ov Overrides, stepByStep bool
 					if info.NeedsWorkspace && !workspace {
 						bad("%s works in the task workspace: add a workspace step before it", sd.Agent)
 					}
+					if st.Runtime == "native" {
+						st.Runtime = ""
+					}
+					if st.Runtime != "" {
+						if !slices.Contains(ExternalRuntimes, st.Runtime) {
+							bad("unknown runtime %q (native, %s)", st.Runtime, strings.Join(ExternalRuntimes, ", "))
+						} else if info.Produces != KindImplementation {
+							bad("only agents that implement the change (like backend-agent) can run on %s", st.Runtime)
+						}
+					}
 				}
 			}
 		case StepWorkspace, StepQuality, StepGate, StepDeliver:
+			if st.Runtime != "" && st.Runtime != "native" {
+				bad("only implementing agent steps run on an external coding runtime")
+			}
 			if sd.Agent != "" && typ != StepGate {
 				bad("a %s step runs no agent", typ)
 			}

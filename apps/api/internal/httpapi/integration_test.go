@@ -16,6 +16,7 @@ import (
 	"testing"
 	"time"
 	"wise/apps/api/internal/codeindex"
+	"wise/apps/api/internal/codingruns"
 	"wise/apps/api/internal/db/dbgen"
 	"wise/apps/api/internal/memory"
 	"wise/apps/api/internal/workspaces"
@@ -65,6 +66,8 @@ type env struct {
 	memory   *memory.Service
 	exec     *fakeExecutor
 	ws       *workspaces.Service
+	coding   *codingruns.Service
+	proxy    *fakeProxy
 }
 
 func setup(t *testing.T) *env {
@@ -126,6 +129,10 @@ func setup(t *testing.T) *env {
 	fx := &fakeExecutor{}
 	wsSvc := workspaces.New(d, fx, log)
 	settings.RegisterExecution(settingsSvc, filepath.Join("..", "..", "..", "..", "configs", "execution", "defaults.yaml"), wsSvc)
+	fp := &fakeProxy{}
+	codingSvc := codingruns.New(d, fx, fp, wsSvc, accountSvc, gw, log)
+	codingSvc.EnvToken = ""
+	settings.RegisterCodingRuntimes(settingsSvc, filepath.Join("..", "..", "..", "..", "configs", "coding-runtimes", "defaults.yaml"), codingSvc)
 	settings.RegisterDefaults(settingsSvc, testSettingFiles(t), gw, accountSvc, taskSvc)
 	if err := settingsSvc.Start(context.Background()); err != nil {
 		t.Fatal(err)
@@ -136,6 +143,7 @@ func setup(t *testing.T) *env {
 		Index:        indexSvc,
 		Memory:       memorySvc,
 		Workspaces:   wsSvc,
+		CodingRuns:   codingSvc,
 		Agents:       agentSvc, RunQueue: queue, Gateway: gw, Hub: hub, Tasks: taskSvc, Accounts: accountSvc, Integrations: integrationSvc, Settings: settingsSvc,
 		Cookie:       httpapi.CookieConfig{TTL: time.Hour},
 		RuntimeToken: runtimeToken,
@@ -147,7 +155,7 @@ func setup(t *testing.T) *env {
 	ts := httptest.NewServer(h)
 	t.Cleanup(ts.Close)
 	jar, _ := cookiejar.New(nil)
-	return &env{t: t, db: d, srv: ts, client: &http.Client{Jar: jar}, repoRoot: root, queue: queue, model: model, repoSvc: repoSvc, index: indexSvc, memory: memorySvc, exec: fx, ws: wsSvc,
+	return &env{t: t, db: d, srv: ts, client: &http.Client{Jar: jar}, repoRoot: root, queue: queue, model: model, repoSvc: repoSvc, index: indexSvc, memory: memorySvc, exec: fx, ws: wsSvc, coding: codingSvc, proxy: fp,
 		tasks: taskSvc, agents: agentSvc, hub: hub, accounts: accountSvc, gw: gw, sources: integrationSvc, settings: settingsSvc}
 }
 
