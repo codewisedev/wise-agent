@@ -82,7 +82,8 @@ read-only token for the allowlist, because it joins every sandbox network.
 - credential-like tracked files are removed from the clone;
 - workspace reads and searches refuse secret names and token-bearing files;
 - command output, diffs and logs are redacted for known token patterns;
-- the changeset flags credential-like files or tokens for the reviewer.
+- a credential-like file or token in the verified changeset fails the quality gate, and a fix round removes it
+  before you can approve the change.
 
 This is defence in depth, not a boundary: a secret in git history or a
 renamed file can still be read by `ws_run_command`. Keep secrets out of
