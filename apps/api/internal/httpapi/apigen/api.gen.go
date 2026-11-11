@@ -849,6 +849,24 @@ func (e ModelTurnAction) Valid() bool {
 	}
 }
 
+// Defines values for MonitorSnapshotWaitingStatus.
+const (
+	MonitorSnapshotWaitingStatusAwaitingApproval MonitorSnapshotWaitingStatus = "awaiting_approval"
+	MonitorSnapshotWaitingStatusAwaitingRetry    MonitorSnapshotWaitingStatus = "awaiting_retry"
+)
+
+// Valid indicates whether the value is a known member of the MonitorSnapshotWaitingStatus enum.
+func (e MonitorSnapshotWaitingStatus) Valid() bool {
+	switch e {
+	case MonitorSnapshotWaitingStatusAwaitingApproval:
+		return true
+	case MonitorSnapshotWaitingStatusAwaitingRetry:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ProjectCodingRuntimesEnabled.
 const (
 	ProjectCodingRuntimesEnabledClaudeCode ProjectCodingRuntimesEnabled = "claude-code"
@@ -2826,6 +2844,57 @@ type ModelsOverview struct {
 	Usage     []ModelUsage    `json:"usage"`
 }
 
+// MonitorRun defines model for MonitorRun.
+type MonitorRun struct {
+	Account     *string             `json:"account,omitempty"`
+	Agent       string              `json:"agent"`
+	Attempt     int                 `json:"attempt"`
+	Cancelling  bool                `json:"cancelling"`
+	CostUsd     float32             `json:"costUsd"`
+	CreatedAt   time.Time           `json:"createdAt"`
+	Id          openapi_types.UUID  `json:"id"`
+	LastEvent   *string             `json:"lastEvent,omitempty"`
+	LastEventAt *time.Time          `json:"lastEventAt,omitempty"`
+	LeaseUntil  *time.Time          `json:"leaseUntil,omitempty"`
+	MaxAttempts int                 `json:"maxAttempts"`
+	ProjectId   *openapi_types.UUID `json:"projectId,omitempty"`
+	ProjectName *string             `json:"projectName,omitempty"`
+	Purpose     string              `json:"purpose"`
+
+	// Runtime native, claude-code or codex
+	Runtime   string     `json:"runtime"`
+	StartedAt *time.Time `json:"startedAt,omitempty"`
+	Status    string     `json:"status"`
+
+	// Stuck Why the run looks stuck (empty when it does not).
+	Stuck     *string             `json:"stuck,omitempty"`
+	TaskId    *openapi_types.UUID `json:"taskId,omitempty"`
+	TaskTitle *string             `json:"taskTitle,omitempty"`
+	Tokens    int64               `json:"tokens"`
+}
+
+// MonitorSnapshot defines model for MonitorSnapshot.
+type MonitorSnapshot struct {
+	At      time.Time    `json:"at"`
+	Evals   []MonitorRun `json:"evals"`
+	Queued  []MonitorRun `json:"queued"`
+	Running []MonitorRun `json:"running"`
+	Stuck   int          `json:"stuck"`
+	Waiting []struct {
+		Error       *string                      `json:"error,omitempty"`
+		Id          openapi_types.UUID           `json:"id"`
+		ProjectName string                       `json:"projectName"`
+		Since       time.Time                    `json:"since"`
+		Stage       string                       `json:"stage"`
+		Status      MonitorSnapshotWaitingStatus `json:"status"`
+		TaskId      openapi_types.UUID           `json:"taskId"`
+		TaskTitle   string                       `json:"taskTitle"`
+	} `json:"waiting"`
+}
+
+// MonitorSnapshotWaitingStatus defines model for MonitorSnapshot.Waiting.Status.
+type MonitorSnapshotWaitingStatus string
+
 // PlanIssue defines model for PlanIssue.
 type PlanIssue struct {
 	Message string  `json:"message"`
@@ -4469,6 +4538,9 @@ type ServerInterface interface {
 	// (GET /models)
 	GetModelsOverview(w http.ResponseWriter, r *http.Request, params GetModelsOverviewParams)
 
+	// (GET /monitor)
+	GetMonitor(w http.ResponseWriter, r *http.Request)
+
 	// (DELETE /project-resources/{resourceId})
 	DeleteProjectResource(w http.ResponseWriter, r *http.Request, resourceId ResourceId)
 
@@ -5137,6 +5209,11 @@ func (_ Unimplemented) RestoreMemoryVersion(w http.ResponseWriter, r *http.Reque
 
 // (GET /models)
 func (_ Unimplemented) GetModelsOverview(w http.ResponseWriter, r *http.Request, params GetModelsOverviewParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (GET /monitor)
+func (_ Unimplemented) GetMonitor(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -7650,6 +7727,20 @@ func (siw *ServerInterfaceWrapper) GetModelsOverview(w http.ResponseWriter, r *h
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetModelsOverview(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetMonitor operation middleware
+func (siw *ServerInterfaceWrapper) GetMonitor(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetMonitor(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -11201,6 +11292,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/tasks/{taskId}/release", wrapper.GetTaskRelease)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/monitor", wrapper.GetMonitor)
 	})
 
 	return r
@@ -15586,6 +15680,43 @@ type GetModelsOverview401ApplicationProblemPlusJSONResponse struct {
 }
 
 func (response GetModelsOverview401ApplicationProblemPlusJSONResponse) VisitGetModelsOverviewResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetMonitorRequestObject struct {
+}
+
+type GetMonitorResponseObject interface {
+	VisitGetMonitorResponse(w http.ResponseWriter) error
+}
+
+type GetMonitor200JSONResponse MonitorSnapshot
+
+func (response GetMonitor200JSONResponse) VisitGetMonitorResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetMonitor401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response GetMonitor401ApplicationProblemPlusJSONResponse) VisitGetMonitorResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -22117,6 +22248,9 @@ type StrictServerInterface interface {
 	// (GET /models)
 	GetModelsOverview(ctx context.Context, request GetModelsOverviewRequestObject) (GetModelsOverviewResponseObject, error)
 
+	// (GET /monitor)
+	GetMonitor(ctx context.Context, request GetMonitorRequestObject) (GetMonitorResponseObject, error)
+
 	// (DELETE /project-resources/{resourceId})
 	DeleteProjectResource(ctx context.Context, request DeleteProjectResourceRequestObject) (DeleteProjectResourceResponseObject, error)
 
@@ -24461,6 +24595,30 @@ func (sh *strictHandler) GetModelsOverview(w http.ResponseWriter, r *http.Reques
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(GetModelsOverviewResponseObject); ok {
 		if err := validResponse.VisitGetModelsOverviewResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetMonitor operation middleware
+func (sh *strictHandler) GetMonitor(w http.ResponseWriter, r *http.Request) {
+	var request GetMonitorRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetMonitor(ctx, request.(GetMonitorRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetMonitor")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetMonitorResponseObject); ok {
+		if err := validResponse.VisitGetMonitorResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

@@ -27,6 +27,7 @@ import (
 	"wise/apps/api/internal/insights"
 	"wise/apps/api/internal/memory"
 	"wise/apps/api/internal/modelproxy"
+	"wise/apps/api/internal/monitor"
 	"wise/apps/api/internal/release"
 	"wise/apps/api/internal/workspaces"
 
@@ -280,6 +281,7 @@ func serve(ctx context.Context) error {
 		Insights:         insightSvc,
 		Improvement:      improvementSvc,
 		Release:          releaseSvc,
+		Monitor:          monitor.New(d),
 		GitWorkerToken:   os.Getenv("WISE_GIT_WORKER_TOKEN"),
 		Agents:           agentSvc,
 		RunQueue:         runQueue,

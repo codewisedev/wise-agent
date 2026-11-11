@@ -793,3 +793,6 @@ tr.muted { opacity: .55; }
 .release-row .bad-text { flex-basis: 100%; }
 .commit-msg-row { display: flex; gap: 8px; align-items: flex-start; }
 .commit-msg-row pre { flex: 1; }
+tr.row-warn td { background: color-mix(in srgb, var(--warn) 8%, transparent); }
+.nav-count.warn { background: var(--warn); }
+.stats.compact .stat { padding: 6px 10px; }

@@ -23,6 +23,7 @@ import (
 	"wise/apps/api/internal/improvement"
 	"wise/apps/api/internal/insights"
 	"wise/apps/api/internal/memory"
+	"wise/apps/api/internal/monitor"
 	"wise/apps/api/internal/release"
 	"wise/apps/api/internal/workspaces"
 
@@ -169,6 +170,7 @@ func setup(t *testing.T) *env {
 		Insights:       insightSvc,
 		Improvement:    improvementSvc,
 		Release:        releaseSvc,
+		Monitor:        monitor.New(d),
 		GitWorkerToken: gitWorkerToken,
 		Agents:         agentSvc, RunQueue: queue, Gateway: gw, Hub: hub, Tasks: taskSvc, Accounts: accountSvc, Integrations: integrationSvc, Settings: settingsSvc,
 		Cookie:       httpapi.CookieConfig{TTL: time.Hour},

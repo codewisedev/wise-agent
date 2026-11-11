@@ -2460,6 +2460,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/monitor": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description What Wise is doing now - queued and running agent runs (native and coding CLIs), stuck runs, evaluation replays, and workflows waiting for you. */
+        get: operations["getMonitor"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -4064,6 +4081,61 @@ export interface components {
                 note: string;
                 /** Format: date-time */
                 at: string;
+            }[];
+        };
+        MonitorRun: {
+            /** Format: uuid */
+            id: string;
+            agent: string;
+            status: string;
+            purpose: string;
+            /** @description native, claude-code or codex */
+            runtime: string;
+            account?: string;
+            attempt: number;
+            maxAttempts: number;
+            cancelling: boolean;
+            /** Format: uuid */
+            projectId?: string | null;
+            projectName?: string;
+            /** Format: uuid */
+            taskId?: string | null;
+            taskTitle?: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            startedAt?: string | null;
+            /** Format: date-time */
+            leaseUntil?: string | null;
+            lastEvent?: string;
+            /** Format: date-time */
+            lastEventAt?: string | null;
+            /** Format: int64 */
+            tokens: number;
+            costUsd: number;
+            /** @description Why the run looks stuck (empty when it does not). */
+            stuck?: string;
+        };
+        MonitorSnapshot: {
+            /** Format: date-time */
+            at: string;
+            queued: components["schemas"]["MonitorRun"][];
+            running: components["schemas"]["MonitorRun"][];
+            evals: components["schemas"]["MonitorRun"][];
+            stuck: number;
+            waiting: {
+                /** Format: uuid */
+                id: string;
+                /** Format: uuid */
+                taskId: string;
+                taskTitle: string;
+                projectName: string;
+                /** @enum {string} */
+                status: "awaiting_approval" | "awaiting_retry";
+                stage: string;
+                error?: string | null;
+                /** Format: date-time */
+                since: string;
             }[];
         };
         TaskRelease: {
@@ -9044,6 +9116,27 @@ export interface operations {
             };
             401: components["responses"]["Problem"];
             404: components["responses"]["Problem"];
+        };
+    };
+    getMonitor: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Snapshot. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MonitorSnapshot"];
+                };
+            };
+            401: components["responses"]["Problem"];
         };
     };
 }
