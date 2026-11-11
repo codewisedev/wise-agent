@@ -13,7 +13,7 @@ type Analysis = components["schemas"]["ImprovementAnalysis"];
 type Status = Proposal["status"];
 
 const STATUS_TONE: Record<Status, "ok" | "warn" | "bad" | "info" | "neutral"> = {
-  proposed: "info", evaluating: "info", evaluated: "info", applied: "ok", rejected: "neutral", rolled_back: "warn", stale: "warn",
+  proposed: "info", evaluating: "info", evaluated: "info", applying: "info", applied: "ok", rejected: "neutral", rolled_back: "warn", stale: "warn",
 };
 const KIND_LABEL: Record<Proposal["kind"], string> = { prompt: "Agent prompt", memory: "Memory", routing: "Model routing", template: "Workflow template" };
 

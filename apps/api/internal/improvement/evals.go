@@ -53,10 +53,13 @@ func (s *Service) agentInfo(ctx context.Context, name string) (agentInfo, error)
 	if err != nil {
 		return agentInfo{}, err
 	}
-	return describeAgent(row)
+	return describeAgent(row, s.agents.Tools())
 }
 
-func describeAgent(row dbgen.AgentDefinition) (agentInfo, error) {
+// readOnly are the tool side effects a replay may repeat.
+var readOnly = map[string]bool{"none": true, "read": true}
+
+func describeAgent(row dbgen.AgentDefinition, tools map[string]agents.Tool) (agentInfo, error) {
 	def, err := agents.ParseDefinition(row.Definition)
 	if err != nil {
 		return agentInfo{}, err
@@ -72,9 +75,11 @@ func describeAgent(row dbgen.AgentDefinition) (agentInfo, error) {
 	}
 	_ = json.Unmarshal(def.OutputSchema, &out)
 	a := agentInfo{row: row, def: def, criteria: extra.Evaluation.Criteria, required: out.Required, replayable: true}
+	// Replays repeat the agent's tool calls: only agents whose tools are all read-only are replayed.
 	for _, t := range def.Tools {
-		if strings.HasPrefix(t, "ws_") {
-			a.replayable, a.replayError = false, "it works in a task workspace, which evaluations cannot recreate yet"
+		if tool, ok := tools[t]; !ok || !readOnly[tool.SideEffects] || strings.HasPrefix(t, "ws_") {
+			a.replayable, a.replayError = false, "it uses tools that need a task workspace or change things ("+t+"), which evaluations cannot replay"
+			break
 		}
 	}
 	if row.Name == Agent || row.Name == Judge {
@@ -224,7 +229,7 @@ func (s *Service) routingSides(ctx context.Context, p dbgen.ImprovementProposal)
 	}
 	out := map[string]routeSides{}
 	for _, r := range rows {
-		a, err := describeAgent(r.AgentDefinition)
+		a, err := describeAgent(r.AgentDefinition, s.agents.Tools())
 		if err != nil || !a.replayable || r.AgentDefinition.Archived {
 			continue
 		}
@@ -395,7 +400,7 @@ func (s *Service) Evaluate(ctx context.Context, id uuid.UUID, o EvalOptions, use
 			BaselineDefinitionID: baselineDef.ID, CandidateDefinitionID: candidateDef.ID, BaselineModel: jsonOrNil(baseModel),
 			CandidateModel: jsonOrNil(candModel), JudgeModel: jsonOrNil(override(o.Judge)), CostCapUsd: o.CostCapUSD, CreatedBy: userID}); err != nil {
 			if db.IsUniqueViolation(err) {
-				return apperr.Conflict(ErrEvalRunning.Error()).WithCause(ErrEvalRunning)
+				return apperr.Conflict("another evaluation is running (one at a time); wait for it or stop it").WithCause(ErrEvalRunning)
 			}
 			return err
 		}
@@ -417,32 +422,7 @@ func (s *Service) Evaluate(ctx context.Context, id uuid.UUID, o EvalOptions, use
 	if err != nil {
 		return er, err
 	}
-	byID := map[uuid.UUID]dbgen.EvalCase{}
-	for _, c := range cases {
-		byID[c.ID] = c
-	}
-	for _, r := range results {
-		c := byID[*r.CaseID]
-		var input map[string]any
-		_ = json.Unmarshal(c.Input, &input)
-		run := func(side string, def uuid.UUID, m *agents.ModelOverride) (*uuid.UUID, error) {
-			ar, err := s.agents.Enqueue(ctx, plan.Agent, input, agents.RunOptions{ProjectID: c.ProjectID, UserID: userID, Model: m,
-				DefinitionID: &def, Purpose: "eval", IdempotencyKey: "eval:" + r.ID.String() + ":" + side})
-			if err != nil {
-				return nil, err
-			}
-			return &ar.ID, nil
-		}
-		b, errB := run("baseline", baselineDef.ID, baseModel)
-		c2, errC := run("candidate", candidateDef.ID, candModel)
-		if err := s.db.SetEvalResultRuns(ctx, dbgen.SetEvalResultRunsParams{ID: r.ID, BaselineRunID: b, CandidateRunID: c2}); err != nil {
-			return er, err
-		}
-		if err := errors.Join(errB, errC); err != nil {
-			msg := "could not start the replay: " + clip(err.Error(), 300)
-			_ = s.db.FinishEvalResult(ctx, dbgen.FinishEvalResultParams{ID: r.ID, Status: "failed", Error: &msg})
-		}
-	}
+	s.fill(ctx, runID)
 	s.maybeFinishEval(ctx, runID)
 	return er, nil
 }
@@ -551,7 +531,7 @@ func (s *Service) advance(ctx context.Context, resultID uuid.UUID) error {
 			if !terminal(base.Status) || !terminal(cand.Status) {
 				return nil
 			}
-			a, err := describeAgent(dbgen.AgentDefinition{Name: er.AgentName, Definition: s.definitionOf(ctx, q, er.BaselineDefinitionID)})
+			a, err := describeAgent(dbgen.AgentDefinition{Name: er.AgentName, Definition: s.definitionOf(ctx, q, er.BaselineDefinitionID)}, nil)
 			if err != nil {
 				return err
 			}
@@ -610,8 +590,82 @@ func (s *Service) advance(ctx context.Context, resultID uuid.UUID) error {
 			s.log.Warn("evaluation: start judge", "result", resultID, "err", err)
 		}
 	}
+	s.fill(ctx, evalRunID)
 	s.maybeFinishEval(ctx, evalRunID)
 	return nil
+}
+
+// evalParallel is how many cases of one evaluation run at once.
+const evalParallel = 2
+
+// fill starts pending cases while fewer than evalParallel are active and the
+// evaluation is under its cost cap (so the cap really stops spending).
+func (s *Service) fill(ctx context.Context, evalRunID uuid.UUID) {
+	er, err := s.db.GetEvalRun(ctx, evalRunID)
+	if err != nil || er.Status != "running" {
+		return
+	}
+	for {
+		active, err := s.db.CountActiveEvalResults(ctx, evalRunID)
+		if err != nil || active >= evalParallel {
+			return
+		}
+		cost, err := s.db.EvalRunCost(ctx, evalRunID)
+		if err != nil {
+			return
+		}
+		if cost >= er.CostCapUsd {
+			s.stopEval(ctx, evalRunID, fmt.Sprintf("stopped: the cost cap of $%.2f was reached ($%.2f spent)", er.CostCapUsd, cost))
+			return
+		}
+		r, err := s.db.ClaimPendingEvalResult(ctx, evalRunID)
+		if err != nil {
+			return // none left (or another caller took it)
+		}
+		s.startCase(ctx, er, r)
+	}
+}
+
+// startCase queues a case's baseline and candidate replays.
+func (s *Service) startCase(ctx context.Context, er dbgen.EvalRun, r dbgen.EvalResult) {
+	fail := func(msg string) {
+		_ = s.db.FinishEvalResult(ctx, dbgen.FinishEvalResultParams{ID: r.ID, Status: "failed", Error: &msg})
+	}
+	if r.CaseID == nil {
+		fail("the case was deleted")
+		return
+	}
+	c, err := s.db.GetEvalCase(ctx, *r.CaseID)
+	if err != nil {
+		fail("the case was deleted")
+		return
+	}
+	var input map[string]any
+	_ = json.Unmarshal(c.Input, &input)
+	model := func(raw []byte) *agents.ModelOverride {
+		if len(raw) == 0 {
+			return nil
+		}
+		m := &agents.ModelOverride{}
+		_ = json.Unmarshal(raw, m)
+		return m
+	}
+	run := func(side string, def uuid.UUID, m *agents.ModelOverride) (*uuid.UUID, error) {
+		ar, err := s.agents.Enqueue(ctx, er.AgentName, input, agents.RunOptions{ProjectID: c.ProjectID, UserID: er.CreatedBy, Model: m,
+			DefinitionID: &def, Purpose: "eval", IdempotencyKey: "eval:" + r.ID.String() + ":" + side})
+		if err != nil {
+			return nil, err
+		}
+		return &ar.ID, nil
+	}
+	b, errB := run("baseline", er.BaselineDefinitionID, model(er.BaselineModel))
+	cd, errC := run("candidate", er.CandidateDefinitionID, model(er.CandidateModel))
+	if err := s.db.SetEvalResultRuns(ctx, dbgen.SetEvalResultRunsParams{ID: r.ID, BaselineRunID: b, CandidateRunID: cd}); err != nil {
+		s.log.Warn("evaluation: record replays", "result", r.ID, "err", err)
+	}
+	if err := errors.Join(errB, errC); err != nil {
+		fail("could not start the replay: " + clip(err.Error(), 300))
+	}
 }
 
 func (s *Service) definitionOf(ctx context.Context, q *dbgen.Queries, id uuid.UUID) json.RawMessage {
@@ -639,7 +693,7 @@ func (s *Service) startJudge(ctx context.Context, resultID uuid.UUID) error {
 		s.stopEval(ctx, er.ID, fmt.Sprintf("stopped: the cost cap of $%.2f was reached ($%.2f spent)", er.CostCapUsd, cost))
 		return nil
 	}
-	a, err := describeAgent(dbgen.AgentDefinition{Name: er.AgentName, Definition: s.definitionOf(ctx, s.db.Queries, er.BaselineDefinitionID)})
+	a, err := describeAgent(dbgen.AgentDefinition{Name: er.AgentName, Definition: s.definitionOf(ctx, s.db.Queries, er.BaselineDefinitionID)}, nil)
 	if err != nil {
 		return err
 	}
@@ -680,7 +734,7 @@ func (s *Service) stopEval(ctx context.Context, evalRunID uuid.UUID, reason stri
 	ids, _ := s.db.ActiveEvalRunIDs(ctx, evalRunID)
 	results, _ := s.db.ListEvalResults(ctx, evalRunID)
 	for _, r := range results {
-		if r.Status == "running" || r.Status == "judging" {
+		if r.Status == "pending" || r.Status == "running" || r.Status == "judging" {
 			_ = s.db.FinishEvalResult(ctx, dbgen.FinishEvalResultParams{ID: r.ID, Status: "failed", Error: &reason})
 		}
 	}
@@ -773,7 +827,7 @@ func (s *Service) maybeFinishEval(ctx context.Context, evalRunID uuid.UUID) {
 		return
 	}
 	for _, r := range results {
-		if r.Status == "running" || r.Status == "judging" {
+		if r.Status == "pending" || r.Status == "running" || r.Status == "judging" {
 			return
 		}
 	}
@@ -821,8 +875,14 @@ func (s *Service) finishEval(ctx context.Context, evalRunID uuid.UUID, status, m
 	})
 }
 
-// sweepEvals advances cases whose hook was missed.
+// sweepEvals advances cases whose hook was missed and starts pending ones.
 func (s *Service) sweepEvals(ctx context.Context) {
+	if ids, err := s.db.ListRunningEvalRuns(ctx); err == nil {
+		for _, id := range ids {
+			s.fill(ctx, id)
+			s.maybeFinishEval(ctx, id)
+		}
+	}
 	rows, err := s.db.PendingEvalWork(ctx)
 	if err != nil {
 		return

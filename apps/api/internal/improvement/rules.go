@@ -16,6 +16,7 @@ import (
 	"strconv"
 	"strings"
 
+	"wise/apps/api/internal/memory"
 	"wise/apps/api/internal/tasks"
 )
 
@@ -41,8 +42,9 @@ var NoPromptAgents = map[string]string{
 	"security-agent": "the security reviewer is a quality gate: weakening it changes an approval requirement",
 }
 
-// GateAgents back quality gates: template proposals cannot remove, disable or replace their steps.
-var GateAgents = []string{"reviewer-agent", "security-agent"}
+// GateAgents back quality gates: template proposals cannot remove, disable,
+// replace or re-pin their steps, and memories written by proposals never reach them.
+var GateAgents = memory.GateAgents
 
 // RuleError is a refusal under the hard rule (or a malformed change).
 type RuleError struct{ Reason string }
@@ -141,6 +143,11 @@ func CheckRoutingOps(setting string, ops []PatchOp) error {
 		return refuse("a routing proposal needs at least one operation")
 	}
 	for i, op := range ops {
+		// Stored settings are expanded like the shipped files (${VAR}): a value
+		// from a proposal could otherwise pull a secret into a model name.
+		if strings.ContainsAny(string(op.Value), "$") || strings.ContainsAny(op.Path, "$") {
+			return refuse("operation %d: values may not contain $ (environment references)", i+1)
+		}
 		if op.Op != "add" && op.Op != "replace" && op.Op != "remove" {
 			return refuse("operation %d: %q is not allowed (add, replace or remove)", i+1, op.Op)
 		}
@@ -173,6 +180,9 @@ func CheckRoutingOps(setting string, ops []PatchOp) error {
 		case "model_policy":
 			if !budgetPath.MatchString(op.Path) {
 				return refuse("operation %d: %s is outside the allowed paths (/daily_budget_usd/<agent>); cloud permissions and retries are never changed", i+1, op.Path)
+			}
+			if op.Path == "/daily_budget_usd/default" && op.Op == "remove" {
+				return refuse("operation %d: the default budget may be changed but not removed (agents without a budget would be uncapped)", i+1)
 			}
 			if op.Op != "remove" {
 				var v float64
@@ -322,10 +332,16 @@ func CheckTemplate(before, after tasks.TemplateDef) error {
 			if protected(b) {
 				return refuse("step %q (%s) may not be removed", b.ID, describe(b))
 			}
+			if b.Runtime != "" {
+				return refuse("step %q runs on %s and may not be removed (its runtime is not the proposal's to change)", b.ID, b.Runtime)
+			}
 			continue
 		}
 		if a.Runtime != b.Runtime {
 			return refuse("step %q: the runtime may not be changed by a proposal", b.ID)
+		}
+		if gateGuard(b) && (a.Account != b.Account || a.Model != b.Model || a.DiagnoseWith != b.DiagnoseWith) {
+			return refuse("step %q: who runs a quality-gate step (account, model, diagnosis) may not change", b.ID)
 		}
 		if !protected(b) {
 			continue
@@ -353,6 +369,41 @@ func CheckTemplate(before, after tasks.TemplateDef) error {
 	for _, a := range after.Steps {
 		if _, existed := beforeByID[a.ID]; !existed && a.Runtime != "" {
 			return refuse("new step %q may not set a runtime", a.ID)
+		}
+	}
+	return nil
+}
+
+// gateGuard: gate steps and the reviewer/security steps behind them.
+func gateGuard(s tasks.StepDef) bool {
+	return stepType(s) == tasks.StepGate || slices.Contains(GateAgents, s.Agent)
+}
+
+// CheckResolved compares the resolved plans (defaults applied): the step a
+// gate's failures go back to, and what each review covers, may not change by
+// side effect (e.g. inserting an implementing step or disabling an included one).
+func CheckResolved(before, after tasks.Plan) error {
+	idx := map[string]tasks.PlanStep{}
+	for _, s := range after.Steps {
+		idx[s.ID] = s
+	}
+	for _, b := range before.Steps {
+		if !b.Enabled {
+			continue
+		}
+		a, ok := idx[b.ID]
+		if !ok {
+			continue // removal is checked on the definition
+		}
+		if b.Type == tasks.StepGate && a.FixFrom != b.FixFrom {
+			return refuse("step %q: its failures would go back to %q instead of %q", b.ID, a.FixFrom, b.FixFrom)
+		}
+		if b.Review {
+			for _, k := range b.ReviewKinds {
+				if !slices.Contains(a.ReviewKinds, k) {
+					return refuse("step %q: the review would no longer include %s", b.ID, k)
+				}
+			}
 		}
 	}
 	return nil

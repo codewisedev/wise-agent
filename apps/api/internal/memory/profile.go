@@ -20,6 +20,11 @@ const ProfileAgent = "profile-agent"
 var inferredKinds = map[string]bool{"preference": true, "convention": true, "example": true}
 
 // extractorAgents never get memory context (they produce it), whatever the setting says.
+// GateAgents back quality gates. Memories written by applied improvement
+// proposals (source "improvement") never reach them, so a proposal cannot
+// weaken a gate through memory.
+var GateAgents = []string{"reviewer-agent", "security-agent"}
+
 var extractorAgents = map[string]bool{ExtractorAgent: true, ProfileAgent: true,
 	// Wise's own analysis agents: memory must not bias the analysis or evaluation of memory itself.
 	"improvement-agent": true, "eval-judge-agent": true}

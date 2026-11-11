@@ -270,8 +270,8 @@ func (s *Service) Build(ctx context.Context, r Raw) (Built, error) {
 		if err := CheckTemplate(before, after); err != nil {
 			return b, err
 		}
-		if _, issues := s.tasks.Preview(ctx, after); len(issues) > 0 {
-			return b, refuse("the proposed template is invalid: %s", issues[0].Message)
+		if err := s.checkResolved(ctx, before, after); err != nil {
+			return b, err
 		}
 		def := mustJSON(after)
 		if string(def) == string(mustJSON(before)) {
@@ -329,6 +329,16 @@ func (s *Service) Build(ctx context.Context, r Raw) (Built, error) {
 	return b, nil
 }
 
+// checkResolved validates the proposed template and compares the resolved plans.
+func (s *Service) checkResolved(ctx context.Context, before, after tasks.TemplateDef) error {
+	ap, issues := s.tasks.Preview(ctx, after)
+	if len(issues) > 0 {
+		return refuse("the proposed template is invalid: %s", issues[0].Message)
+	}
+	bp, _ := s.tasks.Preview(ctx, before)
+	return CheckResolved(bp, ap)
+}
+
 // memoryInput completes and validates a create or merge operation's memory.
 func (s *Service) memoryInput(ctx context.Context, op MemoryOp) (memory.Input, error) {
 	in := memory.Input{Scope: op.Scope, Kind: op.Kind, Category: op.Category, Title: strings.TrimSpace(op.Title), Body: strings.TrimSpace(op.Body)}
@@ -350,7 +360,7 @@ func (s *Service) memoryInput(ctx context.Context, op MemoryOp) (memory.Input, e
 		in.Scope = "developer"
 	}
 	if in.Kind == "" {
-		in.Kind = "rule"
+		return in, errors.New("a new memory needs an explicit kind (rule, preference, convention…)")
 	}
 	if op.ProjectID != "" {
 		id, err := uuid.Parse(op.ProjectID)

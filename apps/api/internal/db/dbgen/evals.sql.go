@@ -50,6 +50,48 @@ func (q *Queries) AgentAverageRunCost(ctx context.Context, agentName string) (fl
 	return column_1, err
 }
 
+const claimPendingEvalResult = `-- name: ClaimPendingEvalResult :one
+UPDATE eval_results SET status = 'running', updated_at = now()
+WHERE id = (SELECT e.id FROM eval_results e WHERE e.eval_run_id = $1 AND e.status = 'pending' ORDER BY e.id LIMIT 1 FOR UPDATE SKIP LOCKED)
+RETURNING id, eval_run_id, case_id, case_kind, expectation, baseline_run_id, candidate_run_id, judge_run_id, status, checks, a_is, baseline_score, candidate_score, reasoning, error, updated_at
+`
+
+// Starts the next case of an evaluation (one caller wins).
+func (q *Queries) ClaimPendingEvalResult(ctx context.Context, evalRunID uuid.UUID) (EvalResult, error) {
+	row := q.db.QueryRow(ctx, claimPendingEvalResult, evalRunID)
+	var i EvalResult
+	err := row.Scan(
+		&i.ID,
+		&i.EvalRunID,
+		&i.CaseID,
+		&i.CaseKind,
+		&i.Expectation,
+		&i.BaselineRunID,
+		&i.CandidateRunID,
+		&i.JudgeRunID,
+		&i.Status,
+		&i.Checks,
+		&i.AIs,
+		&i.BaselineScore,
+		&i.CandidateScore,
+		&i.Reasoning,
+		&i.Error,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const countActiveEvalResults = `-- name: CountActiveEvalResults :one
+SELECT count(*)::bigint FROM eval_results WHERE eval_run_id = $1 AND status IN ('running', 'judging')
+`
+
+func (q *Queries) CountActiveEvalResults(ctx context.Context, evalRunID uuid.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, countActiveEvalResults, evalRunID)
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const deleteEvalCase = `-- name: DeleteEvalCase :exec
 DELETE FROM eval_cases WHERE id = $1
 `
@@ -376,7 +418,7 @@ func (q *Queries) InsertEvalCase(ctx context.Context, arg InsertEvalCaseParams) 
 }
 
 const insertEvalResult = `-- name: InsertEvalResult :one
-INSERT INTO eval_results (id, eval_run_id, case_id, case_kind, expectation) VALUES ($1, $2, $3, $4, $5) RETURNING id, eval_run_id, case_id, case_kind, expectation, baseline_run_id, candidate_run_id, judge_run_id, status, checks, a_is, baseline_score, candidate_score, reasoning, error, updated_at
+INSERT INTO eval_results (id, eval_run_id, case_id, case_kind, expectation, status) VALUES ($1, $2, $3, $4, $5, 'pending') RETURNING id, eval_run_id, case_id, case_kind, expectation, baseline_run_id, candidate_run_id, judge_run_id, status, checks, a_is, baseline_score, candidate_score, reasoning, error, updated_at
 `
 
 type InsertEvalResultParams struct {
@@ -581,6 +623,30 @@ func (q *Queries) ListEvalRunsForProposal(ctx context.Context, proposalID uuid.U
 			return nil, err
 		}
 		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listRunningEvalRuns = `-- name: ListRunningEvalRuns :many
+SELECT id FROM eval_runs WHERE status = 'running'
+`
+
+func (q *Queries) ListRunningEvalRuns(ctx context.Context) ([]uuid.UUID, error) {
+	rows, err := q.db.Query(ctx, listRunningEvalRuns)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []uuid.UUID{}
+	for rows.Next() {
+		var id uuid.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err

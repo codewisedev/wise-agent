@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -155,6 +156,23 @@ func short(id uuid.UUID) string { return id.String()[:8] }
 // BuildPack assembles the context for a run: every active rule, the memories
 // most relevant to the input, and a project summary, within the size budget.
 func (s *Service) BuildPack(ctx context.Context, projectID *uuid.UUID, input []byte) (Pack, error) {
+	return s.BuildPackFor(ctx, "", projectID, input)
+}
+
+// withoutImprovement drops memories written by improvement proposals.
+func withoutImprovement(ms []dbgen.Memory) []dbgen.Memory {
+	out := ms[:0:0]
+	for _, m := range ms {
+		if m.Source != SourceImprovement {
+			out = append(out, m)
+		}
+	}
+	return out
+}
+
+// BuildPackFor builds the context for an agent; the agents behind quality
+// gates never get memories written by improvement proposals.
+func (s *Service) BuildPackFor(ctx context.Context, agent string, projectID *uuid.UUID, input []byte) (Pack, error) {
 	st := s.Settings()
 	rules, err := s.db.ActiveRules(ctx, projectID)
 	if err != nil {
@@ -163,6 +181,9 @@ func (s *Service) BuildPack(ctx context.Context, projectID *uuid.UUID, input []b
 	rel, semantic, err := s.relevant(ctx, projectID, inputText(input), st.RetrievalK)
 	if err != nil {
 		return Pack{}, err
+	}
+	if slices.Contains(GateAgents, agent) {
+		rules, rel = withoutImprovement(rules), withoutImprovement(rel)
 	}
 	summary := ""
 	if projectID != nil {
@@ -276,7 +297,7 @@ func (s *Service) ForRun(ctx context.Context, run dbgen.AgentRun) (Pack, error) 
 			return Pack{}, nil
 		}
 	}
-	pack, err := s.BuildPack(ctx, run.ProjectID, run.Input)
+	pack, err := s.BuildPackFor(ctx, run.AgentName, run.ProjectID, run.Input)
 	if err != nil {
 		return Pack{}, err
 	}

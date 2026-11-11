@@ -290,6 +290,7 @@ const (
 	EvalResultStatusDone    EvalResultStatus = "done"
 	EvalResultStatusFailed  EvalResultStatus = "failed"
 	EvalResultStatusJudging EvalResultStatus = "judging"
+	EvalResultStatusPending EvalResultStatus = "pending"
 	EvalResultStatusRunning EvalResultStatus = "running"
 )
 
@@ -301,6 +302,8 @@ func (e EvalResultStatus) Valid() bool {
 	case EvalResultStatusFailed:
 		return true
 	case EvalResultStatusJudging:
+		return true
+	case EvalResultStatusPending:
 		return true
 	case EvalResultStatusRunning:
 		return true
@@ -528,6 +531,7 @@ func (e ImprovementProposalKind) Valid() bool {
 // Defines values for ImprovementProposalStatus.
 const (
 	ImprovementProposalStatusApplied    ImprovementProposalStatus = "applied"
+	ImprovementProposalStatusApplying   ImprovementProposalStatus = "applying"
 	ImprovementProposalStatusEvaluated  ImprovementProposalStatus = "evaluated"
 	ImprovementProposalStatusEvaluating ImprovementProposalStatus = "evaluating"
 	ImprovementProposalStatusProposed   ImprovementProposalStatus = "proposed"
@@ -540,6 +544,8 @@ const (
 func (e ImprovementProposalStatus) Valid() bool {
 	switch e {
 	case ImprovementProposalStatusApplied:
+		return true
+	case ImprovementProposalStatusApplying:
 		return true
 	case ImprovementProposalStatusEvaluated:
 		return true

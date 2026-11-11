@@ -48,7 +48,19 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 RETURNING *;
 
 -- name: InsertEvalResult :one
-INSERT INTO eval_results (id, eval_run_id, case_id, case_kind, expectation) VALUES ($1, $2, $3, $4, $5) RETURNING *;
+INSERT INTO eval_results (id, eval_run_id, case_id, case_kind, expectation, status) VALUES ($1, $2, $3, $4, $5, 'pending') RETURNING *;
+
+-- name: ClaimPendingEvalResult :one
+-- Starts the next case of an evaluation (one caller wins).
+UPDATE eval_results SET status = 'running', updated_at = now()
+WHERE id = (SELECT e.id FROM eval_results e WHERE e.eval_run_id = $1 AND e.status = 'pending' ORDER BY e.id LIMIT 1 FOR UPDATE SKIP LOCKED)
+RETURNING *;
+
+-- name: CountActiveEvalResults :one
+SELECT count(*)::bigint FROM eval_results WHERE eval_run_id = $1 AND status IN ('running', 'judging');
+
+-- name: ListRunningEvalRuns :many
+SELECT id FROM eval_runs WHERE status = 'running';
 
 -- name: SetEvalResultRuns :exec
 UPDATE eval_results SET baseline_run_id = $2, candidate_run_id = $3, updated_at = now() WHERE id = $1;

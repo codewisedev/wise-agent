@@ -39,7 +39,7 @@ function ResultRow({ r }: { r: EvalResult }) {
       <td className="num">{score(r.baselineScore, r.baselineRunId)}<SideBadges side={checks.baseline} /></td>
       <td className="num">{score(r.candidateScore, r.candidateRunId)}<SideBadges side={checks.candidate} /></td>
       <td className="small">
-        {r.status === "running" || r.status === "judging" ? <Badge tone="info" pulse>{r.status}</Badge> : r.reasoning}
+        {r.status === "pending" ? <Badge tone="neutral">waiting</Badge> : r.status === "running" || r.status === "judging" ? <Badge tone="info" pulse>{r.status}</Badge> : r.reasoning}
         {r.error && <div className="faint">{r.error}</div>}
       </td>
     </tr>

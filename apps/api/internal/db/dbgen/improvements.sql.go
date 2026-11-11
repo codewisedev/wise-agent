@@ -59,6 +59,42 @@ func (q *Queries) AppliedImprovementProposals(ctx context.Context) ([]Improvemen
 	return items, nil
 }
 
+const claimImprovementProposalForApply = `-- name: ClaimImprovementProposalForApply :one
+UPDATE improvement_proposals SET status = 'applying', updated_at = now()
+WHERE id = $1 AND status IN ('proposed', 'evaluated')
+RETURNING id, analysis_id, kind, target, title, rationale, evidence, change, before, base, fingerprint, status, metrics_before, applied, decision_note, decided_by, decided_at, applied_at, rolled_back_at, created_at, updated_at
+`
+
+// Only one Apply can claim an open proposal.
+func (q *Queries) ClaimImprovementProposalForApply(ctx context.Context, id uuid.UUID) (ImprovementProposal, error) {
+	row := q.db.QueryRow(ctx, claimImprovementProposalForApply, id)
+	var i ImprovementProposal
+	err := row.Scan(
+		&i.ID,
+		&i.AnalysisID,
+		&i.Kind,
+		&i.Target,
+		&i.Title,
+		&i.Rationale,
+		&i.Evidence,
+		&i.Change,
+		&i.Before,
+		&i.Base,
+		&i.Fingerprint,
+		&i.Status,
+		&i.MetricsBefore,
+		&i.Applied,
+		&i.DecisionNote,
+		&i.DecidedBy,
+		&i.DecidedAt,
+		&i.AppliedAt,
+		&i.RolledBackAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const countOpenImprovementProposals = `-- name: CountOpenImprovementProposals :one
 SELECT count(*)::bigint FROM improvement_proposals WHERE status IN ('proposed', 'evaluated')
 `
@@ -736,6 +772,20 @@ func (q *Queries) RecentNegativeFeedback(ctx context.Context, since time.Time) (
 	return items, nil
 }
 
+const releaseImprovementProposal = `-- name: ReleaseImprovementProposal :exec
+UPDATE improvement_proposals SET status = $2, updated_at = now() WHERE id = $1 AND status = 'applying'
+`
+
+type ReleaseImprovementProposalParams struct {
+	ID     uuid.UUID
+	Status string
+}
+
+func (q *Queries) ReleaseImprovementProposal(ctx context.Context, arg ReleaseImprovementProposalParams) error {
+	_, err := q.db.Exec(ctx, releaseImprovementProposal, arg.ID, arg.Status)
+	return err
+}
+
 const setImprovementAnalysisRun = `-- name: SetImprovementAnalysisRun :exec
 UPDATE improvement_analyses SET agent_run_id = $2 WHERE id = $1
 `
@@ -754,7 +804,7 @@ const setImprovementProposalApplied = `-- name: SetImprovementProposalApplied :o
 UPDATE improvement_proposals
 SET status = 'applied', applied = $2, metrics_before = coalesce($4, metrics_before), decided_by = $3,
     decided_at = now(), applied_at = now(), updated_at = now()
-WHERE id = $1
+WHERE id = $1 AND status = 'applying'
 RETURNING id, analysis_id, kind, target, title, rationale, evidence, change, before, base, fingerprint, status, metrics_before, applied, decision_note, decided_by, decided_at, applied_at, rolled_back_at, created_at, updated_at
 `
 
@@ -802,7 +852,7 @@ func (q *Queries) SetImprovementProposalApplied(ctx context.Context, arg SetImpr
 const setImprovementProposalRolledBack = `-- name: SetImprovementProposalRolledBack :one
 UPDATE improvement_proposals SET status = 'rolled_back', decision_note = coalesce($2, decision_note),
     rolled_back_at = now(), updated_at = now()
-WHERE id = $1
+WHERE id = $1 AND status = 'applied'
 RETURNING id, analysis_id, kind, target, title, rationale, evidence, change, before, base, fingerprint, status, metrics_before, applied, decision_note, decided_by, decided_at, applied_at, rolled_back_at, created_at, updated_at
 `
 

@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -28,11 +30,16 @@ type Applied struct {
 	Version         int32           `json:"version,omitempty"` // setting or template version written
 	PreviousVersion int32           `json:"previousVersion,omitempty"`
 	PreviousValue   json.RawMessage `json:"previousValue,omitempty"`
+	// Paths the routing change touched, with their value after applying
+	// (rollback restores only these, never unrelated later edits).
+	Touched map[string]json.RawMessage `json:"touched,omitempty"`
 	// template
 	TemplateID *uuid.UUID `json:"templateId,omitempty"`
 	// memory
 	Created  []uuid.UUID `json:"created,omitempty"`
 	Archived []uuid.UUID `json:"archived,omitempty"`
+	// Memory versions right after applying (rollback asks first if they changed since).
+	MemoryVersions map[string]int32 `json:"memoryVersions,omitempty"`
 }
 
 // recheck validates a stored change against the hard rule again, at apply time.
@@ -101,6 +108,15 @@ func (s *Service) Apply(ctx context.Context, id uuid.UUID, userID *uuid.UUID) (d
 		return p, err
 	}
 	metrics := s.metricsNow(ctx, p)
+	// Claim the proposal: a concurrent Apply, Reject or Evaluate now sees "applying".
+	if _, err := s.db.ClaimImprovementProposalForApply(ctx, id); db.IsNotFound(err) {
+		return p, apperr.Conflict("the proposal is being applied or was decided meanwhile")
+	} else if err != nil {
+		return p, err
+	}
+	release := func() {
+		_ = s.db.ReleaseImprovementProposal(context.WithoutCancel(ctx), dbgen.ReleaseImprovementProposalParams{ID: id, Status: p.Status})
+	}
 	var ap Applied
 	switch p.Kind {
 	case KindPrompt:
@@ -113,6 +129,7 @@ func (s *Service) Apply(ctx context.Context, id uuid.UUID, userID *uuid.UUID) (d
 		ap, err = s.applyMemory(ctx, p, userID)
 	}
 	if err != nil {
+		release()
 		var re *RuleError
 		if errors.As(err, &re) {
 			return p, apperr.Validation(apperr.FieldError{Field: "change", Message: re.Reason})
@@ -165,7 +182,12 @@ func (s *Service) applyRouting(ctx context.Context, p dbgen.ImprovementProposal,
 	if err != nil {
 		return Applied{}, err
 	}
-	return Applied{Setting: ch.Setting, Version: row.Version, PreviousVersion: cur.Version, PreviousValue: cur.Value}, nil
+	touched := map[string]json.RawMessage{}
+	for _, op := range ch.Ops {
+		path := touchedPath(op.Path)
+		touched[path] = valueAt(row.Value, path)
+	}
+	return Applied{Setting: ch.Setting, Version: row.Version, PreviousVersion: cur.Version, PreviousValue: cur.Value, Touched: touched}, nil
 }
 
 func (s *Service) applyTemplate(ctx context.Context, p dbgen.ImprovementProposal, userID *uuid.UUID) (Applied, error) {
@@ -191,7 +213,14 @@ func (s *Service) applyTemplate(ctx context.Context, p dbgen.ImprovementProposal
 	if err := CheckTemplate(before, after); err != nil {
 		return Applied{}, err
 	}
-	row, err := s.tasks.UpdateTemplate(ctx, id, tasks.TemplateInput{Name: t.Name, Description: t.Description, Definition: after, Default: t.IsDefault}, userID)
+	if err := s.checkResolved(ctx, before, after); err != nil {
+		return Applied{}, err
+	}
+	var base struct {
+		Version int32 `json:"version"`
+	}
+	_ = json.Unmarshal(p.Base, &base)
+	row, err := s.tasks.UpdateTemplateAt(ctx, id, tasks.TemplateInput{Name: t.Name, Description: t.Description, Definition: after, Default: t.IsDefault}, base.Version, userID)
 	if err != nil {
 		return Applied{}, err
 	}
@@ -203,28 +232,105 @@ func (s *Service) applyMemory(ctx context.Context, p dbgen.ImprovementProposal, 
 	if err := json.Unmarshal(p.Change, &ch); err != nil {
 		return Applied{}, err
 	}
-	var ap Applied
-	// Approving the proposal is the approval: memories are created active.
+	ap := Applied{MemoryVersions: map[string]int32{}}
+	// If a later operation fails, undo the earlier ones: nothing half-applied is left behind.
+	undo := func() {
+		bg := context.WithoutCancel(ctx)
+		for _, mid := range ap.Created {
+			_, _ = s.memory.Archive(bg, mid, userID)
+		}
+		for _, mid := range ap.Archived {
+			_, _ = s.memory.Reactivate(bg, mid, userID)
+		}
+	}
+	// Approving the proposal is the approval: memories are created active
+	// (marked as from an improvement, so they never reach the gate agents).
 	for _, op := range ch.Ops {
 		if op.Op != "archive" {
 			in, err := s.memoryInput(ctx, op)
 			if err != nil {
-				return ap, refuse("%v", err)
+				undo()
+				return Applied{}, refuse("%v", err)
 			}
-			m, err := s.memory.Create(ctx, in, userID)
+			m, err := s.memory.CreateFromImprovement(ctx, in, p.ID, userID)
 			if err != nil {
-				return ap, err
+				undo()
+				return Applied{}, err
 			}
 			ap.Created = append(ap.Created, m.ID)
+			ap.MemoryVersions[m.ID.String()] = m.Version
 		}
 		for _, mid := range parseIDs(op.IDs) {
-			if _, err := s.memory.Archive(ctx, mid, userID); err != nil {
-				return ap, fmt.Errorf("archive memory %s: %w", mid, err)
+			m, err := s.memory.Archive(ctx, mid, userID)
+			if err != nil {
+				undo()
+				return Applied{}, fmt.Errorf("archive memory %s: %w", mid, err)
 			}
 			ap.Archived = append(ap.Archived, mid)
+			ap.MemoryVersions[mid.String()] = m.Version
 		}
 	}
 	return ap, nil
+}
+
+// touchedPath is the setting entry a routing operation changes: an alias's
+// targets list or one agent's budget.
+func touchedPath(path string) string {
+	parts := strings.Split(strings.TrimPrefix(path, "/"), "/")
+	if len(parts) >= 3 && parts[0] == "aliases" {
+		return "/" + strings.Join(parts[:3], "/")
+	}
+	return path
+}
+
+func lookup(doc any, path string) (any, bool) {
+	cur := doc
+	for _, tok := range strings.Split(strings.TrimPrefix(path, "/"), "/") {
+		m, ok := cur.(map[string]any)
+		if !ok {
+			return nil, false
+		}
+		if cur, ok = m[tok]; !ok {
+			return nil, false
+		}
+	}
+	return cur, true
+}
+
+// valueAt returns the JSON at a path ("null" when absent).
+func valueAt(doc json.RawMessage, path string) json.RawMessage {
+	var v any
+	_ = json.Unmarshal(doc, &v)
+	if x, ok := lookup(v, path); ok {
+		return mustJSON(x)
+	}
+	return json.RawMessage("null")
+}
+
+func sameJSON(a, b json.RawMessage) bool {
+	var x, y any
+	_ = json.Unmarshal(a, &x)
+	_ = json.Unmarshal(b, &y)
+	return string(mustJSON(x)) == string(mustJSON(y))
+}
+
+// restorePaths puts the touched paths back to their previous values in the current setting.
+func restorePaths(cur, prev json.RawMessage, paths []string) (json.RawMessage, error) {
+	var ops []PatchOp
+	for _, p := range paths {
+		old := valueAt(prev, p)
+		exists := string(valueAt(cur, p)) != "null"
+		switch {
+		case string(old) == "null" && exists:
+			ops = append(ops, PatchOp{Op: "remove", Path: p})
+		case string(old) != "null":
+			ops = append(ops, PatchOp{Op: "add", Path: p, Value: old})
+		}
+	}
+	if len(ops) == 0 {
+		return cur, nil
+	}
+	return ApplyPatch(cur, ops)
 }
 
 // ErrChangedSince means the target changed after the proposal was applied.
@@ -267,10 +373,25 @@ func (s *Service) Rollback(ctx context.Context, id uuid.UUID, confirm bool, note
 		if err != nil {
 			return p, err
 		}
-		if cur.Version != ap.Version && !confirm {
+		// Only what the proposal touched goes back; later edits elsewhere (e.g. the
+		// cloud policy) are kept. If a touched entry changed since, confirm first.
+		var paths []string
+		for path, after := range ap.Touched {
+			paths = append(paths, path)
+			if !sameJSON(valueAt(cur.Value, path), after) && !confirm {
+				return p, changed()
+			}
+		}
+		next := ap.PreviousValue
+		if len(paths) > 0 {
+			slices.Sort(paths)
+			if next, err = restorePaths(cur.Value, ap.PreviousValue, paths); err != nil {
+				return p, err
+			}
+		} else if cur.Version != ap.Version && !confirm {
 			return p, changed()
 		}
-		if _, err := s.settings.Update(ctx, ap.Setting, ap.PreviousValue, cur.Version, userID); err != nil {
+		if _, err := s.settings.Update(ctx, ap.Setting, next, cur.Version, userID); err != nil {
 			return p, err
 		}
 	case KindTemplate:
@@ -285,6 +406,14 @@ func (s *Service) Rollback(ctx context.Context, id uuid.UUID, confirm bool, note
 			return p, err
 		}
 	case KindMemory:
+		if !confirm {
+			for sid, v := range ap.MemoryVersions {
+				mid, _ := uuid.Parse(sid)
+				if m, err := s.db.GetMemory(ctx, mid); err == nil && m.Version != v {
+					return p, changed()
+				}
+			}
+		}
 		for _, mid := range ap.Created {
 			if m, err := s.db.GetMemory(ctx, mid); err == nil && m.Status == "active" {
 				if _, err := s.memory.Archive(ctx, mid, userID); err != nil {

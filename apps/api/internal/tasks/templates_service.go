@@ -120,10 +120,15 @@ func (s *Service) CreateTemplate(ctx context.Context, in TemplateInput, userID *
 
 // UpdateTemplate saves a template; the definition it replaces is kept in its history.
 func (s *Service) UpdateTemplate(ctx context.Context, id uuid.UUID, in TemplateInput, userID *uuid.UUID) (dbgen.WorkflowTemplate, error) {
-	return s.updateTemplate(ctx, id, in, userID, "workflow_template.update")
+	return s.updateTemplate(ctx, id, in, nil, userID, "workflow_template.update")
 }
 
-func (s *Service) updateTemplate(ctx context.Context, id uuid.UUID, in TemplateInput, userID *uuid.UUID, action string) (dbgen.WorkflowTemplate, error) {
+// UpdateTemplateAt saves a template only if it is still at the given version.
+func (s *Service) UpdateTemplateAt(ctx context.Context, id uuid.UUID, in TemplateInput, version int32, userID *uuid.UUID) (dbgen.WorkflowTemplate, error) {
+	return s.updateTemplate(ctx, id, in, &version, userID, "workflow_template.update")
+}
+
+func (s *Service) updateTemplate(ctx context.Context, id uuid.UUID, in TemplateInput, version *int32, userID *uuid.UUID, action string) (dbgen.WorkflowTemplate, error) {
 	def, err := s.validateTemplate(ctx, in)
 	if err != nil {
 		return dbgen.WorkflowTemplate{}, err
@@ -136,6 +141,9 @@ func (s *Service) updateTemplate(ctx context.Context, id uuid.UUID, in TemplateI
 		}
 		if err != nil {
 			return err
+		}
+		if version != nil && cur.Version != *version {
+			return apperr.Conflict(fmt.Sprintf("the template changed (now version %d)", cur.Version))
 		}
 		if err := q.InsertWorkflowTemplateVersion(ctx, dbgen.InsertWorkflowTemplateVersionParams{TemplateID: id, Version: cur.Version,
 			Name: cur.Name, Description: cur.Description, Definition: cur.Definition, ChangedBy: userID}); err != nil {
@@ -190,7 +198,7 @@ func (s *Service) RestoreTemplate(ctx context.Context, id uuid.UUID, version int
 	if err := json.Unmarshal(v.Definition, &def); err != nil {
 		return cur, err
 	}
-	return s.updateTemplate(ctx, id, TemplateInput{Name: v.Name, Description: v.Description, Definition: def, Default: cur.IsDefault}, userID, "workflow_template.restore")
+	return s.updateTemplate(ctx, id, TemplateInput{Name: v.Name, Description: v.Description, Definition: def, Default: cur.IsDefault}, nil, userID, "workflow_template.restore")
 }
 
 func (s *Service) DeleteTemplate(ctx context.Context, id uuid.UUID) error {

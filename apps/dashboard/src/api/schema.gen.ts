@@ -4010,7 +4010,7 @@ export interface components {
             /** Format: uuid */
             judgeRunId?: string | null;
             /** @enum {string} */
-            status: "running" | "judging" | "done" | "failed";
+            status: "pending" | "running" | "judging" | "done" | "failed";
             checks?: {
                 [key: string]: unknown;
             } | null;
@@ -4108,7 +4108,7 @@ export interface components {
                 [key: string]: unknown;
             };
             /** @enum {string} */
-            status: "proposed" | "evaluating" | "evaluated" | "applied" | "rejected" | "rolled_back" | "stale";
+            status: "proposed" | "evaluating" | "evaluated" | "applying" | "applied" | "rejected" | "rolled_back" | "stale";
             /** @description The target's metrics when proposed. */
             metricsBefore?: unknown;
             /** @description What applying produced and replaced. */

@@ -106,13 +106,22 @@ ORDER BY f.updated_at DESC LIMIT 40;
 UPDATE improvement_proposals
 SET status = 'applied', applied = $2, metrics_before = coalesce(sqlc.narg(metrics), metrics_before), decided_by = $3,
     decided_at = now(), applied_at = now(), updated_at = now()
-WHERE id = $1
+WHERE id = $1 AND status = 'applying'
 RETURNING *;
+
+-- name: ClaimImprovementProposalForApply :one
+-- Only one Apply can claim an open proposal.
+UPDATE improvement_proposals SET status = 'applying', updated_at = now()
+WHERE id = $1 AND status IN ('proposed', 'evaluated')
+RETURNING *;
+
+-- name: ReleaseImprovementProposal :exec
+UPDATE improvement_proposals SET status = $2, updated_at = now() WHERE id = $1 AND status = 'applying';
 
 -- name: SetImprovementProposalRolledBack :one
 UPDATE improvement_proposals SET status = 'rolled_back', decision_note = coalesce(sqlc.narg(note), decision_note),
     rolled_back_at = now(), updated_at = now()
-WHERE id = $1
+WHERE id = $1 AND status = 'applied'
 RETURNING *;
 
 -- name: AppliedImprovementProposals :many

@@ -3,6 +3,7 @@ package httpapi_test
 import (
 	"context"
 	"encoding/json"
+	"github.com/google/uuid"
 	"strings"
 	"testing"
 )
@@ -82,13 +83,16 @@ func TestApplyAndRollBackProposals(t *testing.T) {
 	if !strings.Contains(mustString(st["value"]), "other-model") {
 		t.Fatalf("models: %v", st["value"])
 	}
+	// A later edit of the same alias needs confirmation; unrelated later edits are kept.
 	val := st["value"].(map[string]any)
 	val["cache"] = map[string]any{"enabled": false, "ttl_hours": 1}
+	val["aliases"].(map[string]any)["reasoning"] = map[string]any{"targets": []any{map[string]any{"provider": "scripted", "model": "third-model"}}}
 	e.expect(e.do("PUT", "/settings/models", map[string]any{"value": val, "version": st["version"]}), 200)
 	e.expect(e.do("POST", "/improvements/proposals/"+byKind["routing"]+"/rollback", nil), 409)
 	e.expect(e.do("POST", "/improvements/proposals/"+byKind["routing"]+"/rollback", map[string]any{"confirm": true}), 200)
-	if strings.Contains(mustString(e.setting("models")["value"]), "other-model") {
-		t.Fatal("routing not rolled back")
+	after := mustString(e.setting("models")["value"])
+	if strings.Contains(after, "third-model") || strings.Contains(after, "other-model") || !strings.Contains(after, `"enabled":false`) {
+		t.Fatalf("routing rollback: %s", after)
 	}
 
 	// Template: saved with history; rollback restores the previous definition.
@@ -109,6 +113,15 @@ func TestApplyAndRollBackProposals(t *testing.T) {
 	created := ap["applied"].(map[string]any)["created"].([]any)[0].(string)
 	if m := e.expect(e.do("GET", "/memories/"+created, nil), 200); m["status"] != "active" {
 		t.Fatalf("memory: %v", m["status"])
+	}
+	// A rule from a proposal guides agents, but never the reviewers behind quality gates.
+	if pk, _ := e.memory.BuildPackFor(ctx, "product-agent", nil, []byte(`{"request":"x"}`)); !strings.Contains(pk.Text, "Specific analyses") {
+		t.Fatal("product-agent lacks the applied rule")
+	}
+	for _, gate := range []string{"reviewer-agent", "security-agent"} {
+		if pk, _ := e.memory.BuildPackFor(ctx, gate, nil, []byte(`{"request":"x"}`)); strings.Contains(pk.Text, "Specific analyses") {
+			t.Fatalf("%s got a memory written by a proposal", gate)
+		}
 	}
 	e.expect(e.do("POST", "/improvements/proposals/"+byKind["memory"]+"/rollback", nil), 200)
 	if m := e.expect(e.do("GET", "/memories/"+created, nil), 200); m["status"] != "archived" {
@@ -135,4 +148,27 @@ func (e *env) setting(key string) map[string]any {
 	}
 	e.t.Fatalf("no setting %s", key)
 	return nil
+}
+
+func TestOnlyOneApplyClaimsAProposal(t *testing.T) {
+	e := setup(t)
+	e.login()
+	ctx := context.Background()
+	pid := e.expect(e.do("POST", "/projects", map[string]any{"name": "Claim"}), 201)["id"].(string)
+	runID := e.createRunInProject("product-agent", pid)
+	_, tok := e.claim()
+	e.expect(e.runtimeDo(tok, "POST", "/runtime/v1/runs/"+runID+"/complete", map[string]any{"output": validProductOutput}), 204)
+	e.expect(e.do("PUT", "/feedback", map[string]any{"targetType": "run", "targetId": runID, "rating": "down", "note": "vague"}), 200)
+	ids := e.proposeOne(map[string]any{"kind": "prompt", "target": "product-agent", "title": "t", "rationale": "r",
+		"evidence": map[string]any{"run_ids": []string{runID}}, "prompt_edits": []any{map[string]any{"old": "", "new": "One more rule."}}})
+	id := uuid.MustParse(ids[0])
+	if _, err := e.db.ClaimImprovementProposalForApply(ctx, id); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.db.ClaimImprovementProposalForApply(ctx, id); err == nil {
+		t.Fatal("a second apply claimed the same proposal")
+	}
+	// While it is being applied, it can be neither applied, rejected nor evaluated.
+	e.expect(e.do("POST", "/improvements/proposals/"+ids[0]+"/apply", nil), 409)
+	e.expect(e.do("POST", "/improvements/proposals/"+ids[0]+"/reject", nil), 409)
 }

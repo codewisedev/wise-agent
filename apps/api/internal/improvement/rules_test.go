@@ -157,3 +157,56 @@ func TestMemoryOps(t *testing.T) {
 		}
 	}
 }
+
+func TestHardeningFromReview(t *testing.T) {
+	// Environment references never enter a stored setting.
+	for _, o := range []string{
+		`[{"op":"add","path":"/aliases/local/targets/-","value":{"provider":"${WISE_SECRETS_KEY}"}}]`,
+		`[{"op":"replace","path":"/aliases/local/targets","value":[{"provider":"scripted","model":"$HOME"}]}]`,
+	} {
+		if CheckRoutingOps("models", ops(o)) == nil {
+			t.Errorf("accepted %s", o)
+		}
+	}
+	if CheckRoutingOps("model_policy", ops(`[{"op":"remove","path":"/daily_budget_usd/default"}]`)) == nil {
+		t.Error("removing the default budget accepted")
+	}
+	if CheckRoutingOps("model_policy", ops(`[{"op":"replace","path":"/daily_budget_usd/default","value":3}]`)) != nil {
+		t.Error("changing the default budget refused")
+	}
+
+	cur := engineering()
+	bad := map[string]func(d *tasks.TemplateDef){
+		"remove runtime step":  func(d *tasks.TemplateDef) { d.Steps = append(d.Steps[:3], d.Steps[4:]...) },
+		"re-pin gate reviewer": func(d *tasks.TemplateDef) { d.Steps[4].Account = "lmstudio" },
+		"gate model":           func(d *tasks.TemplateDef) { d.Steps[4].Model = "tiny" },
+		"gate diagnosis":       func(d *tasks.TemplateDef) { d.Steps[5].DiagnoseWith = "qa-agent" },
+	}
+	for name, mutate := range bad {
+		d := engineering()
+		mutate(&d)
+		if err := CheckTemplate(cur, d); err == nil {
+			t.Errorf("%s accepted", name)
+		}
+	}
+
+	// Resolved plans: the gate's effective fix step and review scope must not move.
+	before := tasks.Plan{Steps: []tasks.PlanStep{
+		{ID: "analysis", Enabled: true}, {ID: "requirements", Enabled: true, Review: true, ReviewKinds: []string{"product_analysis", "requirements"}},
+		{ID: "implement", Enabled: true}, {ID: "gate", Type: tasks.StepGate, Enabled: true, FixFrom: "implement"},
+	}}
+	moved := tasks.Plan{Steps: []tasks.PlanStep{
+		{ID: "analysis", Enabled: true}, {ID: "requirements", Enabled: true, Review: true, ReviewKinds: []string{"product_analysis", "requirements"}},
+		{ID: "implement", Enabled: true}, {ID: "impl2", Enabled: true}, {ID: "gate", Type: tasks.StepGate, Enabled: true, FixFrom: "impl2"},
+	}}
+	narrowed := tasks.Plan{Steps: []tasks.PlanStep{
+		{ID: "analysis"}, {ID: "requirements", Enabled: true, Review: true, ReviewKinds: []string{"requirements"}},
+		{ID: "implement", Enabled: true}, {ID: "gate", Type: tasks.StepGate, Enabled: true, FixFrom: "implement"},
+	}}
+	if CheckResolved(before, moved) == nil || CheckResolved(before, narrowed) == nil {
+		t.Error("resolved-plan changes accepted")
+	}
+	if CheckResolved(before, before) != nil {
+		t.Error("identical plan refused")
+	}
+}

@@ -4562,7 +4562,7 @@ components:
         baselineRunId: { type: string, format: uuid, nullable: true }
         candidateRunId: { type: string, format: uuid, nullable: true }
         judgeRunId: { type: string, format: uuid, nullable: true }
-        status: { type: string, enum: [running, judging, done, failed] }
+        status: { type: string, enum: [pending, running, judging, done, failed] }
         checks: { type: object, additionalProperties: true, nullable: true }
         baselineScore: { type: integer, nullable: true }
         candidateScore: { type: integer, nullable: true }
@@ -4645,7 +4645,7 @@ components:
         change: { type: object, additionalProperties: true, description: The typed change applying would write. }
         before: { type: object, additionalProperties: true, description: The target when the proposal was made (for the diff). }
         base: { type: object, additionalProperties: true, description: The versions the proposal was written against. }
-        status: { type: string, enum: [proposed, evaluating, evaluated, applied, rejected, rolled_back, stale] }
+        status: { type: string, enum: [proposed, evaluating, evaluated, applying, applied, rejected, rolled_back, stale] }
         metricsBefore: { nullable: true, description: The target's metrics when proposed. }
         applied: { type: object, additionalProperties: true, nullable: true, description: What applying produced and replaced. }
         decisionNote: { type: string, nullable: true }

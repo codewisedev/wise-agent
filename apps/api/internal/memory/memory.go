@@ -156,6 +156,17 @@ func versionRow(m dbgen.Memory, by *uuid.UUID) dbgen.InsertMemoryVersionParams {
 		Kind: m.Kind, Category: m.Category, Title: m.Title, Body: m.Body, Status: m.Status, ChangedBy: by}
 }
 
+// SourceImprovement marks memories written by an applied improvement proposal.
+const SourceImprovement = "improvement"
+
+// CreateFromImprovement adds an active memory from an improvement proposal you applied.
+func (s *Service) CreateFromImprovement(ctx context.Context, in Input, proposalID uuid.UUID, userID *uuid.UUID) (dbgen.Memory, error) {
+	if err := in.validate(); err != nil {
+		return dbgen.Memory{}, err
+	}
+	return s.insert(ctx, in, "active", SourceImprovement, map[string]any{"proposalId": proposalID}, "", nil, userID)
+}
+
 // Create adds a memory written by the user: it applies immediately.
 func (s *Service) Create(ctx context.Context, in Input, userID *uuid.UUID) (dbgen.Memory, error) {
 	if err := in.validate(); err != nil {

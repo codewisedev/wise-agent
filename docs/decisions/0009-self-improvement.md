@@ -37,12 +37,18 @@ applied (`internal/improvement/rules.go`):
   improvement agent, the judge, or the reviewer and security agents (weakening a gate is an approval change);
 - routing proposals are JSON patches limited to `/aliases/<alias>/targets…` in `models` (targets may set only
   `provider` and `model`) and `/daily_budget_usd/<agent>` in `model_policy`. They never touch providers,
-  credentials, `cloud_allowed_agents` or retries, and the patched value must pass the setting's own validation;
+  credentials, `cloud_allowed_agents` or retries, never remove the default budget, never contain `$` (stored
+  settings are environment-expanded, so a value could otherwise pull a secret into a model name), and the patched
+  value must pass the setting's own validation;
 - template proposals may change agents, account/model pins and add steps, but may not remove, disable or weaken
   review, gate, workspace, quality or deliver steps or the reviewer/security steps behind gates, narrow
   `reviewIncludes`, change `reviseFrom` or `fixFrom`, lower or newly set `maxRevisions`, change or introduce a
-  runtime, or change the source or destination;
-- memory proposals create, merge or archive memories; approving the proposal is the approval (no second inbox step).
+  runtime, remove a step that has one, re-pin who runs a gate step (account, model, diagnosis), or change the
+  source or destination. The resolved plans are compared too, so a gate's effective fix step and what each review
+  covers cannot move by side effect (inserting an implementing step, disabling an included step);
+- memory proposals create, merge or archive memories, with an explicit kind; approving the proposal is the approval
+  (no second inbox step). Memories they write are marked and never reach the reviewer and security agents, so a
+  proposal cannot weaken a gate through memory.
 
 Every proposal must cite evidence (runs, reviews, ratings or memories) that exists in the database. Duplicates of
 open proposals, and changes applied, rejected or rolled back in the last 90 days, are refused; every refusal is
@@ -69,9 +75,12 @@ Scoring:
 - the `eval-judge-agent` scores both outputs 1–5 against the agent's evaluation criteria and the case's
   expectation. It sees them as A and B in random order.
 
-Results are shown per case with counts, and no verdict is drawn from a handful of cases. A cost cap stops an
-evaluation; the user can stop it. Agents that need a task workspace (`ws_*` tools) are not replayed yet, and memory
-and template proposals are not evaluated; they are judged by evidence and diff.
+Results are shown per case with counts, and no verdict is drawn from a handful of cases. One evaluation runs at a
+time and its cases start two at a time, each only while the evaluation is under its cost cap, so the cap stops
+spending; the user can stop it too. Only agents whose tools are all read-only are replayed (an allowlist), so
+coding and review agents are not; memory and template proposals are not evaluated and are judged by evidence and
+diff. The judge sees outputs as data, but a candidate's output could still try to sway it: the deterministic
+checks are reported separately and the user decides.
 
 **Apply and roll back through existing versioned mechanisms.**
 
@@ -82,7 +91,11 @@ and template proposals are not evaluated; they are judged by evidence and diff.
 | Template | a template save (`workflow_template_versions` now keeps every replaced definition, with History/Restore in the editor) | Restore |
 | Memory | create active memories, archive others | archive what was created, reactivate what was archived |
 
-If the target changed after applying, rollback asks for confirmation. Every step is audited.
+An Apply first claims the proposal (`applying`), so concurrent applies, rejects or evaluations cannot interleave.
+A template is applied only if it is still at the version the proposal was written against. A memory apply that
+fails part-way undoes its earlier operations. Routing rollback restores only the entries the proposal touched, so
+later edits elsewhere (such as the cloud policy) are kept. If a touched target changed after applying, rollback
+asks for confirmation. Every step is audited.
 
 **Two new shipped agents.** `improvement-agent` and `eval-judge-agent` are editable like any agent, never get memory
 context, and are not added to `cloud_allowed_agents` by Wise: whether they may use cloud models is the user's policy
