@@ -28,6 +28,7 @@ func Handler(m *Manager, token, egressToken string, log *slog.Logger) http.Handl
 	mux.HandleFunc("POST /v1/workspaces/{id}/fs", h.fs)
 	mux.HandleFunc("POST /v1/workspaces/{id}/commands", h.command)
 	mux.HandleFunc("POST /v1/workspaces/{id}/snapshot", h.snapshot)
+	mux.HandleFunc("POST /v1/workspaces/{id}/reword", h.reword)
 	mux.HandleFunc("POST /v1/workspaces/{id}/deliver", h.deliver)
 	mux.HandleFunc("GET /v1/workspaces/{id}/diff", h.diff)
 	mux.HandleFunc("POST /v1/workspaces/{id}/runners", h.runner)
@@ -168,6 +169,20 @@ func (h *handler) snapshot(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	cs, err := h.m.Snapshot(r.Context(), r.PathValue("id"), req)
+	if err != nil {
+		h.fail(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, cs)
+}
+
+func (h *handler) reword(w http.ResponseWriter, r *http.Request) {
+	var req RewordRequest
+	if err := decode(r, &req); err != nil {
+		h.fail(w, err)
+		return
+	}
+	cs, err := h.m.Reword(r.Context(), r.PathValue("id"), req)
 	if err != nil {
 		h.fail(w, err)
 		return

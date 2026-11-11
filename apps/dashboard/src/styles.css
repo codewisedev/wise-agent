@@ -782,3 +782,14 @@ tr.muted { opacity: .55; }
 .outcome { display: flex; flex-wrap: wrap; gap: 16px; }
 .template-history { margin-top: 10px; }
 .template-history ul { list-style: none; padding: 0; display: grid; gap: 4px; }
+
+/* ---- Release ---- */
+.release-approval { border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; display: grid; gap: 8px; margin-bottom: 10px; }
+.release-approval p { margin: 0; }
+.kv { display: grid; grid-template-columns: max-content 1fr; gap: 2px 12px; margin: 0; }
+.kv dt { color: var(--text-faint, inherit); }
+.kv dd { margin: 0; overflow-wrap: anywhere; }
+.release-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; padding: 4px 0; }
+.release-row .bad-text { flex-basis: 100%; }
+.commit-msg-row { display: flex; gap: 8px; align-items: flex-start; }
+.commit-msg-row pre { flex: 1; }

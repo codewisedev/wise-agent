@@ -138,6 +138,52 @@ func TestPushGrantsOnlyForApprovedDeliveredCommits(t *testing.T) {
 	if pg["draft"] != true || pg["title"] != "Release me" || pg["baseBranch"] != "main" {
 		t.Fatalf("pr grant: %v", pg)
 	}
+	e.expect(e.runtimeDo(gitWorkerToken, "POST", "/internal/git/pull-requests/"+pg["prId"].(string)+"/result",
+		map[string]any{"ok": true, "pr": map[string]any{"number": 7, "url": "https://github.com/codewisedev/sample/pull/7", "state": "open", "draft": true}}), 200)
+	rel := e.expect(e.do("GET", "/tasks/"+taskID.String()+"/release", nil), 200)
+	pushes, prs := rel["pushes"].([]any), rel["pullRequests"].([]any)
+	if len(pushes) != 1 || pushes[0].(map[string]any)["status"] != "pushed" || len(prs) != 1 || prs[0].(map[string]any)["number"] != 7.0 {
+		t.Fatalf("task release: %v", rel)
+	}
+	if strings.Contains(mustString(rel), "github_pat_grant") {
+		t.Fatal("the token is in the task release view")
+	}
+}
+
+func TestRewordNeedsAPendingFinalApproval(t *testing.T) {
+	e := setup(t)
+	e.login()
+	ctx := context.Background()
+	taskID, wfID := e.newTask("Reword me")
+	var pid string
+	_ = e.db.Pool.QueryRow(ctx, "SELECT project_id::text FROM tasks WHERE id = $1", taskID).Scan(&pid)
+	dir := gitRepo(t, e.repoRoot, "rw-"+uuid.NewString()[:6])
+	rid := e.expect(e.do("POST", "/projects/"+pid+"/repositories", map[string]any{"name": "svc", "sourceType": "local", "localPath": dir}), 201)["id"].(string)
+	if _, err := e.db.Pool.Exec(ctx, `INSERT INTO workspaces (id, task_id, workflow_run_id, repository_id, status, branch, image)
+		VALUES ($1, $2, $3, $4, 'ready', 'wise/reword-me', 'img')`, uuid.New(), taskID, wfID, rid); err != nil {
+		t.Fatal(err)
+	}
+	cs, _ := json.Marshal(map[string]any{"baseSha": strings.Repeat("a", 40), "headSha": strings.Repeat("b", 40), "branch": "wise/reword-me", "message": "old", "files": []any{}})
+	art, err := e.tasks.SaveArtifact(ctx, wfID, taskID, "changeset", cs, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	e.expect(e.do("POST", "/tasks/"+taskID.String()+"/commit-message", map[string]any{"message": "New message"}), 409)
+	pinned, _ := json.Marshal([]map[string]any{{"artifactId": art.ID, "kind": "changeset", "version": art.Version, "hash": art.ContentHash}})
+	apID := uuid.New()
+	if _, err := e.db.Pool.Exec(ctx, `INSERT INTO approvals (id, workflow_run_id, task_id, gate, status, artifacts, combined_hash)
+		VALUES ($1, $2, $3, 'gate', 'pending', $4, 'h')`, apID, wfID, taskID, pinned); err != nil {
+		t.Fatal(err)
+	}
+	r := e.expect(e.do("POST", "/tasks/"+taskID.String()+"/commit-message", map[string]any{"message": "New message"}), 200)
+	if r["headSha"] != strings.Repeat("c", 40) || r["message"] != "New message" {
+		t.Fatalf("reword: %v", r)
+	}
+	var status string
+	_ = e.db.Pool.QueryRow(ctx, "SELECT status FROM approvals WHERE id = $1", apID).Scan(&status)
+	if status != "superseded" {
+		t.Fatalf("the approval of the old commit is %s, want superseded", status)
+	}
 }
 
 func TestPrepareReleaseNeedsTheRepositoryTarget(t *testing.T) {

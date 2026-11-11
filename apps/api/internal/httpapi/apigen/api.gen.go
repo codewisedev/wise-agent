@@ -1173,6 +1173,66 @@ func (e TaskPriority) Valid() bool {
 	}
 }
 
+// Defines values for TaskReleaseApprovalsKind.
+const (
+	PullRequest TaskReleaseApprovalsKind = "pull_request"
+	Push        TaskReleaseApprovalsKind = "push"
+)
+
+// Valid indicates whether the value is a known member of the TaskReleaseApprovalsKind enum.
+func (e TaskReleaseApprovalsKind) Valid() bool {
+	switch e {
+	case PullRequest:
+		return true
+	case Push:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for TaskReleasePullRequestsStatus.
+const (
+	TaskReleasePullRequestsStatusFailed  TaskReleasePullRequestsStatus = "failed"
+	TaskReleasePullRequestsStatusGranted TaskReleasePullRequestsStatus = "granted"
+	TaskReleasePullRequestsStatusOpened  TaskReleasePullRequestsStatus = "opened"
+)
+
+// Valid indicates whether the value is a known member of the TaskReleasePullRequestsStatus enum.
+func (e TaskReleasePullRequestsStatus) Valid() bool {
+	switch e {
+	case TaskReleasePullRequestsStatusFailed:
+		return true
+	case TaskReleasePullRequestsStatusGranted:
+		return true
+	case TaskReleasePullRequestsStatusOpened:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for TaskReleasePushesStatus.
+const (
+	TaskReleasePushesStatusFailed  TaskReleasePushesStatus = "failed"
+	TaskReleasePushesStatusGranted TaskReleasePushesStatus = "granted"
+	TaskReleasePushesStatusPushed  TaskReleasePushesStatus = "pushed"
+)
+
+// Valid indicates whether the value is a known member of the TaskReleasePushesStatus enum.
+func (e TaskReleasePushesStatus) Valid() bool {
+	switch e {
+	case TaskReleasePushesStatusFailed:
+		return true
+	case TaskReleasePushesStatusGranted:
+		return true
+	case TaskReleasePushesStatusPushed:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for TaskStatus.
 const (
 	TaskStatusAwaitingApproval TaskStatus = "awaiting_approval"
@@ -3289,6 +3349,61 @@ type TaskList struct {
 // TaskPriority defines model for TaskPriority.
 type TaskPriority string
 
+// TaskRelease defines model for TaskRelease.
+type TaskRelease struct {
+	// Approvals Pending release approvals (push, pull request).
+	Approvals []struct {
+		CombinedHash string                   `json:"combinedHash"`
+		Gate         string                   `json:"gate"`
+		Id           openapi_types.UUID       `json:"id"`
+		Kind         TaskReleaseApprovalsKind `json:"kind"`
+	} `json:"approvals"`
+	PullRequests []struct {
+		CreatedAt time.Time          `json:"createdAt"`
+		Draft     bool               `json:"draft"`
+		Error     *string            `json:"error,omitempty"`
+		Id        openapi_types.UUID `json:"id"`
+		Number    *int               `json:"number,omitempty"`
+
+		// State open, merged or closed (refreshed from the host)
+		State  *string                       `json:"state,omitempty"`
+		Status TaskReleasePullRequestsStatus `json:"status"`
+		Title  string                        `json:"title"`
+		Url    *string                       `json:"url,omitempty"`
+	} `json:"pullRequests"`
+	Pushes []struct {
+		Attempts   int                     `json:"attempts"`
+		BaseBranch string                  `json:"baseBranch"`
+		Branch     string                  `json:"branch"`
+		CreatedAt  time.Time               `json:"createdAt"`
+		Error      *string                 `json:"error,omitempty"`
+		Existed    bool                    `json:"existed"`
+		Id         openapi_types.UUID      `json:"id"`
+		PushedAt   *time.Time              `json:"pushedAt,omitempty"`
+		Remote     string                  `json:"remote"`
+		Sha        string                  `json:"sha"`
+		Status     TaskReleasePushesStatus `json:"status"`
+	} `json:"pushes"`
+
+	// Request What the push approval covers.
+	Request *struct {
+		AccountName *string `json:"accountName,omitempty"`
+		BaseBranch  *string `json:"baseBranch,omitempty"`
+		Branch      *string `json:"branch,omitempty"`
+		Remote      *string `json:"remote,omitempty"`
+		Sha         *string `json:"sha,omitempty"`
+	} `json:"request,omitempty"`
+}
+
+// TaskReleaseApprovalsKind defines model for TaskRelease.Approvals.Kind.
+type TaskReleaseApprovalsKind string
+
+// TaskReleasePullRequestsStatus defines model for TaskRelease.PullRequests.Status.
+type TaskReleasePullRequestsStatus string
+
+// TaskReleasePushesStatus defines model for TaskRelease.Pushes.Status.
+type TaskReleasePushesStatus string
+
 // TaskStatus defines model for TaskStatus.
 type TaskStatus string
 
@@ -3888,6 +4003,11 @@ type ListTaskArtifactsParams struct {
 	Kind *ArtifactKind `form:"kind,omitempty" json:"kind,omitempty"`
 }
 
+// RewordTaskCommitJSONBody defines parameters for RewordTaskCommit.
+type RewordTaskCommitJSONBody struct {
+	Message string `json:"message"`
+}
+
 // ListWorkflowEventsParams defines parameters for ListWorkflowEvents.
 type ListWorkflowEventsParams struct {
 	AfterSeq *int `form:"afterSeq,omitempty" json:"afterSeq,omitempty"`
@@ -4042,6 +4162,9 @@ type UpdateSprintJSONRequestBody = SprintInput
 
 // UpdateTaskJSONRequestBody defines body for UpdateTask for application/json ContentType.
 type UpdateTaskJSONRequestBody = UpdateTaskRequest
+
+// RewordTaskCommitJSONRequestBody defines body for RewordTaskCommit for application/json ContentType.
+type RewordTaskCommitJSONRequestBody RewordTaskCommitJSONBody
 
 // RunTaskJSONRequestBody defines body for RunTask for application/json ContentType.
 type RunTaskJSONRequestBody = RunTaskRequest
@@ -4586,8 +4709,14 @@ type ServerInterface interface {
 	// (POST /tasks/{taskId}/cancel)
 	CancelTask(w http.ResponseWriter, r *http.Request, taskId TaskId)
 
+	// (POST /tasks/{taskId}/commit-message)
+	RewordTaskCommit(w http.ResponseWriter, r *http.Request, taskId openapi_types.UUID)
+
 	// (POST /tasks/{taskId}/extract-memories)
 	ExtractTaskMemories(w http.ResponseWriter, r *http.Request, taskId TaskId)
+
+	// (GET /tasks/{taskId}/release)
+	GetTaskRelease(w http.ResponseWriter, r *http.Request, taskId openapi_types.UUID)
 
 	// (POST /tasks/{taskId}/run)
 	RunTask(w http.ResponseWriter, r *http.Request, taskId TaskId)
@@ -5411,8 +5540,18 @@ func (_ Unimplemented) CancelTask(w http.ResponseWriter, r *http.Request, taskId
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
+// (POST /tasks/{taskId}/commit-message)
+func (_ Unimplemented) RewordTaskCommit(w http.ResponseWriter, r *http.Request, taskId openapi_types.UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
 // (POST /tasks/{taskId}/extract-memories)
 func (_ Unimplemented) ExtractTaskMemories(w http.ResponseWriter, r *http.Request, taskId TaskId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (GET /tasks/{taskId}/release)
+func (_ Unimplemented) GetTaskRelease(w http.ResponseWriter, r *http.Request, taskId openapi_types.UUID) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -9870,6 +10009,32 @@ func (siw *ServerInterfaceWrapper) CancelTask(w http.ResponseWriter, r *http.Req
 	handler.ServeHTTP(w, r)
 }
 
+// RewordTaskCommit operation middleware
+func (siw *ServerInterfaceWrapper) RewordTaskCommit(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "taskId" -------------
+	var taskId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "taskId", chi.URLParam(r, "taskId"), &taskId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "taskId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RewordTaskCommit(w, r, taskId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ExtractTaskMemories operation middleware
 func (siw *ServerInterfaceWrapper) ExtractTaskMemories(w http.ResponseWriter, r *http.Request) {
 
@@ -9887,6 +10052,32 @@ func (siw *ServerInterfaceWrapper) ExtractTaskMemories(w http.ResponseWriter, r 
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ExtractTaskMemories(w, r, taskId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetTaskRelease operation middleware
+func (siw *ServerInterfaceWrapper) GetTaskRelease(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "taskId" -------------
+	var taskId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "taskId", chi.URLParam(r, "taskId"), &taskId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "taskId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetTaskRelease(w, r, taskId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -11004,6 +11195,12 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Put(options.BaseURL+"/projects/{projectId}/release-policy", wrapper.SetProjectReleasePolicy)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/tasks/{taskId}/commit-message", wrapper.RewordTaskCommit)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/tasks/{taskId}/release", wrapper.GetTaskRelease)
 	})
 
 	return r
@@ -20325,6 +20522,90 @@ func (response CancelTask409ApplicationProblemPlusJSONResponse) VisitCancelTaskR
 	return err
 }
 
+type RewordTaskCommitRequestObject struct {
+	TaskId openapi_types.UUID `json:"taskId"`
+	Body   *RewordTaskCommitJSONRequestBody
+}
+
+type RewordTaskCommitResponseObject interface {
+	VisitRewordTaskCommitResponse(w http.ResponseWriter) error
+}
+
+type RewordTaskCommit200JSONResponse struct {
+	HeadSha string `json:"headSha"`
+	Message string `json:"message"`
+}
+
+func (response RewordTaskCommit200JSONResponse) VisitRewordTaskCommitResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RewordTaskCommit400ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response RewordTaskCommit400ApplicationProblemPlusJSONResponse) VisitRewordTaskCommitResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RewordTaskCommit401ApplicationProblemPlusJSONResponse Problem
+
+func (response RewordTaskCommit401ApplicationProblemPlusJSONResponse) VisitRewordTaskCommitResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RewordTaskCommit404ApplicationProblemPlusJSONResponse Problem
+
+func (response RewordTaskCommit404ApplicationProblemPlusJSONResponse) VisitRewordTaskCommitResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RewordTaskCommit409ApplicationProblemPlusJSONResponse Problem
+
+func (response RewordTaskCommit409ApplicationProblemPlusJSONResponse) VisitRewordTaskCommitResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type ExtractTaskMemoriesRequestObject struct {
 	TaskId TaskId `json:"taskId"`
 }
@@ -20387,6 +20668,58 @@ func (response ExtractTaskMemories409ApplicationProblemPlusJSONResponse) VisitEx
 	}
 	w.Header().Set("Content-Type", "application/problem+json")
 	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetTaskReleaseRequestObject struct {
+	TaskId openapi_types.UUID `json:"taskId"`
+}
+
+type GetTaskReleaseResponseObject interface {
+	VisitGetTaskReleaseResponse(w http.ResponseWriter) error
+}
+
+type GetTaskRelease200JSONResponse TaskRelease
+
+func (response GetTaskRelease200JSONResponse) VisitGetTaskReleaseResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetTaskRelease401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response GetTaskRelease401ApplicationProblemPlusJSONResponse) VisitGetTaskReleaseResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetTaskRelease404ApplicationProblemPlusJSONResponse Problem
+
+func (response GetTaskRelease404ApplicationProblemPlusJSONResponse) VisitGetTaskReleaseResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
 	_, err := buf.WriteTo(w)
 	return err
 }
@@ -22024,8 +22357,14 @@ type StrictServerInterface interface {
 	// (POST /tasks/{taskId}/cancel)
 	CancelTask(ctx context.Context, request CancelTaskRequestObject) (CancelTaskResponseObject, error)
 
+	// (POST /tasks/{taskId}/commit-message)
+	RewordTaskCommit(ctx context.Context, request RewordTaskCommitRequestObject) (RewordTaskCommitResponseObject, error)
+
 	// (POST /tasks/{taskId}/extract-memories)
 	ExtractTaskMemories(ctx context.Context, request ExtractTaskMemoriesRequestObject) (ExtractTaskMemoriesResponseObject, error)
+
+	// (GET /tasks/{taskId}/release)
+	GetTaskRelease(ctx context.Context, request GetTaskReleaseRequestObject) (GetTaskReleaseResponseObject, error)
 
 	// (POST /tasks/{taskId}/run)
 	RunTask(ctx context.Context, request RunTaskRequestObject) (RunTaskResponseObject, error)
@@ -26412,6 +26751,39 @@ func (sh *strictHandler) CancelTask(w http.ResponseWriter, r *http.Request, task
 	}
 }
 
+// RewordTaskCommit operation middleware
+func (sh *strictHandler) RewordTaskCommit(w http.ResponseWriter, r *http.Request, taskId openapi_types.UUID) {
+	var request RewordTaskCommitRequestObject
+
+	request.TaskId = taskId
+
+	var body RewordTaskCommitJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RewordTaskCommit(ctx, request.(RewordTaskCommitRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RewordTaskCommit")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RewordTaskCommitResponseObject); ok {
+		if err := validResponse.VisitRewordTaskCommitResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // ExtractTaskMemories operation middleware
 func (sh *strictHandler) ExtractTaskMemories(w http.ResponseWriter, r *http.Request, taskId TaskId) {
 	var request ExtractTaskMemoriesRequestObject
@@ -26431,6 +26803,32 @@ func (sh *strictHandler) ExtractTaskMemories(w http.ResponseWriter, r *http.Requ
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(ExtractTaskMemoriesResponseObject); ok {
 		if err := validResponse.VisitExtractTaskMemoriesResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetTaskRelease operation middleware
+func (sh *strictHandler) GetTaskRelease(w http.ResponseWriter, r *http.Request, taskId openapi_types.UUID) {
+	var request GetTaskReleaseRequestObject
+
+	request.TaskId = taskId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetTaskRelease(ctx, request.(GetTaskReleaseRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetTaskRelease")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetTaskReleaseResponseObject); ok {
+		if err := validResponse.VisitGetTaskReleaseResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

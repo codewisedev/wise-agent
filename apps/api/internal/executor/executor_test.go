@@ -406,6 +406,24 @@ func TestSnapshotAndDeliver(t *testing.T) {
 		t.Fatalf("second snapshot: %+v %v", cs2, err)
 	}
 
+	// Rewording keeps the tree, parent and author; only the message changes.
+	tr := filepath.Join(f.root, "workspaces", f.ws, "trusted.git")
+	rw, err := f.m.Reword(context.Background(), f.ws, RewordRequest{SHA: cs2.HeadSHA, Message: "Add a friendly greeting\n\nWise-Task: #7"})
+	if err != nil || rw.HeadSHA == cs2.HeadSHA || rw.Message != "Add a friendly greeting\n\nWise-Task: #7" || len(rw.Files) != 2 {
+		t.Fatalf("reword: %+v %v", rw, err)
+	}
+	if run(t, tr, "git", "rev-parse", rw.HeadSHA+"^{tree}") != run(t, tr, "git", "rev-parse", cs2.HeadSHA+"^{tree}") ||
+		run(t, tr, "git", "log", "-1", "--format=%an <%ae>", rw.HeadSHA) != "Dev <dev@example.com>" {
+		t.Fatal("reword changed more than the message")
+	}
+	if _, err := f.m.Reword(context.Background(), f.ws, RewordRequest{SHA: cs2.HeadSHA, Message: "again"}); err == nil {
+		t.Fatal("reworded a commit that is no longer the snapshot")
+	}
+	if _, err := f.m.Deliver(context.Background(), f.ws, DeliverRequest{SHA: cs2.HeadSHA}); err == nil {
+		t.Fatal("delivered the commit replaced by the reword")
+	}
+	cs2 = rw
+
 	if _, err := f.m.Deliver(context.Background(), f.ws, DeliverRequest{SHA: cs.HeadSHA}); err == nil {
 		t.Fatal("delivered a commit that is not the current snapshot")
 	}

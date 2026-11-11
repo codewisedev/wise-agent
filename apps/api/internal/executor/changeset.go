@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -439,4 +440,59 @@ func (m *Manager) Diff(ctx context.Context, ws string, maxPatch int) (WorkingDif
 	}
 	d.Patch = secretguard.Redact(p)
 	return d, nil
+}
+
+// RewordRequest changes the verified snapshot's commit message.
+type RewordRequest struct {
+	SHA           string `json:"sha"` // the snapshot being reworded (must still be current)
+	Message       string `json:"message"`
+	MaxPatchBytes int    `json:"maxPatchBytes,omitempty"`
+}
+
+// Reword replaces the snapshot commit with one that has the same tree, parent
+// and author but a new message (before your final approval). It works only in
+// the executor-private trusted repository and moves refs/wise/snapshot
+// atomically from the old commit to the new one.
+func (m *Manager) Reword(ctx context.Context, ws string, req RewordRequest) (Changeset, error) {
+	defer m.lock(ws)()
+	st, err := m.load(ws)
+	if err != nil {
+		return Changeset{}, err
+	}
+	msg := strings.TrimSpace(req.Message)
+	if msg == "" || len(msg) > 10000 || strings.ContainsRune(msg, 0) {
+		return Changeset{}, bad("the commit message must be 1-10000 characters")
+	}
+	if !shaRe.MatchString(req.SHA) {
+		return Changeset{}, bad("sha must be a full commit id")
+	}
+	tr := m.trusted(ws)
+	cur, err := git(ctx, tr, "rev-parse", "--verify", "-q", "refs/wise/snapshot^{commit}")
+	if err != nil || strings.TrimSpace(cur) != req.SHA {
+		return Changeset{}, bad("commit %s is not the workspace's current snapshot", short(req.SHA))
+	}
+	meta, err := git(ctx, tr, "log", "-1", "--format=%T%x00%P%x00%an%x00%ae%x00%aI", req.SHA)
+	if err != nil {
+		return Changeset{}, err
+	}
+	f := strings.Split(strings.TrimSpace(meta), "\x00")
+	if len(f) != 5 || strings.Contains(f[1], " ") {
+		return Changeset{}, errors.New("unexpected snapshot commit")
+	}
+	cmd := exec.CommandContext(ctx, "git", "-c", "core.hooksPath=/dev/null", "-c", "commit.gpgsign=false", "commit-tree", f[0], "-p", f[1], "-F", "-")
+	cmd.Dir = tr
+	cmd.Env = append(os.Environ(), "GIT_CONFIG_NOSYSTEM=1", "GIT_TERMINAL_PROMPT=0",
+		"GIT_AUTHOR_NAME="+f[2], "GIT_AUTHOR_EMAIL="+f[3], "GIT_AUTHOR_DATE="+f[4],
+		"GIT_COMMITTER_NAME="+f[2], "GIT_COMMITTER_EMAIL="+f[3])
+	cmd.Stdin = strings.NewReader(msg + "\n")
+	var out, errb bytes.Buffer
+	cmd.Stdout, cmd.Stderr = &out, &errb
+	if err := cmd.Run(); err != nil {
+		return Changeset{}, fmt.Errorf("reword: %s", strings.TrimSpace(errb.String()))
+	}
+	head := strings.TrimSpace(out.String())
+	if _, err := git(ctx, tr, "update-ref", "-m", "wise: reword", "refs/wise/snapshot", head, req.SHA); err != nil {
+		return Changeset{}, err
+	}
+	return m.describe(ctx, tr, Changeset{BaseSHA: st.BaseSHA, HeadSHA: head, Branch: st.Branch, CreatedAt: time.Now().UTC()}, req.MaxPatchBytes)
 }

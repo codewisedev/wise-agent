@@ -2422,6 +2422,44 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/tasks/{taskId}/commit-message": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                taskId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Changes the verified commit's message (same changes) while your final approval of the code is pending. The approval is asked again for the new commit. */
+        post: operations["rewordTaskCommit"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tasks/{taskId}/release": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                taskId: string;
+            };
+            cookie?: never;
+        };
+        /** @description The task's release - what a push covers, pushes, pull requests and pending release approvals. */
+        get: operations["getTaskRelease"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -4026,6 +4064,57 @@ export interface components {
                 note: string;
                 /** Format: date-time */
                 at: string;
+            }[];
+        };
+        TaskRelease: {
+            /** @description What the push approval covers. */
+            request?: {
+                sha?: string;
+                branch?: string;
+                remote?: string;
+                accountName?: string;
+                baseBranch?: string;
+            } | null;
+            pushes: {
+                /** Format: uuid */
+                id: string;
+                /** @enum {string} */
+                status: "granted" | "pushed" | "failed";
+                remote: string;
+                branch: string;
+                sha: string;
+                baseBranch: string;
+                attempts: number;
+                existed: boolean;
+                error?: string | null;
+                /** Format: date-time */
+                createdAt: string;
+                /** Format: date-time */
+                pushedAt?: string | null;
+            }[];
+            pullRequests: {
+                /** Format: uuid */
+                id: string;
+                /** @enum {string} */
+                status: "granted" | "opened" | "failed";
+                number?: number | null;
+                url?: string | null;
+                /** @description open, merged or closed (refreshed from the host) */
+                state?: string | null;
+                draft: boolean;
+                title: string;
+                error?: string | null;
+                /** Format: date-time */
+                createdAt: string;
+            }[];
+            /** @description Pending release approvals (push, pull request). */
+            approvals: {
+                /** Format: uuid */
+                id: string;
+                gate: string;
+                /** @enum {string} */
+                kind: "push" | "pull_request";
+                combinedHash: string;
             }[];
         };
         RepositoryRelease: {
@@ -8894,6 +8983,65 @@ export interface operations {
                 };
             };
             400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    rewordTaskCommit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                taskId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    message: string;
+                };
+            };
+        };
+        responses: {
+            /** @description The reworded commit. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        headSha: string;
+                        message: string;
+                    };
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+        };
+    };
+    getTaskRelease: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                taskId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Release state. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskRelease"];
+                };
+            };
             401: components["responses"]["Problem"];
             404: components["responses"]["Problem"];
         };

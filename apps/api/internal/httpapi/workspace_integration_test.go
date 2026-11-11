@@ -149,6 +149,10 @@ func (f *fakeExecutor) Snapshot(_ context.Context, id string, req executor.Snaps
 	return executor.Changeset{BaseSHA: strings.Repeat("a", 40), HeadSHA: strings.Repeat("b", 40), Branch: "wise/x", Message: req.Message}, nil
 }
 
+func (f *fakeExecutor) Reword(_ context.Context, id string, req executor.RewordRequest) (executor.Changeset, error) {
+	return executor.Changeset{BaseSHA: strings.Repeat("a", 40), HeadSHA: strings.Repeat("c", 40), Branch: "wise/x", Message: req.Message}, nil
+}
+
 func (f *fakeExecutor) Deliver(_ context.Context, id string, req executor.DeliverRequest) (executor.Delivery, error) {
 	f.mu.Lock()
 	f.deliveries = append(f.deliveries, req.SHA)

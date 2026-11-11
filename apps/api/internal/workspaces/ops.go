@@ -22,6 +22,7 @@ type Ops interface {
 	Command(ctx context.Context, id, command string, timeoutS int) (string, error)
 	Diff(ctx context.Context, id string, maxBytes int) (executor.WorkingDiff, error)
 	Snapshot(ctx context.Context, id string, req executor.SnapshotRequest) (executor.Changeset, error)
+	Reword(ctx context.Context, id string, req executor.RewordRequest) (executor.Changeset, error)
 	Deliver(ctx context.Context, id string, req executor.DeliverRequest) (executor.Delivery, error)
 }
 
@@ -179,6 +180,19 @@ func (s *Service) Snapshot(ctx context.Context, w dbgen.Workspace, message strin
 		head = &cs.HeadSHA
 	}
 	return cs, s.db.SetWorkspaceHead(ctx, dbgen.SetWorkspaceHeadParams{ID: w.ID, HeadSha: head})
+}
+
+// Reword changes the verified commit's message (same tree), before final approval.
+func (s *Service) Reword(ctx context.Context, w dbgen.Workspace, sha, message string) (executor.Changeset, error) {
+	o, err := s.ops()
+	if err != nil {
+		return executor.Changeset{}, err
+	}
+	cs, err := o.Reword(ctx, w.ID.String(), executor.RewordRequest{SHA: sha, Message: message})
+	if err != nil {
+		return cs, err
+	}
+	return cs, s.db.SetWorkspaceHead(ctx, dbgen.SetWorkspaceHeadParams{ID: w.ID, HeadSha: &cs.HeadSHA})
 }
 
 // StopSandbox stops a workspace's sandbox (its files stay).

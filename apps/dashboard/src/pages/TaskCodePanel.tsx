@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2, FolderGit2, GitBranch, Play, ShieldAlert, Trash2, XCircle } from "lucide-react";
+import { useState } from "react";
 import { Link } from "react-router";
 import { api, unwrap, type Schemas } from "../api/client";
 import { Badge, CopyText, ErrorNote, Panel, relativeTime, shortSha, type Tone } from "../components/ui";
@@ -53,7 +54,40 @@ export function DiffView({ patch }: { patch: string }) {
   );
 }
 
-function Changeset({ cs }: { cs: Obj }) {
+function CommitMessage({ taskId, message }: { taskId: string; message: string }) {
+  const qc = useQueryClient();
+  const [editing, setEditing] = useState(false);
+  const [text, setText] = useState(message);
+  const save = useMutation({
+    mutationFn: () => unwrap(api.POST("/tasks/{taskId}/commit-message", { params: { path: { taskId } }, body: { message: text } })),
+    onSuccess: () => {
+      setEditing(false);
+      void qc.invalidateQueries({ queryKey: ["task", taskId] });
+      void qc.invalidateQueries({ queryKey: ["approvals"] });
+    },
+  });
+  if (!editing) {
+    return (
+      <div className="commit-msg-row">
+        <pre className="commit-msg small">{message}</pre>
+        <button type="button" className="btn btn-sm btn-ghost" onClick={() => { setText(message); setEditing(true); }}
+          title="Change the message before your final approval (same changes; the approval is asked again)">Edit message</button>
+      </div>
+    );
+  }
+  return (
+    <div className="settings-form">
+      <textarea aria-label="Commit message" className="mono" rows={6} value={text} maxLength={10000} onChange={(e) => setText(e.target.value)} />
+      <div className="row-actions">
+        <button type="button" className="btn btn-sm btn-primary" disabled={save.isPending || !text.trim()} onClick={() => save.mutate()}>Save message</button>
+        <button type="button" className="btn btn-sm" onClick={() => setEditing(false)}>Cancel</button>
+      </div>
+      <ErrorNote error={save.error} />
+    </div>
+  );
+}
+
+function Changeset({ cs, taskId }: { cs: Obj; taskId: string }) {
   const files = (cs.files as FileChange[] | undefined) ?? [];
   if (!cs.headSha) return <p className="small faint panel-body">The workspace has no changes.</p>;
   return (
@@ -66,7 +100,7 @@ function Changeset({ cs }: { cs: Obj }) {
       {cs.secretFound === true && (
         <p className="error" role="alert"><ShieldAlert size={14} aria-hidden /> The change contains a credential-like file or token (redacted below). Request changes unless it is intended.</p>
       )}
-      {typeof cs.message === "string" && <pre className="commit-msg small">{cs.message}</pre>}
+      {typeof cs.message === "string" && <CommitMessage taskId={taskId} message={cs.message} />}
       <ul className="list file-list">
         {files.map((f) => (
           <li key={f.path} className="small">
@@ -260,7 +294,7 @@ export function TaskCodePanel({ task, artifacts }: { task: Task; artifacts: Arti
       {q && <section aria-label="Quality checks"><h3 className="panel-body" style={{ paddingBottom: 0 }}>Checks</h3><Quality q={q} /></section>}
       {cr && <Review title="Code review" r={cr} />}
       {sr && <Review title="Security review" r={sr} />}
-      {cs && <section aria-label="Changes"><h3 className="panel-body" style={{ paddingBottom: 0 }}>Changes</h3><Changeset cs={cs} /></section>}
+      {cs && <section aria-label="Changes"><h3 className="panel-body" style={{ paddingBottom: 0 }}>Changes</h3><Changeset cs={cs} taskId={taskId} /></section>}
     </Panel>
   );
 }

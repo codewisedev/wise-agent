@@ -144,6 +144,12 @@ func (c *Client) Snapshot(ctx context.Context, id string, req SnapshotRequest) (
 	return r, c.do(ctx, http.MethodPost, "/v1/workspaces/"+url.PathEscape(id)+"/snapshot", req, &r)
 }
 
+// Reword changes the snapshot commit's message (before final approval).
+func (c *Client) Reword(ctx context.Context, id string, req RewordRequest) (Changeset, error) {
+	var r Changeset
+	return r, c.do(ctx, http.MethodPost, "/v1/workspaces/"+url.PathEscape(id)+"/reword", req, &r)
+}
+
 // Deliver writes an approved commit as a branch into the user's repository.
 func (c *Client) Deliver(ctx context.Context, id string, req DeliverRequest) (Delivery, error) {
 	var r Delivery

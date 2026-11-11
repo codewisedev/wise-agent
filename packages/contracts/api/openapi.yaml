@@ -2930,6 +2930,52 @@ paths:
         "400": { $ref: "#/components/responses/Problem" }
         "401": { $ref: "#/components/responses/Problem" }
         "404": { $ref: "#/components/responses/Problem" }
+  /tasks/{taskId}/commit-message:
+    parameters:
+      - { name: taskId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [release]
+      operationId: rewordTaskCommit
+      description: Changes the verified commit's message (same changes) while your final approval of the code is pending. The approval is asked again for the new commit.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [message]
+              properties:
+                message: { type: string, minLength: 1, maxLength: 10000 }
+      responses:
+        "200":
+          description: The reworded commit.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [headSha, message]
+                properties:
+                  headSha: { type: string }
+                  message: { type: string }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+  /tasks/{taskId}/release:
+    parameters:
+      - { name: taskId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [release]
+      operationId: getTaskRelease
+      description: The task's release - what a push covers, pushes, pull requests and pending release approvals.
+      responses:
+        "200":
+          description: Release state.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TaskRelease" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
 components:
   securitySchemes:
     cookieAuth:
@@ -4621,6 +4667,63 @@ components:
               runId: { type: string, format: uuid, nullable: true }
               note: { type: string }
               at: { type: string, format: date-time }
+    TaskRelease:
+      type: object
+      required: [pushes, pullRequests, approvals]
+      properties:
+        request:
+          type: object
+          nullable: true
+          description: What the push approval covers.
+          properties:
+            sha: { type: string }
+            branch: { type: string }
+            remote: { type: string }
+            accountName: { type: string }
+            baseBranch: { type: string }
+        pushes:
+          type: array
+          items:
+            type: object
+            required: [id, status, remote, branch, sha, baseBranch, attempts, existed, createdAt]
+            properties:
+              id: { type: string, format: uuid }
+              status: { type: string, enum: [granted, pushed, failed] }
+              remote: { type: string }
+              branch: { type: string }
+              sha: { type: string }
+              baseBranch: { type: string }
+              attempts: { type: integer }
+              existed: { type: boolean }
+              error: { type: string, nullable: true }
+              createdAt: { type: string, format: date-time }
+              pushedAt: { type: string, format: date-time, nullable: true }
+        pullRequests:
+          type: array
+          items:
+            type: object
+            required: [id, status, draft, title, createdAt]
+            properties:
+              id: { type: string, format: uuid }
+              status: { type: string, enum: [granted, opened, failed] }
+              number: { type: integer, nullable: true }
+              url: { type: string, nullable: true }
+              state: { type: string, nullable: true, description: "open, merged or closed (refreshed from the host)" }
+              draft: { type: boolean }
+              title: { type: string }
+              error: { type: string, nullable: true }
+              createdAt: { type: string, format: date-time }
+        approvals:
+          type: array
+          description: Pending release approvals (push, pull request).
+          items:
+            type: object
+            required: [id, gate, kind, combinedHash]
+            properties:
+              id: { type: string, format: uuid }
+              gate: { type: string }
+              kind: { type: string, enum: [push, pull_request] }
+              combinedHash: { type: string }
     RepositoryRelease:
       type: object
       properties:
