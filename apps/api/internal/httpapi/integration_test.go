@@ -64,6 +64,7 @@ type env struct {
 	agents   *agents.Service
 	hub      *events.Hub
 	improve  *improvement.Service
+	release  *release.Service
 	accounts *accounts.Service
 	gw       *modelgateway.Gateway
 	sources  *integrations.Service
@@ -181,7 +182,7 @@ func setup(t *testing.T) *env {
 	t.Cleanup(ts.Close)
 	jar, _ := cookiejar.New(nil)
 	return &env{t: t, db: d, srv: ts, client: &http.Client{Jar: jar}, repoRoot: root, queue: queue, model: model, repoSvc: repoSvc, index: indexSvc, memory: memorySvc, exec: fx, ws: wsSvc, coding: codingSvc, proxy: fp,
-		tasks: taskSvc, agents: agentSvc, hub: hub, improve: improvementSvc, accounts: accountSvc, gw: gw, sources: integrationSvc, settings: settingsSvc}
+		tasks: taskSvc, agents: agentSvc, hub: hub, improve: improvementSvc, release: releaseSvc, accounts: accountSvc, gw: gw, sources: integrationSvc, settings: settingsSvc}
 }
 
 type resp struct {

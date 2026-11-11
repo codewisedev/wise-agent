@@ -1098,6 +1098,7 @@ const (
 	StepTypeDeliver   StepType = "deliver"
 	StepTypeGate      StepType = "gate"
 	StepTypeQuality   StepType = "quality"
+	StepTypeRelease   StepType = "release"
 	StepTypeWorkspace StepType = "workspace"
 )
 
@@ -1111,6 +1112,8 @@ func (e StepType) Valid() bool {
 	case StepTypeGate:
 		return true
 	case StepTypeQuality:
+		return true
+	case StepTypeRelease:
 		return true
 	case StepTypeWorkspace:
 		return true
@@ -3212,7 +3215,7 @@ type StepOverride struct {
 // StepOverrideRuntime Run this implementing step on a runtime the project enabled.
 type StepOverrideRuntime string
 
-// StepType agent runs an agent; workspace prepares the task workspace; quality runs the repository's checks; gate passes or fails on checks and reviews, runs fix rounds and produces the verified changeset; deliver writes the approved commit as the task branch.
+// StepType agent runs an agent; workspace prepares the task workspace; quality runs the repository's checks; gate passes or fails on checks and reviews, runs fix rounds and produces the verified changeset; deliver writes the approved commit as the task branch; release asks for your push approval, pushes the branch and opens a pull request per the project's policy.
 type StepType string
 
 // SyncResult defines model for SyncResult.
@@ -3354,7 +3357,7 @@ type TemplateStep struct {
 	// Runtime Implementing agent steps: run on an external coding CLI instead of Wise's own loop.
 	Runtime *TemplateStepRuntime `json:"runtime,omitempty"`
 
-	// Type agent runs an agent; workspace prepares the task workspace; quality runs the repository's checks; gate passes or fails on checks and reviews, runs fix rounds and produces the verified changeset; deliver writes the approved commit as the task branch.
+	// Type agent runs an agent; workspace prepares the task workspace; quality runs the repository's checks; gate passes or fails on checks and reviews, runs fix rounds and produces the verified changeset; deliver writes the approved commit as the task branch; release asks for your push approval, pushes the branch and opens a pull request per the project's policy.
 	Type *StepType `json:"type,omitempty"`
 }
 

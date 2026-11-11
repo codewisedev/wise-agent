@@ -3253,10 +3253,10 @@ export interface components {
             stepByStep?: boolean;
         };
         /**
-         * @description agent runs an agent; workspace prepares the task workspace; quality runs the repository's checks; gate passes or fails on checks and reviews, runs fix rounds and produces the verified changeset; deliver writes the approved commit as the task branch.
+         * @description agent runs an agent; workspace prepares the task workspace; quality runs the repository's checks; gate passes or fails on checks and reviews, runs fix rounds and produces the verified changeset; deliver writes the approved commit as the task branch; release asks for your push approval, pushes the branch and opens a pull request per the project's policy.
          * @enum {string}
          */
-        StepType: "agent" | "workspace" | "quality" | "gate" | "deliver";
+        StepType: "agent" | "workspace" | "quality" | "gate" | "deliver" | "release";
         TemplateStep: {
             id: string;
             name?: string;

@@ -3869,8 +3869,8 @@ components:
         stepByStep: { type: boolean, description: Pause after every step. }
     StepType:
       type: string
-      enum: [agent, workspace, quality, gate, deliver]
-      description: "agent runs an agent; workspace prepares the task workspace; quality runs the repository's checks; gate passes or fails on checks and reviews, runs fix rounds and produces the verified changeset; deliver writes the approved commit as the task branch."
+      enum: [agent, workspace, quality, gate, deliver, release]
+      description: "agent runs an agent; workspace prepares the task workspace; quality runs the repository's checks; gate passes or fails on checks and reviews, runs fix rounds and produces the verified changeset; deliver writes the approved commit as the task branch; release asks for your push approval, pushes the branch and opens a pull request per the project's policy."
     TemplateStep:
       type: object
       required: [id]

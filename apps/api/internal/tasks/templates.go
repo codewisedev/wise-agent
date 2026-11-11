@@ -30,13 +30,14 @@ const (
 	StepQuality   = "quality"   // run the repository's checks
 	StepGate      = "gate"      // pass/fail on checks and reviews; fix rounds; verified changeset
 	StepDeliver   = "deliver"   // write the approved commit as the task branch
+	StepRelease   = "release"   // push approval, push, pull request (per project policy)
 )
 
 // ExternalRuntimes are the coding CLIs an implementing step may run on.
 var ExternalRuntimes = []string{"claude-code", "codex"}
 
 // StepTypes lists the step types.
-var StepTypes = []string{StepAgent, StepWorkspace, StepQuality, StepGate, StepDeliver}
+var StepTypes = []string{StepAgent, StepWorkspace, StepQuality, StepGate, StepDeliver, StepRelease}
 
 // Artifact kinds produced by engineering steps.
 const (
@@ -46,6 +47,7 @@ const (
 	KindImplementation = "implementation"
 	KindQA             = "qa"
 	KindGate           = "quality_gate"
+	KindPush           = "push"
 )
 
 // StepDef is one workflow step.
@@ -292,7 +294,7 @@ func Resolve(ctx context.Context, def TemplateDef, ov Overrides, stepByStep bool
 					}
 				}
 			}
-		case StepWorkspace, StepQuality, StepGate, StepDeliver:
+		case StepWorkspace, StepQuality, StepGate, StepDeliver, StepRelease:
 			if st.Runtime != "" && st.Runtime != "native" {
 				bad("only implementing agent steps run on an external coding runtime")
 			}
@@ -347,6 +349,18 @@ func Resolve(ctx context.Context, def TemplateDef, ov Overrides, stepByStep bool
 				}
 				if st.Review {
 					bad("a deliver step has nothing to review")
+				}
+			case StepRelease:
+				// Its approvals (push, and pull request when the project asks) are built in.
+				st.Kind = KindPush
+				if !produced[KindDelivery] {
+					bad("the release step needs an earlier deliver step")
+				}
+				if st.Review {
+					bad("the release step asks for your push approval itself; it has no other review")
+				}
+				if len(sd.ID) > 37 {
+					bad("the release step id must be at most 37 characters")
 				}
 			}
 		default:
@@ -451,6 +465,7 @@ func SeedTemplates() []struct {
 		{ID: "gate", Name: "Quality gate", Type: StepGate, FixFrom: "implement", DiagnoseWith: "qa-agent", Review: true,
 			ReviewIncludes: []string{"implement", "quality", "code-review", "security"}, ReviseFrom: "implement"},
 		{ID: "deliver", Name: "Deliver branch", Type: StepDeliver},
+		{ID: "release", Name: "Push and pull request", Type: StepRelease},
 	}, Destination: Destination{Column: "done"}}
 	return []struct {
 		Slug, Name, Description string
@@ -460,7 +475,7 @@ func SeedTemplates() []struct {
 		{"engineering", "Engineering", "Analysis → requirements (review) → planning → architecture (review) → report.", true, eng},
 		{"step-by-step", "Step by step", "The engineering steps, pausing after every one so you pass each result on yourself.", false, all},
 		{"quick-analysis", "Quick analysis", "Product analysis only; the card moves to Review.", false, quick},
-		{"engineering-code", "Engineering → code", "The engineering steps, then Wise writes the code in an isolated workspace: implement → checks → code and security review → quality gate with fix rounds → your final approval of the diff → a wise/… branch in your repository.", false, code},
+		{"engineering-code", "Engineering → code", "The engineering steps, then Wise writes the code in an isolated workspace: implement → checks → code and security review → quality gate with fix rounds → your final approval of the diff → a wise/… branch in your repository → your push approval → push and (per project) a pull request.", false, code},
 	}
 }
 

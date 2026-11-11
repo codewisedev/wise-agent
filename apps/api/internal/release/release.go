@@ -7,6 +7,7 @@ package release
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"regexp"
 	"strings"
@@ -325,4 +326,74 @@ func (s *Service) SetPolicy(ctx context.Context, projectID uuid.UUID, p Policy) 
 			Payload: map[string]any{"pullRequests": p.PullRequests, "draft": p.Draft}})
 	})
 	return p, err
+}
+
+// Prepared is what the release step pushes, or why it cannot.
+type Prepared struct {
+	Request Request
+	Skip    string // non-empty: nothing to push (e.g. no changes were delivered)
+}
+
+// Prepare builds the release request for a task's delivered branch. It reads
+// only the database (the orchestrator holds no git credentials).
+func (s *Service) Prepare(ctx context.Context, taskID uuid.UUID) (Prepared, error) {
+	del, err := s.db.GetLatestArtifact(ctx, dbgen.GetLatestArtifactParams{TaskID: taskID, Kind: "delivery"})
+	if db.IsNotFound(err) {
+		return Prepared{}, errors.New("nothing was delivered: run the deliver step first")
+	}
+	if err != nil {
+		return Prepared{}, err
+	}
+	var d struct {
+		Branch string `json:"branch"`
+		SHA    string `json:"sha"`
+	}
+	_ = json.Unmarshal(del.Content, &d)
+	if d.SHA == "" {
+		return Prepared{Skip: "no changes were delivered, so there is nothing to push"}, nil
+	}
+	w, err := s.db.LiveWorkspaceForTask(ctx, taskID)
+	if err != nil {
+		return Prepared{}, errors.New("the task workspace is gone, so the approved commit cannot be read")
+	}
+	repo, err := s.db.GetRepository(ctx, w.RepositoryID)
+	if err != nil {
+		return Prepared{}, err
+	}
+	cfg := ParseRepo(repo.Release)
+	if !cfg.Configured() {
+		return Prepared{}, fmt.Errorf("set where %s pushes (project page → repository → Release: remote, git account, base branch), then retry", repo.Name)
+	}
+	a, err := s.db.GetAccount(ctx, *cfg.AccountID)
+	if err != nil {
+		return Prepared{}, errors.New("the repository's git account is gone: choose another in Release, then retry")
+	}
+	r := Request{WorkspaceID: w.ID, RepositoryID: repo.ID, SHA: d.SHA, Branch: d.Branch, Remote: cfg.Remote,
+		AccountID: a.ID, AccountName: a.Name, BaseBranch: cfg.BaseBranch}
+	if !a.Enabled {
+		return Prepared{}, fmt.Errorf("the git account %s is disabled", a.Name)
+	}
+	if err := CheckTarget(r, a.Kind, a.BaseUrl); err != nil {
+		return Prepared{}, err
+	}
+	return Prepared{Request: r}, nil
+}
+
+// PushByApproval returns the push made for an approval.
+func (s *Service) PushByApproval(ctx context.Context, approvalID uuid.UUID) (dbgen.GitPush, error) {
+	return s.db.GetGitPushByApproval(ctx, approvalID)
+}
+
+// PullRequestByPush returns the pull request of a push.
+func (s *Service) PullRequestByPush(ctx context.Context, pushID uuid.UUID) (dbgen.GitPullRequest, error) {
+	return s.db.GetPullRequestByPush(ctx, pushID)
+}
+
+// PolicyForTask returns the pull request policy of a task's project.
+func (s *Service) PolicyForTask(ctx context.Context, taskID uuid.UUID) (Policy, error) {
+	t, err := s.db.GetTask(ctx, taskID)
+	if err != nil {
+		return Policy{}, err
+	}
+	return s.Policy(ctx, t.ProjectID)
 }

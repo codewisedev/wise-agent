@@ -22,6 +22,7 @@ import (
 	"wise/apps/api/internal/db/dbgen"
 	"wise/apps/api/internal/executor"
 	"wise/apps/api/internal/feedback"
+	"wise/apps/api/internal/gitworker"
 	"wise/apps/api/internal/improvement"
 	"wise/apps/api/internal/insights"
 	"wise/apps/api/internal/memory"
@@ -371,9 +372,15 @@ func orchestrator(ctx context.Context) error {
 	if c := executor.NewClient(cfg.ExecutorURL, cfg.ExecutorToken); c != nil {
 		execClient = c
 	}
+	var git *gitworker.Client
+	if url, tok := os.Getenv("WISE_GIT_WORKER_URL"), os.Getenv("WISE_GIT_PUSH_TOKEN"); url != "" && len(tok) >= 32 {
+		git = gitworker.NewClient(url, tok)
+	}
 	return workflow.RunOrchestrator(ctx, workflow.OrchestratorConfig{
 		TemporalAddress: cfg.TemporalAddress, Namespace: cfg.TemporalNamespace,
 		Workspaces: workspaces.New(d, execClient, log.With("component", "workspaces")),
+		// The orchestrator reads release targets from the database; it never holds a git token.
+		Release: release.New(d, nil), Git: git,
 	}, d, tasks.NewService(d, wfCfg), agents.NewService(d, events.NewHub(d)), log)
 }
 

@@ -400,8 +400,16 @@ func CheckTemplate(before, after tasks.TemplateDef) error {
 		}
 	}
 	for _, a := range after.Steps {
-		if _, existed := beforeByID[a.ID]; !existed && a.Runtime != "" {
+		if _, existed := beforeByID[a.ID]; existed {
+			continue
+		}
+		if a.Runtime != "" {
 			return refuse("new step %q may not set a runtime", a.ID)
+		}
+		// New workspace, gate, deliver or release steps would change what reaches
+		// your repository or a git host (a release step enables pushing).
+		if stepType(a) != tasks.StepAgent {
+			return refuse("new step %q: proposals may only add agent steps (a %s step changes execution or git authorization)", a.ID, stepType(a))
 		}
 	}
 	return nil

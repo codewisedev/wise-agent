@@ -139,3 +139,40 @@ func TestPushGrantsOnlyForApprovedDeliveredCommits(t *testing.T) {
 		t.Fatalf("pr grant: %v", pg)
 	}
 }
+
+func TestPrepareReleaseNeedsTheRepositoryTarget(t *testing.T) {
+	e := setup(t)
+	e.login()
+	ctx := context.Background()
+	taskID, wfID := e.newTask("Prepare release")
+	var pid string
+	_ = e.db.Pool.QueryRow(ctx, "SELECT project_id::text FROM tasks WHERE id = $1", taskID).Scan(&pid)
+	dir := gitRepo(t, e.repoRoot, "prep-"+uuid.NewString()[:6])
+	rid := e.expect(e.do("POST", "/projects/"+pid+"/repositories", map[string]any{"name": "svc", "sourceType": "local", "localPath": dir}), 201)["id"].(string)
+	sha := strings.Repeat("ef", 20)
+	if _, err := e.db.Pool.Exec(ctx, `INSERT INTO workspaces (id, task_id, workflow_run_id, repository_id, status, branch, image, delivered_branch, delivered_sha)
+		VALUES ($1, $2, $3, $4, 'stopped', 'wise/prepare-release', 'img', 'wise/prepare-release', $5)`, uuid.New(), taskID, wfID, rid, sha); err != nil {
+		t.Fatal(err)
+	}
+	b, _ := json.Marshal(map[string]any{"branch": "wise/prepare-release", "sha": sha})
+	if _, err := e.tasks.SaveArtifact(ctx, wfID, taskID, "delivery", b, nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.release.Prepare(ctx, taskID); err == nil || !strings.Contains(err.Error(), "set where") {
+		t.Fatalf("unconfigured: %v", err)
+	}
+	gh := e.expect(e.do("POST", "/accounts", map[string]any{"name": "gh3", "kind": "github", "secret": "github_pat_prep_0123456789"}), 201)
+	e.expect(e.do("PUT", "/repositories/"+rid+"/release", map[string]any{"remote": "https://github.com/o/r.git", "accountId": gh["id"], "baseBranch": "main"}), 200)
+	p, err := e.release.Prepare(ctx, taskID)
+	if err != nil || p.Request.SHA != sha || p.Request.Branch != "wise/prepare-release" || p.Request.AccountName != "gh3" {
+		t.Fatalf("prepared: %+v %v", p, err)
+	}
+	// Nothing delivered: nothing to push.
+	b, _ = json.Marshal(map[string]any{"note": "no changes to deliver"})
+	if _, err := e.tasks.SaveArtifact(ctx, wfID, taskID, "delivery", b, nil); err != nil {
+		t.Fatal(err)
+	}
+	if p, err := e.release.Prepare(ctx, taskID); err != nil || p.Skip == "" {
+		t.Fatalf("skip: %+v %v", p, err)
+	}
+}
