@@ -4085,8 +4085,11 @@ type ListProjectsParams struct {
 
 // GetProjectActivityParams defines parameters for GetProjectActivity.
 type GetProjectActivityParams struct {
-	// Before Older than this (paging).
+	// Before Older than this (paging; with beforeId).
 	Before *time.Time `form:"before,omitempty" json:"before,omitempty"`
+
+	// BeforeId The last item's refId (paging).
+	BeforeId *openapi_types.UUID `form:"beforeId,omitempty" json:"beforeId,omitempty"`
 
 	// Kinds Comma-separated: task, approval, workflow, run, branch, push, pull_request, memory.
 	Kinds *string `form:"kinds,omitempty" json:"kinds,omitempty"`
@@ -8091,6 +8094,19 @@ func (siw *ServerInterfaceWrapper) GetProjectActivity(w http.ResponseWriter, r *
 			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "before"})
 		} else {
 			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "before", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "beforeId" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "beforeId", r.URL.Query(), &params.BeforeId, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "beforeId"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "beforeId", Err: err})
 		}
 		return
 	}
@@ -16340,6 +16356,9 @@ type GetProjectActivity200JSONResponse struct {
 
 	// Next Pass as before for the next page.
 	Next *time.Time `json:"next,omitempty"`
+
+	// NextId Pass as beforeId for the next page.
+	NextId *openapi_types.UUID `json:"nextId,omitempty"`
 }
 
 func (response GetProjectActivity200JSONResponse) VisitGetProjectActivityResponse(w http.ResponseWriter) error {

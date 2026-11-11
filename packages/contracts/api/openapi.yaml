@@ -3012,7 +3012,8 @@ paths:
       operationId: getProjectActivity
       description: What happened in the project, newest first - tasks, approvals, workflows, failed runs, deliveries, pushes, pull requests and memories.
       parameters:
-        - { name: before, in: query, schema: { type: string, format: date-time }, description: Older than this (paging). }
+        - { name: before, in: query, schema: { type: string, format: date-time }, description: Older than this (paging; with beforeId). }
+        - { name: beforeId, in: query, schema: { type: string, format: uuid }, description: The last item's refId (paging). }
         - { name: kinds, in: query, schema: { type: string }, description: "Comma-separated: task, approval, workflow, run, branch, push, pull_request, memory." }
         - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 200 } }
       responses:
@@ -3038,6 +3039,7 @@ paths:
                         refId: { type: string, format: uuid }
                         url: { type: string }
                   next: { type: string, format: date-time, nullable: true, description: Pass as before for the next page. }
+                  nextId: { type: string, format: uuid, nullable: true, description: Pass as beforeId for the next page. }
         "401": { $ref: "#/components/responses/Problem" }
         "404": { $ref: "#/components/responses/Problem" }
 components:

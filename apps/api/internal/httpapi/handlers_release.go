@@ -127,6 +127,10 @@ func (s *Server) RewordTaskCommit(ctx context.Context, req apigen.RewordTaskComm
 	next.SecretFound = cs.SecretFound
 	raw, _ := json.Marshal(next)
 	if _, err := s.Tasks.SaveArtifact(ctx, gate.WorkflowRunID, req.TaskId, tasks.KindChangeset, raw, nil); err != nil {
+		// Keep the workspace and the recorded changeset consistent: put the old commit back.
+		if uerr := s.Workspaces.UndoReword(context.WithoutCancel(ctx), *w, next.HeadSHA, cs.HeadSHA); uerr != nil {
+			return nil, errors.Join(err, uerr)
+		}
 		return nil, err
 	}
 	if err := audit.Record(ctx, s.DB.Queries, audit.Entry{Action: "task.commit_reworded", EntityType: "task", EntityID: &req.TaskId,

@@ -66,7 +66,7 @@ func TestProjectActivityFeed(t *testing.T) {
 	if len(page["items"].([]any)) != 2 || page["next"] == nil {
 		t.Fatalf("paging: %v", page)
 	}
-	rest := e.expect(e.do("GET", "/projects/"+pid+"/activity?before="+url.QueryEscape(page["next"].(string)), nil), 200)["items"].([]any)
+	rest := e.expect(e.do("GET", "/projects/"+pid+"/activity?before="+url.QueryEscape(page["next"].(string))+"&beforeId="+page["nextId"].(string), nil), 200)["items"].([]any)
 	if len(rest) != len(items)-2 {
 		t.Fatalf("second page: %d of %d", len(rest), len(items))
 	}

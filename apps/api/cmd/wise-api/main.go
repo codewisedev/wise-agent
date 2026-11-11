@@ -251,6 +251,8 @@ func serve(ctx context.Context) error {
 	improvementSvc := improvement.New(d, agentSvc, memorySvc, settingsSvc, taskSvc, insightSvc, log.With("component", "improvement"))
 	improvement.RegisterSetting(settingsSvc, cfg.ImprovementDefaults, improvementSvc)
 	releaseSvc := release.New(d, accountSvc)
+	monitorSvc := monitor.New(d)
+	monitor.RegisterSetting(settingsSvc, cfg.MonitorDefaults, monitorSvc)
 	release.RegisterSetting(settingsSvc, cfg.ReleaseDefaults, releaseSvc)
 	runQueue.OnFinished = func(ctx context.Context, runID uuid.UUID) {
 		memorySvc.OnRunFinished(ctx, runID)
@@ -282,7 +284,7 @@ func serve(ctx context.Context) error {
 		Insights:         insightSvc,
 		Improvement:      improvementSvc,
 		Release:          releaseSvc,
-		Monitor:          monitor.New(d),
+		Monitor:          monitorSvc,
 		Costs:            costs.New(d),
 		GitWorkerToken:   os.Getenv("WISE_GIT_WORKER_TOKEN"),
 		Agents:           agentSvc,

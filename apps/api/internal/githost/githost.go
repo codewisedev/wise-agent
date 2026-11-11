@@ -164,10 +164,12 @@ func (c *Client) do(ctx context.Context, method, path string, body, out any) err
 		req.Header.Set("Authorization", "Bearer "+c.Token)
 		req.Header.Set("X-GitHub-Api-Version", "2022-11-28")
 	}
-	hc := c.HTTP
-	if hc == nil {
-		hc = &http.Client{Timeout: 30 * time.Second}
+	base := c.HTTP
+	if base == nil {
+		base = &http.Client{Timeout: 30 * time.Second}
 	}
+	hc := *base
+	hc.CheckRedirect = sameOrigin // the token header must never follow a redirect elsewhere
 	res, err := hc.Do(req)
 	if err != nil {
 		return fmt.Errorf("%s unreachable: %w", c.Kind, scrub(err, c.Token))
@@ -182,6 +184,18 @@ func (c *Client) do(ctx context.Context, method, path string, body, out any) err
 	}
 	if out != nil {
 		return json.Unmarshal(raw, out)
+	}
+	return nil
+}
+
+// sameOrigin refuses redirects that change the scheme, host or port.
+func sameOrigin(req *http.Request, via []*http.Request) error {
+	if len(via) >= 5 {
+		return errors.New("too many redirects")
+	}
+	first := via[0].URL
+	if req.URL.Scheme != first.Scheme || req.URL.Host != first.Host {
+		return fmt.Errorf("refused a redirect from %s to %s", first.Host, req.URL.Host)
 	}
 	return nil
 }

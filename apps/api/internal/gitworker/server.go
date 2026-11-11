@@ -70,6 +70,11 @@ func reply(rw http.ResponseWriter, v any, err error) {
 			writeErr(rw, http.StatusConflict, re.Msg)
 			return
 		}
+		var se interface{ Temporary() bool }
+		if errors.As(err, &se) || strings.HasPrefix(err.Error(), "API ") || strings.Contains(err.Error(), "could not be recorded") {
+			writeErr(rw, http.StatusBadGateway, err.Error()) // transient: the orchestrator retries
+			return
+		}
 		writeErr(rw, http.StatusUnprocessableEntity, err.Error())
 		return
 	}

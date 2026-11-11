@@ -74,10 +74,10 @@ func (a *Activities) PushRelease(ctx context.Context, req PushReleaseRequest) (u
 		var ge *gitworker.Error
 		already := errors.As(err, &ge) && strings.Contains(ge.Msg, "already pushed")
 		if !already {
-			if errors.As(err, &ge) {
+			if errors.As(err, &ge) && ge.Status < 500 {
 				return uuid.Nil, a.failStage(ctx, req.stage(), nil, ge.Msg)
 			}
-			return uuid.Nil, err // worker unreachable: retried
+			return uuid.Nil, err // worker or API unreachable: retried
 		}
 	}
 	p, err := a.Release.PushByApproval(ctx, req.ApprovalID)
@@ -93,10 +93,7 @@ func (a *Activities) PushRelease(ctx context.Context, req PushReleaseRequest) (u
 	}
 	out := map[string]any{"pushId": p.ID, "remote": p.Remote, "branch": p.Branch, "sha": p.Sha, "baseBranch": p.BaseBranch, "existed": p.Existed}
 	if rm, err := githost.ParseRemote(p.Remote); err == nil {
-		kind := githost.GitHub
-		if strings.Contains(rm.Host, "gitlab") {
-			kind = githost.GitLab
-		}
+		kind := a.Release.AccountKind(ctx, p.AccountID)
 		out["web"] = rm.Web()
 		out["compareUrl"] = githost.CompareURL(kind, rm, p.BaseBranch, p.Branch)
 	}
@@ -138,7 +135,7 @@ func (a *Activities) OpenPullRequest(ctx context.Context, req OpenPullRequestReq
 	if err != nil {
 		var ge *gitworker.Error
 		if !(errors.As(err, &ge) && strings.Contains(ge.Msg, "already open")) {
-			if errors.As(err, &ge) {
+			if errors.As(err, &ge) && ge.Status < 500 {
 				return a.failStage(ctx, req.stage(), nil, "pull request: "+ge.Msg)
 			}
 			return err

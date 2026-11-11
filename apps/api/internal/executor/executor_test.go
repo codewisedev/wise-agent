@@ -419,6 +419,17 @@ func TestSnapshotAndDeliver(t *testing.T) {
 	if _, err := f.m.Reword(context.Background(), f.ws, RewordRequest{SHA: cs2.HeadSHA, Message: "again"}); err == nil {
 		t.Fatal("reworded a commit that is no longer the snapshot")
 	}
+	// Undo a reword (its changeset could not be recorded), then reword again.
+	back, err := f.m.Reword(context.Background(), f.ws, RewordRequest{SHA: rw.HeadSHA, RestoreTo: cs2.HeadSHA})
+	if err != nil || back.HeadSHA != cs2.HeadSHA {
+		t.Fatalf("restore: %+v %v", back, err)
+	}
+	if _, err := f.m.Reword(context.Background(), f.ws, RewordRequest{SHA: cs2.HeadSHA, RestoreTo: cs.HeadSHA}); err == nil {
+		t.Fatal("restored a commit with different changes")
+	}
+	if rw, err = f.m.Reword(context.Background(), f.ws, RewordRequest{SHA: cs2.HeadSHA, Message: "Add a friendly greeting\n\nWise-Task: #7"}); err != nil {
+		t.Fatal(err)
+	}
 	if _, err := f.m.Deliver(context.Background(), f.ws, DeliverRequest{SHA: cs2.HeadSHA}); err == nil {
 		t.Fatal("delivered the commit replaced by the reword")
 	}

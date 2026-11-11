@@ -4,15 +4,61 @@ package monitor
 
 import (
 	"context"
+	"encoding/json"
+	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
 
+	"wise/apps/api/internal/apperr"
 	"wise/apps/api/internal/db"
+	"wise/apps/api/internal/settings"
 )
 
-// StuckAfter is how long a running run may go without an event before it is flagged.
-const StuckAfter = 10 * time.Minute
+// Settings is the "monitor" setting.
+type Settings struct {
+	StuckAfterMinutes int `json:"stuck_after_minutes"`
+}
+
+// ParseSettings validates the setting.
+func ParseSettings(raw json.RawMessage) (Settings, error) {
+	st := Settings{StuckAfterMinutes: 10}
+	dec := json.NewDecoder(strings.NewReader(string(raw)))
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&st); err != nil {
+		return st, apperr.Validation(apperr.FieldError{Field: "value", Message: err.Error()})
+	}
+	if st.StuckAfterMinutes < 1 || st.StuckAfterMinutes > 1440 {
+		return st, apperr.Validation(apperr.FieldError{Field: "stuck_after_minutes", Message: "1-1440"})
+	}
+	return st, nil
+}
+
+// RegisterSetting declares the "monitor" setting.
+func RegisterSetting(st *settings.Service, file string, svc *Service) {
+	st.Register(settings.Def{
+		Key: "monitor", Title: "Monitor",
+		Description: "When a running agent run with no activity is flagged as looking stuck.",
+		Default:     settings.FileDefault(file),
+		Validate: func(_ context.Context, v json.RawMessage) (json.RawMessage, error) {
+			p, err := ParseSettings(v)
+			if err != nil {
+				return nil, err
+			}
+			return json.Marshal(p)
+		},
+		Apply: func(_ context.Context, v json.RawMessage) error {
+			p, err := ParseSettings(v)
+			if err == nil {
+				svc.mu.Lock()
+				svc.st = p
+				svc.mu.Unlock()
+			}
+			return err
+		},
+	})
+}
 
 // Run is one active agent run.
 type Run struct {
@@ -62,14 +108,25 @@ type Snapshot struct {
 }
 
 // Service builds snapshots.
-type Service struct{ db *db.DB }
+type Service struct {
+	db *db.DB
+	mu sync.RWMutex
+	st Settings
+}
 
 // New returns a Service.
-func New(d *db.DB) *Service { return &Service{db: d} }
+func New(d *db.DB) *Service { return &Service{db: d, st: Settings{StuckAfterMinutes: 10}} }
+
+func (s *Service) stuckAfter() time.Duration {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return time.Duration(s.st.StuckAfterMinutes) * time.Minute
+}
 
 // Snapshot reads the current state.
 func (s *Service) Snapshot(ctx context.Context) (Snapshot, error) {
 	now := time.Now()
+	stuckAfter := s.stuckAfter()
 	out := Snapshot{At: now, Queued: []Run{}, Running: []Run{}, Evals: []Run{}, Waiting: []Waiting{}}
 	rows, err := s.db.MonitorActiveRuns(ctx)
 	if err != nil {
@@ -100,7 +157,7 @@ func (s *Service) Snapshot(ctx context.Context) (Snapshot, error) {
 			switch {
 			case run.LeaseUntil != nil && run.LeaseUntil.Before(now):
 				run.Stuck = "its runtime stopped renewing the lease"
-			case last != nil && now.Sub(*last) > StuckAfter:
+			case last != nil && now.Sub(*last) > stuckAfter:
 				run.Stuck = "no activity for " + now.Sub(*last).Round(time.Minute).String()
 			}
 			if run.Stuck != "" {

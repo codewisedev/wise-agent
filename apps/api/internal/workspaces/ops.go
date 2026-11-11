@@ -195,6 +195,18 @@ func (s *Service) Reword(ctx context.Context, w dbgen.Workspace, sha, message st
 	return cs, s.db.SetWorkspaceHead(ctx, dbgen.SetWorkspaceHeadParams{ID: w.ID, HeadSha: &cs.HeadSHA})
 }
 
+// UndoReword moves the snapshot back from a reworded commit to the previous one.
+func (s *Service) UndoReword(ctx context.Context, w dbgen.Workspace, current, previous string) error {
+	o, err := s.ops()
+	if err != nil {
+		return err
+	}
+	if _, err := o.Reword(ctx, w.ID.String(), executor.RewordRequest{SHA: current, RestoreTo: previous}); err != nil {
+		return err
+	}
+	return s.db.SetWorkspaceHead(ctx, dbgen.SetWorkspaceHeadParams{ID: w.ID, HeadSha: &previous})
+}
+
 // StopSandbox stops a workspace's sandbox (its files stay).
 func (s *Service) StopSandbox(ctx context.Context, w dbgen.Workspace) error {
 	if err := s.available(); err != nil {

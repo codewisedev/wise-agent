@@ -40,7 +40,7 @@ FROM (
     SELECT m.created_at, 'memory.' || m.status, m.title, m.kind, NULL::uuid, m.id, ''
     FROM memories m WHERE m.project_id = sqlc.arg(project_id) AND m.status IN ('active', 'candidate')
 ) a
-WHERE a.at < sqlc.arg(before)::timestamptz
+WHERE (a.at, a.ref_id) < (sqlc.arg(before)::timestamptz, sqlc.arg(before_id)::uuid)
   AND (cardinality(sqlc.arg(kinds)::text[]) = 0 OR split_part(a.kind, '.', 1) = ANY(sqlc.arg(kinds)::text[]))
-ORDER BY a.at DESC
+ORDER BY a.at DESC, a.ref_id DESC
 LIMIT sqlc.arg(row_limit);

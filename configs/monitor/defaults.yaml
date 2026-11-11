@@ -1,0 +1,5 @@
+# Monitor. Shipped defaults; edit them in Settings -> Monitor.
+
+# A running agent run with no activity for this long is flagged as looking stuck.
+# Raise it if your models (e.g. large local ones) are silent for long stretches.
+stuck_after_minutes: 10

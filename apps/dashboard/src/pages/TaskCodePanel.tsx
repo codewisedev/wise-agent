@@ -87,7 +87,7 @@ function CommitMessage({ taskId, message }: { taskId: string; message: string })
   );
 }
 
-function Changeset({ cs, taskId }: { cs: Obj; taskId: string }) {
+function Changeset({ cs, taskId, canReword }: { cs: Obj; taskId: string; canReword: boolean }) {
   const files = (cs.files as FileChange[] | undefined) ?? [];
   if (!cs.headSha) return <p className="small faint panel-body">The workspace has no changes.</p>;
   return (
@@ -100,7 +100,9 @@ function Changeset({ cs, taskId }: { cs: Obj; taskId: string }) {
       {cs.secretFound === true && (
         <p className="error" role="alert"><ShieldAlert size={14} aria-hidden /> The change contains a credential-like file or token (redacted below). Request changes unless it is intended.</p>
       )}
-      {typeof cs.message === "string" && <CommitMessage taskId={taskId} message={cs.message} />}
+      {typeof cs.message === "string" && (canReword
+        ? <CommitMessage taskId={taskId} message={cs.message} />
+        : <pre className="commit-msg small">{cs.message}</pre>)}
       <ul className="list file-list">
         {files.map((f) => (
           <li key={f.path} className="small">
@@ -194,7 +196,7 @@ function GateRounds({ taskId }: { taskId: string }) {
 }
 
 /** The task's code: its workspace, the change, checks, reviews and delivered branch. */
-export function TaskCodePanel({ task, artifacts }: { task: Task; artifacts: Artifact[] }) {
+export function TaskCodePanel({ task, artifacts, canReword = false }: { task: Task; artifacts: Artifact[]; canReword?: boolean }) {
   const qc = useQueryClient();
   const taskId = task.id;
   const key = ["task", taskId, "workspace"];
@@ -294,7 +296,7 @@ export function TaskCodePanel({ task, artifacts }: { task: Task; artifacts: Arti
       {q && <section aria-label="Quality checks"><h3 className="panel-body" style={{ paddingBottom: 0 }}>Checks</h3><Quality q={q} /></section>}
       {cr && <Review title="Code review" r={cr} />}
       {sr && <Review title="Security review" r={sr} />}
-      {cs && <section aria-label="Changes"><h3 className="panel-body" style={{ paddingBottom: 0 }}>Changes</h3><Changeset cs={cs} taskId={taskId} /></section>}
+      {cs && <section aria-label="Changes"><h3 className="panel-body" style={{ paddingBottom: 0 }}>Changes</h3><Changeset cs={cs} taskId={taskId} canReword={canReword} /></section>}
     </Panel>
   );
 }

@@ -95,9 +95,9 @@ EXPECT = {
     "private-direct": lambda v: v in ("ENETUNREACH", "EHOSTUNREACH", "timeout"),
     "public-direct": lambda v: v in ("ENETUNREACH", "EHOSTUNREACH", "timeout"),
     # The git worker and the API (push grants) are never reachable from a runner.
-    "git-worker-direct": lambda v: v != "connected",
+    "git-worker-direct": lambda v: v not in ("connected", "missing"),
     "git-worker-proxy": lambda v: v == "403",
-    "api-direct": lambda v: v != "connected",
+    "api-direct": lambda v: v not in ("connected", "missing"),
 }
 
 

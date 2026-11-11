@@ -9238,8 +9238,10 @@ export interface operations {
     getProjectActivity: {
         parameters: {
             query?: {
-                /** @description Older than this (paging). */
+                /** @description Older than this (paging; with beforeId). */
                 before?: string;
+                /** @description The last item's refId (paging). */
+                beforeId?: string;
                 /** @description Comma-separated: task, approval, workflow, run, branch, push, pull_request, memory. */
                 kinds?: string;
                 limit?: number;
@@ -9276,6 +9278,11 @@ export interface operations {
                          * @description Pass as before for the next page.
                          */
                         next?: string | null;
+                        /**
+                         * Format: uuid
+                         * @description Pass as beforeId for the next page.
+                         */
+                        nextId?: string | null;
                     };
                 };
             };

@@ -67,9 +67,10 @@ export function RepoReleaseEditor({ repositoryId, onDone }: { repositoryId: stri
       {test.data && <p className="small">The account can read the repository (default branch {test.data.defaultBranch}). The first push proves write access.</p>}
       <ErrorNote error={cur.error ?? detect.error ?? save.error ?? test.error} />
       <div className="row-actions">
-        <button type="button" className="btn btn-sm" onClick={() => detect.mutate()} disabled={detect.isPending}>Detect</button>
+        <button type="button" className="btn btn-sm" onClick={() => detect.mutate()} disabled={detect.isPending || !cur.data}>Detect</button>
         <button type="button" className="btn btn-sm" onClick={() => test.mutate()} disabled={test.isPending || !cur.data?.accountId}>Test</button>
-        <button type="button" className="btn btn-sm btn-primary" onClick={() => save.mutate()} disabled={save.isPending}>Save</button>
+        <button type="button" className="btn btn-sm btn-primary" onClick={() => save.mutate()} disabled={save.isPending || !cur.data}
+          title={cur.data ? undefined : "Loading the current settings…"}>Save</button>
       </div>
     </div>
   );

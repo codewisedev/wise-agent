@@ -134,6 +134,27 @@ func TestPushGrantsOnlyForApprovedDeliveredCommits(t *testing.T) {
 	// "ask" needs an approved pull request approval; "auto" grants.
 	e.expect(e.do("PUT", "/projects/"+pid+"/release-policy", map[string]any{"pullRequests": "ask", "draft": true}), 200)
 	e.expect(e.runtimeDo(gitWorkerToken, "POST", "/internal/git/pr-grants/"+g["pushId"].(string), nil), 409)
+	// An approved "-pr" approval that does not pin this push does not authorize it.
+	stray := uuid.New()
+	if _, err := e.db.Pool.Exec(ctx, `INSERT INTO approvals (id, workflow_run_id, task_id, gate, status, artifacts, combined_hash, decided_at)
+		VALUES ($1, $2, $3, 'release-pr', 'approved', '[]', 'h', now())`, stray, wfID, taskID); err != nil {
+		t.Fatal(err)
+	}
+	e.expect(e.runtimeDo(gitWorkerToken, "POST", "/internal/git/pr-grants/"+g["pushId"].(string)+"?approvalId="+stray.String(), nil), 409)
+	pushArt, _ := json.Marshal(map[string]any{"pushId": g["pushId"], "branch": "wise/release-me"})
+	pa, err := e.tasks.SaveArtifact(ctx, wfID, taskID, "push", pushArt, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bound := uuid.New()
+	pinnedPush, _ := json.Marshal([]map[string]any{{"artifactId": pa.ID, "kind": "push", "version": pa.Version, "hash": pa.ContentHash}})
+	if _, err := e.db.Pool.Exec(ctx, `INSERT INTO approvals (id, workflow_run_id, task_id, gate, round, status, artifacts, combined_hash, decided_at)
+		VALUES ($1, $2, $3, 'release-pr', 2, 'approved', $4, 'h', now())`, bound, wfID, taskID, pinnedPush); err != nil {
+		t.Fatal(err)
+	}
+	if pg := e.expect(e.runtimeDo(gitWorkerToken, "POST", "/internal/git/pr-grants/"+g["pushId"].(string)+"?approvalId="+bound.String(), nil), 200); pg["prId"] == nil {
+		t.Fatalf("bound approval: %v", pg)
+	}
 	e.expect(e.do("PUT", "/projects/"+pid+"/release-policy", map[string]any{"pullRequests": "auto", "draft": true}), 200)
 	pg := e.expect(e.runtimeDo(gitWorkerToken, "POST", "/internal/git/pr-grants/"+g["pushId"].(string), nil), 200)
 	if pg["draft"] != true || pg["title"] != "Release me" || pg["baseBranch"] != "main" {

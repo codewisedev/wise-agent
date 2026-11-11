@@ -150,6 +150,26 @@ func (w *pipeline) run(ctx workflow.Context) (Result, error) {
 	return Result{ReportArtifactID: w.reportID}, nil
 }
 
+// onlyReleaseAfter reports whether every enabled step after id is a release
+// step (nothing later needs the sandbox) and there is at least one.
+func (w *pipeline) onlyReleaseAfter(id string) bool {
+	_, i, ok := w.in.Plan.Step(id)
+	if !ok {
+		return false
+	}
+	release := false
+	for _, s := range w.in.Plan.Steps[i+1:] {
+		if !s.Enabled {
+			continue
+		}
+		if s.Type != tasks.StepRelease {
+			return false
+		}
+		release = true
+	}
+	return release
+}
+
 // finalReport builds the final report once (before a release step, or at the end).
 func (w *pipeline) finalReport(ctx workflow.Context) error {
 	if !w.in.Plan.FinalReport || w.reported {
@@ -397,7 +417,7 @@ func (w *pipeline) runEngineering(ctx workflow.Context, st tasks.PlanStep, revis
 		}
 		// With a release step ahead, the sandbox is not needed while the push
 		// approval waits (its files, with the approved commit, stay).
-		if w.in.Plan.HasType(tasks.StepRelease) {
+		if w.onlyReleaseAfter(st.ID) {
 			w.stopWorkspace(ctx)
 		}
 		return nil
@@ -512,7 +532,6 @@ func (w *pipeline) stopWorkspace(ctx workflow.Context) {
 	if !w.in.Plan.HasType(tasks.StepWorkspace) || w.stopped {
 		return
 	}
-	w.stopped = true
 	sctx := workflow.WithActivityOptions(ctx, shortOpts)
-	_ = workflow.ExecuteActivity(sctx, a.StopWorkspace, w.in.TaskID).Get(ctx, nil)
+	w.stopped = workflow.ExecuteActivity(sctx, a.StopWorkspace, w.in.TaskID).Get(ctx, nil) == nil
 }

@@ -67,7 +67,7 @@ SELECT date_trunc('day', mc.created_at)::date AS day,
 FROM model_calls mc
 LEFT JOIN agent_runs r ON r.id = mc.run_id
 LEFT JOIN projects p ON p.id = r.project_id
-WHERE mc.created_at >= $1 AND mc.status = 'ok'
+WHERE mc.created_at >= $1 AND (mc.status = 'ok' OR mc.cost_usd > 0) -- failed runs can still have used tokens
 GROUP BY 1, 2, 3, 4, 5, 6, 7
 ORDER BY 1
 `

@@ -33,7 +33,11 @@ func (s *Server) GetProjectActivity(ctx context.Context, req apigen.GetProjectAc
 			}
 		}
 	}
-	rows, err := s.DB.ProjectActivity(ctx, dbgen.ProjectActivityParams{ProjectID: req.ProjectId, Before: before, Kinds: kinds, RowLimit: int32(limit)})
+	beforeID := uuid.Max
+	if req.Params.BeforeId != nil {
+		beforeID = *req.Params.BeforeId
+	}
+	rows, err := s.DB.ProjectActivity(ctx, dbgen.ProjectActivityParams{ProjectID: req.ProjectId, Before: before, BeforeID: beforeID, Kinds: kinds, RowLimit: int32(limit)})
 	if err != nil {
 		return nil, err
 	}
@@ -47,8 +51,9 @@ func (s *Server) GetProjectActivity(ctx context.Context, req apigen.GetProjectAc
 		URL    string     `json:"url"`
 	}
 	out := struct {
-		Items []item     `json:"items"`
-		Next  *time.Time `json:"next"`
+		Items  []item     `json:"items"`
+		Next   *time.Time `json:"next"`
+		NextID *uuid.UUID `json:"nextId"`
 	}{Items: []item{}}
 	for _, r := range rows {
 		it := item{At: r.At, Kind: r.Kind, Title: r.Title, Detail: r.Detail, RefID: r.RefID, URL: r.Url}
@@ -59,8 +64,8 @@ func (s *Server) GetProjectActivity(ctx context.Context, req apigen.GetProjectAc
 		out.Items = append(out.Items, it)
 	}
 	if len(rows) == limit {
-		last := rows[len(rows)-1].At
-		out.Next = &last
+		last, lastID := rows[len(rows)-1].At, rows[len(rows)-1].RefID
+		out.Next, out.NextID = &last, &lastID
 	}
 	return reshape[apigen.GetProjectActivity200JSONResponse](out), nil
 }

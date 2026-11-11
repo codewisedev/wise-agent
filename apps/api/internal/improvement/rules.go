@@ -373,6 +373,9 @@ func CheckTemplate(before, after tasks.TemplateDef) error {
 		if a.Runtime != b.Runtime {
 			return refuse("step %q: the runtime may not be changed by a proposal", b.ID)
 		}
+		if stepType(a) != stepType(b) {
+			return refuse("step %q: its type may not change (%s to %s)", b.ID, stepType(b), stepType(a))
+		}
 		if gateGuard(b) && (a.Account != b.Account || a.Model != b.Model || a.DiagnoseWith != b.DiagnoseWith) {
 			return refuse("step %q: who runs a quality-gate step (account, model, diagnosis) may not change", b.ID)
 		}

@@ -258,8 +258,9 @@ func (s *Service) PRGrant(ctx context.Context, pushID uuid.UUID, prApprovalID *u
 			return Grant{}, apperr.Conflict("opening a pull request needs your approval")
 		}
 		ap, err := s.db.GetApproval(ctx, *prApprovalID)
-		if err != nil || ap.Status != "approved" || ap.TaskID != p.TaskID || !strings.HasSuffix(ap.Gate, "-pr") {
-			return Grant{}, apperr.Conflict("the pull request is not approved")
+		if err != nil || ap.Status != "approved" || ap.TaskID != p.TaskID || !strings.HasSuffix(ap.Gate, "-pr") ||
+			p.WorkflowRunID == nil || ap.WorkflowRunID != *p.WorkflowRunID || !s.approvalPinsPush(ctx, ap, pushID) {
+			return Grant{}, apperr.Conflict("the pull request is not approved for this push")
 		}
 	}
 	if p.AccountID == nil {
@@ -308,6 +309,29 @@ func (s *Service) PRGrant(ctx context.Context, pushID uuid.UUID, prApprovalID *u
 	}
 	return Grant{PushID: pushID, PRID: pr.ID, WorkspaceID: p.WorkspaceID, SHA: p.Sha, Branch: p.Branch, Remote: p.Remote,
 		BaseBranch: p.BaseBranch, Kind: a.Kind, BaseURL: a.BaseUrl, Token: tok, TimeoutS: st.PushTimeoutS, Title: title, Body: body, Draft: pol.Draft}, nil
+}
+
+// approvalPinsPush reports whether an approval pins the push artifact of this push.
+func (s *Service) approvalPinsPush(ctx context.Context, ap dbgen.Approval, pushID uuid.UUID) bool {
+	var pinned []struct {
+		ArtifactID uuid.UUID `json:"artifactId"`
+		Kind       string    `json:"kind"`
+	}
+	_ = json.Unmarshal(ap.Artifacts, &pinned)
+	for _, p := range pinned {
+		if p.Kind != KindPush {
+			continue
+		}
+		art, err := s.db.GetArtifact(ctx, p.ArtifactID)
+		if err != nil {
+			return false
+		}
+		var c struct {
+			PushID uuid.UUID `json:"pushId"`
+		}
+		return json.Unmarshal(art.Content, &c) == nil && c.PushID == pushID
+	}
+	return false
 }
 
 // PRResult records what the git worker reports about a pull request.

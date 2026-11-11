@@ -469,8 +469,11 @@ func (m *Manager) Diff(ctx context.Context, ws string, maxPatch int) (WorkingDif
 
 // RewordRequest changes the verified snapshot's commit message.
 type RewordRequest struct {
-	SHA           string `json:"sha"` // the snapshot being reworded (must still be current)
-	Message       string `json:"message"`
+	SHA     string `json:"sha"` // the snapshot being reworded (must still be current)
+	Message string `json:"message"`
+	// RestoreTo moves the snapshot back to an earlier commit with the same tree
+	// and parent (undoing a reword whose new changeset could not be recorded).
+	RestoreTo     string `json:"restoreTo,omitempty"`
 	MaxPatchBytes int    `json:"maxPatchBytes,omitempty"`
 }
 
@@ -485,16 +488,29 @@ func (m *Manager) Reword(ctx context.Context, ws string, req RewordRequest) (Cha
 		return Changeset{}, err
 	}
 	msg := strings.TrimSpace(req.Message)
-	if msg == "" || len(msg) > 10000 || strings.ContainsRune(msg, 0) {
+	if req.RestoreTo == "" && (msg == "" || len(msg) > 10000 || strings.ContainsRune(msg, 0)) {
 		return Changeset{}, bad("the commit message must be 1-10000 characters")
 	}
-	if !shaRe.MatchString(req.SHA) {
+	if !shaRe.MatchString(req.SHA) || (req.RestoreTo != "" && !shaRe.MatchString(req.RestoreTo)) {
 		return Changeset{}, bad("sha must be a full commit id")
 	}
 	tr := m.trusted(ws)
 	cur, err := git(ctx, tr, "rev-parse", "--verify", "-q", "refs/wise/snapshot^{commit}")
 	if err != nil || strings.TrimSpace(cur) != req.SHA {
 		return Changeset{}, bad("commit %s is not the workspace's current snapshot", short(req.SHA))
+	}
+	if req.RestoreTo != "" {
+		same := func(ref string) string {
+			out, _ := git(ctx, tr, "log", "-1", "--format=%T %P", ref)
+			return strings.TrimSpace(out)
+		}
+		if a := same(req.SHA); a == "" || a != same(req.RestoreTo) {
+			return Changeset{}, bad("can only restore a commit with the same changes")
+		}
+		if _, err := git(ctx, tr, "update-ref", "-m", "wise: restore", "refs/wise/snapshot", req.RestoreTo, req.SHA); err != nil {
+			return Changeset{}, err
+		}
+		return m.describe(ctx, tr, Changeset{BaseSHA: st.BaseSHA, HeadSHA: req.RestoreTo, Branch: st.Branch, CreatedAt: time.Now().UTC()}, req.MaxPatchBytes)
 	}
 	meta, err := git(ctx, tr, "log", "-1", "--format=%T%x00%P%x00%an%x00%ae%x00%aI", req.SHA)
 	if err != nil {

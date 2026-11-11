@@ -78,6 +78,9 @@ func (w *Worker) apiCall(ctx context.Context, path string, body, out any) error 
 	}
 	defer res.Body.Close()
 	raw, _ := io.ReadAll(io.LimitReader(res.Body, 1<<20))
+	if res.StatusCode >= 500 {
+		return fmt.Errorf("API error (HTTP %d)", res.StatusCode) // transient: retried
+	}
 	if res.StatusCode >= 300 {
 		var p struct {
 			Detail string `json:"detail"`
@@ -104,6 +107,24 @@ type RefusedError struct {
 
 func (e *RefusedError) Error() string { return e.Msg }
 
+// report records a result, retrying a few times.
+func (w *Worker) report(ctx context.Context, path string, body any) error {
+	ctx = context.WithoutCancel(ctx)
+	var err error
+	for i := 0; i < 4; i++ {
+		if err = w.apiCall(ctx, path, body, nil); err == nil {
+			return nil
+		}
+		var re *RefusedError
+		if errors.As(err, &re) {
+			return err
+		}
+		time.Sleep(time.Duration(1<<i) * 500 * time.Millisecond)
+	}
+	w.log.Warn("report result", "path", path, "err", err)
+	return err
+}
+
 // PushResult is the outcome of a push.
 type PushResult struct {
 	PushID  uuid.UUID `json:"pushId"`
@@ -126,8 +147,9 @@ func (w *Worker) Push(ctx context.Context, approvalID uuid.UUID) (PushResult, er
 	if err != nil {
 		report["error"] = err.Error()
 	}
-	if rerr := w.apiCall(context.WithoutCancel(ctx), "/pushes/"+g.PushID.String()+"/result", report, nil); rerr != nil {
-		w.log.Warn("report push result", "push", g.PushID, "err", rerr)
+	if rerr := w.report(ctx, "/pushes/"+g.PushID.String()+"/result", report); rerr != nil {
+		// Not recorded: say so. A retry is granted again and finds the branch already pushed.
+		return res, fmt.Errorf("the push result could not be recorded: %w", rerr)
 	}
 	return res, err
 }
@@ -149,7 +171,9 @@ func (w *Worker) git(ctx context.Context, home string, cfg map[string]string, ar
 	env := []string{"HOME=" + home, "PATH=" + os.Getenv("PATH"), "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL=/dev/null",
 		"GIT_TERMINAL_PROMPT=0", "GIT_ASKPASS=/bin/false", "SSH_ASKPASS=/bin/false", "LC_ALL=C"}
 	all := map[string]string{"core.hooksPath": "/dev/null", "protocol.allow": "never", "protocol.https.allow": "always", "protocol.file.allow": "always",
-		"credential.helper": "", "safe.directory": "*"}
+		"credential.helper": "", "safe.directory": "*",
+		// Never follow a redirect: http.extraHeader (the token) would go along.
+		"http.followRedirects": "false"}
 	for _, kv := range w.cfg.ExtraGitConfig {
 		if k, v, ok := strings.Cut(kv, "="); ok {
 			all[k] = v
@@ -260,8 +284,9 @@ func (w *Worker) OpenPR(ctx context.Context, pushID uuid.UUID, approvalID *uuid.
 	if err != nil {
 		report["error"] = scrub(err.Error(), g.Token)
 	}
-	if rerr := w.apiCall(context.WithoutCancel(ctx), "/pull-requests/"+g.PRID.String()+"/result", report, nil); rerr != nil {
-		w.log.Warn("report pull request", "pr", g.PRID, "err", rerr)
+	if rerr := w.report(ctx, "/pull-requests/"+g.PRID.String()+"/result", report); rerr != nil {
+		// A retry is granted the same record and finds the open pull request first.
+		return pr, fmt.Errorf("the pull request result could not be recorded: %w", rerr)
 	}
 	return pr, err
 }

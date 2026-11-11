@@ -96,3 +96,26 @@ func TestGitLabDraftTitle(t *testing.T) {
 		t.Fatalf("%+v %v %v", pr, err, got)
 	}
 }
+
+func TestTokensNeverFollowARedirectElsewhere(t *testing.T) {
+	var leaked string
+	evil := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		leaked = r.Header.Get("PRIVATE-TOKEN") + r.Header.Get("Authorization")
+		_, _ = w.Write([]byte(`{"default_branch":"main"}`))
+	}))
+	defer evil.Close()
+	host := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, evil.URL+r.URL.Path, http.StatusFound)
+	}))
+	defer host.Close()
+	r, _ := ParseRemote("https://gitlab.com/g/r.git")
+	for _, kind := range []string{GitLab, GitHub} {
+		c := &Client{Kind: kind, Token: "tok-secret", APIBase: host.URL, HTTP: &http.Client{}}
+		if _, err := c.CheckRepo(context.Background(), r); err == nil {
+			t.Errorf("%s: followed a cross-origin redirect", kind)
+		}
+	}
+	if leaked != "" {
+		t.Fatalf("token sent to the redirect target: %q", leaked)
+	}
+}

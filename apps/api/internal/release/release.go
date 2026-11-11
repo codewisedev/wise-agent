@@ -379,6 +379,16 @@ func (s *Service) Prepare(ctx context.Context, taskID uuid.UUID) (Prepared, erro
 	return Prepared{Request: r}, nil
 }
 
+// AccountKind is a git account's kind (github or gitlab; github when unknown).
+func (s *Service) AccountKind(ctx context.Context, id *uuid.UUID) string {
+	if id != nil {
+		if a, err := s.db.GetAccount(ctx, *id); err == nil && a.Kind == githost.GitLab {
+			return githost.GitLab
+		}
+	}
+	return githost.GitHub
+}
+
 // PushByApproval returns the push made for an approval.
 func (s *Service) PushByApproval(ctx context.Context, approvalID uuid.UUID) (dbgen.GitPush, error) {
 	return s.db.GetGitPushByApproval(ctx, approvalID)

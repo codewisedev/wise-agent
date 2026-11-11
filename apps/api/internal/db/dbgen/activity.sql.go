@@ -53,15 +53,16 @@ FROM (
     SELECT m.created_at, 'memory.' || m.status, m.title, m.kind, NULL::uuid, m.id, ''
     FROM memories m WHERE m.project_id = $1 AND m.status IN ('active', 'candidate')
 ) a
-WHERE a.at < $2::timestamptz
-  AND (cardinality($3::text[]) = 0 OR split_part(a.kind, '.', 1) = ANY($3::text[]))
-ORDER BY a.at DESC
-LIMIT $4
+WHERE (a.at, a.ref_id) < ($2::timestamptz, $3::uuid)
+  AND (cardinality($4::text[]) = 0 OR split_part(a.kind, '.', 1) = ANY($4::text[]))
+ORDER BY a.at DESC, a.ref_id DESC
+LIMIT $5
 `
 
 type ProjectActivityParams struct {
 	ProjectID uuid.UUID
 	Before    time.Time
+	BeforeID  uuid.UUID
 	Kinds     []string
 	RowLimit  int32
 }
@@ -81,6 +82,7 @@ func (q *Queries) ProjectActivity(ctx context.Context, arg ProjectActivityParams
 	rows, err := q.db.Query(ctx, projectActivity,
 		arg.ProjectID,
 		arg.Before,
+		arg.BeforeID,
 		arg.Kinds,
 		arg.RowLimit,
 	)

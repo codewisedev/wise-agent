@@ -136,6 +136,7 @@ func TestTemplateRules(t *testing.T) {
 		"add deliver": func(d *tasks.TemplateDef) {
 			d.Steps = append(d.Steps, tasks.StepDef{ID: "deliver2", Type: tasks.StepDeliver})
 		},
+		"agent becomes release": func(d *tasks.TemplateDef) { d.Steps[0] = tasks.StepDef{ID: "planning", Type: tasks.StepRelease} },
 	}
 	for name, mutate := range bad {
 		d := engineering()

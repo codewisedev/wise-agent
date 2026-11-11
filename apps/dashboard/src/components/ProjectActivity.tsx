@@ -32,10 +32,10 @@ export function ProjectActivity({ projectId }: { projectId: string }) {
   const q = useInfiniteQuery({
     queryKey: ["project", projectId, "activity", kinds.join(",")],
     queryFn: ({ pageParam }) => unwrap(api.GET("/projects/{projectId}/activity", {
-      params: { path: { projectId }, query: { limit: 40, ...(pageParam ? { before: pageParam } : {}), ...(kinds.length ? { kinds: kinds.join(",") } : {}) } },
+      params: { path: { projectId }, query: { limit: 40, ...(pageParam ? { before: pageParam.before, beforeId: pageParam.id } : {}), ...(kinds.length ? { kinds: kinds.join(",") } : {}) } },
     })),
-    initialPageParam: "",
-    getNextPageParam: (last) => last.next ?? undefined,
+    initialPageParam: null as { before: string; id: string } | null,
+    getNextPageParam: (last) => (last.next && last.nextId ? { before: last.next, id: last.nextId } : undefined),
     refetchInterval: 30000,
   });
   const items = q.data?.pages.flatMap((p) => p.items) ?? [];

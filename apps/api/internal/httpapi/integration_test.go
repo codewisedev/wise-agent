@@ -138,6 +138,8 @@ func setup(t *testing.T) *env {
 	improvementSvc := improvement.New(d, agentSvc, memorySvc, settingsSvc, taskSvc, insightSvc, log)
 	improvement.RegisterSetting(settingsSvc, filepath.Join("..", "..", "..", "..", "configs", "improvement", "defaults.yaml"), improvementSvc)
 	releaseSvc := release.New(d, accountSvc)
+	monitorSvc := monitor.New(d)
+	monitor.RegisterSetting(settingsSvc, filepath.Join("..", "..", "..", "..", "configs", "monitor", "defaults.yaml"), monitorSvc)
 	release.RegisterSetting(settingsSvc, filepath.Join("..", "..", "..", "..", "configs", "release", "defaults.yaml"), releaseSvc)
 	queue.OnFinished = func(ctx context.Context, runID uuid.UUID) {
 		memorySvc.OnRunFinished(ctx, runID)
@@ -171,7 +173,7 @@ func setup(t *testing.T) *env {
 		Insights:       insightSvc,
 		Improvement:    improvementSvc,
 		Release:        releaseSvc,
-		Monitor:        monitor.New(d),
+		Monitor:        monitorSvc,
 		Costs:          costs.New(d),
 		GitWorkerToken: gitWorkerToken,
 		Agents:         agentSvc, RunQueue: queue, Gateway: gw, Hub: hub, Tasks: taskSvc, Accounts: accountSvc, Integrations: integrationSvc, Settings: settingsSvc,
