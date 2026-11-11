@@ -67,7 +67,10 @@ func (a *Activities) PushRelease(ctx context.Context, req PushReleaseRequest) (u
 	if err := a.running(ctx, req.EngRequest); err != nil {
 		return uuid.Nil, err
 	}
-	if _, err := git.Push(ctx, req.ApprovalID); err != nil {
+	stop := keepBeating(ctx) // a push may take longer than the heartbeat timeout
+	_, err = git.Push(ctx, req.ApprovalID)
+	stop()
+	if err != nil {
 		var ge *gitworker.Error
 		already := errors.As(err, &ge) && strings.Contains(ge.Msg, "already pushed")
 		if !already {
@@ -129,7 +132,10 @@ func (a *Activities) OpenPullRequest(ctx context.Context, req OpenPullRequestReq
 	if err := a.running(ctx, req.EngRequest); err != nil {
 		return err
 	}
-	if _, err := git.OpenPR(ctx, req.PushID, req.ApprovalID); err != nil {
+	stop := keepBeating(ctx)
+	_, err = git.OpenPR(ctx, req.PushID, req.ApprovalID)
+	stop()
+	if err != nil {
 		var ge *gitworker.Error
 		if !(errors.As(err, &ge) && strings.Contains(ge.Msg, "already open")) {
 			if errors.As(err, &ge) {

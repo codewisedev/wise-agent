@@ -328,6 +328,7 @@ func (m *Manager) Deliver(ctx context.Context, ws string, req DeliverRequest) (D
 		cur, err := git(ctx, repo, "rev-parse", "--verify", "-q", "refs/heads/"+name)
 		if err == nil {
 			if strings.TrimSpace(cur) == req.SHA {
+				m.selfContain(ctx, tr, req.SHA)
 				return Delivery{Branch: name, SHA: req.SHA, RepoPath: repo, Existed: true}, nil
 			}
 			continue // taken by other work: never overwrite
@@ -336,9 +337,33 @@ func (m *Manager) Deliver(ctx context.Context, ws string, req DeliverRequest) (D
 		if _, err := git(ctx, repo, "update-ref", "-m", "wise: deliver task branch", "refs/heads/"+name, req.SHA, strings.Repeat("0", len(req.SHA))); err != nil {
 			continue
 		}
+		m.selfContain(ctx, tr, req.SHA)
 		return Delivery{Branch: name, SHA: req.SHA, RepoPath: repo}, nil
 	}
 	return Delivery{}, fmt.Errorf("branch %s and its numbered variants are all taken", branch)
+}
+
+// selfContain copies the objects the trusted repository borrows from the
+// user's repository (its clone is --shared) into it and drops the link, so
+// the git worker - which never mounts user repositories - can read the
+// delivered commit for an approved push. Best effort: a failure leaves the
+// link in place (the push then reports the missing objects).
+func (m *Manager) selfContain(ctx context.Context, tr, sha string) {
+	alt := filepath.Join(tr, "objects", "info", "alternates")
+	if _, err := os.Stat(alt); err != nil {
+		return
+	}
+	if _, err := git(ctx, tr, "repack", "-a", "-d", "-q"); err != nil {
+		return
+	}
+	if err := os.Rename(alt, alt+".off"); err != nil {
+		return
+	}
+	if _, err := git(ctx, tr, "rev-list", "--objects", "--missing=error", sha); err != nil {
+		_ = os.Rename(alt+".off", alt) // something is still missing: keep the link
+		return
+	}
+	_ = os.Remove(alt + ".off")
 }
 
 func short(sha string) string {

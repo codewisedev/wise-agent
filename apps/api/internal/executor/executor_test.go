@@ -439,6 +439,12 @@ func TestSnapshotAndDeliver(t *testing.T) {
 	if got := run(t, f.repo, "git", "rev-parse", "wise/7-add-greeting-2"); got != cs2.HeadSHA {
 		t.Fatalf("branch at %s", got)
 	}
+	// After delivery the trusted repository no longer borrows objects from the
+	// user's repository: the git worker (no repository mounts) can read it.
+	if _, err := os.Stat(filepath.Join(tr, "objects", "info", "alternates")); !os.IsNotExist(err) {
+		t.Fatal("the trusted repository still borrows objects")
+	}
+	run(t, tr, "git", "rev-list", "--objects", "--missing=error", cs2.HeadSHA)
 	if got := run(t, f.repo, "git", "rev-parse", "wise/7-add-greeting"); got != userHead {
 		t.Fatal("existing branch moved")
 	}

@@ -18,6 +18,7 @@ import (
 	"wise/apps/api/internal/db"
 	"wise/apps/api/internal/db/dbgen"
 	"wise/apps/api/internal/githost"
+	"wise/apps/api/internal/secretguard"
 )
 
 // Artifact kinds of the release stage.
@@ -276,6 +277,8 @@ func (s *Service) PRGrant(ctx context.Context, pushID uuid.UUID, prApprovalID *u
 			body = Markdown(rep.Content) + "\n---\n" + body
 		}
 	}
+	// The description comes from agent outputs and goes to a git host: redact credentials (the secret guard).
+	title, body = secretguard.Redact(title), secretguard.Redact(body)
 	var pr dbgen.GitPullRequest
 	err = s.db.InTx(ctx, func(q *dbgen.Queries) error {
 		cur, err := q.GetPullRequestByPush(ctx, pushID)

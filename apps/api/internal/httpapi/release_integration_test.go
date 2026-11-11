@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"strings"
 	"testing"
+	"wise/apps/api/internal/db/dbgen"
 
 	"github.com/google/uuid"
 )
@@ -220,5 +221,19 @@ func TestPrepareReleaseNeedsTheRepositoryTarget(t *testing.T) {
 	}
 	if p, err := e.release.Prepare(ctx, taskID); err != nil || p.Skip == "" {
 		t.Fatalf("skip: %+v %v", p, err)
+	}
+}
+
+func TestReleaseDecisionsAreNotMemoryMaterial(t *testing.T) {
+	e := setup(t)
+	e.login()
+	taskID, _ := e.newTask("No memory from pushes")
+	comment := "Not pushing now, the release window is closed."
+	for _, kind := range []string{"release_request", "push"} {
+		pinned, _ := json.Marshal([]map[string]any{{"kind": kind}})
+		e.memory.OnApprovalDecided(context.Background(), dbgen.Approval{ID: uuid.New(), TaskID: taskID, Status: "rejected", Comment: &comment, Artifacts: pinned})
+	}
+	if r := e.runtimeDo(runtimeToken, "POST", "/runtime/v1/runs/claim", map[string]string{"runtimeId": "test-rt"}); r.status != 204 {
+		t.Fatalf("a memory extraction was queued for a release decision: %d %v", r.status, r.body)
 	}
 }
