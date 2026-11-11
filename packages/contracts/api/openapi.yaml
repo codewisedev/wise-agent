@@ -447,6 +447,7 @@ paths:
     post:
       tags: [agents]
       operationId: createAgent
+      x-wise-admin: true
       description: Creates an agent defined in the panel. Signed-in session only.
       requestBody:
         required: true
@@ -479,6 +480,7 @@ paths:
     put:
       tags: [agents]
       operationId: updateAgent
+      x-wise-admin: true
       description: Saves a new version of the agent's contract and prompt (applies to new runs). Signed-in session only.
       requestBody:
         required: true
@@ -498,6 +500,7 @@ paths:
     delete:
       tags: [agents]
       operationId: deleteAgent
+      x-wise-admin: true
       description: Deletes an agent created in the panel (shipped agents can be disabled instead).
       responses:
         "204": { description: Deleted. }
@@ -522,6 +525,7 @@ paths:
     post:
       tags: [agents]
       operationId: duplicateAgent
+      x-wise-admin: true
       requestBody:
         required: true
         content:
@@ -548,6 +552,7 @@ paths:
     post:
       tags: [agents]
       operationId: resetAgent
+      x-wise-admin: true
       description: Restores the latest shipped definition and prompt.
       responses:
         "200":
@@ -583,6 +588,7 @@ paths:
     post:
       tags: [agents]
       operationId: restoreAgentVersion
+      x-wise-admin: true
       responses:
         "200":
           description: Restored.
@@ -1347,6 +1353,7 @@ paths:
     post:
       tags: [accounts]
       operationId: createAccount
+      x-wise-admin: true
       description: Signed-in session only. The secret is encrypted at rest and can never be read back.
       requestBody:
         required: true
@@ -1370,6 +1377,7 @@ paths:
     patch:
       tags: [accounts]
       operationId: updateAccount
+      x-wise-admin: true
       description: Signed-in session only. Omitted fields are kept; `secret` replaces the stored secret.
       requestBody:
         required: true
@@ -1391,6 +1399,7 @@ paths:
     delete:
       tags: [accounts]
       operationId: deleteAccount
+      x-wise-admin: true
       responses:
         "204": { description: Account deleted. }
         "401": { $ref: "#/components/responses/Problem" }
@@ -1402,6 +1411,7 @@ paths:
     post:
       tags: [accounts]
       operationId: testAccount
+      x-wise-admin: true
       description: Checks the account works without sending any task data.
       responses:
         "200":
@@ -1426,6 +1436,7 @@ paths:
     post:
       tags: [templates]
       operationId: createWorkflowTemplate
+      x-wise-admin: true
       requestBody:
         required: true
         content:
@@ -1476,6 +1487,7 @@ paths:
     post:
       tags: [workflows]
       operationId: restoreWorkflowTemplateVersion
+      x-wise-admin: true
       description: Saves an earlier definition as the template's new version (the current one is kept in the history).
       responses:
         "200":
@@ -1521,6 +1533,7 @@ paths:
     put:
       tags: [templates]
       operationId: updateWorkflowTemplate
+      x-wise-admin: true
       description: Replaces the template; running workflows keep the plan they started with.
       requestBody:
         required: true
@@ -1539,6 +1552,7 @@ paths:
     delete:
       tags: [templates]
       operationId: deleteWorkflowTemplate
+      x-wise-admin: true
       responses:
         "204": { description: Deleted. }
         "401": { $ref: "#/components/responses/Problem" }
@@ -1561,6 +1575,7 @@ paths:
     post:
       tags: [integrations]
       operationId: createIntegration
+      x-wise-admin: true
       description: Adds a Jira, ClickUp or Trello task source (import only). Signed-in session only.
       requestBody:
         required: true
@@ -1583,6 +1598,7 @@ paths:
     put:
       tags: [integrations]
       operationId: updateIntegration
+      x-wise-admin: true
       requestBody:
         required: true
         content:
@@ -1601,6 +1617,7 @@ paths:
     delete:
       tags: [integrations]
       operationId: deleteIntegration
+      x-wise-admin: true
       description: Removes the source; imported tasks stay on the board.
       responses:
         "204": { description: Deleted. }
@@ -1643,6 +1660,7 @@ paths:
     put:
       tags: [settings]
       operationId: updateSetting
+      x-wise-admin: true
       description: |
         Validates and stores a new value, applied immediately. `version` must be the version the editor
         loaded; a concurrent change returns 409. Signed-in session only.
@@ -1668,6 +1686,7 @@ paths:
     post:
       tags: [settings]
       operationId: resetSetting
+      x-wise-admin: true
       description: Restores the shipped default (the previous value stays in the history).
       responses:
         "200":
@@ -2300,6 +2319,7 @@ paths:
     put:
       tags: [execution]
       operationId: setRepositoryExecution
+      x-wise-admin: true
       requestBody:
         required: true
         content:
@@ -2320,6 +2340,7 @@ paths:
     post:
       tags: [execution]
       operationId: detectRepositoryExecution
+      x-wise-admin: true
       description: Suggests execution settings from the repository's files. Nothing is saved.
       responses:
         "200":
@@ -2386,6 +2407,7 @@ paths:
     put:
       tags: [execution]
       operationId: setProjectCodingRuntimes
+      x-wise-admin: true
       description: Changes the project's runtime policy (a security policy; audited with the old and new values).
       requestBody:
         required: true
@@ -2544,6 +2566,7 @@ paths:
     post:
       tags: [improvement]
       operationId: startImprovementAnalysis
+      x-wise-admin: true
       description: Analyses recent performance now and proposes improvements (runs the improvement agent).
       responses:
         "202":
@@ -2594,6 +2617,7 @@ paths:
     post:
       tags: [improvement]
       operationId: applyImprovementProposal
+      x-wise-admin: true
       description: Applies the proposal through the target's versioned mechanism (checked against the hard rule again).
       responses:
         "200":
@@ -2611,6 +2635,7 @@ paths:
     post:
       tags: [improvement]
       operationId: rollbackImprovementProposal
+      x-wise-admin: true
       description: Restores what an applied proposal replaced. If the target changed since, confirm must be true.
       requestBody:
         content:
@@ -2657,6 +2682,7 @@ paths:
     post:
       tags: [improvement]
       operationId: rejectImprovementProposal
+      x-wise-admin: true
       description: Declines a proposal. It is kept, with your note, so later analyses do not repeat it.
       requestBody:
         content:
@@ -2696,6 +2722,7 @@ paths:
     post:
       tags: [improvement]
       operationId: createEvalCase
+      x-wise-admin: true
       description: Adds your own case (the input must match the agent's input schema).
       requestBody:
         required: true
@@ -2723,6 +2750,7 @@ paths:
     patch:
       tags: [improvement]
       operationId: updateEvalCase
+      x-wise-admin: true
       requestBody:
         required: true
         content:
@@ -2745,6 +2773,7 @@ paths:
     delete:
       tags: [improvement]
       operationId: deleteEvalCase
+      x-wise-admin: true
       description: Deletes one of your own cases (cases from reviews are switched off instead).
       responses:
         "204": { description: Deleted. }
@@ -2775,6 +2804,7 @@ paths:
     post:
       tags: [improvement]
       operationId: evaluateProposal
+      x-wise-admin: true
       description: Replays the agent's cases with the current version and the proposal, and has the judge score both.
       requestBody:
         content:
@@ -2820,6 +2850,7 @@ paths:
     post:
       tags: [improvement]
       operationId: cancelEval
+      x-wise-admin: true
       responses:
         "204": { description: Stopped. }
         "401": { $ref: "#/components/responses/Problem" }
@@ -2843,6 +2874,7 @@ paths:
     put:
       tags: [release]
       operationId: setRepositoryRelease
+      x-wise-admin: true
       requestBody:
         required: true
         content:
@@ -2863,6 +2895,7 @@ paths:
     post:
       tags: [release]
       operationId: detectRepositoryRelease
+      x-wise-admin: true
       description: Proposes the remote (as https), base branch and matching git accounts from the repository's git metadata.
       responses:
         "200":
@@ -2885,6 +2918,7 @@ paths:
     post:
       tags: [release]
       operationId: testRepositoryRelease
+      x-wise-admin: true
       description: Reads the repository with the account's token. This proves access, not push permission (the first push does).
       responses:
         "200":
@@ -2917,6 +2951,7 @@ paths:
     put:
       tags: [release]
       operationId: setProjectReleasePolicy
+      x-wise-admin: true
       requestBody:
         required: true
         content:
