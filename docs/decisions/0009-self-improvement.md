@@ -101,6 +101,13 @@ asks for confirmation. Every step is audited.
 context, and are not added to `cloud_allowed_agents` by Wise: whether they may use cloud models is the user's policy
 decision (otherwise they use the local fallback).
 
+**Known limitations.**
+- Memories in the `security` category cannot be archived or merged by a proposal. Other memories the gate agents
+  read (written by you) can be archived or merged, with the diff in front of you.
+- Evidence is checked for existence, not relevance: you judge whether it supports the proposal.
+- If the final record of an apply fails after the target was written, the proposal stays `applying`. The change is
+  in the target's own history (agent versions, setting history, template history) and can be undone there.
+
 **Deferred.** "Versioned prompts and skills": prompts are versioned agent definitions; Wise has no skills yet.
 Replaying workspace agents (coding, review) needs recorded workspaces and is left for later.
 

@@ -301,6 +301,10 @@ func (s *Service) Build(ctx context.Context, r Raw) (Built, error) {
 				if err != nil {
 					return b, err
 				}
+				if m.Category == "security" {
+					// The reviewers behind quality gates rely on these; proposals may add, not retire them.
+					return b, refuse("operation %d: security memories may not be archived or merged by a proposal", i+1)
+				}
 				if _, seen := versions[id.String()]; !seen {
 					versions[id.String()] = m.Version
 					before = append(before, map[string]any{"id": m.ID, "version": m.Version, "kind": m.Kind, "scope": m.Scope,

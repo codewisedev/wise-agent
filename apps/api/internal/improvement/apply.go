@@ -136,6 +136,9 @@ func (s *Service) Apply(ctx context.Context, id uuid.UUID, userID *uuid.UUID) (d
 		}
 		return p, err
 	}
+	// Known limitation: if this final write fails after the target was written,
+	// the proposal stays "applying" (the change is live but not recorded for
+	// rollback); the target's own history (versions, setting history) still has it.
 	var row dbgen.ImprovementProposal
 	err = s.db.InTx(ctx, func(q *dbgen.Queries) error {
 		var err error

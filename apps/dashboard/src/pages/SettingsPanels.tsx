@@ -490,7 +490,15 @@ type ImprovementValue = {
 
 const WEEKDAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
 
-function ImprovementEditor({ value, set }: { value: ImprovementValue; set: (v: ImprovementValue) => void }) {
+const EVAL_DEFAULTS: ImprovementValue["eval"] = { max_cases: 5, cost_cap_usd: 2, judge: { account: "", model: "" } };
+
+export function ImprovementEditor({ value: raw, set }: { value: ImprovementValue; set: (v: ImprovementValue) => void }) {
+  // Values saved before a section existed lack it: show (and save) the defaults.
+  const value: ImprovementValue = {
+    ...raw,
+    analysis: raw.analysis ?? { account: "", model: "" },
+    eval: { ...EVAL_DEFAULTS, ...raw.eval, judge: { ...EVAL_DEFAULTS.judge, ...raw.eval?.judge } },
+  };
   const sched = value.schedule;
   return (
     <div className="settings-form">
