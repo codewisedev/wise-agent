@@ -1597,7 +1597,7 @@ Build:
 
 **Status:** done — see `docs/decisions/0007-engineering-pipeline.md`. Per the user's decision, each task gets a
 private clone (not a git worktree in the user's repository) in a per-task sandbox; approved work is delivered as a
-`wise/…` branch. Push and pull requests remain for a later phase.
+`wise/…` branch. Push and pull requests followed in Phase 7.
 
 ## Phase 5b — External Coding Agents
 
