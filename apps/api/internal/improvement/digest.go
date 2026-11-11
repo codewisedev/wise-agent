@@ -25,6 +25,7 @@ type Digest struct {
 	PastProposals  []map[string]any `json:"past_proposals"`
 	Outcomes       []map[string]any `json:"applied_outcomes"`
 	Rules          map[string]any   `json:"rules"`
+	Trimmed        []string         `json:"trimmed,omitempty"` // what was shortened to fit the input budget
 }
 
 const maxPromptAgents = 6
@@ -173,7 +174,109 @@ func (s *Service) Digest(ctx context.Context, st Settings) (Digest, bool, error)
 			worth = true
 		}
 	}
+	Fit(&d, st.MaxInputChars)
 	return d, worth, nil
+}
+
+func size(d *Digest) int { return len(mustJSON(d)) }
+
+func firstN(xs []map[string]any, n int) []map[string]any {
+	if len(xs) > n {
+		return xs[:n]
+	}
+	return xs
+}
+
+// compactTemplate keeps a template's id, name and a one-line view of its steps.
+func compactTemplate(t map[string]any) map[string]any {
+	var def struct {
+		Steps []struct {
+			ID, Agent, Type, Runtime string
+			Review                   bool
+		} `json:"steps"`
+	}
+	raw, _ := t["definition"].(json.RawMessage)
+	_ = json.Unmarshal(raw, &def)
+	steps := make([]string, 0, len(def.Steps))
+	for _, s := range def.Steps {
+		x := s.ID + ":" + s.Agent
+		if s.Type != "" && s.Type != "agent" {
+			x = s.ID + ":" + s.Type
+		}
+		if s.Review {
+			x += "[review]"
+		}
+		if s.Runtime != "" {
+			x += "@" + s.Runtime
+		}
+		steps = append(steps, x)
+	}
+	return map[string]any{"id": t["id"], "name": t["name"], "steps": steps}
+}
+
+// Fit shortens the digest, least useful parts first, until it fits maxChars
+// (for local models with a small context). It records what it trimmed.
+func Fit(d *Digest, maxChars int) {
+	if maxChars <= 0 {
+		return
+	}
+	steps := []struct {
+		what string
+		do   func()
+	}{
+		{"templates shown as step lists (template proposals need the full definition: none this time)", func() {
+			for i, t := range d.Templates {
+				d.Templates[i] = compactTemplate(t)
+			}
+		}},
+		{"only agents with enough runs or problems", func() {
+			var keep []map[string]any
+			for _, a := range d.Agents {
+				if a["enough_runs"] == true || a["rejected"].(int64) > 0 || a["failed"].(int64) > 0 || a["thumbs_down"].(int64) > 0 {
+					keep = append(keep, a)
+				}
+			}
+			d.Agents = keep
+		}},
+		{"providers and memories shortened", func() {
+			d.Providers = firstN(d.Providers, 5)
+			d.Memories = firstN(d.Memories, 30)
+			for _, m := range d.Memories {
+				m["body"] = clip(m["body"].(string), 120)
+			}
+		}},
+		{"at most 2 prompts, clipped", func() {
+			d.Prompts = firstN(d.Prompts, 2)
+			for _, p := range d.Prompts {
+				p["prompt"] = clip(p["prompt"].(string), 4000)
+			}
+		}},
+		{"fewer failures and comments", func() {
+			d.Failures = firstN(d.Failures, 5)
+			d.ReviewComments = firstN(d.ReviewComments, 10)
+			d.FeedbackNotes = firstN(d.FeedbackNotes, 10)
+			d.PastProposals = firstN(d.PastProposals, 10)
+		}},
+		{"one prompt, clipped further", func() {
+			d.Prompts = firstN(d.Prompts, 1)
+			for _, p := range d.Prompts {
+				p["prompt"] = clip(p["prompt"].(string), 2000)
+			}
+		}},
+		{"no templates or providers", func() { d.Templates, d.Providers = []map[string]any{}, []map[string]any{} }},
+		{"no prompts (prompt proposals need them: none this time)", func() { d.Prompts = []map[string]any{} }},
+		{"fewest failures, comments and memories", func() {
+			d.Failures, d.ReviewComments, d.FeedbackNotes = firstN(d.Failures, 3), firstN(d.ReviewComments, 5), firstN(d.FeedbackNotes, 5)
+			d.Memories, d.PastProposals = firstN(d.Memories, 10), firstN(d.PastProposals, 5)
+		}},
+	}
+	for _, st := range steps {
+		if size(d) <= maxChars {
+			return
+		}
+		st.do()
+		d.Trimmed = append(d.Trimmed, st.what)
+	}
 }
 
 func round2(x float64) float64 { return float64(int64(x*100+0.5)) / 100 }

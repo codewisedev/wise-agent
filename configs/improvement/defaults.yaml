@@ -11,6 +11,9 @@ window_days: 30
 min_runs: 3
 # At most this many proposals per analysis.
 max_proposals: 5
+# How much an analysis is given, in characters (about 3 per token). Lower it for local models with a small
+# context: 24000 needs a context of about 16k tokens; 9000 fits an 8k context. Wise trims the least useful parts.
+max_input_chars: 24000
 
 # Who runs the analysis (empty account = the improvement agent's own model routing).
 analysis:

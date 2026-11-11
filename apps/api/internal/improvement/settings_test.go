@@ -1,6 +1,8 @@
 package improvement
 
 import (
+	"encoding/json"
+	"strings"
 	"testing"
 	"time"
 )
@@ -29,5 +31,31 @@ func TestScheduleDue(t *testing.T) {
 	}
 	if _, err := ParseSettings([]byte(`{"schedule":{"enabled":true,"weekday":"Friday","hour":7},"window_days":30,"min_runs":3,"max_proposals":5,"extra":1}`)); err == nil {
 		t.Error("unknown field accepted")
+	}
+}
+
+func TestFitTrimsToBudget(t *testing.T) {
+	big := func(n int) string { return strings.Repeat("x", n) }
+	d := Digest{WindowDays: 30, Rules: map[string]any{"max_proposals": 5}}
+	for i := 0; i < 20; i++ {
+		d.Agents = append(d.Agents, map[string]any{"agent": "a", "enough_runs": i < 3, "rejected": int64(0), "failed": int64(0), "thumbs_down": int64(0)})
+		d.Failures = append(d.Failures, map[string]any{"message": big(200)})
+		d.Memories = append(d.Memories, map[string]any{"body": big(300)})
+	}
+	for i := 0; i < 4; i++ {
+		d.Prompts = append(d.Prompts, map[string]any{"agent": "p", "prompt": big(8000)})
+	}
+	d.Templates = []map[string]any{{"id": "t", "name": "T", "definition": json.RawMessage(`{"steps":[{"id":"a","agent":"x","review":true},{"id":"g","type":"gate"}]}`)}}
+	Fit(&d, 9000)
+	if n := len(mustJSON(&d)); n > 9000 {
+		t.Fatalf("still %d chars", n)
+	}
+	if len(d.Trimmed) == 0 || len(d.Agents) != 3 {
+		t.Fatalf("trimmed %v, agents %d", d.Trimmed, len(d.Agents))
+	}
+	small := Digest{WindowDays: 30}
+	Fit(&small, 9000)
+	if small.Trimmed != nil {
+		t.Fatal("trimmed a digest that fits")
 	}
 }

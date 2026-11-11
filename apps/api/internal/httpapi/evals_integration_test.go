@@ -158,12 +158,23 @@ func TestEvaluationStopsAtTheCostCap(t *testing.T) {
 		"evidence": map[string]any{"run_ids": runs}, "prompt_edits": []any{map[string]any{"old": "", "new": "Add a summary line."}}})
 	e.expect(e.do("POST", "/improvements/proposals/"+ids[0]+"/evaluate", map[string]any{"maxCases": 3, "costCapUsd": 0.05}), 202)
 	// Two cases start (four replays); the third waits. The replays turn out expensive.
+	// Once spending passes the cap, queued replays are cancelled: claim until none is left.
 	for i := 0; i < 4; i++ {
-		id, tok := e.claim()
+		c := e.runtimeDo(runtimeToken, "POST", "/runtime/v1/runs/claim", map[string]string{"runtimeId": "test-rt"})
+		if c.status == 204 {
+			break
+		}
+		run, _ := c.body["run"].(map[string]any)
+		id, tok := run["id"].(string), c.body["runToken"].(string)
 		if _, err := e.db.Pool.Exec(ctx, "UPDATE agent_runs SET total_cost_usd = 0.02 WHERE id = $1", id); err != nil {
 			t.Fatal(err)
 		}
-		e.expect(e.runtimeDo(tok, "POST", "/runtime/v1/runs/"+id+"/complete", map[string]any{"output": validProductOutput}), 204)
+		out := any(validProductOutput)
+		if run["agentName"] == "eval-judge-agent" {
+			out = map[string]any{"score_a": 3, "score_b": 3, "reasoning": "same"}
+		}
+		e.expect(e.runtimeDo(tok, "POST", "/runtime/v1/runs/"+id+"/complete", map[string]any{"output": out}), 204)
+		time.Sleep(20 * time.Millisecond)
 	}
 	var ev map[string]any
 	for k := 0; k < 100; k++ {

@@ -483,7 +483,7 @@ function MemoryEditor({ value, set }: { value: MemoryValue; set: (v: MemoryValue
 
 type ImprovementValue = {
   schedule: { enabled: boolean; weekday: string; hour: number };
-  window_days: number; min_runs: number; max_proposals: number;
+  window_days: number; min_runs: number; max_proposals: number; max_input_chars?: number;
   analysis: { account: string; model: string };
   eval: { max_cases: number; cost_cap_usd: number; judge: { account: string; model: string } };
 };
@@ -521,6 +521,9 @@ export function ImprovementEditor({ value: raw, set }: { value: ImprovementValue
       <div className="form-grid">
         <Field label="Look back (days)"><input type="number" min={1} max={365} value={value.window_days} onChange={(e) => set({ ...value, window_days: Number(e.target.value) })} /></Field>
         <Field label="Runs before an agent's numbers count"><input type="number" min={1} max={1000} value={value.min_runs} onChange={(e) => set({ ...value, min_runs: Number(e.target.value) })} /></Field>
+        <Field label="Input size (characters)" hint="About 3 per token. 24000 needs a ~16k-token context; 9000 fits an 8k local model. Wise trims the least useful parts to fit.">
+          <input type="number" min={4000} max={400000} step={1000} value={value.max_input_chars ?? 24000} onChange={(e) => set({ ...value, max_input_chars: Number(e.target.value) })} />
+        </Field>
         <Field label="Proposals per analysis (at most)"><input type="number" min={1} max={8} value={value.max_proposals} onChange={(e) => set({ ...value, max_proposals: Number(e.target.value) })} /></Field>
       </div>
       <h3>Who analyses</h3>

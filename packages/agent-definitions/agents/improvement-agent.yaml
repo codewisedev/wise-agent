@@ -1,5 +1,5 @@
 name: improvement-agent
-version: 1.0.0
+version: 1.0.1
 description: "Reads Wise's own performance (metrics, failures, your review comments and ratings) and proposes evidence-backed improvements to agent prompts, memory, model routing and workflow templates, for you to approve."
 enabled: true
 phase: 6
@@ -33,6 +33,7 @@ input_schema:
     past_proposals: { type: array, description: "Earlier proposals and what happened to them.", items: { type: object, additionalProperties: true } }
     applied_outcomes: { type: array, description: "Applied prompt changes: the agent's numbers before and since.", items: { type: object, additionalProperties: true } }
     rules: { type: object, additionalProperties: true, description: "What may and may not be proposed." }
+    trimmed: { type: array, items: { type: string }, description: "What was shortened to fit; do not propose what the trimmed parts would be needed for." }
 output_schema:
   type: object
   additionalProperties: false
@@ -101,7 +102,7 @@ model_config:
   alias: reasoning
   fallbacks: [local]
   temperature: 0.2
-  max_output_tokens: 8192
+  max_output_tokens: 4096
 execution_limits:
   max_turns: 3
   max_tool_calls: 0

@@ -27,12 +27,14 @@ type ModelChoice struct {
 
 // Settings is the "improvement" setting.
 type Settings struct {
-	Schedule     Schedule     `json:"schedule"`
-	WindowDays   int          `json:"window_days"`
-	MinRuns      int          `json:"min_runs"`
-	MaxProposals int          `json:"max_proposals"`
-	Analysis     ModelChoice  `json:"analysis"`
-	Eval         EvalDefaults `json:"eval"`
+	Schedule     Schedule `json:"schedule"`
+	WindowDays   int      `json:"window_days"`
+	MinRuns      int      `json:"min_runs"`
+	MaxProposals int      `json:"max_proposals"`
+	// MaxInputChars bounds what an analysis is given (local models have small contexts).
+	MaxInputChars int          `json:"max_input_chars"`
+	Analysis      ModelChoice  `json:"analysis"`
+	Eval          EvalDefaults `json:"eval"`
 }
 
 // EvalDefaults prefill the Evaluate dialog.
@@ -46,7 +48,7 @@ var weekdays = []string{"sunday", "monday", "tuesday", "wednesday", "thursday", 
 
 // DefaultSettings applies until the setting loads.
 func DefaultSettings() Settings {
-	return Settings{Schedule: Schedule{Enabled: false, Weekday: "monday", Hour: 7}, WindowDays: 30, MinRuns: 3, MaxProposals: 5,
+	return Settings{Schedule: Schedule{Enabled: false, Weekday: "monday", Hour: 7}, WindowDays: 30, MinRuns: 3, MaxProposals: 5, MaxInputChars: 24000,
 		Eval: EvalDefaults{MaxCases: 5, CostCapUSD: 2}}
 }
 
@@ -77,6 +79,9 @@ func ParseSettings(raw json.RawMessage) (Settings, error) {
 	}
 	if st.Analysis.Model != "" && st.Analysis.Account == "" {
 		errs = append(errs, apperr.FieldError{Field: "analysis.model", Message: "choose an account for the model"})
+	}
+	if st.MaxInputChars < 4000 || st.MaxInputChars > 400000 {
+		errs = append(errs, apperr.FieldError{Field: "max_input_chars", Message: "4000-400000"})
 	}
 	if st.Eval.MaxCases < 1 || st.Eval.MaxCases > MaxEvalCases {
 		errs = append(errs, apperr.FieldError{Field: "eval.max_cases", Message: fmt.Sprintf("1-%d", MaxEvalCases)})
