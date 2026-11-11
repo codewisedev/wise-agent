@@ -17,3 +17,6 @@ __pycache__/
 .venv/
 .pytest_cache/
 .ruff_cache/
+
+# Docker secrets written from .env (make secrets)
+.secrets/

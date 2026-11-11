@@ -70,6 +70,11 @@ Commands:
 `
 
 func main() {
+	// Docker secrets arrive as NAME_FILE (mounted under /run/secrets).
+	if err := config.ExpandFileEnv(); err != nil {
+		fmt.Fprintln(os.Stderr, "read secrets:", err)
+		os.Exit(1)
+	}
 	args := os.Args[1:]
 	cmd := "serve"
 	if len(args) > 0 {
