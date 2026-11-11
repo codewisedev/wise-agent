@@ -35,6 +35,7 @@ tags:
   - name: context
   - name: memory
   - name: execution
+  - name: improvement
 
 paths:
   /healthz:
@@ -1436,6 +1437,53 @@ paths:
               schema: { $ref: "#/components/schemas/WorkflowTemplate" }
         "400": { $ref: "#/components/responses/Problem" }
         "401": { $ref: "#/components/responses/Problem" }
+  /workflow-templates/{templateId}/versions:
+    parameters:
+      - { name: templateId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [workflows]
+      operationId: listWorkflowTemplateVersions
+      description: Earlier definitions of the template (newest first).
+      responses:
+        "200":
+          description: Versions.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      required: [version, name, description, definition, createdAt]
+                      properties:
+                        version: { type: integer }
+                        name: { type: string }
+                        description: { type: string }
+                        definition: { type: object, additionalProperties: true }
+                        changedBy: { type: string, format: uuid, nullable: true }
+                        createdAt: { type: string, format: date-time, description: When it was replaced. }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+  /workflow-templates/{templateId}/versions/{version}/restore:
+    parameters:
+      - { name: templateId, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: version, in: path, required: true, schema: { type: integer } }
+    post:
+      tags: [workflows]
+      operationId: restoreWorkflowTemplateVersion
+      description: Saves an earlier definition as the template's new version (the current one is kept in the history).
+      responses:
+        "200":
+          description: Restored.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WorkflowTemplate" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
   /workflow-templates/preview:
     post:
       tags: [templates]
@@ -2394,6 +2442,387 @@ paths:
       responses:
         "204": { description: Stopped. }
         "401": { $ref: "#/components/responses/Problem" }
+  /feedback:
+    get:
+      tags: [improvement]
+      operationId: listFeedback
+      description: Ratings of agent results (newest first).
+      parameters:
+        - { name: targetType, in: query, schema: { type: string, enum: [run, artifact] } }
+        - { name: targetId, in: query, schema: { type: string, format: uuid } }
+        - { name: agent, in: query, schema: { type: string } }
+        - { name: rating, in: query, schema: { type: string, enum: [up, down] } }
+        - { name: taskId, in: query, schema: { type: string, format: uuid } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 500 } }
+      responses:
+        "200":
+          description: Ratings.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items: { type: array, items: { $ref: "#/components/schemas/Feedback" } }
+        "401": { $ref: "#/components/responses/Problem" }
+    put:
+      tags: [improvement]
+      operationId: setFeedback
+      description: Rates a run or an artifact (replaces your earlier rating of it).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/FeedbackInput" }
+      responses:
+        "200":
+          description: Saved.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Feedback" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+    delete:
+      tags: [improvement]
+      operationId: clearFeedback
+      description: Removes your rating of a run or an artifact.
+      parameters:
+        - { name: targetType, in: query, required: true, schema: { type: string, enum: [run, artifact] } }
+        - { name: targetId, in: query, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "204": { description: Removed. }
+        "401": { $ref: "#/components/responses/Problem" }
+  /insights:
+    get:
+      tags: [improvement]
+      operationId: getInsights
+      description: How agents, models and workflows performed over a window (evaluation replays excluded).
+      parameters:
+        - { name: window, in: query, schema: { type: string, enum: [7d, 30d, 90d] } }
+      responses:
+        "200":
+          description: Insights.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/InsightsReport" }
+        "401": { $ref: "#/components/responses/Problem" }
+  /insights/agents/{agentName}:
+    parameters:
+      - { name: agentName, in: path, required: true, schema: { type: string } }
+    get:
+      tags: [improvement]
+      operationId: getAgentInsights
+      description: One agent's versions, daily trend, repeated failures, review comments and your thumbs-down notes.
+      parameters:
+        - { name: window, in: query, schema: { type: string, enum: [7d, 30d, 90d] } }
+      responses:
+        "200":
+          description: Agent insights.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AgentInsights" }
+        "401": { $ref: "#/components/responses/Problem" }
+  /improvements/analyses:
+    get:
+      tags: [improvement]
+      operationId: listImprovementAnalyses
+      description: Recent analyses of Wise's own performance (newest first).
+      responses:
+        "200":
+          description: Analyses.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items: { type: array, items: { $ref: "#/components/schemas/ImprovementAnalysis" } }
+        "401": { $ref: "#/components/responses/Problem" }
+    post:
+      tags: [improvement]
+      operationId: startImprovementAnalysis
+      description: Analyses recent performance now and proposes improvements (runs the improvement agent).
+      responses:
+        "202":
+          description: Started (or skipped when there is too little to analyse).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ImprovementAnalysis" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+  /improvements/proposals:
+    get:
+      tags: [improvement]
+      operationId: listImprovementProposals
+      description: Improvement proposals (open ones whose target changed since are marked stale).
+      parameters:
+        - { name: status, in: query, schema: { type: string, enum: [proposed, evaluating, evaluated, applied, rejected, rolled_back, stale] } }
+        - { name: kind, in: query, schema: { type: string, enum: [prompt, memory, routing, template] } }
+        - { name: target, in: query, schema: { type: string } }
+      responses:
+        "200":
+          description: Proposals.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, openCount]
+                properties:
+                  items: { type: array, items: { $ref: "#/components/schemas/ImprovementProposal" } }
+                  openCount: { type: integer, format: int64, description: Proposals waiting for a decision. }
+        "401": { $ref: "#/components/responses/Problem" }
+  /improvements/proposals/{proposalId}:
+    parameters:
+      - { name: proposalId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [improvement]
+      operationId: getImprovementProposal
+      responses:
+        "200":
+          description: The proposal.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ImprovementProposal" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+  /improvements/proposals/{proposalId}/apply:
+    parameters:
+      - { name: proposalId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [improvement]
+      operationId: applyImprovementProposal
+      description: Applies the proposal through the target's versioned mechanism (checked against the hard rule again).
+      responses:
+        "200":
+          description: Applied.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ImprovementProposal" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+  /improvements/proposals/{proposalId}/rollback:
+    parameters:
+      - { name: proposalId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [improvement]
+      operationId: rollbackImprovementProposal
+      description: Restores what an applied proposal replaced. If the target changed since, confirm must be true.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                confirm: { type: boolean }
+                note: { type: string, maxLength: 2000 }
+      responses:
+        "200":
+          description: Rolled back.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ImprovementProposal" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+  /improvements/proposals/{proposalId}/monitor:
+    parameters:
+      - { name: proposalId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [improvement]
+      operationId: monitorImprovementProposal
+      description: The target's numbers when applied and since.
+      responses:
+        "200":
+          description: Before and since.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [since]
+                properties:
+                  appliedAt: { type: string, format: date-time, nullable: true }
+                  before: { type: array, nullable: true, items: { $ref: "#/components/schemas/AgentStat" } }
+                  since: { type: array, items: { $ref: "#/components/schemas/AgentStat" } }
+                  template: { type: object, additionalProperties: true, nullable: true }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+  /improvements/proposals/{proposalId}/reject:
+    parameters:
+      - { name: proposalId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [improvement]
+      operationId: rejectImprovementProposal
+      description: Declines a proposal. It is kept, with your note, so later analyses do not repeat it.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                note: { type: string, maxLength: 2000 }
+      responses:
+        "200":
+          description: Rejected.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ImprovementProposal" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+  /agents/{agentName}/eval-cases:
+    parameters:
+      - { name: agentName, in: path, required: true, schema: { type: string } }
+    get:
+      tags: [improvement]
+      operationId: listEvalCases
+      description: The agent's evaluation suite. Cases from your reviews and ratings are added automatically.
+      responses:
+        "200":
+          description: Cases.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items: { type: array, items: { $ref: "#/components/schemas/EvalCase" } }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+    post:
+      tags: [improvement]
+      operationId: createEvalCase
+      description: Adds your own case (the input must match the agent's input schema).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [input]
+              properties:
+                input: { type: object, additionalProperties: true }
+                projectId: { type: string, format: uuid, nullable: true }
+                expectation: { type: string, maxLength: 4000 }
+      responses:
+        "201":
+          description: Created.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EvalCase" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+  /eval-cases/{caseId}:
+    parameters:
+      - { name: caseId, in: path, required: true, schema: { type: string, format: uuid } }
+    patch:
+      tags: [improvement]
+      operationId: updateEvalCase
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [enabled, expectation]
+              properties:
+                enabled: { type: boolean }
+                expectation: { type: string, maxLength: 4000 }
+      responses:
+        "200":
+          description: Updated.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EvalCase" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+    delete:
+      tags: [improvement]
+      operationId: deleteEvalCase
+      description: Deletes one of your own cases (cases from reviews are switched off instead).
+      responses:
+        "204": { description: Deleted. }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+  /improvements/proposals/{proposalId}/eval-plan:
+    parameters:
+      - { name: proposalId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [improvement]
+      operationId: getEvalPlan
+      description: Whether the proposal can be evaluated, on which agent, how many cases, and an estimated cost.
+      parameters:
+        - { name: agent, in: query, schema: { type: string } }
+      responses:
+        "200":
+          description: The plan.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EvalPlan" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+  /improvements/proposals/{proposalId}/evaluate:
+    parameters:
+      - { name: proposalId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [improvement]
+      operationId: evaluateProposal
+      description: Replays the agent's cases with the current version and the proposal, and has the judge score both.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                agent: { type: string, description: Routing proposals - the affected agent to evaluate on. }
+                model: { $ref: "#/components/schemas/ModelChoice" }
+                judge: { $ref: "#/components/schemas/ModelChoice" }
+                maxCases: { type: integer, minimum: 1, maximum: 20 }
+                costCapUsd: { type: number, minimum: 0.01, maximum: 100 }
+      responses:
+        "202":
+          description: Started.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EvalRun" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+  /improvements/proposals/{proposalId}/evals:
+    parameters:
+      - { name: proposalId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [improvement]
+      operationId: listProposalEvals
+      responses:
+        "200":
+          description: Evaluations, newest first, with their cases.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items: { type: array, items: { $ref: "#/components/schemas/EvalRun" } }
+        "401": { $ref: "#/components/responses/Problem" }
+  /evals/{evalRunId}/cancel:
+    parameters:
+      - { name: evalRunId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [improvement]
+      operationId: cancelEval
+      responses:
+        "204": { description: Stopped. }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
 components:
   securitySchemes:
     cookieAuth:
@@ -2939,6 +3368,7 @@ components:
         agentDefinitionId: { type: string, format: uuid }
         projectId: { type: string, format: uuid, nullable: true }
         workflowRunId: { type: string, format: uuid, nullable: true }
+        purpose: { type: string, enum: [work, eval], description: "eval = an evaluation replay (excluded from metrics, run lists and budgets)." }
         status: { $ref: "#/components/schemas/AgentRunStatus" }
         input: { type: object, additionalProperties: true }
         output: { type: object, additionalProperties: true, nullable: true }
@@ -3401,7 +3831,7 @@ components:
         title: { type: string }
         body: { type: string }
         status: { $ref: "#/components/schemas/MemoryStatus" }
-        source: { type: string, enum: [manual, review_feedback, report, profile_inference, task] }
+        source: { type: string, enum: [manual, review_feedback, report, profile_inference, task, improvement] }
         sourceRefs: { type: object, additionalProperties: true }
         rationale: { type: string }
         duplicateOf: { type: string, format: uuid, nullable: true }
@@ -3971,6 +4401,283 @@ components:
         events: { type: array, items: { $ref: "#/components/schemas/ExternalEvent" } }
         done: { type: boolean }
         outcome: { $ref: "#/components/schemas/ExternalOutcome" }
+    AgentStat:
+      type: object
+      required: [agent, version, definitionId, runs, succeeded, failed, cancelled, retries, invalidOutputs, medianSeconds, p90Seconds, costUsd, tokens, reviewed, rejected, gateFixRounds, thumbsUp, thumbsDown, successRate, rejectionRate, costPerRunUsd, invalidRate]
+      properties:
+        agent: { type: string }
+        version: { type: string }
+        definitionId: { type: string, format: uuid }
+        runs: { type: integer, format: int64 }
+        succeeded: { type: integer, format: int64 }
+        failed: { type: integer, format: int64 }
+        cancelled: { type: integer, format: int64 }
+        retries: { type: integer, format: int64 }
+        invalidOutputs: { type: integer, format: int64 }
+        medianSeconds: { type: number }
+        p90Seconds: { type: number }
+        costUsd: { type: number }
+        tokens: { type: integer, format: int64 }
+        reviewed: { type: integer, format: int64, description: Decided reviews this agent's work was part of (steps re-run on rejection). }
+        rejected: { type: integer, format: int64 }
+        gateFixRounds: { type: integer, format: int64, description: Failed quality-gate rounds this implementing agent had to fix. }
+        thumbsUp: { type: integer, format: int64 }
+        thumbsDown: { type: integer, format: int64 }
+        successRate: { type: number }
+        rejectionRate: { type: number }
+        costPerRunUsd: { type: number }
+        invalidRate: { type: number }
+    InsightCluster:
+      type: object
+      required: [agent, text, count]
+      properties:
+        agent: { type: string }
+        text: { type: string }
+        count: { type: integer }
+        runIds: { type: array, items: { type: string, format: uuid } }
+        sources: { type: array, items: { type: string, format: uuid }, description: Approval ids (review comments). }
+    InsightsReport:
+      type: object
+      required: [window, since, agents, providers, templates, stalls, failures, comments]
+      properties:
+        window: { type: string }
+        since: { type: string, format: date-time }
+        agents: { type: array, items: { $ref: "#/components/schemas/AgentStat" } }
+        providers:
+          type: array
+          items:
+            type: object
+            required: [provider, model, calls, errors, rejected, medianLatencyMs, costUsd, tokens, errorRate]
+            properties:
+              provider: { type: string }
+              model: { type: string }
+              calls: { type: integer, format: int64 }
+              errors: { type: integer, format: int64 }
+              rejected: { type: integer, format: int64 }
+              medianLatencyMs: { type: number }
+              costUsd: { type: number }
+              tokens: { type: integer, format: int64 }
+              errorRate: { type: number }
+        templates:
+          type: array
+          items:
+            type: object
+            required: [template, runs, completed, failed, cancelled, stalled, medianSeconds, costUsd]
+            properties:
+              template: { type: string }
+              runs: { type: integer, format: int64 }
+              completed: { type: integer, format: int64 }
+              failed: { type: integer, format: int64 }
+              cancelled: { type: integer, format: int64 }
+              stalled: { type: integer, format: int64 }
+              medianSeconds: { type: number }
+              costUsd: { type: number }
+        stalls:
+          type: array
+          items:
+            type: object
+            required: [template, stage, waiting]
+            properties:
+              template: { type: string }
+              stage: { type: string }
+              waiting: { type: integer, format: int64 }
+        failures: { type: array, items: { $ref: "#/components/schemas/InsightCluster" } }
+        comments: { type: array, items: { $ref: "#/components/schemas/InsightCluster" } }
+    AgentInsights:
+      type: object
+      required: [agent, window, versions, days, failures, comments, feedback]
+      properties:
+        agent: { type: string }
+        window: { type: string }
+        versions: { type: array, items: { $ref: "#/components/schemas/AgentStat" } }
+        days:
+          type: array
+          items:
+            type: object
+            required: [day, runs, succeeded, costUsd]
+            properties:
+              day: { type: string }
+              runs: { type: integer, format: int64 }
+              succeeded: { type: integer, format: int64 }
+              costUsd: { type: number }
+        failures: { type: array, items: { $ref: "#/components/schemas/InsightCluster" } }
+        comments: { type: array, items: { $ref: "#/components/schemas/InsightCluster" } }
+        feedback:
+          type: array
+          items:
+            type: object
+            required: [id, targetType, targetId, note, at]
+            properties:
+              id: { type: string, format: uuid }
+              targetType: { type: string }
+              targetId: { type: string, format: uuid }
+              runId: { type: string, format: uuid, nullable: true }
+              note: { type: string }
+              at: { type: string, format: date-time }
+    ModelChoice:
+      type: object
+      properties:
+        account: { type: string, description: Empty = the agent's own routing. }
+        model: { type: string }
+    EvalCase:
+      type: object
+      required: [id, agentName, kind, input, source, expectation, enabled, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        agentName: { type: string }
+        kind: { type: string, enum: [golden, must_fix, custom] }
+        input: { type: object, additionalProperties: true }
+        projectId: { type: string, format: uuid, nullable: true }
+        sourceRunId: { type: string, format: uuid, nullable: true }
+        source: { type: string, description: "approval, feedback or manual" }
+        expectation: { type: string }
+        enabled: { type: boolean }
+        createdAt: { type: string, format: date-time }
+    EvalPlan:
+      type: object
+      required: [evaluable, cases, estimatedCostUsd, defaults, choosesModel]
+      properties:
+        evaluable: { type: boolean }
+        reason: { type: string, description: Why it cannot be evaluated. }
+        agent: { type: string }
+        agents: { type: array, items: { type: string }, description: Routing - the affected agents to choose from. }
+        cases: { type: integer }
+        estimatedCostUsd: { type: number, description: From the agent's average run cost over 30 days (local models cost nothing). }
+        choosesModel: { type: boolean, description: False for routing (the models are what is compared). }
+        defaults:
+          type: object
+          required: [max_cases, cost_cap_usd, judge]
+          properties:
+            max_cases: { type: integer }
+            cost_cap_usd: { type: number }
+            judge: { $ref: "#/components/schemas/ModelChoice" }
+    EvalResult:
+      type: object
+      required: [id, caseKind, expectation, status]
+      properties:
+        id: { type: string, format: uuid }
+        caseId: { type: string, format: uuid, nullable: true }
+        caseKind: { type: string }
+        expectation: { type: string }
+        baselineRunId: { type: string, format: uuid, nullable: true }
+        candidateRunId: { type: string, format: uuid, nullable: true }
+        judgeRunId: { type: string, format: uuid, nullable: true }
+        status: { type: string, enum: [pending, running, judging, done, failed] }
+        checks: { type: object, additionalProperties: true, nullable: true }
+        baselineScore: { type: integer, nullable: true }
+        candidateScore: { type: integer, nullable: true }
+        reasoning: { type: string, nullable: true }
+        error: { type: string, nullable: true }
+    EvalRun:
+      type: object
+      required: [id, proposalId, agentName, status, costCapUsd, createdAt, results]
+      properties:
+        id: { type: string, format: uuid }
+        proposalId: { type: string, format: uuid }
+        agentName: { type: string }
+        baselineModel: { $ref: "#/components/schemas/ModelChoice" }
+        candidateModel: { $ref: "#/components/schemas/ModelChoice" }
+        judgeModel: { $ref: "#/components/schemas/ModelChoice" }
+        status: { type: string, enum: [running, succeeded, failed, cancelled] }
+        costCapUsd: { type: number }
+        summary:
+          type: object
+          nullable: true
+          properties:
+            cases: { type: integer }
+            judged: { type: integer }
+            failed: { type: integer }
+            baselineMean: { type: number }
+            candidateMean: { type: number }
+            candidateBetter: { type: integer }
+            same: { type: integer }
+            candidateWorse: { type: integer }
+            baselineInvalid: { type: integer }
+            candidateInvalid: { type: integer }
+            candidateSecrets: { type: integer }
+            costUsd: { type: number }
+        error: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+        finishedAt: { type: string, format: date-time, nullable: true }
+        results: { type: array, items: { $ref: "#/components/schemas/EvalResult" } }
+    ImprovementAnalysis:
+      type: object
+      required: [id, trigger, windowDays, status, proposals, refused, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        trigger: { type: string, enum: [manual, scheduled] }
+        period: { type: string, nullable: true }
+        windowDays: { type: integer }
+        status: { type: string, enum: [running, succeeded, failed, skipped] }
+        agentRunId: { type: string, format: uuid, nullable: true }
+        proposals: { type: integer, description: Proposals stored. }
+        refused:
+          type: array
+          description: Proposals refused by the hard rule, the evidence check or as duplicates, with the reason.
+          items:
+            type: object
+            required: [kind, target, title, reason]
+            properties:
+              kind: { type: string }
+              target: { type: string }
+              title: { type: string }
+              reason: { type: string }
+        error: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+        finishedAt: { type: string, format: date-time, nullable: true }
+    ImprovementProposal:
+      type: object
+      required: [id, kind, target, title, rationale, evidence, change, before, base, status, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        analysisId: { type: string, format: uuid, nullable: true }
+        kind: { type: string, enum: [prompt, memory, routing, template] }
+        target: { type: string, description: "The agent, setting (models, model_policy), template id, or \"memory\"." }
+        title: { type: string }
+        rationale: { type: string }
+        evidence:
+          type: object
+          properties:
+            run_ids: { type: array, items: { type: string } }
+            approval_ids: { type: array, items: { type: string } }
+            feedback_ids: { type: array, items: { type: string } }
+            memory_ids: { type: array, items: { type: string } }
+        change: { type: object, additionalProperties: true, description: The typed change applying would write. }
+        before: { type: object, additionalProperties: true, description: The target when the proposal was made (for the diff). }
+        base: { type: object, additionalProperties: true, description: The versions the proposal was written against. }
+        status: { type: string, enum: [proposed, evaluating, evaluated, applying, applied, rejected, rolled_back, stale] }
+        metricsBefore: { nullable: true, description: The target's metrics when proposed. }
+        applied: { type: object, additionalProperties: true, nullable: true, description: What applying produced and replaced. }
+        decisionNote: { type: string, nullable: true }
+        decidedAt: { type: string, format: date-time, nullable: true }
+        appliedAt: { type: string, format: date-time, nullable: true }
+        rolledBackAt: { type: string, format: date-time, nullable: true }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    FeedbackInput:
+      type: object
+      required: [targetType, targetId, rating]
+      properties:
+        targetType: { type: string, enum: [run, artifact] }
+        targetId: { type: string, format: uuid }
+        rating: { type: string, enum: [up, down] }
+        note: { type: string, maxLength: 2000 }
+    Feedback:
+      type: object
+      required: [id, targetType, targetId, rating, note, userId, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        targetType: { type: string, enum: [run, artifact] }
+        targetId: { type: string, format: uuid }
+        agentName: { type: string, nullable: true, description: The agent that produced the result (none for Wise's own artifacts). }
+        agentDefinitionId: { type: string, format: uuid, nullable: true }
+        taskId: { type: string, format: uuid, nullable: true }
+        rating: { type: string, enum: [up, down] }
+        note: { type: string }
+        userId: { type: string, format: uuid }
+        username: { type: string }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
     WorkspaceCommandResult:
       type: object
       required: [status, output, durationMs]

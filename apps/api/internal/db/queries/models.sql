@@ -4,8 +4,10 @@ INSERT INTO model_calls (id, run_id, agent_name, alias, provider, model, status,
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13);
 
 -- name: AgentCostSince :one
-SELECT coalesce(sum(cost_usd), 0)::float8 FROM model_calls
-WHERE agent_name = $1 AND created_at >= $2 AND status = 'ok';
+-- An agent's spend today counts real work only (evaluation replays have their own cap).
+SELECT coalesce(sum(mc.cost_usd), 0)::float8 FROM model_calls mc
+WHERE mc.agent_name = $1 AND mc.created_at >= $2 AND mc.status = 'ok'
+  AND NOT EXISTS (SELECT 1 FROM agent_runs r WHERE r.id = mc.run_id AND r.purpose = 'eval');
 
 -- name: ListModelCallsForRun :many
 SELECT * FROM model_calls WHERE run_id = $1 ORDER BY created_at;
@@ -17,8 +19,9 @@ SELECT agent_name, alias, provider, model,
        coalesce(sum(input_tokens), 0)::bigint AS input_tokens,
        coalesce(sum(output_tokens), 0)::bigint AS output_tokens,
        coalesce(sum(cost_usd), 0)::float8 AS cost_usd
-FROM model_calls
-WHERE created_at >= $1
+FROM model_calls mc
+WHERE mc.created_at >= $1
+  AND NOT EXISTS (SELECT 1 FROM agent_runs r WHERE r.id = mc.run_id AND r.purpose = 'eval')
 GROUP BY agent_name, alias, provider, model
 ORDER BY cost_usd DESC, calls DESC;
 

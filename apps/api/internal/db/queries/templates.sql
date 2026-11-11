@@ -36,3 +36,17 @@ RETURNING *;
 
 -- name: SetWorkflowRunConfig :exec
 UPDATE workflow_runs SET config = $2, updated_at = now() WHERE id = $1;
+
+-- name: LockWorkflowTemplate :one
+SELECT * FROM workflow_templates WHERE id = $1 FOR UPDATE;
+
+-- name: InsertWorkflowTemplateVersion :exec
+INSERT INTO workflow_template_versions (template_id, version, name, description, definition, changed_by)
+VALUES ($1, $2, $3, $4, $5, $6)
+ON CONFLICT (template_id, version) DO NOTHING;
+
+-- name: ListWorkflowTemplateVersions :many
+SELECT * FROM workflow_template_versions WHERE template_id = $1 ORDER BY version DESC LIMIT 100;
+
+-- name: GetWorkflowTemplateVersion :one
+SELECT * FROM workflow_template_versions WHERE template_id = $1 AND version = $2;

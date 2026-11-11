@@ -15,7 +15,8 @@ Personal, local-first AI engineering platform. See [`implementation-plan.md`](im
 | `apps/agent-runtime` | Python agent runtime (WiseLoop, read-only repository tools) |
 | `packages/agent-definitions`, `packages/prompts` | Agent contracts (YAML) and versioned system prompts |
 | `packages/contracts/{agents,events}` | JSON Schemas for agent/tool definitions and agent events |
-| `configs/models`, `configs/policies`, `configs/board`, `configs/indexing`, `configs/memory` | Shipped *defaults* for models, usage policy, board lists, indexing and memory (edited afterwards in Settings) |
+| `configs/models`, `configs/policies`, `configs/board`, `configs/indexing`, `configs/memory`, `configs/improvement` | Shipped *defaults* for models, usage policy, board lists, indexing, memory and self-improvement (edited afterwards in Settings) |
+| `apps/api/internal/{feedback,insights,improvement}` | Ratings, metrics, analyses, the hard-rule checks, replay evaluation, apply and rollback |
 | `apps/agent-runtime/wise_runtime/indexer` | The code indexer (`wise-indexer` service): tree-sitter symbols, chunks, dependencies, secret guard |
 | `apps/api/internal/{codeindex,memory}` | Code index storage and search; memory, extraction, context injection and profile inference |
 | `apps/api/internal/{workflow,tasks}` | Temporal workflow, activities, outbox dispatcher; tasks, artifacts, approvals |
@@ -185,6 +186,21 @@ Credentials, set in Settings → Coding runtimes:
 Settings → Execution holds sandbox limits, the egress allowlist, timeouts, fix rounds, workspace retention, the
 branch name template and the commit author. The isolation model is described in
 `docs/decisions/0007-engineering-pipeline.md`.
+
+## Insights and self-improvement
+
+- **Rate results.** Thumbs up or down, with a note, on any run or task artifact.
+- **Insights** (`g n`) shows per agent version: success, retries, invalid outputs, review rejections (counted against
+  the steps a rejection re-runs), quality-gate fix rounds, cost and your ratings. Also per model, per workflow, and
+  repeated failures and review comments.
+- **Improvements** (`g v`) holds proposals from Wise's analyses of its own performance. Analyses run on demand
+  (**Analyse now**) or weekly (Settings → Improvement). Each proposal changes an agent prompt, memory, model routing
+  or budgets, or a workflow template, and shows its evidence and a diff. **Evaluate** replays the agent's cases (from
+  your reviews and ratings, editable on the agent page) with the current version and the proposal; a judge scores
+  both blind. **Apply** writes a new version; **Roll back** restores the previous one.
+- Proposals can never change tools, permissions, approvals, security, sandboxes, secrets, git access, runtime
+  policies or which agents may use cloud models. This is enforced in code; see
+  `docs/decisions/0009-self-improvement.md`.
 
 ## API
 

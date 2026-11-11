@@ -19,6 +19,9 @@ import (
 	"wise/apps/api/internal/codeindex"
 	"wise/apps/api/internal/codingruns"
 	"wise/apps/api/internal/db/dbgen"
+	"wise/apps/api/internal/feedback"
+	"wise/apps/api/internal/improvement"
+	"wise/apps/api/internal/insights"
 	"wise/apps/api/internal/memory"
 	"wise/apps/api/internal/workspaces"
 
@@ -58,6 +61,7 @@ type env struct {
 	tasks    *tasks.Service
 	agents   *agents.Service
 	hub      *events.Hub
+	improve  *improvement.Service
 	accounts *accounts.Service
 	gw       *modelgateway.Gateway
 	sources  *integrations.Service
@@ -125,7 +129,13 @@ func setup(t *testing.T) *env {
 		p, err := memorySvc.ForRun(ctx, run)
 		return p.Text, err
 	}
-	queue.OnFinished = memorySvc.OnRunFinished
+	insightSvc := insights.New(d)
+	improvementSvc := improvement.New(d, agentSvc, memorySvc, settingsSvc, taskSvc, insightSvc, log)
+	improvement.RegisterSetting(settingsSvc, filepath.Join("..", "..", "..", "..", "configs", "improvement", "defaults.yaml"), improvementSvc)
+	queue.OnFinished = func(ctx context.Context, runID uuid.UUID) {
+		memorySvc.OnRunFinished(ctx, runID)
+		improvementSvc.OnRunFinished(ctx, runID)
+	}
 	taskSvc.OnApprovalDecided = memorySvc.OnApprovalDecided
 	fx := &fakeExecutor{}
 	wsSvc := workspaces.New(d, fx, log)
@@ -150,6 +160,9 @@ func setup(t *testing.T) *env {
 		Memory:       memorySvc,
 		Workspaces:   wsSvc,
 		CodingRuns:   codingSvc,
+		Feedback:     feedback.New(d),
+		Insights:     insightSvc,
+		Improvement:  improvementSvc,
 		Agents:       agentSvc, RunQueue: queue, Gateway: gw, Hub: hub, Tasks: taskSvc, Accounts: accountSvc, Integrations: integrationSvc, Settings: settingsSvc,
 		Cookie:       httpapi.CookieConfig{TTL: time.Hour},
 		RuntimeToken: runtimeToken,
@@ -162,7 +175,7 @@ func setup(t *testing.T) *env {
 	t.Cleanup(ts.Close)
 	jar, _ := cookiejar.New(nil)
 	return &env{t: t, db: d, srv: ts, client: &http.Client{Jar: jar}, repoRoot: root, queue: queue, model: model, repoSvc: repoSvc, index: indexSvc, memory: memorySvc, exec: fx, ws: wsSvc, coding: codingSvc, proxy: fp,
-		tasks: taskSvc, agents: agentSvc, hub: hub, accounts: accountSvc, gw: gw, sources: integrationSvc, settings: settingsSvc}
+		tasks: taskSvc, agents: agentSvc, hub: hub, improve: improvementSvc, accounts: accountSvc, gw: gw, sources: integrationSvc, settings: settingsSvc}
 }
 
 type resp struct {

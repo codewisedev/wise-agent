@@ -115,6 +115,9 @@ func oneOf(v string, list []string) bool {
 	return false
 }
 
+// ValidateInput normalizes and checks a memory's content (as Create does).
+func ValidateInput(in *Input) error { return in.validate() }
+
 func (in *Input) validate() error {
 	in.Title, in.Body = strings.TrimSpace(in.Title), strings.TrimSpace(in.Body)
 	if in.Category == "" {
@@ -151,6 +154,17 @@ func (in *Input) validate() error {
 func versionRow(m dbgen.Memory, by *uuid.UUID) dbgen.InsertMemoryVersionParams {
 	return dbgen.InsertMemoryVersionParams{MemoryID: m.ID, Version: m.Version, Scope: m.Scope, ProjectID: m.ProjectID,
 		Kind: m.Kind, Category: m.Category, Title: m.Title, Body: m.Body, Status: m.Status, ChangedBy: by}
+}
+
+// SourceImprovement marks memories written by an applied improvement proposal.
+const SourceImprovement = "improvement"
+
+// CreateFromImprovement adds an active memory from an improvement proposal you applied.
+func (s *Service) CreateFromImprovement(ctx context.Context, in Input, proposalID uuid.UUID, userID *uuid.UUID) (dbgen.Memory, error) {
+	if err := in.validate(); err != nil {
+		return dbgen.Memory{}, err
+	}
+	return s.insert(ctx, in, "active", SourceImprovement, map[string]any{"proposalId": proposalID}, "", nil, userID)
 }
 
 // Create adds a memory written by the user: it applies immediately.

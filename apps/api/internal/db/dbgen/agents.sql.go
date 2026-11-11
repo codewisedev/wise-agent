@@ -64,7 +64,7 @@ WHERE id = (
     FOR UPDATE SKIP LOCKED
     LIMIT 1
 )
-RETURNING id, agent_definition_id, agent_name, project_id, status, input, output, error, attempt, max_attempts, runtime_id, run_token_hash, lease_expires_at, cancel_requested, total_input_tokens, total_output_tokens, total_cost_usd, created_by, created_at, started_at, finished_at, updated_at, workflow_run_id, idempotency_key, model_override, context
+RETURNING id, agent_definition_id, agent_name, project_id, status, input, output, error, attempt, max_attempts, runtime_id, run_token_hash, lease_expires_at, cancel_requested, total_input_tokens, total_output_tokens, total_cost_usd, created_by, created_at, started_at, finished_at, updated_at, workflow_run_id, idempotency_key, model_override, context, purpose
 `
 
 type ClaimAgentRunParams struct {
@@ -103,8 +103,18 @@ func (q *Queries) ClaimAgentRun(ctx context.Context, arg ClaimAgentRunParams) (A
 		&i.IdempotencyKey,
 		&i.ModelOverride,
 		&i.Context,
+		&i.Purpose,
 	)
 	return i, err
+}
+
+const clearAgentDefinitionCandidate = `-- name: ClearAgentDefinitionCandidate :exec
+UPDATE agent_definitions SET candidate = false WHERE id = $1
+`
+
+func (q *Queries) ClearAgentDefinitionCandidate(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, clearAgentDefinitionCandidate, id)
+	return err
 }
 
 const clearCurrentAgentDefinition = `-- name: ClearCurrentAgentDefinition :exec
@@ -135,7 +145,7 @@ func (q *Queries) CountAgentDefinitionsByName(ctx context.Context, name string) 
 const createAgentRun = `-- name: CreateAgentRun :one
 INSERT INTO agent_runs (id, agent_definition_id, agent_name, project_id, input, max_attempts, created_by)
 VALUES ($1, $2, $3, $4, $5, $6, $7)
-RETURNING id, agent_definition_id, agent_name, project_id, status, input, output, error, attempt, max_attempts, runtime_id, run_token_hash, lease_expires_at, cancel_requested, total_input_tokens, total_output_tokens, total_cost_usd, created_by, created_at, started_at, finished_at, updated_at, workflow_run_id, idempotency_key, model_override, context
+RETURNING id, agent_definition_id, agent_name, project_id, status, input, output, error, attempt, max_attempts, runtime_id, run_token_hash, lease_expires_at, cancel_requested, total_input_tokens, total_output_tokens, total_cost_usd, created_by, created_at, started_at, finished_at, updated_at, workflow_run_id, idempotency_key, model_override, context, purpose
 `
 
 type CreateAgentRunParams struct {
@@ -186,6 +196,7 @@ func (q *Queries) CreateAgentRun(ctx context.Context, arg CreateAgentRunParams) 
 		&i.IdempotencyKey,
 		&i.ModelOverride,
 		&i.Context,
+		&i.Purpose,
 	)
 	return i, err
 }
@@ -218,7 +229,7 @@ UPDATE agent_runs SET
     finished_at      = now(),
     updated_at       = now()
 WHERE id = $4
-RETURNING id, agent_definition_id, agent_name, project_id, status, input, output, error, attempt, max_attempts, runtime_id, run_token_hash, lease_expires_at, cancel_requested, total_input_tokens, total_output_tokens, total_cost_usd, created_by, created_at, started_at, finished_at, updated_at, workflow_run_id, idempotency_key, model_override, context
+RETURNING id, agent_definition_id, agent_name, project_id, status, input, output, error, attempt, max_attempts, runtime_id, run_token_hash, lease_expires_at, cancel_requested, total_input_tokens, total_output_tokens, total_cost_usd, created_by, created_at, started_at, finished_at, updated_at, workflow_run_id, idempotency_key, model_override, context, purpose
 `
 
 type FinishRunParams struct {
@@ -263,12 +274,13 @@ func (q *Queries) FinishRun(ctx context.Context, arg FinishRunParams) (AgentRun,
 		&i.IdempotencyKey,
 		&i.ModelOverride,
 		&i.Context,
+		&i.Purpose,
 	)
 	return i, err
 }
 
 const getAgentDefinition = `-- name: GetAgentDefinition :one
-SELECT id, name, version, content_hash, definition, prompt, enabled, is_current, created_at, source, base_hash, archived, created_by FROM agent_definitions WHERE id = $1
+SELECT id, name, version, content_hash, definition, prompt, enabled, is_current, created_at, source, base_hash, archived, created_by, candidate FROM agent_definitions WHERE id = $1
 `
 
 func (q *Queries) GetAgentDefinition(ctx context.Context, id uuid.UUID) (AgentDefinition, error) {
@@ -288,12 +300,13 @@ func (q *Queries) GetAgentDefinition(ctx context.Context, id uuid.UUID) (AgentDe
 		&i.BaseHash,
 		&i.Archived,
 		&i.CreatedBy,
+		&i.Candidate,
 	)
 	return i, err
 }
 
 const getAgentDefinitionByHash = `-- name: GetAgentDefinitionByHash :one
-SELECT id, name, version, content_hash, definition, prompt, enabled, is_current, created_at, source, base_hash, archived, created_by FROM agent_definitions WHERE content_hash = $1
+SELECT id, name, version, content_hash, definition, prompt, enabled, is_current, created_at, source, base_hash, archived, created_by, candidate FROM agent_definitions WHERE content_hash = $1
 `
 
 func (q *Queries) GetAgentDefinitionByHash(ctx context.Context, contentHash string) (AgentDefinition, error) {
@@ -313,12 +326,13 @@ func (q *Queries) GetAgentDefinitionByHash(ctx context.Context, contentHash stri
 		&i.BaseHash,
 		&i.Archived,
 		&i.CreatedBy,
+		&i.Candidate,
 	)
 	return i, err
 }
 
 const getAgentRun = `-- name: GetAgentRun :one
-SELECT id, agent_definition_id, agent_name, project_id, status, input, output, error, attempt, max_attempts, runtime_id, run_token_hash, lease_expires_at, cancel_requested, total_input_tokens, total_output_tokens, total_cost_usd, created_by, created_at, started_at, finished_at, updated_at, workflow_run_id, idempotency_key, model_override, context FROM agent_runs WHERE id = $1
+SELECT id, agent_definition_id, agent_name, project_id, status, input, output, error, attempt, max_attempts, runtime_id, run_token_hash, lease_expires_at, cancel_requested, total_input_tokens, total_output_tokens, total_cost_usd, created_by, created_at, started_at, finished_at, updated_at, workflow_run_id, idempotency_key, model_override, context, purpose FROM agent_runs WHERE id = $1
 `
 
 func (q *Queries) GetAgentRun(ctx context.Context, id uuid.UUID) (AgentRun, error) {
@@ -351,12 +365,13 @@ func (q *Queries) GetAgentRun(ctx context.Context, id uuid.UUID) (AgentRun, erro
 		&i.IdempotencyKey,
 		&i.ModelOverride,
 		&i.Context,
+		&i.Purpose,
 	)
 	return i, err
 }
 
 const getCurrentAgentDefinitionByName = `-- name: GetCurrentAgentDefinitionByName :one
-SELECT id, name, version, content_hash, definition, prompt, enabled, is_current, created_at, source, base_hash, archived, created_by FROM agent_definitions WHERE name = $1 AND is_current
+SELECT id, name, version, content_hash, definition, prompt, enabled, is_current, created_at, source, base_hash, archived, created_by, candidate FROM agent_definitions WHERE name = $1 AND is_current
 `
 
 func (q *Queries) GetCurrentAgentDefinitionByName(ctx context.Context, name string) (AgentDefinition, error) {
@@ -376,12 +391,13 @@ func (q *Queries) GetCurrentAgentDefinitionByName(ctx context.Context, name stri
 		&i.BaseHash,
 		&i.Archived,
 		&i.CreatedBy,
+		&i.Candidate,
 	)
 	return i, err
 }
 
 const getLatestShippedAgentDefinition = `-- name: GetLatestShippedAgentDefinition :one
-SELECT id, name, version, content_hash, definition, prompt, enabled, is_current, created_at, source, base_hash, archived, created_by FROM agent_definitions WHERE name = $1 AND source = 'code' ORDER BY created_at DESC LIMIT 1
+SELECT id, name, version, content_hash, definition, prompt, enabled, is_current, created_at, source, base_hash, archived, created_by, candidate FROM agent_definitions WHERE name = $1 AND source = 'code' ORDER BY created_at DESC LIMIT 1
 `
 
 func (q *Queries) GetLatestShippedAgentDefinition(ctx context.Context, name string) (AgentDefinition, error) {
@@ -401,12 +417,13 @@ func (q *Queries) GetLatestShippedAgentDefinition(ctx context.Context, name stri
 		&i.BaseHash,
 		&i.Archived,
 		&i.CreatedBy,
+		&i.Candidate,
 	)
 	return i, err
 }
 
 const getRunningRunByTokenHash = `-- name: GetRunningRunByTokenHash :one
-SELECT id, agent_definition_id, agent_name, project_id, status, input, output, error, attempt, max_attempts, runtime_id, run_token_hash, lease_expires_at, cancel_requested, total_input_tokens, total_output_tokens, total_cost_usd, created_by, created_at, started_at, finished_at, updated_at, workflow_run_id, idempotency_key, model_override, context FROM agent_runs WHERE run_token_hash = $1 AND status = 'running'
+SELECT id, agent_definition_id, agent_name, project_id, status, input, output, error, attempt, max_attempts, runtime_id, run_token_hash, lease_expires_at, cancel_requested, total_input_tokens, total_output_tokens, total_cost_usd, created_by, created_at, started_at, finished_at, updated_at, workflow_run_id, idempotency_key, model_override, context, purpose FROM agent_runs WHERE run_token_hash = $1 AND status = 'running'
 `
 
 func (q *Queries) GetRunningRunByTokenHash(ctx context.Context, runTokenHash []byte) (AgentRun, error) {
@@ -439,6 +456,7 @@ func (q *Queries) GetRunningRunByTokenHash(ctx context.Context, runTokenHash []b
 		&i.IdempotencyKey,
 		&i.ModelOverride,
 		&i.Context,
+		&i.Purpose,
 	)
 	return i, err
 }
@@ -446,7 +464,7 @@ func (q *Queries) GetRunningRunByTokenHash(ctx context.Context, runTokenHash []b
 const insertAgentDefinition = `-- name: InsertAgentDefinition :one
 INSERT INTO agent_definitions (id, name, version, content_hash, definition, prompt, enabled, is_current, source, base_hash, created_by)
 VALUES ($1, $2, $3, $4, $5, $6, $7, false, $8, $9, $10)
-RETURNING id, name, version, content_hash, definition, prompt, enabled, is_current, created_at, source, base_hash, archived, created_by
+RETURNING id, name, version, content_hash, definition, prompt, enabled, is_current, created_at, source, base_hash, archived, created_by, candidate
 `
 
 type InsertAgentDefinitionParams struct {
@@ -490,6 +508,7 @@ func (q *Queries) InsertAgentDefinition(ctx context.Context, arg InsertAgentDefi
 		&i.BaseHash,
 		&i.Archived,
 		&i.CreatedBy,
+		&i.Candidate,
 	)
 	return i, err
 }
@@ -517,6 +536,57 @@ func (q *Queries) InsertAgentEvent(ctx context.Context, arg InsertAgentEventPara
 		&i.Type,
 		&i.Payload,
 		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const insertCandidateAgentDefinition = `-- name: InsertCandidateAgentDefinition :one
+INSERT INTO agent_definitions (id, name, version, content_hash, definition, prompt, enabled, is_current, source, base_hash, created_by, candidate)
+VALUES ($1, $2, $3, $4, $5, $6, $7, false, 'panel', $8, $9, true)
+RETURNING id, name, version, content_hash, definition, prompt, enabled, is_current, created_at, source, base_hash, archived, created_by, candidate
+`
+
+type InsertCandidateAgentDefinitionParams struct {
+	ID          uuid.UUID
+	Name        string
+	Version     string
+	ContentHash string
+	Definition  json.RawMessage
+	Prompt      string
+	Enabled     bool
+	BaseHash    *string
+	CreatedBy   *uuid.UUID
+}
+
+// A version made only to be evaluated (never current until applied).
+func (q *Queries) InsertCandidateAgentDefinition(ctx context.Context, arg InsertCandidateAgentDefinitionParams) (AgentDefinition, error) {
+	row := q.db.QueryRow(ctx, insertCandidateAgentDefinition,
+		arg.ID,
+		arg.Name,
+		arg.Version,
+		arg.ContentHash,
+		arg.Definition,
+		arg.Prompt,
+		arg.Enabled,
+		arg.BaseHash,
+		arg.CreatedBy,
+	)
+	var i AgentDefinition
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Version,
+		&i.ContentHash,
+		&i.Definition,
+		&i.Prompt,
+		&i.Enabled,
+		&i.IsCurrent,
+		&i.CreatedAt,
+		&i.Source,
+		&i.BaseHash,
+		&i.Archived,
+		&i.CreatedBy,
+		&i.Candidate,
 	)
 	return i, err
 }
@@ -552,7 +622,7 @@ func (q *Queries) InsertToolCall(ctx context.Context, arg InsertToolCallParams) 
 }
 
 const listAgentDefinitionVersions = `-- name: ListAgentDefinitionVersions :many
-SELECT id, name, version, content_hash, definition, prompt, enabled, is_current, created_at, source, base_hash, archived, created_by FROM agent_definitions WHERE name = $1 ORDER BY created_at DESC LIMIT 100
+SELECT id, name, version, content_hash, definition, prompt, enabled, is_current, created_at, source, base_hash, archived, created_by, candidate FROM agent_definitions WHERE name = $1 AND NOT candidate ORDER BY created_at DESC LIMIT 100
 `
 
 func (q *Queries) ListAgentDefinitionVersions(ctx context.Context, name string) ([]AgentDefinition, error) {
@@ -578,6 +648,7 @@ func (q *Queries) ListAgentDefinitionVersions(ctx context.Context, name string) 
 			&i.BaseHash,
 			&i.Archived,
 			&i.CreatedBy,
+			&i.Candidate,
 		); err != nil {
 			return nil, err
 		}
@@ -626,8 +697,9 @@ func (q *Queries) ListAgentEvents(ctx context.Context, arg ListAgentEventsParams
 }
 
 const listAgentRuns = `-- name: ListAgentRuns :many
-SELECT id, agent_definition_id, agent_name, project_id, status, input, output, error, attempt, max_attempts, runtime_id, run_token_hash, lease_expires_at, cancel_requested, total_input_tokens, total_output_tokens, total_cost_usd, created_by, created_at, started_at, finished_at, updated_at, workflow_run_id, idempotency_key, model_override, context FROM agent_runs
-WHERE ($1::text IS NULL OR agent_name = $1)
+SELECT id, agent_definition_id, agent_name, project_id, status, input, output, error, attempt, max_attempts, runtime_id, run_token_hash, lease_expires_at, cancel_requested, total_input_tokens, total_output_tokens, total_cost_usd, created_by, created_at, started_at, finished_at, updated_at, workflow_run_id, idempotency_key, model_override, context, purpose FROM agent_runs
+WHERE purpose = 'work'
+  AND ($1::text IS NULL OR agent_name = $1)
   AND ($2::uuid IS NULL OR project_id = $2)
 ORDER BY created_at DESC
 LIMIT $3
@@ -639,6 +711,7 @@ type ListAgentRunsParams struct {
 	RowLimit  int32
 }
 
+// Real work only: evaluation replays are listed with their evaluation.
 func (q *Queries) ListAgentRuns(ctx context.Context, arg ListAgentRunsParams) ([]AgentRun, error) {
 	rows, err := q.db.Query(ctx, listAgentRuns, arg.AgentName, arg.ProjectID, arg.RowLimit)
 	if err != nil {
@@ -675,6 +748,7 @@ func (q *Queries) ListAgentRuns(ctx context.Context, arg ListAgentRunsParams) ([
 			&i.IdempotencyKey,
 			&i.ModelOverride,
 			&i.Context,
+			&i.Purpose,
 		); err != nil {
 			return nil, err
 		}
@@ -687,7 +761,7 @@ func (q *Queries) ListAgentRuns(ctx context.Context, arg ListAgentRunsParams) ([
 }
 
 const listCurrentAgentDefinitions = `-- name: ListCurrentAgentDefinitions :many
-SELECT d.id, d.name, d.version, d.content_hash, d.definition, d.prompt, d.enabled, d.is_current, d.created_at, d.source, d.base_hash, d.archived, d.created_by, s.run_count, s.last_run_at
+SELECT d.id, d.name, d.version, d.content_hash, d.definition, d.prompt, d.enabled, d.is_current, d.created_at, d.source, d.base_hash, d.archived, d.created_by, d.candidate, s.run_count, s.last_run_at
 FROM agent_definitions d
 LEFT JOIN LATERAL (
     SELECT count(*) AS run_count, max(r.created_at) AS last_run_at
@@ -726,6 +800,7 @@ func (q *Queries) ListCurrentAgentDefinitions(ctx context.Context) ([]ListCurren
 			&i.AgentDefinition.BaseHash,
 			&i.AgentDefinition.Archived,
 			&i.AgentDefinition.CreatedBy,
+			&i.AgentDefinition.Candidate,
 			&i.RunCount,
 			&i.LastRunAt,
 		); err != nil {
@@ -740,7 +815,7 @@ func (q *Queries) ListCurrentAgentDefinitions(ctx context.Context) ([]ListCurren
 }
 
 const listExpiredRunLeases = `-- name: ListExpiredRunLeases :many
-SELECT id, agent_definition_id, agent_name, project_id, status, input, output, error, attempt, max_attempts, runtime_id, run_token_hash, lease_expires_at, cancel_requested, total_input_tokens, total_output_tokens, total_cost_usd, created_by, created_at, started_at, finished_at, updated_at, workflow_run_id, idempotency_key, model_override, context FROM agent_runs
+SELECT id, agent_definition_id, agent_name, project_id, status, input, output, error, attempt, max_attempts, runtime_id, run_token_hash, lease_expires_at, cancel_requested, total_input_tokens, total_output_tokens, total_cost_usd, created_by, created_at, started_at, finished_at, updated_at, workflow_run_id, idempotency_key, model_override, context, purpose FROM agent_runs
 WHERE status = 'running' AND lease_expires_at < now()
 ORDER BY lease_expires_at
 FOR UPDATE SKIP LOCKED
@@ -783,6 +858,7 @@ func (q *Queries) ListExpiredRunLeases(ctx context.Context) ([]AgentRun, error) 
 			&i.IdempotencyKey,
 			&i.ModelOverride,
 			&i.Context,
+			&i.Purpose,
 		); err != nil {
 			return nil, err
 		}
@@ -795,7 +871,7 @@ func (q *Queries) ListExpiredRunLeases(ctx context.Context) ([]AgentRun, error) 
 }
 
 const lockAgentRun = `-- name: LockAgentRun :one
-SELECT id, agent_definition_id, agent_name, project_id, status, input, output, error, attempt, max_attempts, runtime_id, run_token_hash, lease_expires_at, cancel_requested, total_input_tokens, total_output_tokens, total_cost_usd, created_by, created_at, started_at, finished_at, updated_at, workflow_run_id, idempotency_key, model_override, context FROM agent_runs WHERE id = $1 FOR UPDATE
+SELECT id, agent_definition_id, agent_name, project_id, status, input, output, error, attempt, max_attempts, runtime_id, run_token_hash, lease_expires_at, cancel_requested, total_input_tokens, total_output_tokens, total_cost_usd, created_by, created_at, started_at, finished_at, updated_at, workflow_run_id, idempotency_key, model_override, context, purpose FROM agent_runs WHERE id = $1 FOR UPDATE
 `
 
 func (q *Queries) LockAgentRun(ctx context.Context, id uuid.UUID) (AgentRun, error) {
@@ -828,6 +904,7 @@ func (q *Queries) LockAgentRun(ctx context.Context, id uuid.UUID) (AgentRun, err
 		&i.IdempotencyKey,
 		&i.ModelOverride,
 		&i.Context,
+		&i.Purpose,
 	)
 	return i, err
 }
@@ -835,7 +912,7 @@ func (q *Queries) LockAgentRun(ctx context.Context, id uuid.UUID) (AgentRun, err
 const requestRunCancel = `-- name: RequestRunCancel :one
 UPDATE agent_runs SET cancel_requested = true, updated_at = now()
 WHERE id = $1
-RETURNING id, agent_definition_id, agent_name, project_id, status, input, output, error, attempt, max_attempts, runtime_id, run_token_hash, lease_expires_at, cancel_requested, total_input_tokens, total_output_tokens, total_cost_usd, created_by, created_at, started_at, finished_at, updated_at, workflow_run_id, idempotency_key, model_override, context
+RETURNING id, agent_definition_id, agent_name, project_id, status, input, output, error, attempt, max_attempts, runtime_id, run_token_hash, lease_expires_at, cancel_requested, total_input_tokens, total_output_tokens, total_cost_usd, created_by, created_at, started_at, finished_at, updated_at, workflow_run_id, idempotency_key, model_override, context, purpose
 `
 
 func (q *Queries) RequestRunCancel(ctx context.Context, id uuid.UUID) (AgentRun, error) {
@@ -868,6 +945,7 @@ func (q *Queries) RequestRunCancel(ctx context.Context, id uuid.UUID) (AgentRun,
 		&i.IdempotencyKey,
 		&i.ModelOverride,
 		&i.Context,
+		&i.Purpose,
 	)
 	return i, err
 }
@@ -876,7 +954,7 @@ const requeueRun = `-- name: RequeueRun :one
 UPDATE agent_runs SET
     status = 'queued', runtime_id = NULL, run_token_hash = NULL, lease_expires_at = NULL, updated_at = now()
 WHERE id = $1
-RETURNING id, agent_definition_id, agent_name, project_id, status, input, output, error, attempt, max_attempts, runtime_id, run_token_hash, lease_expires_at, cancel_requested, total_input_tokens, total_output_tokens, total_cost_usd, created_by, created_at, started_at, finished_at, updated_at, workflow_run_id, idempotency_key, model_override, context
+RETURNING id, agent_definition_id, agent_name, project_id, status, input, output, error, attempt, max_attempts, runtime_id, run_token_hash, lease_expires_at, cancel_requested, total_input_tokens, total_output_tokens, total_cost_usd, created_by, created_at, started_at, finished_at, updated_at, workflow_run_id, idempotency_key, model_override, context, purpose
 `
 
 func (q *Queries) RequeueRun(ctx context.Context, id uuid.UUID) (AgentRun, error) {
@@ -909,6 +987,7 @@ func (q *Queries) RequeueRun(ctx context.Context, id uuid.UUID) (AgentRun, error
 		&i.IdempotencyKey,
 		&i.ModelOverride,
 		&i.Context,
+		&i.Purpose,
 	)
 	return i, err
 }

@@ -8,6 +8,7 @@ import { api, unwrap, type Schemas } from "../api/client";
 import { useWorkflowEvents, type WorkflowEvent } from "../api/events";
 import { ArtifactView } from "../components/ArtifactView";
 import { Json } from "../components/Json";
+import { FeedbackButtons } from "../components/FeedbackButtons";
 import { Badge, CopyText, Empty, ErrorNote, Panel, formatDate, relativeTime } from "../components/ui";
 import {
   ApprovalCard, Pipeline, TaskStatus, WorkflowStatus, isActiveWorkflow, kindLabel, stepName, type Artifact, type Plan,
@@ -118,6 +119,7 @@ function ArtifactsPanel({ taskId, plan, latest, kind, onKind }: {
             <span className="mono" title={shown.contentHash}>#{shown.contentHash.slice(0, 12)}</span>
             <span title={formatDate(shown.createdAt)}>{relativeTime(shown.createdAt)}</span>
             {shown.agentRunId && <Link to={`/runs/${shown.agentRunId}`}>agent run</Link>}
+            <FeedbackButtons targetType="artifact" targetId={shown.id} />
           </div>
           {raw ? <Json value={shown.content} label={kindLabel(shown.kind)} maxHeight={700} /> : <ArtifactView content={shown.content} />}
         </div>

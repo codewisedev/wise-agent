@@ -381,6 +381,7 @@ type AgentDefinition struct {
 	BaseHash    *string
 	Archived    bool
 	CreatedBy   *uuid.UUID
+	Candidate   bool
 }
 
 type AgentEvent struct {
@@ -419,6 +420,7 @@ type AgentRun struct {
 	IdempotencyKey    *string
 	ModelOverride     []byte
 	Context           []byte
+	Purpose           string
 }
 
 type ApiToken struct {
@@ -547,6 +549,114 @@ type CodeSymbol struct {
 	StartLine    int32
 	EndLine      int32
 	Doc          string
+}
+
+type EvalCase struct {
+	ID          uuid.UUID
+	AgentName   string
+	Kind        string
+	Input       json.RawMessage
+	ProjectID   *uuid.UUID
+	SourceRunID *uuid.UUID
+	Source      string
+	Expectation string
+	Enabled     bool
+	CreatedBy   *uuid.UUID
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+}
+
+type EvalResult struct {
+	ID             uuid.UUID
+	EvalRunID      uuid.UUID
+	CaseID         *uuid.UUID
+	CaseKind       string
+	Expectation    string
+	BaselineRunID  *uuid.UUID
+	CandidateRunID *uuid.UUID
+	JudgeRunID     *uuid.UUID
+	Status         string
+	Checks         []byte
+	AIs            *string
+	BaselineScore  *int32
+	CandidateScore *int32
+	Reasoning      *string
+	Error          *string
+	UpdatedAt      time.Time
+}
+
+type EvalRun struct {
+	ID                    uuid.UUID
+	ProposalID            uuid.UUID
+	AgentName             string
+	BaselineDefinitionID  uuid.UUID
+	CandidateDefinitionID uuid.UUID
+	BaselineModel         []byte
+	CandidateModel        []byte
+	JudgeModel            []byte
+	Status                string
+	CostCapUsd            float64
+	Summary               []byte
+	Error                 *string
+	CreatedBy             *uuid.UUID
+	CreatedAt             time.Time
+	FinishedAt            *time.Time
+}
+
+type Feedback struct {
+	ID                uuid.UUID
+	TargetType        string
+	TargetID          uuid.UUID
+	RunID             *uuid.UUID
+	ArtifactID        *uuid.UUID
+	AgentName         *string
+	AgentDefinitionID *uuid.UUID
+	TaskID            *uuid.UUID
+	Rating            string
+	Note              string
+	UserID            uuid.UUID
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
+}
+
+type ImprovementAnalysis struct {
+	ID         uuid.UUID
+	Trigger    string
+	Period     *string
+	WindowDays int32
+	Status     string
+	AgentRunID *uuid.UUID
+	Digest     json.RawMessage
+	Proposals  int32
+	Refused    json.RawMessage
+	Error      *string
+	CreatedBy  *uuid.UUID
+	CreatedAt  time.Time
+	FinishedAt *time.Time
+}
+
+type ImprovementProposal struct {
+	ID            uuid.UUID
+	AnalysisID    *uuid.UUID
+	Kind          string
+	Target        string
+	Title         string
+	Rationale     string
+	Evidence      json.RawMessage
+	Change        json.RawMessage
+	Before        json.RawMessage
+	Base          json.RawMessage
+	Fingerprint   string
+	Status        string
+	MetricsBefore []byte
+	Applied       []byte
+	DecisionNote  *string
+	DecidedBy     *uuid.UUID
+	DecidedAt     *time.Time
+	AppliedAt     *time.Time
+	RolledBackAt  *time.Time
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
 }
 
 type IndexJob struct {
@@ -871,6 +981,16 @@ type WorkflowTemplate struct {
 	CreatedBy   *uuid.UUID
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
+}
+
+type WorkflowTemplateVersion struct {
+	TemplateID  uuid.UUID
+	Version     int32
+	Name        string
+	Description string
+	Definition  json.RawMessage
+	ChangedBy   *uuid.UUID
+	CreatedAt   time.Time
 }
 
 type Workspace struct {

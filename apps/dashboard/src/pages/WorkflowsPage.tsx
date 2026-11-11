@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "react-router";
 import { api, unwrap, type Schemas } from "../api/client";
 import { StepInspector, WorkflowFlow, type TemplateDef, type TemplateStep } from "../components/WorkflowFlow";
-import { Badge, Empty, ErrorNote, Field, Panel } from "../components/ui";
+import { Badge, Empty, ErrorNote, Field, Panel, relativeTime } from "../components/ui";
 
 type Template = Schemas["WorkflowTemplate"];
 const ROLES: Schemas["ColumnRole"][] = ["backlog", "todo", "in_progress", "review", "done"];
@@ -198,7 +198,44 @@ function Editor({ template, agents, onSaved }: { template: Template | null; agen
         <ul className="flow-issues small">{issues.map((i) => <li key={`${i.stepId}-${i.message}`}>{i.stepId ? <strong>{i.stepId}: </strong> : null}{i.message}</li>)}</ul>
       )}
       <ErrorNote error={save.error ?? makeDefault.error ?? del.error ?? duplicate.error ?? preview.error} />
+      {template && <TemplateHistory template={template} dirty={dirty} onRestored={onSaved} />}
     </Panel>
+  );
+}
+
+/** Earlier definitions of a template (every save keeps the one it replaced), with Restore. */
+function TemplateHistory({ template, dirty, onRestored }: { template: Template; dirty: boolean; onRestored: (t: Template) => void }) {
+  const qc = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const versions = useQuery({
+    queryKey: ["workflow-templates", template.id, "versions", template.version],
+    queryFn: () => unwrap(api.GET("/workflow-templates/{templateId}/versions", { params: { path: { templateId: template.id } } })),
+    enabled: open,
+  });
+  const restore = useMutation({
+    mutationFn: (version: number) =>
+      unwrap(api.POST("/workflow-templates/{templateId}/versions/{version}/restore", { params: { path: { templateId: template.id, version } } })),
+    onSuccess: (t) => {
+      void qc.invalidateQueries({ queryKey: ["workflow-templates"] });
+      onRestored(t);
+    },
+  });
+  return (
+    <details className="template-history" onToggle={(e) => setOpen((e.target as HTMLDetailsElement).open)}>
+      <summary className="small">History (version {template.version})</summary>
+      <ErrorNote error={versions.error ?? restore.error} />
+      {versions.data && versions.data.items.length === 0 && <p className="small faint">No earlier versions yet.</p>}
+      <ul className="small">
+        {versions.data?.items.map((v) => (
+          <li key={v.version}>
+            version {v.version} · {v.name} · {v.definition && Array.isArray((v.definition as { steps?: unknown[] }).steps) ? `${(v.definition as { steps: unknown[] }).steps.length} steps` : ""} · replaced {relativeTime(v.createdAt)}{" "}
+            <button type="button" className="btn btn-sm" disabled={restore.isPending || dirty}
+              title={dirty ? "Save or discard your changes first" : "Save this definition as the new version"}
+              onClick={() => restore.mutate(v.version)}>Restore</button>
+          </li>
+        ))}
+      </ul>
+    </details>
   );
 }
 
@@ -233,7 +270,7 @@ export function WorkflowsPage() {
           ))}
         </nav>
         {agents.data && (creating || current) && (
-          <Editor key={creating ? "new" : current!.id} template={creating ? null : current} agents={agents.data.items}
+          <Editor key={creating ? "new" : `${current!.id}:${current!.version}`} template={creating ? null : current} agents={agents.data.items}
             onSaved={(t) => select(t?.id)} />
         )}
       </div>

@@ -1,0 +1,119 @@
+name: improvement-agent
+version: 1.0.1
+description: "Reads Wise's own performance (metrics, failures, your review comments and ratings) and proposes evidence-backed improvements to agent prompts, memory, model routing and workflow templates, for you to approve."
+enabled: true
+phase: 6
+prompt: improvement-agent/system.md
+produces: improvement_proposals
+responsibilities:
+  - Find the few changes most likely to reduce rejections, failures, fix rounds and cost
+  - Back every proposal with concrete evidence from the input (ids)
+  - Never repeat a rejected or rolled-back idea; never touch tools, permissions, approvals, security or runtime policies
+input_schema:
+  type: object
+  additionalProperties: false
+  required: [window_days, agents]
+  properties:
+    window_days: { type: integer }
+    agents:
+      type: array
+      description: "Per agent version: runs, success, retries, invalid outputs, review rejections, fix rounds, cost, your ratings."
+      items: { type: object, additionalProperties: true }
+    prompts:
+      type: array
+      description: "Current system prompts of the agents you may propose prompt edits for."
+      items: { type: object, additionalProperties: true }
+    failures: { type: array, items: { type: object, additionalProperties: true } }
+    review_comments: { type: array, description: "Comments you wrote when rejecting a review, per agent blamed.", items: { type: object, additionalProperties: true } }
+    feedback_notes: { type: array, description: "Your thumbs-down notes.", items: { type: object, additionalProperties: true } }
+    memories: { type: array, description: "Active memories with how often agents were given them.", items: { type: object, additionalProperties: true } }
+    routing: { type: object, additionalProperties: true, description: "Model aliases and daily budgets." }
+    providers: { type: array, items: { type: object, additionalProperties: true } }
+    templates: { type: array, items: { type: object, additionalProperties: true } }
+    past_proposals: { type: array, description: "Earlier proposals and what happened to them.", items: { type: object, additionalProperties: true } }
+    applied_outcomes: { type: array, description: "Applied prompt changes: the agent's numbers before and since.", items: { type: object, additionalProperties: true } }
+    rules: { type: object, additionalProperties: true, description: "What may and may not be proposed." }
+    trimmed: { type: array, items: { type: string }, description: "What was shortened to fit; do not propose what the trimmed parts would be needed for." }
+output_schema:
+  type: object
+  additionalProperties: false
+  required: [proposals]
+  properties:
+    proposals:
+      type: array
+      maxItems: 8
+      items:
+        type: object
+        additionalProperties: false
+        required: [kind, target, title, rationale, evidence]
+        properties:
+          kind: { enum: [prompt, memory, routing, template] }
+          target: { type: string, description: "prompt: the agent name; memory: \"memory\"; routing: \"models\" or \"model_policy\"; template: the template id." }
+          title: { type: string, maxLength: 160 }
+          rationale: { type: string, maxLength: 2000, description: "What the evidence shows and why this change should help." }
+          evidence:
+            type: object
+            additionalProperties: false
+            properties:
+              run_ids: { type: array, items: { type: string } }
+              approval_ids: { type: array, items: { type: string } }
+              feedback_ids: { type: array, items: { type: string } }
+              memory_ids: { type: array, items: { type: string } }
+          prompt_edits:
+            type: array
+            description: "prompt: edits to the current prompt. old = exact text that occurs once (empty = append new at the end)."
+            items:
+              type: object
+              additionalProperties: false
+              required: [old, new]
+              properties:
+                old: { type: string }
+                new: { type: string }
+          memory_ops:
+            type: array
+            items:
+              type: object
+              additionalProperties: false
+              required: [op]
+              properties:
+                op: { enum: [create, archive, merge] }
+                ids: { type: array, items: { type: string }, description: "archive/merge: the memories affected." }
+                scope: { enum: [developer, project] }
+                project_id: { type: string }
+                kind: { enum: [rule, preference, decision, fact, convention, example] }
+                category: { enum: [coding, architecture, testing, api, database, security, tooling, product, other] }
+                title: { type: string, maxLength: 200 }
+                body: { type: string, maxLength: 4000 }
+          routing_ops:
+            type: array
+            description: "routing: JSON patch operations on the setting named by target."
+            items:
+              type: object
+              additionalProperties: false
+              required: [op, path]
+              properties:
+                op: { enum: [add, replace, remove] }
+                path: { type: string }
+                value: {}
+          template_definition: { type: object, additionalProperties: true, description: "template: the complete new definition." }
+tools: []
+permissions: []
+model_config:
+  alias: reasoning
+  fallbacks: [local]
+  temperature: 0.2
+  max_output_tokens: 4096
+execution_limits:
+  max_turns: 3
+  max_tool_calls: 0
+  max_tokens: 150000
+  max_cost_usd: 1
+  timeout_s: 900
+error_handling:
+  max_attempts: 2
+  invalid_output_retries: 2
+evaluation:
+  criteria:
+    - Every proposal cites evidence ids that exist in the input
+    - Few, specific, high-leverage changes rather than many vague ones
+    - Nothing outside the allowed kinds; no rejected idea repeated

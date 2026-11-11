@@ -1619,6 +1619,10 @@ Build:
 
 **Goal:** Wise learns from previous engineering work.
 
+**Status:** done — see `docs/decisions/0009-self-improvement.md`. Includes the Wise system memory of §12.3 (analyses,
+proposals and their outcomes). Prompts are versioned agent definitions; "skills" are deferred (Wise has none yet), as
+is replaying workspace agents in evaluations.
+
 ## Phase 7 — Release and Dashboard
 
 Build:

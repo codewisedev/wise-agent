@@ -1188,6 +1188,45 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/workflow-templates/{templateId}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                templateId: string;
+            };
+            cookie?: never;
+        };
+        /** @description Earlier definitions of the template (newest first). */
+        get: operations["listWorkflowTemplateVersions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/workflow-templates/{templateId}/versions/{version}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                templateId: string;
+                version: number;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Saves an earlier definition as the template's new version (the current one is kept in the history). */
+        post: operations["restoreWorkflowTemplateVersion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/workflow-templates/preview": {
         parameters: {
             query?: never;
@@ -2011,6 +2050,303 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/feedback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Ratings of agent results (newest first). */
+        get: operations["listFeedback"];
+        /** @description Rates a run or an artifact (replaces your earlier rating of it). */
+        put: operations["setFeedback"];
+        post?: never;
+        /** @description Removes your rating of a run or an artifact. */
+        delete: operations["clearFeedback"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/insights": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description How agents, models and workflows performed over a window (evaluation replays excluded). */
+        get: operations["getInsights"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/insights/agents/{agentName}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agentName: string;
+            };
+            cookie?: never;
+        };
+        /** @description One agent's versions, daily trend, repeated failures, review comments and your thumbs-down notes. */
+        get: operations["getAgentInsights"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/improvements/analyses": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Recent analyses of Wise's own performance (newest first). */
+        get: operations["listImprovementAnalyses"];
+        put?: never;
+        /** @description Analyses recent performance now and proposes improvements (runs the improvement agent). */
+        post: operations["startImprovementAnalysis"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/improvements/proposals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Improvement proposals (open ones whose target changed since are marked stale). */
+        get: operations["listImprovementProposals"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/improvements/proposals/{proposalId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                proposalId: string;
+            };
+            cookie?: never;
+        };
+        get: operations["getImprovementProposal"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/improvements/proposals/{proposalId}/apply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                proposalId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Applies the proposal through the target's versioned mechanism (checked against the hard rule again). */
+        post: operations["applyImprovementProposal"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/improvements/proposals/{proposalId}/rollback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                proposalId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Restores what an applied proposal replaced. If the target changed since, confirm must be true. */
+        post: operations["rollbackImprovementProposal"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/improvements/proposals/{proposalId}/monitor": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                proposalId: string;
+            };
+            cookie?: never;
+        };
+        /** @description The target's numbers when applied and since. */
+        get: operations["monitorImprovementProposal"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/improvements/proposals/{proposalId}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                proposalId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Declines a proposal. It is kept, with your note, so later analyses do not repeat it. */
+        post: operations["rejectImprovementProposal"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agents/{agentName}/eval-cases": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agentName: string;
+            };
+            cookie?: never;
+        };
+        /** @description The agent's evaluation suite. Cases from your reviews and ratings are added automatically. */
+        get: operations["listEvalCases"];
+        put?: never;
+        /** @description Adds your own case (the input must match the agent's input schema). */
+        post: operations["createEvalCase"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/eval-cases/{caseId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                caseId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** @description Deletes one of your own cases (cases from reviews are switched off instead). */
+        delete: operations["deleteEvalCase"];
+        options?: never;
+        head?: never;
+        patch: operations["updateEvalCase"];
+        trace?: never;
+    };
+    "/improvements/proposals/{proposalId}/eval-plan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                proposalId: string;
+            };
+            cookie?: never;
+        };
+        /** @description Whether the proposal can be evaluated, on which agent, how many cases, and an estimated cost. */
+        get: operations["getEvalPlan"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/improvements/proposals/{proposalId}/evaluate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                proposalId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Replays the agent's cases with the current version and the proposal, and has the judge score both. */
+        post: operations["evaluateProposal"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/improvements/proposals/{proposalId}/evals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                proposalId: string;
+            };
+            cookie?: never;
+        };
+        get: operations["listProposalEvals"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/evals/{evalRunId}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                evalRunId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["cancelEval"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -2424,6 +2760,11 @@ export interface components {
             projectId?: string | null;
             /** Format: uuid */
             workflowRunId?: string | null;
+            /**
+             * @description eval = an evaluation replay (excluded from metrics, run lists and budgets).
+             * @enum {string}
+             */
+            purpose?: "work" | "eval";
             status: components["schemas"]["AgentRunStatus"];
             input: {
                 [key: string]: unknown;
@@ -2918,7 +3259,7 @@ export interface components {
             body: string;
             status: components["schemas"]["MemoryStatus"];
             /** @enum {string} */
-            source: "manual" | "review_feedback" | "report" | "profile_inference" | "task";
+            source: "manual" | "review_feedback" | "report" | "profile_inference" | "task" | "improvement";
             sourceRefs: {
                 [key: string]: unknown;
             };
@@ -3489,6 +3830,335 @@ export interface components {
             events: components["schemas"]["ExternalEvent"][];
             done: boolean;
             outcome?: components["schemas"]["ExternalOutcome"];
+        };
+        AgentStat: {
+            agent: string;
+            version: string;
+            /** Format: uuid */
+            definitionId: string;
+            /** Format: int64 */
+            runs: number;
+            /** Format: int64 */
+            succeeded: number;
+            /** Format: int64 */
+            failed: number;
+            /** Format: int64 */
+            cancelled: number;
+            /** Format: int64 */
+            retries: number;
+            /** Format: int64 */
+            invalidOutputs: number;
+            medianSeconds: number;
+            p90Seconds: number;
+            costUsd: number;
+            /** Format: int64 */
+            tokens: number;
+            /**
+             * Format: int64
+             * @description Decided reviews this agent's work was part of (steps re-run on rejection).
+             */
+            reviewed: number;
+            /** Format: int64 */
+            rejected: number;
+            /**
+             * Format: int64
+             * @description Failed quality-gate rounds this implementing agent had to fix.
+             */
+            gateFixRounds: number;
+            /** Format: int64 */
+            thumbsUp: number;
+            /** Format: int64 */
+            thumbsDown: number;
+            successRate: number;
+            rejectionRate: number;
+            costPerRunUsd: number;
+            invalidRate: number;
+        };
+        InsightCluster: {
+            agent: string;
+            text: string;
+            count: number;
+            runIds?: string[];
+            /** @description Approval ids (review comments). */
+            sources?: string[];
+        };
+        InsightsReport: {
+            window: string;
+            /** Format: date-time */
+            since: string;
+            agents: components["schemas"]["AgentStat"][];
+            providers: {
+                provider: string;
+                model: string;
+                /** Format: int64 */
+                calls: number;
+                /** Format: int64 */
+                errors: number;
+                /** Format: int64 */
+                rejected: number;
+                medianLatencyMs: number;
+                costUsd: number;
+                /** Format: int64 */
+                tokens: number;
+                errorRate: number;
+            }[];
+            templates: {
+                template: string;
+                /** Format: int64 */
+                runs: number;
+                /** Format: int64 */
+                completed: number;
+                /** Format: int64 */
+                failed: number;
+                /** Format: int64 */
+                cancelled: number;
+                /** Format: int64 */
+                stalled: number;
+                medianSeconds: number;
+                costUsd: number;
+            }[];
+            stalls: {
+                template: string;
+                stage: string;
+                /** Format: int64 */
+                waiting: number;
+            }[];
+            failures: components["schemas"]["InsightCluster"][];
+            comments: components["schemas"]["InsightCluster"][];
+        };
+        AgentInsights: {
+            agent: string;
+            window: string;
+            versions: components["schemas"]["AgentStat"][];
+            days: {
+                day: string;
+                /** Format: int64 */
+                runs: number;
+                /** Format: int64 */
+                succeeded: number;
+                costUsd: number;
+            }[];
+            failures: components["schemas"]["InsightCluster"][];
+            comments: components["schemas"]["InsightCluster"][];
+            feedback: {
+                /** Format: uuid */
+                id: string;
+                targetType: string;
+                /** Format: uuid */
+                targetId: string;
+                /** Format: uuid */
+                runId?: string | null;
+                note: string;
+                /** Format: date-time */
+                at: string;
+            }[];
+        };
+        ModelChoice: {
+            /** @description Empty = the agent's own routing. */
+            account?: string;
+            model?: string;
+        };
+        EvalCase: {
+            /** Format: uuid */
+            id: string;
+            agentName: string;
+            /** @enum {string} */
+            kind: "golden" | "must_fix" | "custom";
+            input: {
+                [key: string]: unknown;
+            };
+            /** Format: uuid */
+            projectId?: string | null;
+            /** Format: uuid */
+            sourceRunId?: string | null;
+            /** @description approval, feedback or manual */
+            source: string;
+            expectation: string;
+            enabled: boolean;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        EvalPlan: {
+            evaluable: boolean;
+            /** @description Why it cannot be evaluated. */
+            reason?: string;
+            agent?: string;
+            /** @description Routing - the affected agents to choose from. */
+            agents?: string[];
+            cases: number;
+            /** @description From the agent's average run cost over 30 days (local models cost nothing). */
+            estimatedCostUsd: number;
+            /** @description False for routing (the models are what is compared). */
+            choosesModel: boolean;
+            defaults: {
+                max_cases: number;
+                cost_cap_usd: number;
+                judge: components["schemas"]["ModelChoice"];
+            };
+        };
+        EvalResult: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            caseId?: string | null;
+            caseKind: string;
+            expectation: string;
+            /** Format: uuid */
+            baselineRunId?: string | null;
+            /** Format: uuid */
+            candidateRunId?: string | null;
+            /** Format: uuid */
+            judgeRunId?: string | null;
+            /** @enum {string} */
+            status: "pending" | "running" | "judging" | "done" | "failed";
+            checks?: {
+                [key: string]: unknown;
+            } | null;
+            baselineScore?: number | null;
+            candidateScore?: number | null;
+            reasoning?: string | null;
+            error?: string | null;
+        };
+        EvalRun: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            proposalId: string;
+            agentName: string;
+            baselineModel?: components["schemas"]["ModelChoice"];
+            candidateModel?: components["schemas"]["ModelChoice"];
+            judgeModel?: components["schemas"]["ModelChoice"];
+            /** @enum {string} */
+            status: "running" | "succeeded" | "failed" | "cancelled";
+            costCapUsd: number;
+            summary?: {
+                cases?: number;
+                judged?: number;
+                failed?: number;
+                baselineMean?: number;
+                candidateMean?: number;
+                candidateBetter?: number;
+                same?: number;
+                candidateWorse?: number;
+                baselineInvalid?: number;
+                candidateInvalid?: number;
+                candidateSecrets?: number;
+                costUsd?: number;
+            } | null;
+            error?: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            finishedAt?: string | null;
+            results: components["schemas"]["EvalResult"][];
+        };
+        ImprovementAnalysis: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            trigger: "manual" | "scheduled";
+            period?: string | null;
+            windowDays: number;
+            /** @enum {string} */
+            status: "running" | "succeeded" | "failed" | "skipped";
+            /** Format: uuid */
+            agentRunId?: string | null;
+            /** @description Proposals stored. */
+            proposals: number;
+            /** @description Proposals refused by the hard rule, the evidence check or as duplicates, with the reason. */
+            refused: {
+                kind: string;
+                target: string;
+                title: string;
+                reason: string;
+            }[];
+            error?: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            finishedAt?: string | null;
+        };
+        ImprovementProposal: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            analysisId?: string | null;
+            /** @enum {string} */
+            kind: "prompt" | "memory" | "routing" | "template";
+            /** @description The agent, setting (models, model_policy), template id, or "memory". */
+            target: string;
+            title: string;
+            rationale: string;
+            evidence: {
+                run_ids?: string[];
+                approval_ids?: string[];
+                feedback_ids?: string[];
+                memory_ids?: string[];
+            };
+            /** @description The typed change applying would write. */
+            change: {
+                [key: string]: unknown;
+            };
+            /** @description The target when the proposal was made (for the diff). */
+            before: {
+                [key: string]: unknown;
+            };
+            /** @description The versions the proposal was written against. */
+            base: {
+                [key: string]: unknown;
+            };
+            /** @enum {string} */
+            status: "proposed" | "evaluating" | "evaluated" | "applying" | "applied" | "rejected" | "rolled_back" | "stale";
+            /** @description The target's metrics when proposed. */
+            metricsBefore?: unknown;
+            /** @description What applying produced and replaced. */
+            applied?: {
+                [key: string]: unknown;
+            } | null;
+            decisionNote?: string | null;
+            /** Format: date-time */
+            decidedAt?: string | null;
+            /** Format: date-time */
+            appliedAt?: string | null;
+            /** Format: date-time */
+            rolledBackAt?: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        FeedbackInput: {
+            /** @enum {string} */
+            targetType: "run" | "artifact";
+            /** Format: uuid */
+            targetId: string;
+            /** @enum {string} */
+            rating: "up" | "down";
+            note?: string;
+        };
+        Feedback: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            targetType: "run" | "artifact";
+            /** Format: uuid */
+            targetId: string;
+            /** @description The agent that produced the result (none for Wise's own artifacts). */
+            agentName?: string | null;
+            /** Format: uuid */
+            agentDefinitionId?: string | null;
+            /** Format: uuid */
+            taskId?: string | null;
+            /** @enum {string} */
+            rating: "up" | "down";
+            note: string;
+            /** Format: uuid */
+            userId: string;
+            username?: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
         };
         WorkspaceCommandResult: {
             exitCode?: number | null;
@@ -5825,6 +6495,72 @@ export interface operations {
             401: components["responses"]["Problem"];
         };
     };
+    listWorkflowTemplateVersions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                templateId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Versions. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: {
+                            version: number;
+                            name: string;
+                            description: string;
+                            definition: {
+                                [key: string]: unknown;
+                            };
+                            /** Format: uuid */
+                            changedBy?: string | null;
+                            /**
+                             * Format: date-time
+                             * @description When it was replaced.
+                             */
+                            createdAt: string;
+                        }[];
+                    };
+                };
+            };
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    restoreWorkflowTemplateVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                templateId: string;
+                version: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Restored. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkflowTemplate"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
     previewWorkflowTemplate: {
         parameters: {
             query?: never;
@@ -7324,6 +8060,584 @@ export interface operations {
                 content?: never;
             };
             401: components["responses"]["Problem"];
+        };
+    };
+    listFeedback: {
+        parameters: {
+            query?: {
+                targetType?: "run" | "artifact";
+                targetId?: string;
+                agent?: string;
+                rating?: "up" | "down";
+                taskId?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Ratings. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["Feedback"][];
+                    };
+                };
+            };
+            401: components["responses"]["Problem"];
+        };
+    };
+    setFeedback: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FeedbackInput"];
+            };
+        };
+        responses: {
+            /** @description Saved. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Feedback"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    clearFeedback: {
+        parameters: {
+            query: {
+                targetType: "run" | "artifact";
+                targetId: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Removed. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Problem"];
+        };
+    };
+    getInsights: {
+        parameters: {
+            query?: {
+                window?: "7d" | "30d" | "90d";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Insights. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InsightsReport"];
+                };
+            };
+            401: components["responses"]["Problem"];
+        };
+    };
+    getAgentInsights: {
+        parameters: {
+            query?: {
+                window?: "7d" | "30d" | "90d";
+            };
+            header?: never;
+            path: {
+                agentName: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Agent insights. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentInsights"];
+                };
+            };
+            401: components["responses"]["Problem"];
+        };
+    };
+    listImprovementAnalyses: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Analyses. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["ImprovementAnalysis"][];
+                    };
+                };
+            };
+            401: components["responses"]["Problem"];
+        };
+    };
+    startImprovementAnalysis: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Started (or skipped when there is too little to analyse). */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImprovementAnalysis"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+        };
+    };
+    listImprovementProposals: {
+        parameters: {
+            query?: {
+                status?: "proposed" | "evaluating" | "evaluated" | "applied" | "rejected" | "rolled_back" | "stale";
+                kind?: "prompt" | "memory" | "routing" | "template";
+                target?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Proposals. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["ImprovementProposal"][];
+                        /**
+                         * Format: int64
+                         * @description Proposals waiting for a decision.
+                         */
+                        openCount: number;
+                    };
+                };
+            };
+            401: components["responses"]["Problem"];
+        };
+    };
+    getImprovementProposal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                proposalId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The proposal. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImprovementProposal"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    applyImprovementProposal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                proposalId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Applied. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImprovementProposal"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+        };
+    };
+    rollbackImprovementProposal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                proposalId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    confirm?: boolean;
+                    note?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Rolled back. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImprovementProposal"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+        };
+    };
+    monitorImprovementProposal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                proposalId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Before and since. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: date-time */
+                        appliedAt?: string | null;
+                        before?: components["schemas"]["AgentStat"][] | null;
+                        since: components["schemas"]["AgentStat"][];
+                        template?: {
+                            [key: string]: unknown;
+                        } | null;
+                    };
+                };
+            };
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    rejectImprovementProposal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                proposalId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    note?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Rejected. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImprovementProposal"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+        };
+    };
+    listEvalCases: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agentName: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Cases. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["EvalCase"][];
+                    };
+                };
+            };
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    createEvalCase: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agentName: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    input: {
+                        [key: string]: unknown;
+                    };
+                    /** Format: uuid */
+                    projectId?: string | null;
+                    expectation?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Created. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvalCase"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    deleteEvalCase: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                caseId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+        };
+    };
+    updateEvalCase: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                caseId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    enabled: boolean;
+                    expectation: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Updated. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvalCase"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    getEvalPlan: {
+        parameters: {
+            query?: {
+                agent?: string;
+            };
+            header?: never;
+            path: {
+                proposalId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The plan. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvalPlan"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    evaluateProposal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                proposalId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    /** @description Routing proposals - the affected agent to evaluate on. */
+                    agent?: string;
+                    model?: components["schemas"]["ModelChoice"];
+                    judge?: components["schemas"]["ModelChoice"];
+                    maxCases?: number;
+                    costCapUsd?: number;
+                };
+            };
+        };
+        responses: {
+            /** @description Started. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvalRun"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+        };
+    };
+    listProposalEvals: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                proposalId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Evaluations, newest first, with their cases. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["EvalRun"][];
+                    };
+                };
+            };
+            401: components["responses"]["Problem"];
+        };
+    };
+    cancelEval: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                evalRunId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Stopped. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
         };
     };
 }

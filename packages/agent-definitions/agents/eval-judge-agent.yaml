@@ -1,0 +1,51 @@
+name: eval-judge-agent
+version: 1.0.0
+description: "Scores two outputs of the same agent for the same input (labelled A and B, in random order) against the agent's evaluation criteria and what you expected, so a proposed change can be compared with the current version."
+enabled: true
+phase: 6
+prompt: eval-judge-agent/system.md
+produces: eval_scores
+responsibilities:
+  - Score each output 1-5 against the criteria and the expectation, independently of order and length
+  - Explain the scores briefly, pointing to concrete differences
+input_schema:
+  type: object
+  additionalProperties: false
+  required: [agent, criteria, input, output_a, output_b]
+  properties:
+    agent: { type: string, description: The agent whose outputs are compared. }
+    agent_description: { type: string }
+    criteria: { type: array, items: { type: string }, description: "The agent's evaluation criteria." }
+    case_kind: { type: string, enum: [golden, must_fix, custom] }
+    expectation: { type: string, description: "What you expect for this input (a review comment to address, or a note)." }
+    input: { type: string, description: "The agent's input (JSON text, may be truncated)." }
+    output_a: { type: string, description: "Output A (JSON text, may be truncated)." }
+    output_b: { type: string, description: "Output B (JSON text, may be truncated)." }
+output_schema:
+  type: object
+  additionalProperties: false
+  required: [score_a, score_b, reasoning]
+  properties:
+    score_a: { type: integer, minimum: 1, maximum: 5 }
+    score_b: { type: integer, minimum: 1, maximum: 5 }
+    reasoning: { type: string, maxLength: 1500 }
+tools: []
+permissions: []
+model_config:
+  alias: reasoning
+  fallbacks: [local]
+  temperature: 0
+  max_output_tokens: 1024
+execution_limits:
+  max_turns: 2
+  max_tool_calls: 0
+  max_tokens: 60000
+  max_cost_usd: 0.2
+  timeout_s: 300
+error_handling:
+  max_attempts: 2
+  invalid_output_retries: 2
+evaluation:
+  criteria:
+    - Scores follow the criteria and the expectation, not the order or length of the outputs
+    - The reasoning names concrete differences

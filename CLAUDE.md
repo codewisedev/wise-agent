@@ -37,6 +37,10 @@ editing code or files.** This applies to every feature, in every phase.
     home per run); vendor hosts are granted per run only; API keys stay in `wise-model-proxy` and never enter a
     sandbox; Claude Code never loads the repository's settings or hooks. Projects choose runtimes and whether
     subscription (reduced-isolation) mode is allowed, but these mechanisms are not configurable.
+  - **self-improvement's hard rule** (ADR 0009, `internal/improvement/rules.go`): what a proposal may change (prompt
+    text, memory, alias targets and daily budgets, templates within the approval rules) and the agents it may never
+    target are fixed in code and checked at creation and again at apply. The schedule, thresholds, models and
+    evaluation defaults are configurable; the rule is not.
   If you think something else should not be configurable, record it here with the reason.
 
 ## Working in the repo

@@ -164,6 +164,18 @@ func (s *Service) def(key string) (Def, error) {
 	return d, nil
 }
 
+// Check validates a value for a setting without storing it (normalized JSON).
+func (s *Service) Check(ctx context.Context, key string, value json.RawMessage) (json.RawMessage, error) {
+	d, err := s.def(key)
+	if err != nil {
+		return nil, err
+	}
+	if d.Validate == nil {
+		return value, nil
+	}
+	return d.Validate(ctx, value)
+}
+
 // Update validates and stores a new value; version must be the one the editor
 // loaded (optimistic locking), so concurrent edits are not silently lost.
 func (s *Service) Update(ctx context.Context, key string, value json.RawMessage, version int32, userID *uuid.UUID) (dbgen.AppSetting, error) {

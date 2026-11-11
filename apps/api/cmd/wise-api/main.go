@@ -21,6 +21,9 @@ import (
 	"wise/apps/api/internal/codingruns"
 	"wise/apps/api/internal/db/dbgen"
 	"wise/apps/api/internal/executor"
+	"wise/apps/api/internal/feedback"
+	"wise/apps/api/internal/improvement"
+	"wise/apps/api/internal/insights"
 	"wise/apps/api/internal/memory"
 	"wise/apps/api/internal/modelproxy"
 	"wise/apps/api/internal/workspaces"
@@ -238,7 +241,13 @@ func serve(ctx context.Context) error {
 		p, err := memorySvc.ForRun(ctx, run)
 		return p.Text, err
 	}
-	runQueue.OnFinished = memorySvc.OnRunFinished
+	insightSvc := insights.New(d)
+	improvementSvc := improvement.New(d, agentSvc, memorySvc, settingsSvc, taskSvc, insightSvc, log.With("component", "improvement"))
+	improvement.RegisterSetting(settingsSvc, cfg.ImprovementDefaults, improvementSvc)
+	runQueue.OnFinished = func(ctx context.Context, runID uuid.UUID) {
+		memorySvc.OnRunFinished(ctx, runID)
+		improvementSvc.OnRunFinished(ctx, runID)
+	}
 	taskSvc.OnApprovalDecided = memorySvc.OnApprovalDecided
 	settings.RegisterDefaults(settingsSvc, settings.Files{
 		Models: cfg.ModelsConfig, Policy: cfg.ModelsPolicy, Workflows: cfg.WorkflowsConfig, Board: cfg.BoardDefaults,
@@ -261,6 +270,9 @@ func serve(ctx context.Context) error {
 		Memory:           memorySvc,
 		Workspaces:       workspaceSvc,
 		CodingRuns:       codingSvc,
+		Feedback:         feedback.New(d),
+		Insights:         insightSvc,
+		Improvement:      improvementSvc,
 		Agents:           agentSvc,
 		RunQueue:         runQueue,
 		Gateway:          gateway,
@@ -287,6 +299,7 @@ func serve(ctx context.Context) error {
 	go indexSvc.RunScheduler(ctx)
 	indexSvc.SetEmbedder(gateway)
 	go memorySvc.RunBackground(ctx)
+	go improvementSvc.RunScheduler(ctx, 5*time.Minute)
 	go workspaceSvc.RunSweeper(ctx)
 	go indexSvc.RunEmbedder(ctx)
 

@@ -1,0 +1,31 @@
+# Self-improvement (implementation-plan §13). Shipped defaults; edit them in Settings → Improvement.
+
+# The weekly analysis ("digest"). The hour is in UTC. Analyses also run on demand ("Analyse now").
+schedule:
+  enabled: true
+  weekday: monday
+  hour: 7
+
+# How far back an analysis looks, and how many runs an agent needs before its numbers count.
+window_days: 30
+min_runs: 3
+# At most this many proposals per analysis.
+max_proposals: 5
+# How much an analysis is given, in characters (about 3 per token). Lower it for local models with a small
+# context: 24000 needs a context of about 16k tokens; 9000 fits an 8k context. Wise trims the least useful parts.
+max_input_chars: 24000
+
+# Who runs the analysis (empty account = the improvement agent's own model routing).
+analysis:
+  account: ""
+  model: ""
+
+# Evaluations (only when you click Evaluate on a proposal). Defaults for the Evaluate dialog.
+eval:
+  max_cases: 5
+  # Stop starting new runs once an evaluation has cost this much (USD; local models cost nothing).
+  cost_cap_usd: 2
+  # Who judges (empty account = the judge agent's own routing).
+  judge:
+    account: ""
+    model: ""

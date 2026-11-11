@@ -47,6 +47,10 @@ func toAgentRun(r dbgen.AgentRun) apigen.AgentRun {
 		TotalInputTokens: r.TotalInputTokens, TotalOutputTokens: r.TotalOutputTokens, TotalCostUsd: r.TotalCostUsd,
 		CreatedAt: r.CreatedAt, StartedAt: r.StartedAt, FinishedAt: r.FinishedAt,
 	}
+	if r.Purpose != "" {
+		p := apigen.AgentRunPurpose(r.Purpose)
+		out.Purpose = &p
+	}
 	if len(r.Output) > 0 {
 		o := jsonObject(r.Output)
 		out.Output = &o

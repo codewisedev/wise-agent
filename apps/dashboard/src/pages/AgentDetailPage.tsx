@@ -6,6 +6,8 @@ import { api, unwrap } from "../api/client";
 import { AccountSelect } from "../components/AccountSelect";
 import { Badge, ErrorNote, Field, Panel } from "../components/ui";
 import { AgentEditor } from "./AgentEditor";
+import { AgentInsights } from "./InsightsPage";
+import { EvalCasesPanel } from "./EvalPanels";
 import { RunsTable } from "./RunsTable";
 
 type JsonSchema = { properties?: Record<string, { type?: string; description?: string }>; required?: string[] };
@@ -137,7 +139,11 @@ export function AgentDetailPage() {
         </Panel>
       )}
 
+      <AgentInsights agent={a.name} />
+
       <AgentEditor key={a.name} agent={a} />
+
+      <EvalCasesPanel agent={a.name} />
 
       <Panel title="Runs" count={runs.data?.items.length}>
         <ErrorNote error={runs.error} />

@@ -1,3 +1,4 @@
+import { AccountSelect } from "../components/AccountSelect";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowDown, ArrowUp, Braces, History, Plus, RotateCcw, Save, Trash2 } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
@@ -480,6 +481,79 @@ function MemoryEditor({ value, set }: { value: MemoryValue; set: (v: MemoryValue
   );
 }
 
+type ImprovementValue = {
+  schedule: { enabled: boolean; weekday: string; hour: number };
+  window_days: number; min_runs: number; max_proposals: number; max_input_chars?: number;
+  analysis: { account: string; model: string };
+  eval: { max_cases: number; cost_cap_usd: number; judge: { account: string; model: string } };
+};
+
+const WEEKDAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
+
+const EVAL_DEFAULTS: ImprovementValue["eval"] = { max_cases: 5, cost_cap_usd: 2, judge: { account: "", model: "" } };
+
+export function ImprovementEditor({ value: raw, set }: { value: ImprovementValue; set: (v: ImprovementValue) => void }) {
+  // Values saved before a section existed lack it: show (and save) the defaults.
+  const value: ImprovementValue = {
+    ...raw,
+    analysis: raw.analysis ?? { account: "", model: "" },
+    eval: { ...EVAL_DEFAULTS, ...raw.eval, judge: { ...EVAL_DEFAULTS.judge, ...raw.eval?.judge } },
+  };
+  const sched = value.schedule;
+  return (
+    <div className="settings-form">
+      <h3>Weekly analysis</h3>
+      <label className="checkbox">
+        <input type="checkbox" checked={sched.enabled} onChange={(e) => set({ ...value, schedule: { ...sched, enabled: e.target.checked } })} />{" "}
+        Analyse Wise's performance every week (you can always click Analyse now)
+      </label>
+      <div className="form-grid">
+        <Field label="Day">
+          <select value={sched.weekday} disabled={!sched.enabled} onChange={(e) => set({ ...value, schedule: { ...sched, weekday: e.target.value } })}>
+            {WEEKDAYS.map((d) => <option key={d} value={d}>{d}</option>)}
+          </select>
+        </Field>
+        <Field label="Hour (UTC)">
+          <input type="number" min={0} max={23} value={sched.hour} disabled={!sched.enabled} onChange={(e) => set({ ...value, schedule: { ...sched, hour: Number(e.target.value) } })} />
+        </Field>
+      </div>
+      <h3>What an analysis looks at</h3>
+      <div className="form-grid">
+        <Field label="Look back (days)"><input type="number" min={1} max={365} value={value.window_days} onChange={(e) => set({ ...value, window_days: Number(e.target.value) })} /></Field>
+        <Field label="Runs before an agent's numbers count"><input type="number" min={1} max={1000} value={value.min_runs} onChange={(e) => set({ ...value, min_runs: Number(e.target.value) })} /></Field>
+        <Field label="Input size (characters)" hint="About 3 per token. 24000 needs a ~16k-token context; 9000 fits an 8k local model. Wise trims the least useful parts to fit.">
+          <input type="number" min={4000} max={400000} step={1000} value={value.max_input_chars ?? 24000} onChange={(e) => set({ ...value, max_input_chars: Number(e.target.value) })} />
+        </Field>
+        <Field label="Proposals per analysis (at most)"><input type="number" min={1} max={8} value={value.max_proposals} onChange={(e) => set({ ...value, max_proposals: Number(e.target.value) })} /></Field>
+      </div>
+      <h3>Who analyses</h3>
+      <div className="form-grid">
+        <Field label="Account" hint="The improvement agent's own routing by default; the cloud policy still applies">
+          <AccountSelect value={value.analysis.account} onChange={(a) => set({ ...value, analysis: { account: a, model: a ? value.analysis.model : "" } })} />
+        </Field>
+        <Field label="Model" hint="Empty = the account's default">
+          <input value={value.analysis.model} disabled={!value.analysis.account} onChange={(e) => set({ ...value, analysis: { ...value.analysis, model: e.target.value } })} />
+        </Field>
+      </div>
+      <h3>Evaluations (defaults for the Evaluate dialog)</h3>
+      <div className="form-grid">
+        <Field label="Cases per evaluation (at most)">
+          <input type="number" min={1} max={20} value={value.eval.max_cases} onChange={(e) => set({ ...value, eval: { ...value.eval, max_cases: Number(e.target.value) } })} />
+        </Field>
+        <Field label="Stop an evaluation at (USD)" hint="No new runs start once it has cost this much">
+          <input type="number" min={0.01} max={100} step={0.5} value={value.eval.cost_cap_usd} onChange={(e) => set({ ...value, eval: { ...value.eval, cost_cap_usd: Number(e.target.value) } })} />
+        </Field>
+        <Field label="Judge account" hint="The judge agent's own routing by default; the cloud policy still applies">
+          <AccountSelect value={value.eval.judge.account} onChange={(a) => set({ ...value, eval: { ...value.eval, judge: { account: a, model: a ? value.eval.judge.model : "" } } })} />
+        </Field>
+        <Field label="Judge model">
+          <input value={value.eval.judge.model} disabled={!value.eval.judge.account} onChange={(e) => set({ ...value, eval: { ...value.eval, judge: { ...value.eval.judge, model: e.target.value } } })} />
+        </Field>
+      </div>
+    </div>
+  );
+}
+
 type ExecutionValue = {
   limits: { cpus: number; memory_mb: number; pids: number };
   egress_allowlist: string[]; command_timeout_s: number; setup_timeout_s: number; max_output_kb: number;
@@ -629,6 +703,7 @@ const EDITORS: Record<string, (v: any, set: (v: any) => void) => ReactNode> = {
   board_defaults: (v, set) => <ColumnsEditor value={v as BoardValue} set={set} />,
   indexing: (v, set) => <IndexingEditor value={v as IndexingValue} set={set} />,
   memory: (v, set) => <MemoryEditor value={v as MemoryValue} set={set} />,
+  improvement: (v, set) => <ImprovementEditor value={v as ImprovementValue} set={set} />,
 };
 
 /** Every panel-managed setting; unknown keys fall back to the JSON editor. */

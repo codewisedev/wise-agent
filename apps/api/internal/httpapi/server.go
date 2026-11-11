@@ -2,10 +2,14 @@ package httpapi
 
 import (
 	"context"
+	"github.com/google/uuid"
 	"net/http"
 	"time"
 	"wise/apps/api/internal/codeindex"
 	"wise/apps/api/internal/codingruns"
+	"wise/apps/api/internal/feedback"
+	"wise/apps/api/internal/improvement"
+	"wise/apps/api/internal/insights"
 	"wise/apps/api/internal/memory"
 	"wise/apps/api/internal/workspaces"
 
@@ -44,6 +48,9 @@ type Server struct {
 	Memory       *memory.Service
 	Workspaces   *workspaces.Service
 	CodingRuns   *codingruns.Service
+	Feedback     *feedback.Service
+	Insights     *insights.Service
+	Improvement  *improvement.Service
 	Cookie       CookieConfig
 	// RuntimeToken authenticates agent runtimes claiming runs (empty disables the runtime API).
 	RuntimeToken string
@@ -64,6 +71,15 @@ func principal(ctx context.Context) (auth.Principal, error) {
 		return auth.Principal{}, apperr.Unauthorized("authentication required")
 	}
 	return p, nil
+}
+
+// sessionUserID is the signed-in user (session or API token), if any.
+func sessionUserID(ctx context.Context) *uuid.UUID {
+	if p, ok := auth.PrincipalFrom(ctx); ok {
+		id := p.User.ID
+		return &id
+	}
+	return nil
 }
 
 // ---- system ----

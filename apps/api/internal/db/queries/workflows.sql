@@ -203,8 +203,8 @@ SELECT * FROM agent_runs WHERE idempotency_key = $1;
 
 -- name: CreateWorkflowAgentRun :one
 INSERT INTO agent_runs (id, agent_definition_id, agent_name, project_id, input, max_attempts, created_by,
-                        workflow_run_id, idempotency_key, model_override)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                        workflow_run_id, idempotency_key, model_override, purpose)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, sqlc.arg(purpose))
 ON CONFLICT (idempotency_key) WHERE idempotency_key IS NOT NULL DO NOTHING
 RETURNING *;
 
