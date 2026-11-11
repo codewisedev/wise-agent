@@ -62,6 +62,7 @@ Commands:
   executor                               Run the execution worker (task workspaces and sandboxes)
   egress                                 Run the sandbox egress proxy
   model-proxy                            Run the Runtime Proxy for coding CLIs (API-key accounts)
+  git-worker                             Run the git worker (the only component that pushes; approved pushes only)
   migrate [up|down|reset|status]         Manage database migrations
   user create -username NAME [-role R]   Create a user (password read from stdin/prompt)
   user set-password -username NAME      Replace a user's password
