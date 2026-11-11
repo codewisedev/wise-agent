@@ -45,8 +45,9 @@ import (
 )
 
 const (
-	adminUser = "admin"
-	adminPass = "a-very-long-password"
+	gitWorkerToken = "test-git-worker-token-0123456789abcdef"
+	adminUser      = "admin"
+	adminPass      = "a-very-long-password"
 )
 
 type env struct {
@@ -158,16 +159,17 @@ func setup(t *testing.T) *env {
 	}
 	server := &httpapi.Server{
 		DB: d, Auth: authSvc, Projects: projectSvc,
-		Repositories: repoSvc,
-		Index:        indexSvc,
-		Memory:       memorySvc,
-		Workspaces:   wsSvc,
-		CodingRuns:   codingSvc,
-		Feedback:     feedback.New(d),
-		Insights:     insightSvc,
-		Improvement:  improvementSvc,
-		Release:      releaseSvc,
-		Agents:       agentSvc, RunQueue: queue, Gateway: gw, Hub: hub, Tasks: taskSvc, Accounts: accountSvc, Integrations: integrationSvc, Settings: settingsSvc,
+		Repositories:   repoSvc,
+		Index:          indexSvc,
+		Memory:         memorySvc,
+		Workspaces:     wsSvc,
+		CodingRuns:     codingSvc,
+		Feedback:       feedback.New(d),
+		Insights:       insightSvc,
+		Improvement:    improvementSvc,
+		Release:        releaseSvc,
+		GitWorkerToken: gitWorkerToken,
+		Agents:         agentSvc, RunQueue: queue, Gateway: gw, Hub: hub, Tasks: taskSvc, Accounts: accountSvc, Integrations: integrationSvc, Settings: settingsSvc,
 		Cookie:       httpapi.CookieConfig{TTL: time.Hour},
 		RuntimeToken: runtimeToken,
 	}

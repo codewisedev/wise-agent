@@ -88,6 +88,8 @@ func main() {
 		err = egressCmd(ctx)
 	case "model-proxy":
 		err = modelProxyCmd(ctx)
+	case "git-worker":
+		err = gitWorkerCmd(ctx)
 	case "migrate":
 		err = migrate(ctx, args)
 	case "user":
@@ -277,6 +279,7 @@ func serve(ctx context.Context) error {
 		Insights:         insightSvc,
 		Improvement:      improvementSvc,
 		Release:          releaseSvc,
+		GitWorkerToken:   os.Getenv("WISE_GIT_WORKER_TOKEN"),
 		Agents:           agentSvc,
 		RunQueue:         runQueue,
 		Gateway:          gateway,
@@ -304,6 +307,7 @@ func serve(ctx context.Context) error {
 	indexSvc.SetEmbedder(gateway)
 	go memorySvc.RunBackground(ctx)
 	go improvementSvc.RunScheduler(ctx, 5*time.Minute)
+	go releaseSvc.RunRefresher(ctx, time.Minute)
 	go workspaceSvc.RunSweeper(ctx)
 	go indexSvc.RunEmbedder(ctx)
 

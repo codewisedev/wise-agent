@@ -619,6 +619,43 @@ type Feedback struct {
 	UpdatedAt         time.Time
 }
 
+type GitPullRequest struct {
+	ID          uuid.UUID
+	PushID      uuid.UUID
+	ApprovalID  *uuid.UUID
+	Status      string
+	Number      *int32
+	Url         *string
+	State       *string
+	Draft       bool
+	Title       string
+	Error       *string
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+	RefreshedAt *time.Time
+}
+
+type GitPush struct {
+	ID            uuid.UUID
+	ApprovalID    uuid.UUID
+	TaskID        uuid.UUID
+	WorkflowRunID *uuid.UUID
+	RepositoryID  *uuid.UUID
+	AccountID     *uuid.UUID
+	WorkspaceID   uuid.UUID
+	Remote        string
+	Branch        string
+	Sha           string
+	BaseBranch    string
+	Status        string
+	Attempts      int32
+	Existed       bool
+	Error         *string
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
+	PushedAt      *time.Time
+}
+
 type ImprovementAnalysis struct {
 	ID         uuid.UUID
 	Trigger    string

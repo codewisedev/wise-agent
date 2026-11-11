@@ -53,7 +53,9 @@ type Server struct {
 	Insights     *insights.Service
 	Improvement  *improvement.Service
 	Release      *release.Service
-	Cookie       CookieConfig
+	// GitWorkerToken authenticates the trusted git worker on the internal git routes.
+	GitWorkerToken string
+	Cookie         CookieConfig
 	// RuntimeToken authenticates agent runtimes claiming runs (empty disables the runtime API).
 	RuntimeToken string
 	// WSOriginPatterns are extra Origin host patterns accepted for WebSockets.

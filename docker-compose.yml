@@ -33,6 +33,8 @@ x-api-env: &api-env
   # Coding runners' Runtime Proxy (API-key accounts).
   WISE_MODEL_PROXY_URL: http://wise-model-proxy:8095
   WISE_MODEL_PROXY_TOKEN: ${WISE_MODEL_PROXY_TOKEN:?set WISE_MODEL_PROXY_TOKEN in .env}
+  # The git worker asks the API for push grants with this token (only the API and the worker hold it).
+  WISE_GIT_WORKER_TOKEN: ${WISE_GIT_WORKER_TOKEN:?set WISE_GIT_WORKER_TOKEN in .env}
 
 x-hardened: &hardened
   read_only: true
@@ -90,7 +92,7 @@ services:
       - "host.docker.internal:host-gateway"
     ports:
       - "127.0.0.1:8080:8080"
-    networks: [data, edge, runtime, cli, exec]
+    networks: [data, edge, runtime, cli, exec, git]
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/api/v1/readyz"]
       interval: 10s
@@ -208,12 +210,15 @@ services:
       WISE_TEMPORAL_NAMESPACE: wise
       WISE_EXECUTOR_URL: http://wise-executor:8091
       WISE_EXECUTOR_TOKEN: ${WISE_EXECUTOR_TOKEN:?set WISE_EXECUTOR_TOKEN in .env}
+      # Calls the git worker with approval ids only; never holds a git token.
+      WISE_GIT_WORKER_URL: http://wise-git-worker:8096
+      WISE_GIT_PUSH_TOKEN: ${WISE_GIT_PUSH_TOKEN:?set WISE_GIT_PUSH_TOKEN in .env}
     user: "${WISE_UID:-1000}:${WISE_GID:-1000}"
     <<: *hardened
     tmpfs: [/tmp]
     volumes:
       - ./configs:/app/configs:ro
-    networks: [workflow, exec]
+    networks: [workflow, exec, git]
     deploy:
       resources:
         limits: { cpus: "0.5", memory: 256M }
@@ -362,6 +367,40 @@ services:
       resources:
         limits: { cpus: "0.5", memory: 128M }
 
+  # The only component that pushes to git hosts or opens pull requests. It gets
+  # approval ids from the orchestrator, asks the API for a grant (the token for
+  # that one push), reads the approved commit from the workspaces volume
+  # (read-only) and pushes create-only to a wise/… branch. No Docker, no user
+  # repositories, no database.
+  wise-git-worker:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+      network: host
+      args:
+        GOPROXY: ${GOPROXY:-https://proxy.golang.org,direct}
+        INSTALL_CLAUDE_CODE: "false"
+        APK_MIRROR: ${APK_MIRROR:-}
+    command: ["git-worker"]
+    restart: unless-stopped
+    labels:
+      wise.role: git-worker
+    environment:
+      WISE_GIT_PUSH_TOKEN: ${WISE_GIT_PUSH_TOKEN:?set WISE_GIT_PUSH_TOKEN in .env}
+      WISE_GIT_WORKER_TOKEN: ${WISE_GIT_WORKER_TOKEN:?set WISE_GIT_WORKER_TOKEN in .env}
+      WISE_API_INTERNAL_URL: http://wise-api:8080/api/v1
+      WISE_LOG_LEVEL: ${WISE_LOG_LEVEL:-info}
+      HOME: /tmp
+    user: "${WISE_UID:-1000}:${WISE_GID:-1000}"
+    <<: *hardened
+    tmpfs: [/tmp]
+    volumes:
+      - wise-workspaces:/workspaces:ro
+    networks: [git, git-egress]
+    deploy:
+      resources:
+        limits: { cpus: "1", memory: 256M }
+
   # Runs Claude Code / Codex for the API. No database, repositories or control-plane
   # secrets: each request carries the one account credential it needs. Internet
   # egress only (the CLIs talk to their vendors).
@@ -490,6 +529,11 @@ networks:
   # Executor -> Docker socket proxy.
   docker:
     internal: true
+  # Orchestrator/API <-> git worker.
+  git:
+    internal: true
+  # Git worker -> git hosts.
+  git-egress: {}
   # Egress proxy -> internet (allowlisted registries only).
   sandbox-egress: {}
   # Runtime Proxy -> model vendors.
