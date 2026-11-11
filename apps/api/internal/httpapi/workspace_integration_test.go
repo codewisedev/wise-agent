@@ -383,6 +383,18 @@ func TestRuntimeWorkspaceTools(t *testing.T) {
 		t.Fatalf("timeout should be capped at the setting: %d", timeout)
 	}
 
+	// An agent with write_paths (the documentation agent) may change only matching files.
+	if _, err := e.db.Pool.Exec(context.Background(), `UPDATE agent_definitions SET definition = jsonb_set(definition, '{write_paths}', '["docs/**","*.md"]') WHERE name = 'product-agent'`); err != nil {
+		t.Fatal(err)
+	}
+	e.expect(e.runtimeDo(tok, "POST", base+"fs", map[string]any{"op": "write", "path": "README.md", "content": "x"}), 200)
+	e.expect(e.runtimeDo(tok, "POST", base+"fs", map[string]any{"op": "edit", "path": "docs/setup/install.txt", "old": "a", "new": "b"}), 200)
+	for _, p := range []string{"a.go", "../docs/x.md2", "docs/../main.go", "package.json"} {
+		e.expect(e.runtimeDo(tok, "POST", base+"fs", map[string]any{"op": "write", "path": p, "content": "x"}), 403)
+	}
+	e.expect(e.runtimeDo(tok, "POST", base+"fs", map[string]any{"op": "delete", "path": "main.go"}), 403)
+	e.expect(e.runtimeDo(tok, "POST", base+"fs", map[string]any{"op": "read", "path": "go.mod"}), 200) // reading is not limited
+
 	// A run outside any workflow has no workspace.
 	pid := e.expect(e.do("POST", "/projects", map[string]any{"name": "Loose"}), 201)["id"].(string)
 	e.createRunInProject("product-agent", pid)

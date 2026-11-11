@@ -1,6 +1,6 @@
 name: release-agent
-version: 0.1.0
-description: Prepares commits and pull requests for approval.
+version: 0.1.1
+description: "Not used (kept switched off): commit messages come from the implementing agent, pull request descriptions from the final report, and pushes go through the git worker after your approval (ADR 0010)."
 enabled: false
 phase: 7
 responsibilities:

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"path"
 	"regexp"
+	"slices"
 	"strings"
 
 	"wise/apps/api/internal/apperr"
@@ -220,6 +221,20 @@ func Protected(globs []string, files []string) []string {
 		}
 	}
 	return hit
+}
+
+// MatchAny reports whether a workspace path matches one of the globs.
+func MatchAny(globs []string, f string) bool {
+	if slices.Contains(strings.Split(f, "/"), "..") {
+		return false // judged on the path as given, never a normalized one
+	}
+	f = strings.TrimPrefix(path.Clean("/"+f), "/")
+	for _, g := range globs {
+		if matchGlob(g, f) {
+			return true
+		}
+	}
+	return false
 }
 
 func matchGlob(g, f string) bool {

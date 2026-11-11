@@ -45,7 +45,9 @@ type Definition struct {
 	OutputSchema json.RawMessage   `json:"output_schema"`
 	Tools        []string          `json:"tools"`
 	Permissions  []string          `json:"permissions"`
-	ModelConfig  struct {
+	// WritePaths limits workspace writes to these globs (empty = no limit beyond the tools).
+	WritePaths  []string `json:"write_paths,omitempty"`
+	ModelConfig struct {
 		Alias           string   `json:"alias"`
 		Fallbacks       []string `json:"fallbacks,omitempty"`
 		Temperature     *float64 `json:"temperature,omitempty"`

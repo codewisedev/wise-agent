@@ -20,7 +20,7 @@ gen: ## Regenerate code from SQL and OpenAPI contracts
 	pnpm -C apps/dashboard gen:api
 
 .PHONY: db-up
-db-up: ## Start Postgres only
+db-up: secrets ## Start Postgres only
 	docker compose up -d --wait postgres
 
 .PHONY: temporal-up
@@ -65,7 +65,11 @@ escape-check: ## Sandbox escape checks on the running stack (REPO=<git repo unde
 	python3 scripts/escape_check.py $(REPO)
 
 .PHONY: up
-up: toolchains ## Build and start the full stack in Docker
+secrets: ## Write the Docker secrets (.secrets/) from .env
+	python3 scripts/secrets.py
+
+.PHONY: secrets
+up: secrets toolchains ## Build and start the full stack in Docker
 	docker compose up -d --build --wait
 
 .PHONY: down

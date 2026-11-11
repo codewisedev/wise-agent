@@ -5,7 +5,9 @@
 name: wise
 
 x-api-env: &api-env
-  WISE_DATABASE_URL: postgres://wise:${WISE_POSTGRES_PASSWORD:?set WISE_POSTGRES_PASSWORD in .env}@postgres:5432/wise?sslmode=disable
+  # Secrets are Docker secrets (files under /run/secrets, sourced from .env below); NAME_FILE sets NAME.
+  WISE_DATABASE_URL: postgres://wise@postgres:5432/wise?sslmode=disable
+  WISE_POSTGRES_PASSWORD_FILE: /run/secrets/wise_postgres_password
   WISE_HTTP_ADDR: ":8080"
   WISE_REPO_ROOTS: ${WISE_REPO_ROOT:?set WISE_REPO_ROOT in .env}
   WISE_SESSION_TTL: ${WISE_SESSION_TTL:-168h}
@@ -13,28 +15,28 @@ x-api-env: &api-env
   WISE_TRUST_PROXY_HEADERS: "true"
   WISE_LOG_LEVEL: ${WISE_LOG_LEVEL:-info}
   WISE_BOOTSTRAP_ADMIN_USER: ${WISE_BOOTSTRAP_ADMIN_USER:-}
-  WISE_BOOTSTRAP_ADMIN_PASSWORD: ${WISE_BOOTSTRAP_ADMIN_PASSWORD:-}
-  WISE_RUNTIME_TOKEN: ${WISE_RUNTIME_TOKEN:?set WISE_RUNTIME_TOKEN in .env}
+  WISE_BOOTSTRAP_ADMIN_PASSWORD_FILE: /run/secrets/wise_bootstrap_admin_password
+  WISE_RUNTIME_TOKEN_FILE: /run/secrets/wise_runtime_token
   # LM Studio on the host (enable "Serve on Local Network" so containers can reach it).
   WISE_LMSTUDIO_URL: ${WISE_LMSTUDIO_DOCKER_URL:-http://host.docker.internal:1234/v1}
   WISE_LMSTUDIO_MODEL: ${WISE_LMSTUDIO_MODEL:-}
-  WISE_LMSTUDIO_API_KEY: ${WISE_LMSTUDIO_API_KEY:-}
+  WISE_LMSTUDIO_API_KEY_FILE: /run/secrets/wise_lmstudio_api_key
   # Long-lived subscription token from `claude setup-token` (enables the claude-code provider).
-  CLAUDE_CODE_OAUTH_TOKEN: ${CLAUDE_CODE_OAUTH_TOKEN:-}
+  CLAUDE_CODE_OAUTH_TOKEN_FILE: /run/secrets/claude_code_oauth_token
   HOME: /tmp
   # Encrypts stored account credentials (32 random bytes, base64).
-  WISE_SECRETS_KEY: ${WISE_SECRETS_KEY:-}
+  WISE_SECRETS_KEY_FILE: /run/secrets/wise_secrets_key
   # Claude Code / Codex calls run in the isolated CLI runner.
   WISE_CLI_RUNNER_URL: http://wise-cli-runner:8090
-  WISE_CLI_RUNNER_TOKEN: ${WISE_CLI_RUNNER_TOKEN:?set WISE_CLI_RUNNER_TOKEN in .env}
+  WISE_CLI_RUNNER_TOKEN_FILE: /run/secrets/wise_cli_runner_token
   # Task workspaces and sandboxes run in the executor.
   WISE_EXECUTOR_URL: http://wise-executor:8091
-  WISE_EXECUTOR_TOKEN: ${WISE_EXECUTOR_TOKEN:?set WISE_EXECUTOR_TOKEN in .env}
+  WISE_EXECUTOR_TOKEN_FILE: /run/secrets/wise_executor_token
   # Coding runners' Runtime Proxy (API-key accounts).
   WISE_MODEL_PROXY_URL: http://wise-model-proxy:8095
-  WISE_MODEL_PROXY_TOKEN: ${WISE_MODEL_PROXY_TOKEN:?set WISE_MODEL_PROXY_TOKEN in .env}
+  WISE_MODEL_PROXY_TOKEN_FILE: /run/secrets/wise_model_proxy_token
   # The git worker asks the API for push grants with this token (only the API and the worker hold it).
-  WISE_GIT_WORKER_TOKEN: ${WISE_GIT_WORKER_TOKEN:?set WISE_GIT_WORKER_TOKEN in .env}
+  WISE_GIT_WORKER_TOKEN_FILE: /run/secrets/wise_git_worker_token
 
 x-hardened: &hardened
   read_only: true
@@ -45,10 +47,11 @@ services:
   postgres:
     image: pgvector/pgvector:0.8.1-pg17
     restart: unless-stopped
+    secrets: [wise_postgres_password]
     environment:
       POSTGRES_USER: wise
       POSTGRES_DB: wise
-      POSTGRES_PASSWORD: ${WISE_POSTGRES_PASSWORD:?set WISE_POSTGRES_PASSWORD in .env}
+      POSTGRES_PASSWORD_FILE: /run/secrets/wise_postgres_password
     volumes:
       - postgres-data:/var/lib/postgresql/data
     ports:
@@ -76,6 +79,7 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    secrets: [wise_postgres_password, wise_bootstrap_admin_password, wise_runtime_token, wise_lmstudio_api_key, claude_code_oauth_token, wise_secrets_key, wise_cli_runner_token, wise_executor_token, wise_model_proxy_token, wise_git_worker_token]
     environment: *api-env
     # Run as the host user so repositories under WISE_REPO_ROOT are readable.
     user: "${WISE_UID:-1000}:${WISE_GID:-1000}"
@@ -203,16 +207,18 @@ services:
         condition: service_healthy
       temporal:
         condition: service_healthy
+    secrets: [wise_postgres_password, wise_executor_token, wise_git_push_token]
     environment:
-      WISE_DATABASE_URL: postgres://wise:${WISE_POSTGRES_PASSWORD}@postgres:5432/wise?sslmode=disable
+      WISE_DATABASE_URL: postgres://wise@postgres:5432/wise?sslmode=disable
+      WISE_POSTGRES_PASSWORD_FILE: /run/secrets/wise_postgres_password
       WISE_LOG_LEVEL: ${WISE_LOG_LEVEL:-info}
       WISE_TEMPORAL_ADDRESS: temporal:7233
       WISE_TEMPORAL_NAMESPACE: wise
       WISE_EXECUTOR_URL: http://wise-executor:8091
-      WISE_EXECUTOR_TOKEN: ${WISE_EXECUTOR_TOKEN:?set WISE_EXECUTOR_TOKEN in .env}
+      WISE_EXECUTOR_TOKEN_FILE: /run/secrets/wise_executor_token
       # Calls the git worker with approval ids only; never holds a git token.
       WISE_GIT_WORKER_URL: http://wise-git-worker:8096
-      WISE_GIT_PUSH_TOKEN: ${WISE_GIT_PUSH_TOKEN:?set WISE_GIT_PUSH_TOKEN in .env}
+      WISE_GIT_PUSH_TOKEN_FILE: /run/secrets/wise_git_push_token
     user: "${WISE_UID:-1000}:${WISE_GID:-1000}"
     <<: *hardened
     tmpfs: [/tmp]
@@ -288,10 +294,11 @@ services:
         condition: service_completed_successfully
       wise-clis-init:
         condition: service_completed_successfully
+    secrets: [wise_executor_token, wise_egress_token]
     environment:
       WISE_CODING_CLIS_VOLUME: wise-coding-clis
-      WISE_EXECUTOR_TOKEN: ${WISE_EXECUTOR_TOKEN:?set WISE_EXECUTOR_TOKEN in .env}
-      WISE_EGRESS_TOKEN: ${WISE_EGRESS_TOKEN:?set WISE_EGRESS_TOKEN in .env}
+      WISE_EXECUTOR_TOKEN_FILE: /run/secrets/wise_executor_token
+      WISE_EGRESS_TOKEN_FILE: /run/secrets/wise_egress_token
       WISE_REPO_ROOTS: ${WISE_REPO_ROOT}
       WISE_DOCKER_HOST: tcp://wise-docker-proxy:2375
       WISE_WORKSPACES_VOLUME: wise-workspaces
@@ -329,9 +336,10 @@ services:
     restart: unless-stopped
     labels:
       wise.role: egress
+    secrets: [wise_egress_token]
     environment:
       # Read-only: it can only fetch the egress allowlist from the executor.
-      WISE_EGRESS_TOKEN: ${WISE_EGRESS_TOKEN:?set WISE_EGRESS_TOKEN in .env}
+      WISE_EGRESS_TOKEN_FILE: /run/secrets/wise_egress_token
       WISE_EXECUTOR_URL: http://wise-executor:8091
       WISE_LOG_LEVEL: ${WISE_LOG_LEVEL:-info}
     user: "${WISE_UID:-1000}:${WISE_GID:-1000}"
@@ -357,8 +365,9 @@ services:
     restart: unless-stopped
     labels:
       wise.role: model-proxy
+    secrets: [wise_model_proxy_token]
     environment:
-      WISE_MODEL_PROXY_TOKEN: ${WISE_MODEL_PROXY_TOKEN:?set WISE_MODEL_PROXY_TOKEN in .env}
+      WISE_MODEL_PROXY_TOKEN_FILE: /run/secrets/wise_model_proxy_token
       WISE_LOG_LEVEL: ${WISE_LOG_LEVEL:-info}
     user: "${WISE_UID:-1000}:${WISE_GID:-1000}"
     <<: *hardened
@@ -385,9 +394,10 @@ services:
     restart: unless-stopped
     labels:
       wise.role: git-worker
+    secrets: [wise_git_push_token, wise_git_worker_token]
     environment:
-      WISE_GIT_PUSH_TOKEN: ${WISE_GIT_PUSH_TOKEN:?set WISE_GIT_PUSH_TOKEN in .env}
-      WISE_GIT_WORKER_TOKEN: ${WISE_GIT_WORKER_TOKEN:?set WISE_GIT_WORKER_TOKEN in .env}
+      WISE_GIT_PUSH_TOKEN_FILE: /run/secrets/wise_git_push_token
+      WISE_GIT_WORKER_TOKEN_FILE: /run/secrets/wise_git_worker_token
       WISE_API_INTERNAL_URL: http://wise-api:8080/api/v1
       WISE_LOG_LEVEL: ${WISE_LOG_LEVEL:-info}
       HOME: /tmp
@@ -415,8 +425,9 @@ services:
         APK_MIRROR: ${APK_MIRROR:-}
     command: ["cli-runner"]
     restart: unless-stopped
+    secrets: [wise_cli_runner_token]
     environment:
-      WISE_CLI_RUNNER_TOKEN: ${WISE_CLI_RUNNER_TOKEN:?set WISE_CLI_RUNNER_TOKEN in .env}
+      WISE_CLI_RUNNER_TOKEN_FILE: /run/secrets/wise_cli_runner_token
       WISE_LOG_LEVEL: ${WISE_LOG_LEVEL:-info}
       HOME: /tmp
     user: "${WISE_UID:-1000}:${WISE_GID:-1000}"
@@ -442,9 +453,10 @@ services:
     depends_on:
       wise-api:
         condition: service_healthy
+    secrets: [wise_runtime_token]
     environment:
       WISE_API_URL: http://wise-api:8080
-      WISE_RUNTIME_TOKEN: ${WISE_RUNTIME_TOKEN}
+      WISE_RUNTIME_TOKEN_FILE: /run/secrets/wise_runtime_token
       WISE_REPO_ROOTS: ${WISE_REPO_ROOT}
     user: "${WISE_UID:-1000}:${WISE_GID:-1000}"
     read_only: true
@@ -472,9 +484,10 @@ services:
     depends_on:
       wise-api:
         condition: service_healthy
+    secrets: [wise_runtime_token]
     environment:
       WISE_API_URL: http://wise-api:8080
-      WISE_RUNTIME_TOKEN: ${WISE_RUNTIME_TOKEN}
+      WISE_RUNTIME_TOKEN_FILE: /run/secrets/wise_runtime_token
       WISE_REPO_ROOTS: ${WISE_REPO_ROOT}
       WISE_RUNTIME_ID: indexer
     user: "${WISE_UID:-1000}:${WISE_GID:-1000}"
@@ -545,3 +558,31 @@ volumes:
     name: wise-workspaces
   wise-coding-clis:
     name: wise-coding-clis
+
+# Docker secrets (never baked into images or shown by docker inspect): `make secrets`
+# writes .secrets/ from .env (make up does it first). Services get them under /run/secrets.
+secrets:
+  claude_code_oauth_token:
+    file: ./.secrets/claude_code_oauth_token
+  wise_bootstrap_admin_password:
+    file: ./.secrets/wise_bootstrap_admin_password
+  wise_cli_runner_token:
+    file: ./.secrets/wise_cli_runner_token
+  wise_egress_token:
+    file: ./.secrets/wise_egress_token
+  wise_executor_token:
+    file: ./.secrets/wise_executor_token
+  wise_git_push_token:
+    file: ./.secrets/wise_git_push_token
+  wise_git_worker_token:
+    file: ./.secrets/wise_git_worker_token
+  wise_lmstudio_api_key:
+    file: ./.secrets/wise_lmstudio_api_key
+  wise_model_proxy_token:
+    file: ./.secrets/wise_model_proxy_token
+  wise_postgres_password:
+    file: ./.secrets/wise_postgres_password
+  wise_runtime_token:
+    file: ./.secrets/wise_runtime_token
+  wise_secrets_key:
+    file: ./.secrets/wise_secrets_key

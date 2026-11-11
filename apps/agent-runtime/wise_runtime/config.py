@@ -5,6 +5,19 @@ import socket
 from dataclasses import dataclass, field
 
 
+def _expand_file_env() -> None:
+    """Docker secrets: NAME_FILE sets NAME (when NAME is unset or empty)."""
+    for key, path in list(os.environ.items()):
+        name = key.removesuffix("_FILE")
+        ours = name.startswith("WISE_") or name == "CLAUDE_CODE_OAUTH_TOKEN"
+        if name != key and ours and path and not os.environ.get(name):
+            with open(path, encoding="utf-8") as f:
+                os.environ[name] = f.read().rstrip("\r\n")
+
+
+_expand_file_env()
+
+
 @dataclass(frozen=True)
 class Config:
     api_url: str

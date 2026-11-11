@@ -33,9 +33,18 @@ Prerequisites: Docker + Compose, Go 1.26+, Node 22+ with pnpm (for local dev onl
 ```bash
 cp .env.example .env        # then edit: set WISE_POSTGRES_PASSWORD, WISE_REPO_ROOT,
                             # WISE_BOOTSTRAP_ADMIN_PASSWORD (12+ chars) and the tokens
-make up                     # build the toolchain images, then start the stack
+make up                     # write the Docker secrets, build the toolchain images, start the stack
 open http://localhost:5173  # sign in with WISE_BOOTSTRAP_ADMIN_USER / _PASSWORD
 ```
+
+Secrets reach the containers as Docker secrets (files under `/run/secrets`), not environment variables: `make secrets`
+writes them to the private, git-ignored `.secrets/` from your `.env` (`make up` does it first). After changing a secret
+in `.env`, run `make secrets` and restart the stack. Temporal's own database passwords stay environment variables
+(its images read them that way).
+
+Roles: the bootstrap user is an `admin`. Users created with `-role member` can do everyday work (projects, tasks,
+approvals, runs, ratings, memory) but cannot change configuration, credentials, agents, templates, policies or
+apply improvements.
 
 The bootstrap admin is created only on first boot, when no users exist. You can also create users from the CLI:
 

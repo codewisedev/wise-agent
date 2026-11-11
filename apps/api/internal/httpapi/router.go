@@ -3,6 +3,7 @@ package httpapi
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net"
@@ -95,7 +96,11 @@ func NewRouter(srv *Server, opts RouterOptions) (http.Handler, error) {
 		},
 	})
 
-	strict := apigen.NewStrictHandlerWithOptions(srv, nil, apigen.StrictHTTPServerOptions{
+	admin := adminOperations(spec)
+	if len(admin) == 0 {
+		return nil, errors.New("the API contract marks no admin operations (x-wise-admin): refusing to start without role checks")
+	}
+	strict := apigen.NewStrictHandlerWithOptions(srv, []apigen.StrictMiddlewareFunc{requireRoles(admin)}, apigen.StrictHTTPServerOptions{
 		RequestErrorHandlerFunc: func(w http.ResponseWriter, r *http.Request, err error) {
 			pw.write(w, r, apperr.BadRequest(err.Error()))
 		},
@@ -210,5 +215,38 @@ func recoverer(pw problemWriter) func(http.Handler) http.Handler {
 			}()
 			next.ServeHTTP(w, r)
 		})
+	}
+}
+
+// adminOperations lists the operations the spec marks x-wise-admin: changing
+// configuration, credentials, policies, agents, templates and self-improvement.
+func adminOperations(spec *openapi3.T) map[string]bool {
+	out := map[string]bool{}
+	for _, item := range spec.Paths.Map() {
+		for _, op := range item.Operations() {
+			if v, ok := op.Extensions["x-wise-admin"]; ok && strings.Trim(fmt.Sprint(v), `"[] `) == "true" {
+				out[strings.ToLower(op.OperationID)] = true // the generated handlers pass "UpdateSetting" for updateSetting
+			}
+		}
+	}
+	return out
+}
+
+// requireRoles refuses admin operations to members (sessions and API tokens alike).
+func requireRoles(admin map[string]bool) apigen.StrictMiddlewareFunc {
+	return func(f apigen.StrictHandlerFunc, operationID string) apigen.StrictHandlerFunc {
+		if !admin[strings.ToLower(operationID)] {
+			return f
+		}
+		return func(ctx context.Context, w http.ResponseWriter, r *http.Request, req any) (any, error) {
+			p, ok := auth.PrincipalFrom(ctx)
+			if !ok {
+				return nil, apperr.Unauthorized("authentication required")
+			}
+			if p.User.Role != "admin" {
+				return nil, apperr.Forbidden("only an admin can change this")
+			}
+			return f(ctx, w, r, req)
+		}
 	}
 }

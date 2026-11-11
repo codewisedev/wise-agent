@@ -50,7 +50,9 @@ editing code or files.** This applies to every feature, in every phase.
 
 ## Working in the repo
 
-- `make up` (full stack in Docker), `make dev` (host processes), `make test`, `make lint`.
+- `make up` (full stack in Docker; writes the Docker secrets first), `make dev` (host processes), `make test`, `make lint`.
+  Secrets go to containers as Docker secrets (`.secrets/` from `.env`, read as `NAME_FILE`); never as plain environment
+  in `docker-compose.yml`. API operations that change configuration are marked `x-wise-admin` in the contract.
 - API is spec-first: edit `packages/contracts/api/openapi.yaml`, SQL in `apps/api/internal/db/queries/`, then
   `make gen` (sqlc, oapi-codegen, TS types). Never edit generated files by hand.
 - Migrations are goose files in `migrations/` (embedded); they must round-trip (`Up`/`Down`).

@@ -49,7 +49,7 @@ type Config struct {
 func Load() (Config, error) {
 	c := Config{
 		HTTPAddr:            getenv("WISE_HTTP_ADDR", ":8080"),
-		DatabaseURL:         os.Getenv("WISE_DATABASE_URL"),
+		DatabaseURL:         withPassword(os.Getenv("WISE_DATABASE_URL")),
 		BootstrapUser:       os.Getenv("WISE_BOOTSTRAP_ADMIN_USER"),
 		BootstrapPassword:   os.Getenv("WISE_BOOTSTRAP_ADMIN_PASSWORD"),
 		LogLevel:            getenv("WISE_LOG_LEVEL", "info"),

@@ -1500,6 +1500,10 @@ Build:
 
 **Goal:** Wise can manage multiple projects and repositories.
 
+**Status:** done — see `docs/decisions/0001-phase1-stack.md`. CI (`.github/workflows/ci.yml`: tests, generated code, image
+builds and smoke tests), Docker secrets (`make secrets`) and role enforcement (`x-wise-admin` operations) were completed
+after Phase 7.
+
 ## Phase 2 — Agent Infrastructure
 
 Build:
@@ -1515,6 +1519,10 @@ Build:
 
 **Goal:** Wise can execute specialized AI agents.
 
+**Status:** done — see `docs/decisions/0002-agent-infrastructure.md`. The documentation agent (limited to documentation
+files by `write_paths`) was added after Phase 7; the release agent stays unused (its work is done by the implementing
+agent, the final report and the git worker).
+
 ## Phase 3 — Workflow Engine
 
 Build:
@@ -1529,9 +1537,13 @@ Build:
 
 **Goal:** Wise can coordinate a complete engineering workflow.
 
+**Status:** done — see `docs/decisions/0003-workflow-engine.md`.
+
 ## Phase 3b — Board, Accounts and Configurable Workflows
 
 Built: Kanban board per project; task import from Jira, ClickUp and Trello; multiple encrypted accounts per model provider (Claude Code, Codex, LM Studio, DeepSeek, OpenAI-compatible) chosen per workflow step; workflow templates edited as a flowchart, per-task step overrides and step-by-step runs.
+
+**Status:** done — see `docs/decisions/0004-board-accounts-templates.md`.
 
 ## Phase 3c — Customization
 
@@ -1585,7 +1597,7 @@ Build:
 
 **Status:** done — see `docs/decisions/0007-engineering-pipeline.md`. Per the user's decision, each task gets a
 private clone (not a git worktree in the user's repository) in a per-task sandbox; approved work is delivered as a
-`wise/…` branch. Push and pull requests remain for a later phase.
+`wise/…` branch. Push and pull requests followed in Phase 7.
 
 ## Phase 5b — External Coding Agents
 
