@@ -72,6 +72,24 @@ func (e AgentDetailSource) Valid() bool {
 	}
 }
 
+// Defines values for AgentRunPurpose.
+const (
+	Eval AgentRunPurpose = "eval"
+	Work AgentRunPurpose = "work"
+)
+
+// Valid indicates whether the value is a known member of the AgentRunPurpose enum.
+func (e AgentRunPurpose) Valid() bool {
+	switch e {
+	case Eval:
+		return true
+	case Work:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for AgentRunStatus.
 const (
 	AgentRunStatusCancelled AgentRunStatus = "cancelled"
@@ -240,6 +258,75 @@ func (e ContextKind) Valid() bool {
 	case ContextKindDoc:
 		return true
 	case ContextKindSymbol:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EvalCaseKind.
+const (
+	EvalCaseKindCustom  EvalCaseKind = "custom"
+	EvalCaseKindGolden  EvalCaseKind = "golden"
+	EvalCaseKindMustFix EvalCaseKind = "must_fix"
+)
+
+// Valid indicates whether the value is a known member of the EvalCaseKind enum.
+func (e EvalCaseKind) Valid() bool {
+	switch e {
+	case EvalCaseKindCustom:
+		return true
+	case EvalCaseKindGolden:
+		return true
+	case EvalCaseKindMustFix:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EvalResultStatus.
+const (
+	EvalResultStatusDone    EvalResultStatus = "done"
+	EvalResultStatusFailed  EvalResultStatus = "failed"
+	EvalResultStatusJudging EvalResultStatus = "judging"
+	EvalResultStatusRunning EvalResultStatus = "running"
+)
+
+// Valid indicates whether the value is a known member of the EvalResultStatus enum.
+func (e EvalResultStatus) Valid() bool {
+	switch e {
+	case EvalResultStatusDone:
+		return true
+	case EvalResultStatusFailed:
+		return true
+	case EvalResultStatusJudging:
+		return true
+	case EvalResultStatusRunning:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EvalRunStatus.
+const (
+	EvalRunStatusCancelled EvalRunStatus = "cancelled"
+	EvalRunStatusFailed    EvalRunStatus = "failed"
+	EvalRunStatusRunning   EvalRunStatus = "running"
+	EvalRunStatusSucceeded EvalRunStatus = "succeeded"
+)
+
+// Valid indicates whether the value is a known member of the EvalRunStatus enum.
+func (e EvalRunStatus) Valid() bool {
+	switch e {
+	case EvalRunStatusCancelled:
+		return true
+	case EvalRunStatusFailed:
+		return true
+	case EvalRunStatusRunning:
+		return true
+	case EvalRunStatusSucceeded:
 		return true
 	default:
 		return false
@@ -1538,22 +1625,28 @@ type AgentRun struct {
 	CancelRequested   bool               `json:"cancelRequested"`
 
 	// Context What the run was given at its start (rules, relevant memories, project summary), frozen per run.
-	Context           *RunContext             `json:"context,omitempty"`
-	CreatedAt         time.Time               `json:"createdAt"`
-	Error             *string                 `json:"error,omitempty"`
-	FinishedAt        *time.Time              `json:"finishedAt,omitempty"`
-	Id                openapi_types.UUID      `json:"id"`
-	Input             map[string]interface{}  `json:"input"`
-	MaxAttempts       int                     `json:"maxAttempts"`
-	Output            *map[string]interface{} `json:"output,omitempty"`
-	ProjectId         *openapi_types.UUID     `json:"projectId,omitempty"`
-	StartedAt         *time.Time              `json:"startedAt,omitempty"`
-	Status            AgentRunStatus          `json:"status"`
-	TotalCostUsd      float64                 `json:"totalCostUsd"`
-	TotalInputTokens  int64                   `json:"totalInputTokens"`
-	TotalOutputTokens int64                   `json:"totalOutputTokens"`
-	WorkflowRunId     *openapi_types.UUID     `json:"workflowRunId,omitempty"`
+	Context     *RunContext             `json:"context,omitempty"`
+	CreatedAt   time.Time               `json:"createdAt"`
+	Error       *string                 `json:"error,omitempty"`
+	FinishedAt  *time.Time              `json:"finishedAt,omitempty"`
+	Id          openapi_types.UUID      `json:"id"`
+	Input       map[string]interface{}  `json:"input"`
+	MaxAttempts int                     `json:"maxAttempts"`
+	Output      *map[string]interface{} `json:"output,omitempty"`
+	ProjectId   *openapi_types.UUID     `json:"projectId,omitempty"`
+
+	// Purpose eval = an evaluation replay (excluded from metrics, run lists and budgets).
+	Purpose           *AgentRunPurpose    `json:"purpose,omitempty"`
+	StartedAt         *time.Time          `json:"startedAt,omitempty"`
+	Status            AgentRunStatus      `json:"status"`
+	TotalCostUsd      float64             `json:"totalCostUsd"`
+	TotalInputTokens  int64               `json:"totalInputTokens"`
+	TotalOutputTokens int64               `json:"totalOutputTokens"`
+	WorkflowRunId     *openapi_types.UUID `json:"workflowRunId,omitempty"`
 }
+
+// AgentRunPurpose eval = an evaluation replay (excluded from metrics, run lists and budgets).
+type AgentRunPurpose string
 
 // AgentRunList defines model for AgentRunList.
 type AgentRunList struct {
@@ -1970,6 +2063,102 @@ type EmbeddingStatus struct {
 	Problem  *string `json:"problem,omitempty"`
 	Provider *string `json:"provider,omitempty"`
 }
+
+// EvalCase defines model for EvalCase.
+type EvalCase struct {
+	AgentName   string                 `json:"agentName"`
+	CreatedAt   time.Time              `json:"createdAt"`
+	Enabled     bool                   `json:"enabled"`
+	Expectation string                 `json:"expectation"`
+	Id          openapi_types.UUID     `json:"id"`
+	Input       map[string]interface{} `json:"input"`
+	Kind        EvalCaseKind           `json:"kind"`
+	ProjectId   *openapi_types.UUID    `json:"projectId,omitempty"`
+
+	// Source approval, feedback or manual
+	Source      string              `json:"source"`
+	SourceRunId *openapi_types.UUID `json:"sourceRunId,omitempty"`
+}
+
+// EvalCaseKind defines model for EvalCase.Kind.
+type EvalCaseKind string
+
+// EvalPlan defines model for EvalPlan.
+type EvalPlan struct {
+	Agent *string `json:"agent,omitempty"`
+
+	// Agents Routing - the affected agents to choose from.
+	Agents *[]string `json:"agents,omitempty"`
+	Cases  int       `json:"cases"`
+
+	// ChoosesModel False for routing (the models are what is compared).
+	ChoosesModel bool `json:"choosesModel"`
+	Defaults     struct {
+		CostCapUsd float32     `json:"cost_cap_usd"`
+		Judge      ModelChoice `json:"judge"`
+		MaxCases   int         `json:"max_cases"`
+	} `json:"defaults"`
+
+	// EstimatedCostUsd From the agent's average run cost over 30 days (local models cost nothing).
+	EstimatedCostUsd float32 `json:"estimatedCostUsd"`
+	Evaluable        bool    `json:"evaluable"`
+
+	// Reason Why it cannot be evaluated.
+	Reason *string `json:"reason,omitempty"`
+}
+
+// EvalResult defines model for EvalResult.
+type EvalResult struct {
+	BaselineRunId  *openapi_types.UUID     `json:"baselineRunId,omitempty"`
+	BaselineScore  *int                    `json:"baselineScore,omitempty"`
+	CandidateRunId *openapi_types.UUID     `json:"candidateRunId,omitempty"`
+	CandidateScore *int                    `json:"candidateScore,omitempty"`
+	CaseId         *openapi_types.UUID     `json:"caseId,omitempty"`
+	CaseKind       string                  `json:"caseKind"`
+	Checks         *map[string]interface{} `json:"checks,omitempty"`
+	Error          *string                 `json:"error,omitempty"`
+	Expectation    string                  `json:"expectation"`
+	Id             openapi_types.UUID      `json:"id"`
+	JudgeRunId     *openapi_types.UUID     `json:"judgeRunId,omitempty"`
+	Reasoning      *string                 `json:"reasoning,omitempty"`
+	Status         EvalResultStatus        `json:"status"`
+}
+
+// EvalResultStatus defines model for EvalResult.Status.
+type EvalResultStatus string
+
+// EvalRun defines model for EvalRun.
+type EvalRun struct {
+	AgentName      string             `json:"agentName"`
+	BaselineModel  *ModelChoice       `json:"baselineModel,omitempty"`
+	CandidateModel *ModelChoice       `json:"candidateModel,omitempty"`
+	CostCapUsd     float32            `json:"costCapUsd"`
+	CreatedAt      time.Time          `json:"createdAt"`
+	Error          *string            `json:"error,omitempty"`
+	FinishedAt     *time.Time         `json:"finishedAt,omitempty"`
+	Id             openapi_types.UUID `json:"id"`
+	JudgeModel     *ModelChoice       `json:"judgeModel,omitempty"`
+	ProposalId     openapi_types.UUID `json:"proposalId"`
+	Results        []EvalResult       `json:"results"`
+	Status         EvalRunStatus      `json:"status"`
+	Summary        *struct {
+		BaselineInvalid  *int     `json:"baselineInvalid,omitempty"`
+		BaselineMean     *float32 `json:"baselineMean,omitempty"`
+		CandidateBetter  *int     `json:"candidateBetter,omitempty"`
+		CandidateInvalid *int     `json:"candidateInvalid,omitempty"`
+		CandidateMean    *float32 `json:"candidateMean,omitempty"`
+		CandidateSecrets *int     `json:"candidateSecrets,omitempty"`
+		CandidateWorse   *int     `json:"candidateWorse,omitempty"`
+		Cases            *int     `json:"cases,omitempty"`
+		CostUsd          *float32 `json:"costUsd,omitempty"`
+		Failed           *int     `json:"failed,omitempty"`
+		Judged           *int     `json:"judged,omitempty"`
+		Same             *int     `json:"same,omitempty"`
+	} `json:"summary,omitempty"`
+}
+
+// EvalRunStatus defines model for EvalRun.Status.
+type EvalRunStatus string
 
 // ExampleInput defines model for ExampleInput.
 type ExampleInput struct {
@@ -2468,6 +2657,13 @@ type ModelCallStatus string
 // ModelCallList defines model for ModelCallList.
 type ModelCallList struct {
 	Items []ModelCall `json:"items"`
+}
+
+// ModelChoice defines model for ModelChoice.
+type ModelChoice struct {
+	// Account Empty = the agent's own routing.
+	Account *string `json:"account,omitempty"`
+	Model   *string `json:"model,omitempty"`
 }
 
 // ModelProvider defines model for ModelProvider.
@@ -3425,6 +3621,13 @@ type DuplicateAgentJSONBody struct {
 	Name string `json:"name"`
 }
 
+// CreateEvalCaseJSONBody defines parameters for CreateEvalCase.
+type CreateEvalCaseJSONBody struct {
+	Expectation *string                `json:"expectation,omitempty"`
+	Input       map[string]interface{} `json:"input"`
+	ProjectId   *openapi_types.UUID    `json:"projectId,omitempty"`
+}
+
 // ListApprovalsParams defines parameters for ListApprovals.
 type ListApprovalsParams struct {
 	Status *ApprovalStatus `form:"status,omitempty" json:"status,omitempty"`
@@ -3433,6 +3636,12 @@ type ListApprovalsParams struct {
 // DeleteColumnParams defines parameters for DeleteColumn.
 type DeleteColumnParams struct {
 	MoveTo *openapi_types.UUID `form:"moveTo,omitempty" json:"moveTo,omitempty"`
+}
+
+// UpdateEvalCaseJSONBody defines parameters for UpdateEvalCase.
+type UpdateEvalCaseJSONBody struct {
+	Enabled     bool   `json:"enabled"`
+	Expectation string `json:"expectation"`
 }
 
 // ClearFeedbackParams defines parameters for ClearFeedback.
@@ -3472,6 +3681,21 @@ type ListImprovementProposalsParamsStatus string
 
 // ListImprovementProposalsParamsKind defines parameters for ListImprovementProposals.
 type ListImprovementProposalsParamsKind string
+
+// GetEvalPlanParams defines parameters for GetEvalPlan.
+type GetEvalPlanParams struct {
+	Agent *string `form:"agent,omitempty" json:"agent,omitempty"`
+}
+
+// EvaluateProposalJSONBody defines parameters for EvaluateProposal.
+type EvaluateProposalJSONBody struct {
+	// Agent Routing proposals - the affected agent to evaluate on.
+	Agent      *string      `json:"agent,omitempty"`
+	CostCapUsd *float32     `json:"costCapUsd,omitempty"`
+	Judge      *ModelChoice `json:"judge,omitempty"`
+	MaxCases   *int         `json:"maxCases,omitempty"`
+	Model      *ModelChoice `json:"model,omitempty"`
+}
 
 // RejectImprovementProposalJSONBody defines parameters for RejectImprovementProposal.
 type RejectImprovementProposalJSONBody struct {
@@ -3615,6 +3839,9 @@ type UpdateAgentJSONRequestBody = AgentInput
 // DuplicateAgentJSONRequestBody defines body for DuplicateAgent for application/json ContentType.
 type DuplicateAgentJSONRequestBody DuplicateAgentJSONBody
 
+// CreateEvalCaseJSONRequestBody defines body for CreateEvalCase for application/json ContentType.
+type CreateEvalCaseJSONRequestBody CreateEvalCaseJSONBody
+
 // CreateAgentRunJSONRequestBody defines body for CreateAgentRun for application/json ContentType.
 type CreateAgentRunJSONRequestBody = CreateAgentRunRequest
 
@@ -3633,8 +3860,14 @@ type CreateApiTokenJSONRequestBody = CreateApiTokenRequest
 // UpdateColumnJSONRequestBody defines body for UpdateColumn for application/json ContentType.
 type UpdateColumnJSONRequestBody = ColumnInput
 
+// UpdateEvalCaseJSONRequestBody defines body for UpdateEvalCase for application/json ContentType.
+type UpdateEvalCaseJSONRequestBody UpdateEvalCaseJSONBody
+
 // SetFeedbackJSONRequestBody defines body for SetFeedback for application/json ContentType.
 type SetFeedbackJSONRequestBody = FeedbackInput
+
+// EvaluateProposalJSONRequestBody defines body for EvaluateProposal for application/json ContentType.
+type EvaluateProposalJSONRequestBody EvaluateProposalJSONBody
 
 // RejectImprovementProposalJSONRequestBody defines body for RejectImprovementProposal for application/json ContentType.
 type RejectImprovementProposalJSONRequestBody RejectImprovementProposalJSONBody
@@ -3867,6 +4100,12 @@ type ServerInterface interface {
 	// (POST /agents/{agentName}/duplicate)
 	DuplicateAgent(w http.ResponseWriter, r *http.Request, agentName AgentName)
 
+	// (GET /agents/{agentName}/eval-cases)
+	ListEvalCases(w http.ResponseWriter, r *http.Request, agentName string)
+
+	// (POST /agents/{agentName}/eval-cases)
+	CreateEvalCase(w http.ResponseWriter, r *http.Request, agentName string)
+
 	// (POST /agents/{agentName}/reset)
 	ResetAgent(w http.ResponseWriter, r *http.Request, agentName AgentName)
 
@@ -3924,6 +4163,15 @@ type ServerInterface interface {
 	// (GET /context/embeddings)
 	GetEmbeddingStatus(w http.ResponseWriter, r *http.Request)
 
+	// (DELETE /eval-cases/{caseId})
+	DeleteEvalCase(w http.ResponseWriter, r *http.Request, caseId openapi_types.UUID)
+
+	// (PATCH /eval-cases/{caseId})
+	UpdateEvalCase(w http.ResponseWriter, r *http.Request, caseId openapi_types.UUID)
+
+	// (POST /evals/{evalRunId}/cancel)
+	CancelEval(w http.ResponseWriter, r *http.Request, evalRunId openapi_types.UUID)
+
 	// (DELETE /feedback)
 	ClearFeedback(w http.ResponseWriter, r *http.Request, params ClearFeedbackParams)
 
@@ -3947,6 +4195,15 @@ type ServerInterface interface {
 
 	// (GET /improvements/proposals/{proposalId})
 	GetImprovementProposal(w http.ResponseWriter, r *http.Request, proposalId openapi_types.UUID)
+
+	// (GET /improvements/proposals/{proposalId}/eval-plan)
+	GetEvalPlan(w http.ResponseWriter, r *http.Request, proposalId openapi_types.UUID, params GetEvalPlanParams)
+
+	// (GET /improvements/proposals/{proposalId}/evals)
+	ListProposalEvals(w http.ResponseWriter, r *http.Request, proposalId openapi_types.UUID)
+
+	// (POST /improvements/proposals/{proposalId}/evaluate)
+	EvaluateProposal(w http.ResponseWriter, r *http.Request, proposalId openapi_types.UUID)
 
 	// (POST /improvements/proposals/{proposalId}/reject)
 	RejectImprovementProposal(w http.ResponseWriter, r *http.Request, proposalId openapi_types.UUID)
@@ -4363,6 +4620,16 @@ func (_ Unimplemented) DuplicateAgent(w http.ResponseWriter, r *http.Request, ag
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
+// (GET /agents/{agentName}/eval-cases)
+func (_ Unimplemented) ListEvalCases(w http.ResponseWriter, r *http.Request, agentName string) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (POST /agents/{agentName}/eval-cases)
+func (_ Unimplemented) CreateEvalCase(w http.ResponseWriter, r *http.Request, agentName string) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
 // (POST /agents/{agentName}/reset)
 func (_ Unimplemented) ResetAgent(w http.ResponseWriter, r *http.Request, agentName AgentName) {
 	w.WriteHeader(http.StatusNotImplemented)
@@ -4458,6 +4725,21 @@ func (_ Unimplemented) GetEmbeddingStatus(w http.ResponseWriter, r *http.Request
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
+// (DELETE /eval-cases/{caseId})
+func (_ Unimplemented) DeleteEvalCase(w http.ResponseWriter, r *http.Request, caseId openapi_types.UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (PATCH /eval-cases/{caseId})
+func (_ Unimplemented) UpdateEvalCase(w http.ResponseWriter, r *http.Request, caseId openapi_types.UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (POST /evals/{evalRunId}/cancel)
+func (_ Unimplemented) CancelEval(w http.ResponseWriter, r *http.Request, evalRunId openapi_types.UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
 // (DELETE /feedback)
 func (_ Unimplemented) ClearFeedback(w http.ResponseWriter, r *http.Request, params ClearFeedbackParams) {
 	w.WriteHeader(http.StatusNotImplemented)
@@ -4495,6 +4777,21 @@ func (_ Unimplemented) ListImprovementProposals(w http.ResponseWriter, r *http.R
 
 // (GET /improvements/proposals/{proposalId})
 func (_ Unimplemented) GetImprovementProposal(w http.ResponseWriter, r *http.Request, proposalId openapi_types.UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (GET /improvements/proposals/{proposalId}/eval-plan)
+func (_ Unimplemented) GetEvalPlan(w http.ResponseWriter, r *http.Request, proposalId openapi_types.UUID, params GetEvalPlanParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (GET /improvements/proposals/{proposalId}/evals)
+func (_ Unimplemented) ListProposalEvals(w http.ResponseWriter, r *http.Request, proposalId openapi_types.UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (POST /improvements/proposals/{proposalId}/evaluate)
+func (_ Unimplemented) EvaluateProposal(w http.ResponseWriter, r *http.Request, proposalId openapi_types.UUID) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -5448,6 +5745,58 @@ func (siw *ServerInterfaceWrapper) DuplicateAgent(w http.ResponseWriter, r *http
 	handler.ServeHTTP(w, r)
 }
 
+// ListEvalCases operation middleware
+func (siw *ServerInterfaceWrapper) ListEvalCases(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "agentName" -------------
+	var agentName string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "agentName", chi.URLParam(r, "agentName"), &agentName, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "agentName", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListEvalCases(w, r, agentName)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateEvalCase operation middleware
+func (siw *ServerInterfaceWrapper) CreateEvalCase(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "agentName" -------------
+	var agentName string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "agentName", chi.URLParam(r, "agentName"), &agentName, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "agentName", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateEvalCase(w, r, agentName)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ResetAgent operation middleware
 func (siw *ServerInterfaceWrapper) ResetAgent(w http.ResponseWriter, r *http.Request) {
 
@@ -5902,6 +6251,84 @@ func (siw *ServerInterfaceWrapper) GetEmbeddingStatus(w http.ResponseWriter, r *
 	handler.ServeHTTP(w, r)
 }
 
+// DeleteEvalCase operation middleware
+func (siw *ServerInterfaceWrapper) DeleteEvalCase(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "caseId" -------------
+	var caseId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "caseId", chi.URLParam(r, "caseId"), &caseId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "caseId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteEvalCase(w, r, caseId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateEvalCase operation middleware
+func (siw *ServerInterfaceWrapper) UpdateEvalCase(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "caseId" -------------
+	var caseId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "caseId", chi.URLParam(r, "caseId"), &caseId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "caseId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateEvalCase(w, r, caseId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CancelEval operation middleware
+func (siw *ServerInterfaceWrapper) CancelEval(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "evalRunId" -------------
+	var evalRunId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "evalRunId", chi.URLParam(r, "evalRunId"), &evalRunId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "evalRunId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CancelEval(w, r, evalRunId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ClearFeedback operation middleware
 func (siw *ServerInterfaceWrapper) ClearFeedback(w http.ResponseWriter, r *http.Request) {
 
@@ -6178,6 +6605,100 @@ func (siw *ServerInterfaceWrapper) GetImprovementProposal(w http.ResponseWriter,
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetImprovementProposal(w, r, proposalId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetEvalPlan operation middleware
+func (siw *ServerInterfaceWrapper) GetEvalPlan(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "proposalId" -------------
+	var proposalId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "proposalId", chi.URLParam(r, "proposalId"), &proposalId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "proposalId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetEvalPlanParams
+
+	// ------------- Optional query parameter "agent" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "agent", r.URL.Query(), &params.Agent, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "agent"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "agent", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetEvalPlan(w, r, proposalId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListProposalEvals operation middleware
+func (siw *ServerInterfaceWrapper) ListProposalEvals(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "proposalId" -------------
+	var proposalId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "proposalId", chi.URLParam(r, "proposalId"), &proposalId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "proposalId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListProposalEvals(w, r, proposalId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// EvaluateProposal operation middleware
+func (siw *ServerInterfaceWrapper) EvaluateProposal(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "proposalId" -------------
+	var proposalId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "proposalId", chi.URLParam(r, "proposalId"), &proposalId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "proposalId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.EvaluateProposal(w, r, proposalId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -9966,6 +10487,30 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/improvements/proposals/{proposalId}/reject", wrapper.RejectImprovementProposal)
 	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/agents/{agentName}/eval-cases", wrapper.ListEvalCases)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/agents/{agentName}/eval-cases", wrapper.CreateEvalCase)
+	})
+	r.Group(func(r chi.Router) {
+		r.Delete(options.BaseURL+"/eval-cases/{caseId}", wrapper.DeleteEvalCase)
+	})
+	r.Group(func(r chi.Router) {
+		r.Patch(options.BaseURL+"/eval-cases/{caseId}", wrapper.UpdateEvalCase)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/improvements/proposals/{proposalId}/eval-plan", wrapper.GetEvalPlan)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/improvements/proposals/{proposalId}/evaluate", wrapper.EvaluateProposal)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/improvements/proposals/{proposalId}/evals", wrapper.ListProposalEvals)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/evals/{evalRunId}/cancel", wrapper.CancelEval)
+	})
 
 	return r
 }
@@ -11000,6 +11545,127 @@ func (response DuplicateAgent409ApplicationProblemPlusJSONResponse) VisitDuplica
 	}
 	w.Header().Set("Content-Type", "application/problem+json")
 	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListEvalCasesRequestObject struct {
+	AgentName string `json:"agentName"`
+}
+
+type ListEvalCasesResponseObject interface {
+	VisitListEvalCasesResponse(w http.ResponseWriter) error
+}
+
+type ListEvalCases200JSONResponse struct {
+	Items []EvalCase `json:"items"`
+}
+
+func (response ListEvalCases200JSONResponse) VisitListEvalCasesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListEvalCases401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response ListEvalCases401ApplicationProblemPlusJSONResponse) VisitListEvalCasesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListEvalCases404ApplicationProblemPlusJSONResponse Problem
+
+func (response ListEvalCases404ApplicationProblemPlusJSONResponse) VisitListEvalCasesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateEvalCaseRequestObject struct {
+	AgentName string `json:"agentName"`
+	Body      *CreateEvalCaseJSONRequestBody
+}
+
+type CreateEvalCaseResponseObject interface {
+	VisitCreateEvalCaseResponse(w http.ResponseWriter) error
+}
+
+type CreateEvalCase201JSONResponse EvalCase
+
+func (response CreateEvalCase201JSONResponse) VisitCreateEvalCaseResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateEvalCase400ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response CreateEvalCase400ApplicationProblemPlusJSONResponse) VisitCreateEvalCaseResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateEvalCase401ApplicationProblemPlusJSONResponse Problem
+
+func (response CreateEvalCase401ApplicationProblemPlusJSONResponse) VisitCreateEvalCaseResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateEvalCase404ApplicationProblemPlusJSONResponse Problem
+
+func (response CreateEvalCase404ApplicationProblemPlusJSONResponse) VisitCreateEvalCaseResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
 	_, err := buf.WriteTo(w)
 	return err
 }
@@ -12130,6 +12796,193 @@ func (response GetEmbeddingStatus401ApplicationProblemPlusJSONResponse) VisitGet
 	return err
 }
 
+type DeleteEvalCaseRequestObject struct {
+	CaseId openapi_types.UUID `json:"caseId"`
+}
+
+type DeleteEvalCaseResponseObject interface {
+	VisitDeleteEvalCaseResponse(w http.ResponseWriter) error
+}
+
+type DeleteEvalCase204Response struct {
+}
+
+func (response DeleteEvalCase204Response) VisitDeleteEvalCaseResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type DeleteEvalCase401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response DeleteEvalCase401ApplicationProblemPlusJSONResponse) VisitDeleteEvalCaseResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteEvalCase404ApplicationProblemPlusJSONResponse Problem
+
+func (response DeleteEvalCase404ApplicationProblemPlusJSONResponse) VisitDeleteEvalCaseResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteEvalCase409ApplicationProblemPlusJSONResponse Problem
+
+func (response DeleteEvalCase409ApplicationProblemPlusJSONResponse) VisitDeleteEvalCaseResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateEvalCaseRequestObject struct {
+	CaseId openapi_types.UUID `json:"caseId"`
+	Body   *UpdateEvalCaseJSONRequestBody
+}
+
+type UpdateEvalCaseResponseObject interface {
+	VisitUpdateEvalCaseResponse(w http.ResponseWriter) error
+}
+
+type UpdateEvalCase200JSONResponse EvalCase
+
+func (response UpdateEvalCase200JSONResponse) VisitUpdateEvalCaseResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateEvalCase400ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response UpdateEvalCase400ApplicationProblemPlusJSONResponse) VisitUpdateEvalCaseResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateEvalCase401ApplicationProblemPlusJSONResponse Problem
+
+func (response UpdateEvalCase401ApplicationProblemPlusJSONResponse) VisitUpdateEvalCaseResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateEvalCase404ApplicationProblemPlusJSONResponse Problem
+
+func (response UpdateEvalCase404ApplicationProblemPlusJSONResponse) VisitUpdateEvalCaseResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CancelEvalRequestObject struct {
+	EvalRunId openapi_types.UUID `json:"evalRunId"`
+}
+
+type CancelEvalResponseObject interface {
+	VisitCancelEvalResponse(w http.ResponseWriter) error
+}
+
+type CancelEval204Response struct {
+}
+
+func (response CancelEval204Response) VisitCancelEvalResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type CancelEval401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response CancelEval401ApplicationProblemPlusJSONResponse) VisitCancelEvalResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CancelEval404ApplicationProblemPlusJSONResponse Problem
+
+func (response CancelEval404ApplicationProblemPlusJSONResponse) VisitCancelEvalResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CancelEval409ApplicationProblemPlusJSONResponse Problem
+
+func (response CancelEval409ApplicationProblemPlusJSONResponse) VisitCancelEvalResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type ClearFeedbackRequestObject struct {
 	Params ClearFeedbackParams
 }
@@ -12470,6 +13323,194 @@ func (response GetImprovementProposal404ApplicationProblemPlusJSONResponse) Visi
 	}
 	w.Header().Set("Content-Type", "application/problem+json")
 	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetEvalPlanRequestObject struct {
+	ProposalId openapi_types.UUID `json:"proposalId"`
+	Params     GetEvalPlanParams
+}
+
+type GetEvalPlanResponseObject interface {
+	VisitGetEvalPlanResponse(w http.ResponseWriter) error
+}
+
+type GetEvalPlan200JSONResponse EvalPlan
+
+func (response GetEvalPlan200JSONResponse) VisitGetEvalPlanResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetEvalPlan400ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response GetEvalPlan400ApplicationProblemPlusJSONResponse) VisitGetEvalPlanResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetEvalPlan401ApplicationProblemPlusJSONResponse Problem
+
+func (response GetEvalPlan401ApplicationProblemPlusJSONResponse) VisitGetEvalPlanResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetEvalPlan404ApplicationProblemPlusJSONResponse Problem
+
+func (response GetEvalPlan404ApplicationProblemPlusJSONResponse) VisitGetEvalPlanResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListProposalEvalsRequestObject struct {
+	ProposalId openapi_types.UUID `json:"proposalId"`
+}
+
+type ListProposalEvalsResponseObject interface {
+	VisitListProposalEvalsResponse(w http.ResponseWriter) error
+}
+
+type ListProposalEvals200JSONResponse struct {
+	Items []EvalRun `json:"items"`
+}
+
+func (response ListProposalEvals200JSONResponse) VisitListProposalEvalsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListProposalEvals401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response ListProposalEvals401ApplicationProblemPlusJSONResponse) VisitListProposalEvalsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type EvaluateProposalRequestObject struct {
+	ProposalId openapi_types.UUID `json:"proposalId"`
+	Body       *EvaluateProposalJSONRequestBody
+}
+
+type EvaluateProposalResponseObject interface {
+	VisitEvaluateProposalResponse(w http.ResponseWriter) error
+}
+
+type EvaluateProposal202JSONResponse EvalRun
+
+func (response EvaluateProposal202JSONResponse) VisitEvaluateProposalResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(202)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type EvaluateProposal400ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response EvaluateProposal400ApplicationProblemPlusJSONResponse) VisitEvaluateProposalResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type EvaluateProposal401ApplicationProblemPlusJSONResponse Problem
+
+func (response EvaluateProposal401ApplicationProblemPlusJSONResponse) VisitEvaluateProposalResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type EvaluateProposal404ApplicationProblemPlusJSONResponse Problem
+
+func (response EvaluateProposal404ApplicationProblemPlusJSONResponse) VisitEvaluateProposalResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type EvaluateProposal409ApplicationProblemPlusJSONResponse Problem
+
+func (response EvaluateProposal409ApplicationProblemPlusJSONResponse) VisitEvaluateProposalResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
 	_, err := buf.WriteTo(w)
 	return err
 }
@@ -19370,6 +20411,12 @@ type StrictServerInterface interface {
 	// (POST /agents/{agentName}/duplicate)
 	DuplicateAgent(ctx context.Context, request DuplicateAgentRequestObject) (DuplicateAgentResponseObject, error)
 
+	// (GET /agents/{agentName}/eval-cases)
+	ListEvalCases(ctx context.Context, request ListEvalCasesRequestObject) (ListEvalCasesResponseObject, error)
+
+	// (POST /agents/{agentName}/eval-cases)
+	CreateEvalCase(ctx context.Context, request CreateEvalCaseRequestObject) (CreateEvalCaseResponseObject, error)
+
 	// (POST /agents/{agentName}/reset)
 	ResetAgent(ctx context.Context, request ResetAgentRequestObject) (ResetAgentResponseObject, error)
 
@@ -19427,6 +20474,15 @@ type StrictServerInterface interface {
 	// (GET /context/embeddings)
 	GetEmbeddingStatus(ctx context.Context, request GetEmbeddingStatusRequestObject) (GetEmbeddingStatusResponseObject, error)
 
+	// (DELETE /eval-cases/{caseId})
+	DeleteEvalCase(ctx context.Context, request DeleteEvalCaseRequestObject) (DeleteEvalCaseResponseObject, error)
+
+	// (PATCH /eval-cases/{caseId})
+	UpdateEvalCase(ctx context.Context, request UpdateEvalCaseRequestObject) (UpdateEvalCaseResponseObject, error)
+
+	// (POST /evals/{evalRunId}/cancel)
+	CancelEval(ctx context.Context, request CancelEvalRequestObject) (CancelEvalResponseObject, error)
+
 	// (DELETE /feedback)
 	ClearFeedback(ctx context.Context, request ClearFeedbackRequestObject) (ClearFeedbackResponseObject, error)
 
@@ -19450,6 +20506,15 @@ type StrictServerInterface interface {
 
 	// (GET /improvements/proposals/{proposalId})
 	GetImprovementProposal(ctx context.Context, request GetImprovementProposalRequestObject) (GetImprovementProposalResponseObject, error)
+
+	// (GET /improvements/proposals/{proposalId}/eval-plan)
+	GetEvalPlan(ctx context.Context, request GetEvalPlanRequestObject) (GetEvalPlanResponseObject, error)
+
+	// (GET /improvements/proposals/{proposalId}/evals)
+	ListProposalEvals(ctx context.Context, request ListProposalEvalsRequestObject) (ListProposalEvalsResponseObject, error)
+
+	// (POST /improvements/proposals/{proposalId}/evaluate)
+	EvaluateProposal(ctx context.Context, request EvaluateProposalRequestObject) (EvaluateProposalResponseObject, error)
 
 	// (POST /improvements/proposals/{proposalId}/reject)
 	RejectImprovementProposal(ctx context.Context, request RejectImprovementProposalRequestObject) (RejectImprovementProposalResponseObject, error)
@@ -20265,6 +21330,65 @@ func (sh *strictHandler) DuplicateAgent(w http.ResponseWriter, r *http.Request, 
 	}
 }
 
+// ListEvalCases operation middleware
+func (sh *strictHandler) ListEvalCases(w http.ResponseWriter, r *http.Request, agentName string) {
+	var request ListEvalCasesRequestObject
+
+	request.AgentName = agentName
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListEvalCases(ctx, request.(ListEvalCasesRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListEvalCases")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListEvalCasesResponseObject); ok {
+		if err := validResponse.VisitListEvalCasesResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CreateEvalCase operation middleware
+func (sh *strictHandler) CreateEvalCase(w http.ResponseWriter, r *http.Request, agentName string) {
+	var request CreateEvalCaseRequestObject
+
+	request.AgentName = agentName
+
+	var body CreateEvalCaseJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateEvalCase(ctx, request.(CreateEvalCaseRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateEvalCase")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CreateEvalCaseResponseObject); ok {
+		if err := validResponse.VisitCreateEvalCaseResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // ResetAgent operation middleware
 func (sh *strictHandler) ResetAgent(w http.ResponseWriter, r *http.Request, agentName AgentName) {
 	var request ResetAgentRequestObject
@@ -20791,6 +21915,91 @@ func (sh *strictHandler) GetEmbeddingStatus(w http.ResponseWriter, r *http.Reque
 	}
 }
 
+// DeleteEvalCase operation middleware
+func (sh *strictHandler) DeleteEvalCase(w http.ResponseWriter, r *http.Request, caseId openapi_types.UUID) {
+	var request DeleteEvalCaseRequestObject
+
+	request.CaseId = caseId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteEvalCase(ctx, request.(DeleteEvalCaseRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteEvalCase")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DeleteEvalCaseResponseObject); ok {
+		if err := validResponse.VisitDeleteEvalCaseResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UpdateEvalCase operation middleware
+func (sh *strictHandler) UpdateEvalCase(w http.ResponseWriter, r *http.Request, caseId openapi_types.UUID) {
+	var request UpdateEvalCaseRequestObject
+
+	request.CaseId = caseId
+
+	var body UpdateEvalCaseJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.UpdateEvalCase(ctx, request.(UpdateEvalCaseRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UpdateEvalCase")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(UpdateEvalCaseResponseObject); ok {
+		if err := validResponse.VisitUpdateEvalCaseResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CancelEval operation middleware
+func (sh *strictHandler) CancelEval(w http.ResponseWriter, r *http.Request, evalRunId openapi_types.UUID) {
+	var request CancelEvalRequestObject
+
+	request.EvalRunId = evalRunId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CancelEval(ctx, request.(CancelEvalRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CancelEval")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CancelEvalResponseObject); ok {
+		if err := validResponse.VisitCancelEvalResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // ClearFeedback operation middleware
 func (sh *strictHandler) ClearFeedback(w http.ResponseWriter, r *http.Request, params ClearFeedbackParams) {
 	var request ClearFeedbackRequestObject
@@ -20991,6 +22200,95 @@ func (sh *strictHandler) GetImprovementProposal(w http.ResponseWriter, r *http.R
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(GetImprovementProposalResponseObject); ok {
 		if err := validResponse.VisitGetImprovementProposalResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetEvalPlan operation middleware
+func (sh *strictHandler) GetEvalPlan(w http.ResponseWriter, r *http.Request, proposalId openapi_types.UUID, params GetEvalPlanParams) {
+	var request GetEvalPlanRequestObject
+
+	request.ProposalId = proposalId
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetEvalPlan(ctx, request.(GetEvalPlanRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetEvalPlan")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetEvalPlanResponseObject); ok {
+		if err := validResponse.VisitGetEvalPlanResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListProposalEvals operation middleware
+func (sh *strictHandler) ListProposalEvals(w http.ResponseWriter, r *http.Request, proposalId openapi_types.UUID) {
+	var request ListProposalEvalsRequestObject
+
+	request.ProposalId = proposalId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListProposalEvals(ctx, request.(ListProposalEvalsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListProposalEvals")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListProposalEvalsResponseObject); ok {
+		if err := validResponse.VisitListProposalEvalsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// EvaluateProposal operation middleware
+func (sh *strictHandler) EvaluateProposal(w http.ResponseWriter, r *http.Request, proposalId openapi_types.UUID) {
+	var request EvaluateProposalRequestObject
+
+	request.ProposalId = proposalId
+
+	var body EvaluateProposalJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		if !errors.Is(err, io.EOF) {
+			sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+			return
+		}
+	} else {
+		request.Body = &body
+	}
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.EvaluateProposal(ctx, request.(EvaluateProposalRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "EvaluateProposal")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(EvaluateProposalResponseObject); ok {
+		if err := validResponse.VisitEvaluateProposalResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

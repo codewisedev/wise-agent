@@ -16,7 +16,7 @@ RETURNING *;
 SELECT * FROM agent_definitions WHERE name = $1 AND source = 'code' ORDER BY created_at DESC LIMIT 1;
 
 -- name: ListAgentDefinitionVersions :many
-SELECT * FROM agent_definitions WHERE name = $1 ORDER BY created_at DESC LIMIT 100;
+SELECT * FROM agent_definitions WHERE name = $1 AND NOT candidate ORDER BY created_at DESC LIMIT 100;
 
 -- name: CountAgentDefinitionsByName :one
 SELECT count(*) FROM agent_definitions WHERE name = $1 AND NOT archived;
@@ -55,8 +55,10 @@ SELECT * FROM agent_runs WHERE id = $1;
 SELECT * FROM agent_runs WHERE id = $1 FOR UPDATE;
 
 -- name: ListAgentRuns :many
+-- Real work only: evaluation replays are listed with their evaluation.
 SELECT * FROM agent_runs
-WHERE (sqlc.narg(agent_name)::text IS NULL OR agent_name = sqlc.narg(agent_name))
+WHERE purpose = 'work'
+  AND (sqlc.narg(agent_name)::text IS NULL OR agent_name = sqlc.narg(agent_name))
   AND (sqlc.narg(project_id)::uuid IS NULL OR project_id = sqlc.narg(project_id))
 ORDER BY created_at DESC
 LIMIT sqlc.arg(row_limit);
@@ -137,3 +139,12 @@ SELECT * FROM agent_events WHERE run_id = $1 AND seq > $2 ORDER BY seq LIMIT 100
 -- name: InsertToolCall :exec
 INSERT INTO tool_calls (id, run_id, tool, input, output, status, error, duration_ms)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8);
+
+-- name: InsertCandidateAgentDefinition :one
+-- A version made only to be evaluated (never current until applied).
+INSERT INTO agent_definitions (id, name, version, content_hash, definition, prompt, enabled, is_current, source, base_hash, created_by, candidate)
+VALUES ($1, $2, $3, $4, $5, $6, $7, false, 'panel', sqlc.narg(base_hash), sqlc.narg(created_by), true)
+RETURNING *;
+
+-- name: ClearAgentDefinitionCandidate :exec
+UPDATE agent_definitions SET candidate = false WHERE id = $1;

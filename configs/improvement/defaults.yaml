@@ -16,3 +16,13 @@ max_proposals: 5
 analysis:
   account: ""
   model: ""
+
+# Evaluations (only when you click Evaluate on a proposal). Defaults for the Evaluate dialog.
+eval:
+  max_cases: 5
+  # Stop starting new runs once an evaluation has cost this much (USD; local models cost nothing).
+  cost_cap_usd: 2
+  # Who judges (empty account = the judge agent's own routing).
+  judge:
+    account: ""
+    model: ""

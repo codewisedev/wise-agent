@@ -64,6 +64,9 @@ func (s *Service) Set(ctx context.Context, userID uuid.UUID, in Input) (dbgen.Fe
 		if err != nil {
 			return dbgen.Feedback{}, err
 		}
+		if r.Purpose == "eval" {
+			return dbgen.Feedback{}, apperr.Validation(apperr.FieldError{Field: "targetId", Message: "evaluation replays are scored by the evaluation, not rated"})
+		}
 		p.RunID, p.AgentName, p.AgentDefinitionID = &r.ID, &r.AgentName, &r.AgentDefinitionID
 		if p.TaskID == nil && r.WorkflowRunID != nil {
 			if wr, err := s.db.GetWorkflowRun(ctx, *r.WorkflowRunID); err == nil {

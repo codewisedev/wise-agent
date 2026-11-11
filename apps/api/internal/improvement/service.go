@@ -451,10 +451,14 @@ func (s *Service) Analyse(ctx context.Context, trigger, period string, userID *u
 	return a, nil
 }
 
-// OnRunFinished turns a finished analysis run into proposals.
+// OnRunFinished turns a finished analysis run into proposals, and advances
+// the evaluation a finished replay or judge run belongs to.
 func (s *Service) OnRunFinished(ctx context.Context, runID uuid.UUID) {
 	if err := s.process(ctx, runID); err != nil {
 		s.log.Warn("improvement analysis: process run", "run", runID, "err", err)
+	}
+	if err := s.onEvalRun(ctx, runID); err != nil {
+		s.log.Warn("evaluation: advance", "run", runID, "err", err)
 	}
 }
 
@@ -543,6 +547,7 @@ func (s *Service) Sweep(ctx context.Context, now time.Time) {
 		}
 	}
 	_ = s.db.FailStaleImprovementAnalyses(ctx)
+	s.sweepEvals(ctx)
 	if period := s.Settings().Due(now); period != "" {
 		if _, err := s.Analyse(ctx, "scheduled", period, nil); err != nil && !errors.Is(err, ErrAnalysisRunning) {
 			s.log.Warn("weekly improvement analysis", "period", period, "err", err)

@@ -6,6 +6,7 @@ import { api, unwrap } from "../api/client";
 import type { components } from "../api/schema.gen";
 import { Badge, Empty, ErrorNote, formatDate, Panel, relativeTime } from "../components/ui";
 import { lineDiff, withContext } from "../lib/lineDiff";
+import { ProposalEvaluation } from "./EvalPanels";
 
 type Proposal = components["schemas"]["ImprovementProposal"];
 type Analysis = components["schemas"]["ImprovementAnalysis"];
@@ -106,13 +107,14 @@ function targetLabel(p: Proposal) {
 
 function ProposalCard({ p }: { p: Proposal }) {
   const qc = useQueryClient();
-  const [open, setOpen] = useState(p.status === "proposed" || p.status === "evaluated");
+  const [open, setOpen] = useState(p.status === "proposed" || p.status === "evaluating" || p.status === "evaluated");
   const [note, setNote] = useState("");
   const reject = useMutation({
     mutationFn: () => unwrap(api.POST("/improvements/proposals/{proposalId}/reject", { params: { path: { proposalId: p.id } }, body: { note } })),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["improvements"] }),
   });
   const decidable = p.status === "proposed" || p.status === "evaluated" || p.status === "stale";
+  // an evaluating proposal is decided once its evaluation ends
   return (
     <article className="proposal">
       <header>
@@ -134,6 +136,7 @@ function ProposalCard({ p }: { p: Proposal }) {
             <p className="small warn-text">The target changed since this was proposed: it can only be rejected (a new analysis will reconsider it).</p>
           )}
           <ChangeView p={p} />
+          <ProposalEvaluation p={p} />
           {p.decisionNote && <p className="small faint">Your note: {p.decisionNote}</p>}
           {decidable && (
             <form className="proposal-actions" onSubmit={(e) => { e.preventDefault(); reject.mutate(); }}>
@@ -182,8 +185,9 @@ export function ImprovementsPage() {
   const qc = useQueryClient();
   const [filter, setFilter] = useState<"open" | "all">("open");
   const proposals = useQuery({
-    queryKey: ["improvements", "proposals", filter],
-    queryFn: () => unwrap(api.GET("/improvements/proposals", { params: { query: filter === "open" ? { status: "proposed" } : {} } })),
+    queryKey: ["improvements", "proposals", "all"],
+    queryFn: () => unwrap(api.GET("/improvements/proposals")),
+    refetchInterval: (q) => (q.state.data?.items.some((p) => p.status === "evaluating") ? 5000 : false),
   });
   const analyses = useQuery({
     queryKey: ["improvements", "analyses"],
@@ -195,7 +199,8 @@ export function ImprovementsPage() {
     mutationFn: () => unwrap(api.POST("/improvements/analyses")),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["improvements"] }),
   });
-  const items = proposals.data?.items ?? [];
+  const OPEN: Status[] = ["proposed", "evaluating", "evaluated", "stale"];
+  const items = (proposals.data?.items ?? []).filter((p) => filter === "all" || OPEN.includes(p.status));
   return (
     <>
       <header className="page-header">
@@ -214,7 +219,7 @@ export function ImprovementsPage() {
       </header>
       <ErrorNote error={analyse.error ?? proposals.error} />
 
-      <Panel title="Proposals" count={filter === "open" ? proposals.data?.openCount : items.length} flush={false}
+      <Panel title="Proposals" count={items.length} flush={false}
         actions={
           <div className="segmented" role="group" aria-label="Show">
             {(["open", "all"] as const).map((f) => (

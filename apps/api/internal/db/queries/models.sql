@@ -19,8 +19,9 @@ SELECT agent_name, alias, provider, model,
        coalesce(sum(input_tokens), 0)::bigint AS input_tokens,
        coalesce(sum(output_tokens), 0)::bigint AS output_tokens,
        coalesce(sum(cost_usd), 0)::float8 AS cost_usd
-FROM model_calls
-WHERE created_at >= $1
+FROM model_calls mc
+WHERE mc.created_at >= $1
+  AND NOT EXISTS (SELECT 1 FROM agent_runs r WHERE r.id = mc.run_id AND r.purpose = 'eval')
 GROUP BY agent_name, alias, provider, model
 ORDER BY cost_usd DESC, calls DESC;
 

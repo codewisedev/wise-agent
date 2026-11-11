@@ -16,8 +16,8 @@ func TestEmbeddedCatalogIsValid(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(cat.Agents) != 14 {
-		t.Fatalf("want 14 agents, got %d", len(cat.Agents))
+	if len(cat.Agents) != 15 {
+		t.Fatalf("want 15 agents, got %d", len(cat.Agents))
 	}
 	enabled := map[string]bool{}
 	for _, a := range cat.Agents {
@@ -29,7 +29,7 @@ func TestEmbeddedCatalogIsValid(t *testing.T) {
 		}
 	}
 	want := []string{"product-agent", "requirements-agent", "planner-agent", "architect-agent", "memory-agent", "profile-agent",
-		"backend-agent", "frontend-agent", "qa-agent", "reviewer-agent", "security-agent", "improvement-agent"}
+		"backend-agent", "frontend-agent", "qa-agent", "reviewer-agent", "security-agent", "improvement-agent", "eval-judge-agent"}
 	for _, name := range want {
 		if !enabled[name] {
 			t.Errorf("%s should be enabled", name)

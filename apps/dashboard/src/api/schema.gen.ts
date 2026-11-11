@@ -2138,6 +2138,119 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/agents/{agentName}/eval-cases": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agentName: string;
+            };
+            cookie?: never;
+        };
+        /** @description The agent's evaluation suite. Cases from your reviews and ratings are added automatically. */
+        get: operations["listEvalCases"];
+        put?: never;
+        /** @description Adds your own case (the input must match the agent's input schema). */
+        post: operations["createEvalCase"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/eval-cases/{caseId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                caseId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** @description Deletes one of your own cases (cases from reviews are switched off instead). */
+        delete: operations["deleteEvalCase"];
+        options?: never;
+        head?: never;
+        patch: operations["updateEvalCase"];
+        trace?: never;
+    };
+    "/improvements/proposals/{proposalId}/eval-plan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                proposalId: string;
+            };
+            cookie?: never;
+        };
+        /** @description Whether the proposal can be evaluated, on which agent, how many cases, and an estimated cost. */
+        get: operations["getEvalPlan"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/improvements/proposals/{proposalId}/evaluate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                proposalId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Replays the agent's cases with the current version and the proposal, and has the judge score both. */
+        post: operations["evaluateProposal"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/improvements/proposals/{proposalId}/evals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                proposalId: string;
+            };
+            cookie?: never;
+        };
+        get: operations["listProposalEvals"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/evals/{evalRunId}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                evalRunId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["cancelEval"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -2551,6 +2664,11 @@ export interface components {
             projectId?: string | null;
             /** Format: uuid */
             workflowRunId?: string | null;
+            /**
+             * @description eval = an evaluation replay (excluded from metrics, run lists and budgets).
+             * @enum {string}
+             */
+            purpose?: "work" | "eval";
             status: components["schemas"]["AgentRunStatus"];
             input: {
                 [key: string]: unknown;
@@ -3738,6 +3856,105 @@ export interface components {
                 /** Format: date-time */
                 at: string;
             }[];
+        };
+        ModelChoice: {
+            /** @description Empty = the agent's own routing. */
+            account?: string;
+            model?: string;
+        };
+        EvalCase: {
+            /** Format: uuid */
+            id: string;
+            agentName: string;
+            /** @enum {string} */
+            kind: "golden" | "must_fix" | "custom";
+            input: {
+                [key: string]: unknown;
+            };
+            /** Format: uuid */
+            projectId?: string | null;
+            /** Format: uuid */
+            sourceRunId?: string | null;
+            /** @description approval, feedback or manual */
+            source: string;
+            expectation: string;
+            enabled: boolean;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        EvalPlan: {
+            evaluable: boolean;
+            /** @description Why it cannot be evaluated. */
+            reason?: string;
+            agent?: string;
+            /** @description Routing - the affected agents to choose from. */
+            agents?: string[];
+            cases: number;
+            /** @description From the agent's average run cost over 30 days (local models cost nothing). */
+            estimatedCostUsd: number;
+            /** @description False for routing (the models are what is compared). */
+            choosesModel: boolean;
+            defaults: {
+                max_cases: number;
+                cost_cap_usd: number;
+                judge: components["schemas"]["ModelChoice"];
+            };
+        };
+        EvalResult: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            caseId?: string | null;
+            caseKind: string;
+            expectation: string;
+            /** Format: uuid */
+            baselineRunId?: string | null;
+            /** Format: uuid */
+            candidateRunId?: string | null;
+            /** Format: uuid */
+            judgeRunId?: string | null;
+            /** @enum {string} */
+            status: "running" | "judging" | "done" | "failed";
+            checks?: {
+                [key: string]: unknown;
+            } | null;
+            baselineScore?: number | null;
+            candidateScore?: number | null;
+            reasoning?: string | null;
+            error?: string | null;
+        };
+        EvalRun: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            proposalId: string;
+            agentName: string;
+            baselineModel?: components["schemas"]["ModelChoice"];
+            candidateModel?: components["schemas"]["ModelChoice"];
+            judgeModel?: components["schemas"]["ModelChoice"];
+            /** @enum {string} */
+            status: "running" | "succeeded" | "failed" | "cancelled";
+            costCapUsd: number;
+            summary?: {
+                cases?: number;
+                judged?: number;
+                failed?: number;
+                baselineMean?: number;
+                candidateMean?: number;
+                candidateBetter?: number;
+                same?: number;
+                candidateWorse?: number;
+                baselineInvalid?: number;
+                candidateInvalid?: number;
+                candidateSecrets?: number;
+                costUsd?: number;
+            } | null;
+            error?: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            finishedAt?: string | null;
+            results: components["schemas"]["EvalResult"][];
         };
         ImprovementAnalysis: {
             /** Format: uuid */
@@ -7936,6 +8153,235 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ImprovementProposal"];
                 };
+            };
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+        };
+    };
+    listEvalCases: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agentName: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Cases. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["EvalCase"][];
+                    };
+                };
+            };
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    createEvalCase: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agentName: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    input: {
+                        [key: string]: unknown;
+                    };
+                    /** Format: uuid */
+                    projectId?: string | null;
+                    expectation?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Created. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvalCase"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    deleteEvalCase: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                caseId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+        };
+    };
+    updateEvalCase: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                caseId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    enabled: boolean;
+                    expectation: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Updated. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvalCase"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    getEvalPlan: {
+        parameters: {
+            query?: {
+                agent?: string;
+            };
+            header?: never;
+            path: {
+                proposalId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The plan. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvalPlan"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    evaluateProposal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                proposalId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    /** @description Routing proposals - the affected agent to evaluate on. */
+                    agent?: string;
+                    model?: components["schemas"]["ModelChoice"];
+                    judge?: components["schemas"]["ModelChoice"];
+                    maxCases?: number;
+                    costCapUsd?: number;
+                };
+            };
+        };
+        responses: {
+            /** @description Started. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvalRun"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+        };
+    };
+    listProposalEvals: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                proposalId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Evaluations, newest first, with their cases. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["EvalRun"][];
+                    };
+                };
+            };
+            401: components["responses"]["Problem"];
+        };
+    };
+    cancelEval: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                evalRunId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Stopped. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             401: components["responses"]["Problem"];
             404: components["responses"]["Problem"];

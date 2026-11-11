@@ -22,8 +22,15 @@ describe("ImprovementsPage", () => {
   afterEach(() => vi.restoreAllMocks());
 
   it("shows the diff and evidence, rejects with a note, lists refusals", async () => {
+    const plan = { evaluable: false, reason: "no cases yet", cases: 0, estimatedCostUsd: 0, choosesModel: true,
+      defaults: { max_cases: 5, cost_cap_usd: 2, judge: {} } };
     vi.spyOn(api, "GET").mockImplementation(((path: string) =>
-      Promise.resolve(path === "/improvements/analyses" ? ok({ items: [analysis] }) : ok({ items: [proposal], openCount: 1 }))) as never);
+      Promise.resolve(
+        path === "/improvements/analyses" ? ok({ items: [analysis] })
+          : path.endsWith("/eval-plan") ? ok(plan)
+            : path.endsWith("/evals") ? ok({ items: [] })
+              : ok({ items: [proposal], openCount: 1 }),
+      )) as never);
     const post = vi.spyOn(api, "POST").mockResolvedValue(ok({ ...proposal, status: "rejected" }));
     render(<QueryClientProvider client={new QueryClient()}><MemoryRouter><ImprovementsPage /></MemoryRouter></QueryClientProvider>);
 
@@ -39,6 +46,7 @@ describe("ImprovementsPage", () => {
     expect(path).toBe("/improvements/proposals/{proposalId}/reject");
     expect(init.body).toEqual({ note: "we have no migrations" });
 
+    expect(await screen.findByText(/Not evaluated: no cases yet/)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "1 refused" }));
     expect(screen.getByText(/the code reviewer is a quality gate/)).toBeTruthy();
   });

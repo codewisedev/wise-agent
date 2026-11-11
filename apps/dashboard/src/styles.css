@@ -772,3 +772,10 @@ th.num, td.num { text-align: right; font-variant-numeric: tabular-nums; }
 .refused { margin: 4px 0 0; padding-left: 18px; }
 .warn-text { color: var(--warn); }
 .bad-text { color: var(--bad); }
+.proposal-eval { display: grid; gap: 8px; }
+.proposal-eval summary { cursor: pointer; display: inline-flex; gap: 6px; align-items: center; }
+.eval-run { display: grid; gap: 6px; border-top: 1px solid var(--border); padding-top: 8px; }
+.eval-head { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.side-badges { display: inline-flex; flex-wrap: wrap; gap: 4px; margin-left: 6px; }
+td.expectation { max-width: 320px; }
+tr.muted { opacity: .55; }

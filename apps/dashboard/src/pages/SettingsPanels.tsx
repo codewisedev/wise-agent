@@ -485,6 +485,7 @@ type ImprovementValue = {
   schedule: { enabled: boolean; weekday: string; hour: number };
   window_days: number; min_runs: number; max_proposals: number;
   analysis: { account: string; model: string };
+  eval: { max_cases: number; cost_cap_usd: number; judge: { account: string; model: string } };
 };
 
 const WEEKDAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
@@ -521,6 +522,21 @@ function ImprovementEditor({ value, set }: { value: ImprovementValue; set: (v: I
         </Field>
         <Field label="Model" hint="Empty = the account's default">
           <input value={value.analysis.model} disabled={!value.analysis.account} onChange={(e) => set({ ...value, analysis: { ...value.analysis, model: e.target.value } })} />
+        </Field>
+      </div>
+      <h3>Evaluations (defaults for the Evaluate dialog)</h3>
+      <div className="form-grid">
+        <Field label="Cases per evaluation (at most)">
+          <input type="number" min={1} max={20} value={value.eval.max_cases} onChange={(e) => set({ ...value, eval: { ...value.eval, max_cases: Number(e.target.value) } })} />
+        </Field>
+        <Field label="Stop an evaluation at (USD)" hint="No new runs start once it has cost this much">
+          <input type="number" min={0.01} max={100} step={0.5} value={value.eval.cost_cap_usd} onChange={(e) => set({ ...value, eval: { ...value.eval, cost_cap_usd: Number(e.target.value) } })} />
+        </Field>
+        <Field label="Judge account" hint="The judge agent's own routing by default; the cloud policy still applies">
+          <AccountSelect value={value.eval.judge.account} onChange={(a) => set({ ...value, eval: { ...value.eval, judge: { account: a, model: a ? value.eval.judge.model : "" } } })} />
+        </Field>
+        <Field label="Judge model">
+          <input value={value.eval.judge.model} disabled={!value.eval.judge.account} onChange={(e) => set({ ...value, eval: { ...value.eval, judge: { ...value.eval.judge, model: e.target.value } } })} />
         </Field>
       </div>
     </div>

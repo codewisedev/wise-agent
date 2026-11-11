@@ -77,6 +77,12 @@ func (s *Service) store(ctx context.Context, q *dbgen.Queries, l Loaded, baseHas
 	} else if row.Name != l.Def.Name {
 		return row, apperr.Conflict("another agent has exactly this definition")
 	}
+	if row.Candidate { // an evaluated candidate becomes a real version when saved
+		if err := q.ClearAgentDefinitionCandidate(ctx, row.ID); err != nil {
+			return row, err
+		}
+		row.Candidate = false
+	}
 	if row.Archived {
 		if err := q.UnarchiveAgentDefinition(ctx, row.ID); err != nil {
 			return row, err
@@ -199,6 +205,45 @@ func (s *Service) makeCurrent(ctx context.Context, q *dbgen.Queries, row dbgen.A
 		Payload: map[string]any{"name": row.Name, "version": row.Version}})
 }
 
+// Candidate stores the agent's current definition with a different prompt as
+// a non-current version to evaluate. Identical content reuses the existing row.
+func (s *Service) Candidate(ctx context.Context, name, prompt string, userID *uuid.UUID) (dbgen.AgentDefinition, error) {
+	cur, err := s.db.GetCurrentAgentDefinitionByName(ctx, name)
+	if db.IsNotFound(err) {
+		return cur, apperr.NotFound(fmt.Sprintf("agent %q not found", name))
+	}
+	if err != nil {
+		return cur, err
+	}
+	l, err := s.validate(cur.Definition, prompt)
+	if err != nil {
+		return cur, err
+	}
+	row, err := s.db.GetAgentDefinitionByHash(ctx, l.Hash)
+	switch {
+	case err == nil && row.Name != name:
+		return row, apperr.Conflict("another agent has exactly this definition")
+	case err == nil:
+		return row, nil
+	case !db.IsNotFound(err):
+		return row, err
+	}
+	var base *string // as Save: the shipped version the edit derives from
+	if shipped, err := s.db.GetLatestShippedAgentDefinition(ctx, name); err == nil {
+		base = &shipped.ContentHash
+	} else if !db.IsNotFound(err) {
+		return row, err
+	}
+	id, err := uuid.NewV7()
+	if err != nil {
+		return row, err
+	}
+	return s.db.InsertCandidateAgentDefinition(ctx, dbgen.InsertCandidateAgentDefinitionParams{
+		ID: id, Name: name, Version: l.Def.Version, ContentHash: l.Hash, Definition: l.Raw, Prompt: l.Prompt,
+		Enabled: l.Def.Enabled, BaseHash: base, CreatedBy: userID,
+	})
+}
+
 // Versions lists an agent's definitions, newest first.
 func (s *Service) Versions(ctx context.Context, name string) ([]dbgen.AgentDefinition, error) {
 	rows, err := s.db.ListAgentDefinitionVersions(ctx, name)
@@ -214,7 +259,7 @@ func (s *Service) Restore(ctx context.Context, name string, id uuid.UUID) (dbgen
 	err := s.db.InTx(ctx, func(q *dbgen.Queries) error {
 		var err error
 		row, err = q.GetAgentDefinition(ctx, id)
-		if db.IsNotFound(err) || (err == nil && row.Name != name) {
+		if db.IsNotFound(err) || (err == nil && (row.Name != name || row.Candidate)) {
 			return apperr.NotFound("version not found")
 		}
 		if err != nil {

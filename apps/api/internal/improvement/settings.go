@@ -27,18 +27,27 @@ type ModelChoice struct {
 
 // Settings is the "improvement" setting.
 type Settings struct {
-	Schedule     Schedule    `json:"schedule"`
-	WindowDays   int         `json:"window_days"`
-	MinRuns      int         `json:"min_runs"`
-	MaxProposals int         `json:"max_proposals"`
-	Analysis     ModelChoice `json:"analysis"`
+	Schedule     Schedule     `json:"schedule"`
+	WindowDays   int          `json:"window_days"`
+	MinRuns      int          `json:"min_runs"`
+	MaxProposals int          `json:"max_proposals"`
+	Analysis     ModelChoice  `json:"analysis"`
+	Eval         EvalDefaults `json:"eval"`
+}
+
+// EvalDefaults prefill the Evaluate dialog.
+type EvalDefaults struct {
+	MaxCases   int         `json:"max_cases"`
+	CostCapUSD float64     `json:"cost_cap_usd"`
+	Judge      ModelChoice `json:"judge"`
 }
 
 var weekdays = []string{"sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"}
 
 // DefaultSettings applies until the setting loads.
 func DefaultSettings() Settings {
-	return Settings{Schedule: Schedule{Enabled: false, Weekday: "monday", Hour: 7}, WindowDays: 30, MinRuns: 3, MaxProposals: 5}
+	return Settings{Schedule: Schedule{Enabled: false, Weekday: "monday", Hour: 7}, WindowDays: 30, MinRuns: 3, MaxProposals: 5,
+		Eval: EvalDefaults{MaxCases: 5, CostCapUSD: 2}}
 }
 
 // ParseSettings validates and normalizes the setting.
@@ -69,11 +78,23 @@ func ParseSettings(raw json.RawMessage) (Settings, error) {
 	if st.Analysis.Model != "" && st.Analysis.Account == "" {
 		errs = append(errs, apperr.FieldError{Field: "analysis.model", Message: "choose an account for the model"})
 	}
+	if st.Eval.MaxCases < 1 || st.Eval.MaxCases > MaxEvalCases {
+		errs = append(errs, apperr.FieldError{Field: "eval.max_cases", Message: fmt.Sprintf("1-%d", MaxEvalCases)})
+	}
+	if st.Eval.CostCapUSD <= 0 || st.Eval.CostCapUSD > 100 {
+		errs = append(errs, apperr.FieldError{Field: "eval.cost_cap_usd", Message: "more than 0, at most 100"})
+	}
+	if st.Eval.Judge.Model != "" && st.Eval.Judge.Account == "" {
+		errs = append(errs, apperr.FieldError{Field: "eval.judge.model", Message: "choose an account for the model"})
+	}
 	if len(errs) > 0 {
 		return st, apperr.Validation(errs...)
 	}
 	return st, nil
 }
+
+// MaxEvalCases bounds one evaluation.
+const MaxEvalCases = 20
 
 // Due reports the period key when the weekly analysis is due at now (UTC), or "".
 func (st Settings) Due(now time.Time) string {
@@ -100,7 +121,7 @@ func (st Settings) Due(now time.Time) string {
 func RegisterSetting(s *settings.Service, file string, svc *Service) {
 	s.Register(settings.Def{
 		Key: "improvement", Title: "Improvement",
-		Description: "When Wise analyses its own performance (weekly schedule in UTC, or off), how far back it looks, how many runs an agent needs before its numbers count, how many proposals one analysis may make, and which account runs the analysis.",
+		Description: "When Wise analyses its own performance (weekly schedule in UTC, or off), how far back it looks, how many runs an agent needs before its numbers count, how many proposals one analysis may make, which account runs the analysis, and the defaults for evaluations (cases, cost cap, judge).",
 		Default:     settings.FileDefault(file),
 		Validate: func(_ context.Context, v json.RawMessage) (json.RawMessage, error) {
 			st, err := ParseSettings(v)

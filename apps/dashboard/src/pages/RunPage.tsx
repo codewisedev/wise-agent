@@ -132,7 +132,8 @@ export function RunPage() {
             {r.projectId && <Link to={`/projects/${r.projectId}`} className="small">project</Link>}
             <span className="small faint" title={formatDate(r.createdAt)}>created {relativeTime(r.createdAt)}</span>
             {active && <Badge tone={connected ? "ok" : "neutral"} pulse={connected}>{connected ? "live" : "connecting"}</Badge>}
-            {!active && <FeedbackButtons targetType="run" targetId={r.id} />}
+            {r.purpose === "eval" && <Badge tone="info" dot={false}>evaluation replay</Badge>}
+            {!active && r.purpose !== "eval" && <FeedbackButtons targetType="run" targetId={r.id} />}
           </div>
         </div>
         {active && !r.cancelRequested && (

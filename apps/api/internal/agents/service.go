@@ -77,6 +77,12 @@ type RunOptions struct {
 	IdempotencyKey string
 	// Model pins the account (and optionally model) every turn of the run uses.
 	Model *ModelOverride
+	// DefinitionID runs a specific version of the agent (evaluation candidates);
+	// nil = the current version. It must belong to the same agent.
+	DefinitionID *uuid.UUID
+	// Purpose is "work" (default) or "eval" (an evaluation replay: excluded from
+	// metrics, run lists and budgets).
+	Purpose string
 }
 
 // ModelOverride is stored on the run as agent_runs.model_override.
@@ -115,7 +121,24 @@ func (s *Service) Enqueue(ctx context.Context, name string, input map[string]any
 			return dbgen.AgentRun{}, err
 		}
 	}
-	row, err := s.db.GetCurrentAgentDefinitionByName(ctx, name)
+	purpose := opts.Purpose
+	switch purpose {
+	case "":
+		purpose = "work"
+	case "work", "eval":
+	default:
+		return dbgen.AgentRun{}, fmt.Errorf("unknown run purpose %q", purpose)
+	}
+	var row dbgen.AgentDefinition
+	var err error
+	if opts.DefinitionID != nil {
+		row, err = s.db.GetAgentDefinition(ctx, *opts.DefinitionID)
+		if err == nil && row.Name != name {
+			return dbgen.AgentRun{}, apperr.BadRequest("the definition belongs to another agent")
+		}
+	} else {
+		row, err = s.db.GetCurrentAgentDefinitionByName(ctx, name)
+	}
 	if db.IsNotFound(err) {
 		return dbgen.AgentRun{}, apperr.NotFound(fmt.Sprintf("agent %q not found", name))
 	}
@@ -168,7 +191,7 @@ func (s *Service) Enqueue(ctx context.Context, name string, input map[string]any
 		run, err = q.CreateWorkflowAgentRun(ctx, dbgen.CreateWorkflowAgentRunParams{
 			ID: id, AgentDefinitionID: row.ID, AgentName: name, ProjectID: projectID,
 			Input: raw, MaxAttempts: int32(max(def.ErrorHandling.MaxAttempts, 1)), CreatedBy: userID,
-			WorkflowRunID: opts.WorkflowRunID, IdempotencyKey: key, ModelOverride: override,
+			WorkflowRunID: opts.WorkflowRunID, IdempotencyKey: key, ModelOverride: override, Purpose: purpose,
 		})
 		if db.IsNotFound(err) && key != nil { // lost a race with the same key
 			run, err = q.GetAgentRunByIdempotencyKey(ctx, key)

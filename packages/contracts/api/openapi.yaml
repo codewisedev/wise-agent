@@ -2562,6 +2562,157 @@ paths:
         "401": { $ref: "#/components/responses/Problem" }
         "404": { $ref: "#/components/responses/Problem" }
         "409": { $ref: "#/components/responses/Problem" }
+  /agents/{agentName}/eval-cases:
+    parameters:
+      - { name: agentName, in: path, required: true, schema: { type: string } }
+    get:
+      tags: [improvement]
+      operationId: listEvalCases
+      description: The agent's evaluation suite. Cases from your reviews and ratings are added automatically.
+      responses:
+        "200":
+          description: Cases.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items: { type: array, items: { $ref: "#/components/schemas/EvalCase" } }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+    post:
+      tags: [improvement]
+      operationId: createEvalCase
+      description: Adds your own case (the input must match the agent's input schema).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [input]
+              properties:
+                input: { type: object, additionalProperties: true }
+                projectId: { type: string, format: uuid, nullable: true }
+                expectation: { type: string, maxLength: 4000 }
+      responses:
+        "201":
+          description: Created.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EvalCase" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+  /eval-cases/{caseId}:
+    parameters:
+      - { name: caseId, in: path, required: true, schema: { type: string, format: uuid } }
+    patch:
+      tags: [improvement]
+      operationId: updateEvalCase
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [enabled, expectation]
+              properties:
+                enabled: { type: boolean }
+                expectation: { type: string, maxLength: 4000 }
+      responses:
+        "200":
+          description: Updated.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EvalCase" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+    delete:
+      tags: [improvement]
+      operationId: deleteEvalCase
+      description: Deletes one of your own cases (cases from reviews are switched off instead).
+      responses:
+        "204": { description: Deleted. }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+  /improvements/proposals/{proposalId}/eval-plan:
+    parameters:
+      - { name: proposalId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [improvement]
+      operationId: getEvalPlan
+      description: Whether the proposal can be evaluated, on which agent, how many cases, and an estimated cost.
+      parameters:
+        - { name: agent, in: query, schema: { type: string } }
+      responses:
+        "200":
+          description: The plan.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EvalPlan" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+  /improvements/proposals/{proposalId}/evaluate:
+    parameters:
+      - { name: proposalId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [improvement]
+      operationId: evaluateProposal
+      description: Replays the agent's cases with the current version and the proposal, and has the judge score both.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                agent: { type: string, description: Routing proposals - the affected agent to evaluate on. }
+                model: { $ref: "#/components/schemas/ModelChoice" }
+                judge: { $ref: "#/components/schemas/ModelChoice" }
+                maxCases: { type: integer, minimum: 1, maximum: 20 }
+                costCapUsd: { type: number, minimum: 0.01, maximum: 100 }
+      responses:
+        "202":
+          description: Started.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EvalRun" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+  /improvements/proposals/{proposalId}/evals:
+    parameters:
+      - { name: proposalId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [improvement]
+      operationId: listProposalEvals
+      responses:
+        "200":
+          description: Evaluations, newest first, with their cases.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items: { type: array, items: { $ref: "#/components/schemas/EvalRun" } }
+        "401": { $ref: "#/components/responses/Problem" }
+  /evals/{evalRunId}/cancel:
+    parameters:
+      - { name: evalRunId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [improvement]
+      operationId: cancelEval
+      responses:
+        "204": { description: Stopped. }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
 components:
   securitySchemes:
     cookieAuth:
@@ -3107,6 +3258,7 @@ components:
         agentDefinitionId: { type: string, format: uuid }
         projectId: { type: string, format: uuid, nullable: true }
         workflowRunId: { type: string, format: uuid, nullable: true }
+        purpose: { type: string, enum: [work, eval], description: "eval = an evaluation replay (excluded from metrics, run lists and budgets)." }
         status: { $ref: "#/components/schemas/AgentRunStatus" }
         input: { type: object, additionalProperties: true }
         output: { type: object, additionalProperties: true, nullable: true }
@@ -4252,6 +4404,92 @@ components:
               runId: { type: string, format: uuid, nullable: true }
               note: { type: string }
               at: { type: string, format: date-time }
+    ModelChoice:
+      type: object
+      properties:
+        account: { type: string, description: Empty = the agent's own routing. }
+        model: { type: string }
+    EvalCase:
+      type: object
+      required: [id, agentName, kind, input, source, expectation, enabled, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        agentName: { type: string }
+        kind: { type: string, enum: [golden, must_fix, custom] }
+        input: { type: object, additionalProperties: true }
+        projectId: { type: string, format: uuid, nullable: true }
+        sourceRunId: { type: string, format: uuid, nullable: true }
+        source: { type: string, description: "approval, feedback or manual" }
+        expectation: { type: string }
+        enabled: { type: boolean }
+        createdAt: { type: string, format: date-time }
+    EvalPlan:
+      type: object
+      required: [evaluable, cases, estimatedCostUsd, defaults, choosesModel]
+      properties:
+        evaluable: { type: boolean }
+        reason: { type: string, description: Why it cannot be evaluated. }
+        agent: { type: string }
+        agents: { type: array, items: { type: string }, description: Routing - the affected agents to choose from. }
+        cases: { type: integer }
+        estimatedCostUsd: { type: number, description: From the agent's average run cost over 30 days (local models cost nothing). }
+        choosesModel: { type: boolean, description: False for routing (the models are what is compared). }
+        defaults:
+          type: object
+          required: [max_cases, cost_cap_usd, judge]
+          properties:
+            max_cases: { type: integer }
+            cost_cap_usd: { type: number }
+            judge: { $ref: "#/components/schemas/ModelChoice" }
+    EvalResult:
+      type: object
+      required: [id, caseKind, expectation, status]
+      properties:
+        id: { type: string, format: uuid }
+        caseId: { type: string, format: uuid, nullable: true }
+        caseKind: { type: string }
+        expectation: { type: string }
+        baselineRunId: { type: string, format: uuid, nullable: true }
+        candidateRunId: { type: string, format: uuid, nullable: true }
+        judgeRunId: { type: string, format: uuid, nullable: true }
+        status: { type: string, enum: [running, judging, done, failed] }
+        checks: { type: object, additionalProperties: true, nullable: true }
+        baselineScore: { type: integer, nullable: true }
+        candidateScore: { type: integer, nullable: true }
+        reasoning: { type: string, nullable: true }
+        error: { type: string, nullable: true }
+    EvalRun:
+      type: object
+      required: [id, proposalId, agentName, status, costCapUsd, createdAt, results]
+      properties:
+        id: { type: string, format: uuid }
+        proposalId: { type: string, format: uuid }
+        agentName: { type: string }
+        baselineModel: { $ref: "#/components/schemas/ModelChoice" }
+        candidateModel: { $ref: "#/components/schemas/ModelChoice" }
+        judgeModel: { $ref: "#/components/schemas/ModelChoice" }
+        status: { type: string, enum: [running, succeeded, failed, cancelled] }
+        costCapUsd: { type: number }
+        summary:
+          type: object
+          nullable: true
+          properties:
+            cases: { type: integer }
+            judged: { type: integer }
+            failed: { type: integer }
+            baselineMean: { type: number }
+            candidateMean: { type: number }
+            candidateBetter: { type: integer }
+            same: { type: integer }
+            candidateWorse: { type: integer }
+            baselineInvalid: { type: integer }
+            candidateInvalid: { type: integer }
+            candidateSecrets: { type: integer }
+            costUsd: { type: number }
+        error: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+        finishedAt: { type: string, format: date-time, nullable: true }
+        results: { type: array, items: { $ref: "#/components/schemas/EvalResult" } }
     ImprovementAnalysis:
       type: object
       required: [id, trigger, windowDays, status, proposals, refused, createdAt]
