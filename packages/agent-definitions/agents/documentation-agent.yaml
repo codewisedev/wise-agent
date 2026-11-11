@@ -1,5 +1,5 @@
 name: documentation-agent
-version: 1.0.0
+version: 1.0.1
 description: Updates the repository's documentation (README, docs/, changelog) for the change being made, in the task workspace.
 enabled: true
 phase: 5
@@ -45,7 +45,8 @@ output_schema:
 tools: [get_project_context, search_context, search_memory, ws_list_files, ws_read_file, ws_search, ws_git_diff, ws_write_file, ws_edit_file]
 permissions: [project:read, workspace:read, workspace:write]
 # Enforced by the API: this agent may change only documentation files.
-write_paths: ["docs/**", "doc/**", "*.md", "*.mdx", "*.rst", "*.adoc", "*.txt", "CHANGELOG*", "README*"]
+# (no *.txt: it would match requirements.txt or CMakeLists.txt; text files under docs/ are covered by docs/**)
+write_paths: ["docs/**", "doc/**", "*.md", "*.mdx", "*.rst", "*.adoc", "CHANGELOG*", "README*"]
 model_config:
   alias: reasoning
   fallbacks: [local]

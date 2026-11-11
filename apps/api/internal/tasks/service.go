@@ -702,3 +702,26 @@ func (s *Service) BoardDefaultColumns() []ColumnDef {
 	defer s.cfgMu.RUnlock()
 	return append([]ColumnDef(nil), s.board.Columns...)
 }
+
+// AuthorizesRelease reports whether approving this approval authorizes a git
+// push or a pull request (it pins a release request or a push), which uses a
+// git account's token on a remote: admins only.
+func (s *Service) AuthorizesRelease(ctx context.Context, id uuid.UUID) (bool, error) {
+	ap, err := s.db.GetApproval(ctx, id)
+	if db.IsNotFound(err) {
+		return false, apperr.NotFound("approval not found")
+	}
+	if err != nil {
+		return false, err
+	}
+	var refs []ArtifactRef
+	if err := json.Unmarshal(ap.Artifacts, &refs); err != nil {
+		return false, fmt.Errorf("decode approval artifacts: %w", err)
+	}
+	for _, r := range refs {
+		if r.Kind == "release_request" || r.Kind == "push" {
+			return true, nil
+		}
+	}
+	return false, nil
+}

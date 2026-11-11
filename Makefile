@@ -20,7 +20,7 @@ gen: ## Regenerate code from SQL and OpenAPI contracts
 	pnpm -C apps/dashboard gen:api
 
 .PHONY: db-up
-db-up: ## Start Postgres only
+db-up: secrets ## Start Postgres only
 	docker compose up -d --wait postgres
 
 .PHONY: temporal-up

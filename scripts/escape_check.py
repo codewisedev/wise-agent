@@ -117,7 +117,10 @@ def git_checks() -> int:
     push_token = ENV.get("WISE_GIT_PUSH_TOKEN", "")
     checks = {
         # Names only: the orchestrator calls the worker with approval ids and never holds a git token or the secrets key.
-        "orchestrator-no-token": compose_exec("wise-orchestrator", "env | cut -d= -f1 | grep -cE '^(WISE_GIT_WORKER_TOKEN|WISE_SECRETS_KEY)$'") == "0",
+        "orchestrator-no-token": compose_exec("wise-orchestrator", "env | cut -d= -f1 | grep -cE '^(WISE_GIT_WORKER_TOKEN|WISE_SECRETS_KEY)$'") == "0"
+        and compose_exec("wise-orchestrator", "ls /run/secrets 2>/dev/null | grep -cE '^(wise_git_worker_token|wise_secrets_key)$'") == "0",
+        # The git worker holds its two tokens only: no database, no account encryption key.
+        "worker-no-db-or-key": compose_exec("wise-git-worker", "ls /run/secrets 2>/dev/null | grep -cE '^(wise_postgres_password|wise_secrets_key)$'") == "0",
         "worker-workspaces-ro": compose_exec("wise-git-worker", "touch /workspaces/.x 2>/dev/null && echo yes || echo no") == "no",
         "worker-no-docker": compose_exec("wise-git-worker", "[ -e /var/run/docker.sock ] && echo yes || echo no") == "no",
         "push-unapproved": git_call("/v1/push", push_token, {"approvalId": str(uuid.uuid4())}) == "409",

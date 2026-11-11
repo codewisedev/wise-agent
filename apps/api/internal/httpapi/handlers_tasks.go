@@ -275,6 +275,15 @@ func (s *Server) ApproveApproval(ctx context.Context, req apigen.ApproveApproval
 	if err != nil {
 		return nil, err
 	}
+	if p.User.Role != "admin" {
+		release, err := s.Tasks.AuthorizesRelease(ctx, req.ApprovalId)
+		if err != nil {
+			return nil, err
+		}
+		if release {
+			return nil, apperr.Forbidden("only an admin can approve a push or a pull request (it uses a git account)")
+		}
+	}
 	userID := p.User.ID
 	ap, err := s.Tasks.Decide(ctx, req.ApprovalId, true, req.Body.CombinedHash, deref(req.Body.Comment), &userID)
 	if err != nil {
