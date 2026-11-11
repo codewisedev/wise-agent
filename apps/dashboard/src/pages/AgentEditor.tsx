@@ -201,6 +201,13 @@ export function AgentEditor({ agent }: { agent: Detail }) {
             <Field label="Permissions" hint="Comma-separated, e.g. project:read, repo:read" grow>
               <input value={(def.permissions ?? []).join(", ")} onChange={(e) => upd({ permissions: e.target.value.split(",").map((s) => s.trim()).filter(Boolean) })} />
             </Field>
+            <Field label="May change only (workspace files)" hint="Comma-separated globs, e.g. docs/**, *.md. Empty = no limit beyond its tools. Enforced by Wise." grow>
+              <input className="mono" value={(def.write_paths ?? []).join(", ")}
+                onChange={(e) => {
+                  const v = e.target.value.split(",").map((s) => s.trim()).filter(Boolean);
+                  upd({ write_paths: v.length ? v : undefined });
+                }} />
+            </Field>
             <h3>Workflow wiring</h3>
             <Field label="Produces (artifact kind)" hint="How its output is stored and passed to later steps">
               <input className="mono" value={def.produces ?? ""} onChange={(e) => upd({ produces: e.target.value || undefined })} />

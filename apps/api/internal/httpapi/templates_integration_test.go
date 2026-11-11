@@ -22,7 +22,7 @@ func TestTemplatesAndTaskWorkflow(t *testing.T) {
 	// Invalid definitions are rejected with per-step messages; preview reports the same issues.
 	bad := map[string]any{"steps": []any{
 		map[string]any{"id": "plan", "agent": "planner-agent"},
-		map[string]any{"id": "docs", "agent": "documentation-agent"},
+		map[string]any{"id": "docs", "agent": "release-agent"},
 	}}
 	res := e.expect(e.do("POST", "/workflow-templates", map[string]any{"name": "Bad", "definition": bad}), 400)
 	if !strings.Contains(stringify(res), "steps.plan") || !strings.Contains(stringify(res), "not executable") {

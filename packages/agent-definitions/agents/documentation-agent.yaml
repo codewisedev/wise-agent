@@ -1,15 +1,67 @@
 name: documentation-agent
-version: 0.1.0
-description: Updates technical documentation for changes.
-enabled: false
+version: 1.0.0
+description: Updates the repository's documentation (README, docs/, changelog) for the change being made, in the task workspace.
+enabled: true
 phase: 5
+prompt: documentation-agent/system.md
+produces: documentation
+consumes:
+  plan: plan
+  requirements: requirements
+  implementation: implementation
 responsibilities:
-  - Update docs affected by changes
-input_schema: { type: object, properties: {} }
-output_schema: { type: object, properties: {} }
-tools: []
-permissions: []
-model_config: { alias: reasoning }
-execution_limits: { max_turns: 1, max_tool_calls: 0, timeout_s: 60 }
-error_handling: { max_attempts: 1, invalid_output_retries: 0 }
-evaluation: { criteria: [] }
+  - Find documentation the change makes outdated or incomplete
+  - Update it in the repository's own style, without touching code
+  - Report what was updated and why, or why nothing needed to change
+input_schema:
+  type: object
+  additionalProperties: false
+  required: [request]
+  properties:
+    request: { type: string, minLength: 3, description: The task. }
+    plan: { type: object, description: The approved implementation plan. }
+    requirements: { type: object, description: Approved requirements. }
+    implementation: { type: object, description: "The implementing agent's report: what changed and why." }
+    feedback: { type: string, description: Reviewer feedback from a rejected final approval; address every point about the documentation. }
+    fix_feedback: { type: string, description: "Failed checks and review findings from the quality gate." }
+    previous_output: { type: object, description: Your previous report. }
+output_schema:
+  type: object
+  additionalProperties: false
+  required: [summary, updated_files, notes]
+  properties:
+    summary: { type: string, description: "What documentation you updated and why, or why none needed to change." }
+    updated_files:
+      type: array
+      items:
+        type: object
+        additionalProperties: false
+        required: [path, change, why]
+        properties:
+          path: { type: string }
+          change: { enum: [added, modified] }
+          why: { type: string }
+    notes: { type: array, items: { type: string }, description: "Documentation gaps you saw but left (out of scope), for the reviewer." }
+tools: [get_project_context, search_context, search_memory, ws_list_files, ws_read_file, ws_search, ws_git_diff, ws_write_file, ws_edit_file]
+permissions: [project:read, workspace:read, workspace:write]
+# Enforced by the API: this agent may change only documentation files.
+write_paths: ["docs/**", "doc/**", "*.md", "*.mdx", "*.rst", "*.adoc", "*.txt", "CHANGELOG*", "README*"]
+model_config:
+  alias: reasoning
+  fallbacks: [local]
+  temperature: 0.1
+  max_output_tokens: 4000
+execution_limits:
+  max_turns: 30
+  max_tool_calls: 80
+  max_tokens: 1000000
+  max_cost_usd: 2
+  timeout_s: 1800
+error_handling:
+  max_attempts: 2
+  invalid_output_retries: 2
+evaluation:
+  criteria:
+    - Documentation that the change made wrong or incomplete is updated
+    - Only documentation files are changed, in the repository's existing style
+    - No invented features, commands or options; everything matches the code in the workspace

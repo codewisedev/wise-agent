@@ -3,10 +3,13 @@ package httpapi
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"strings"
 
 	"wise/apps/api/internal/apperr"
 	"wise/apps/api/internal/db/dbgen"
 	"wise/apps/api/internal/httpapi/apigen"
+	"wise/apps/api/internal/workspaces"
 )
 
 // runWorkspace returns the run's task workspace and the side effects its
@@ -42,6 +45,20 @@ func (s *Server) RuntimeWorkspaceFs(ctx context.Context, req apigen.RuntimeWorks
 	body := map[string]any{}
 	if req.Body != nil {
 		body = *req.Body
+	}
+	if op, _ := body["op"].(string); op == "write" || op == "edit" || op == "delete" {
+		// Agents with write_paths (e.g. the documentation agent) may change only matching files.
+		run, err := runFrom(ctx)
+		if err != nil {
+			return nil, err
+		}
+		globs, err := s.RunQueue.RunWritePaths(ctx, run)
+		if err != nil {
+			return nil, err
+		}
+		if p, _ := body["path"].(string); len(globs) > 0 && !workspaces.MatchAny(globs, p) {
+			return nil, apperr.Forbidden(fmt.Sprintf("this agent may only change files matching %s", strings.Join(globs, ", ")))
+		}
 	}
 	raw, err := s.Workspaces.FS(ctx, w, body, effects["write"])
 	if err != nil {

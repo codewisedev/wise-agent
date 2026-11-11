@@ -97,6 +97,13 @@
       },
       "uniqueItems": true
     },
+    "write_paths": {
+      "type": "array",
+      "description": "When set, the agent may write, edit or delete only workspace files matching these globs (e.g. docs/**, *.md). Enforced by the API.",
+      "items": { "type": "string", "minLength": 1, "maxLength": 200 },
+      "maxItems": 50,
+      "uniqueItems": true
+    },
     "model_config": {
       "type": "object",
       "additionalProperties": false,

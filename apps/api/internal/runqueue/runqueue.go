@@ -445,6 +445,19 @@ func ptr[T any](v T) *T { return &v }
 
 // RunTools returns the side effects of each tool a run's agent definition
 // lists (by tool name).
+// RunWritePaths returns the globs the run's agent may write (empty = no limit).
+func (s *Service) RunWritePaths(ctx context.Context, run dbgen.AgentRun) ([]string, error) {
+	defRow, err := s.db.GetAgentDefinition(ctx, run.AgentDefinitionID)
+	if err != nil {
+		return nil, err
+	}
+	def, err := agents.ParseDefinition(defRow.Definition)
+	if err != nil {
+		return nil, err
+	}
+	return def.WritePaths, nil
+}
+
 func (s *Service) RunTools(ctx context.Context, run dbgen.AgentRun) (map[string]string, error) {
 	defRow, err := s.db.GetAgentDefinition(ctx, run.AgentDefinitionID)
 	if err != nil {

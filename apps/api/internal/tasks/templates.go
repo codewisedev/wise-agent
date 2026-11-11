@@ -459,6 +459,7 @@ func SeedTemplates() []struct {
 	code := TemplateDef{Steps: []StepDef{analysis, requirements, planning, architecture,
 		{ID: "workspace", Name: "Prepare workspace", Type: StepWorkspace},
 		{ID: "implement", Name: "Implement", Agent: "backend-agent"},
+		{ID: "docs", Name: "Update documentation", Agent: "documentation-agent", Enabled: boolPtr(false)},
 		{ID: "quality", Name: "Quality checks", Type: StepQuality},
 		{ID: "code-review", Name: "Code review", Agent: "reviewer-agent"},
 		{ID: "security", Name: "Security review", Agent: "security-agent"},

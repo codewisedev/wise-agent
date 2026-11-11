@@ -21,6 +21,8 @@ var phase5Agents = map[string]AgentInfo{
 	"reviewer-agent": {Enabled: true, Produces: "code_review", NeedsWorkspace: true},
 	"security-agent": {Enabled: true, Produces: "security_review", NeedsWorkspace: true},
 	"qa-agent":       {Enabled: true, Produces: KindQA, NeedsWorkspace: true},
+	"documentation-agent": {Enabled: true, Produces: "documentation", Consumes: map[string]string{"implementation": KindImplementation},
+		RequiredInputs: []string{"request"}, AcceptsFeedback: true, NeedsWorkspace: true},
 }
 
 func lookup(name string) (AgentInfo, bool) { a, ok := testAgents[name]; return a, ok }
