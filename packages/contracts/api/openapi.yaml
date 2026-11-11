@@ -1437,6 +1437,53 @@ paths:
               schema: { $ref: "#/components/schemas/WorkflowTemplate" }
         "400": { $ref: "#/components/responses/Problem" }
         "401": { $ref: "#/components/responses/Problem" }
+  /workflow-templates/{templateId}/versions:
+    parameters:
+      - { name: templateId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [workflows]
+      operationId: listWorkflowTemplateVersions
+      description: Earlier definitions of the template (newest first).
+      responses:
+        "200":
+          description: Versions.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      required: [version, name, description, definition, createdAt]
+                      properties:
+                        version: { type: integer }
+                        name: { type: string }
+                        description: { type: string }
+                        definition: { type: object, additionalProperties: true }
+                        changedBy: { type: string, format: uuid, nullable: true }
+                        createdAt: { type: string, format: date-time, description: When it was replaced. }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+  /workflow-templates/{templateId}/versions/{version}/restore:
+    parameters:
+      - { name: templateId, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: version, in: path, required: true, schema: { type: integer } }
+    post:
+      tags: [workflows]
+      operationId: restoreWorkflowTemplateVersion
+      description: Saves an earlier definition as the template's new version (the current one is kept in the history).
+      responses:
+        "200":
+          description: Restored.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WorkflowTemplate" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
   /workflow-templates/preview:
     post:
       tags: [templates]
@@ -2537,6 +2584,69 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ImprovementProposal" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+  /improvements/proposals/{proposalId}/apply:
+    parameters:
+      - { name: proposalId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [improvement]
+      operationId: applyImprovementProposal
+      description: Applies the proposal through the target's versioned mechanism (checked against the hard rule again).
+      responses:
+        "200":
+          description: Applied.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ImprovementProposal" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+  /improvements/proposals/{proposalId}/rollback:
+    parameters:
+      - { name: proposalId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [improvement]
+      operationId: rollbackImprovementProposal
+      description: Restores what an applied proposal replaced. If the target changed since, confirm must be true.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                confirm: { type: boolean }
+                note: { type: string, maxLength: 2000 }
+      responses:
+        "200":
+          description: Rolled back.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ImprovementProposal" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+  /improvements/proposals/{proposalId}/monitor:
+    parameters:
+      - { name: proposalId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [improvement]
+      operationId: monitorImprovementProposal
+      description: The target's numbers when applied and since.
+      responses:
+        "200":
+          description: Before and since.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [since]
+                properties:
+                  appliedAt: { type: string, format: date-time, nullable: true }
+                  before: { type: array, nullable: true, items: { $ref: "#/components/schemas/AgentStat" } }
+                  since: { type: array, items: { $ref: "#/components/schemas/AgentStat" } }
+                  template: { type: object, additionalProperties: true, nullable: true }
         "401": { $ref: "#/components/responses/Problem" }
         "404": { $ref: "#/components/responses/Problem" }
   /improvements/proposals/{proposalId}/reject:

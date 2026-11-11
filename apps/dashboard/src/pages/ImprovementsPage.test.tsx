@@ -51,3 +51,35 @@ describe("ImprovementsPage", () => {
     expect(screen.getByText(/the code reviewer is a quality gate/)).toBeTruthy();
   });
 });
+
+describe("ImprovementsPage apply and rollback", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it("applies an open proposal and confirms a rollback over later edits", async () => {
+    const applied = { ...proposal, id: "p2", title: "Applied one", status: "applied", appliedAt: "2026-11-10T11:00:00Z" };
+    vi.spyOn(api, "GET").mockImplementation(((path: string) =>
+      Promise.resolve(
+        path === "/improvements/analyses" ? ok({ items: [] })
+          : path.endsWith("/monitor") ? ok({ since: [], before: [] })
+            : path.endsWith("/eval-plan") ? ok({ evaluable: false, reason: "x", cases: 0, estimatedCostUsd: 0, choosesModel: true, defaults: { max_cases: 5, cost_cap_usd: 2, judge: {} } })
+              : path.endsWith("/evals") ? ok({ items: [] })
+                : ok({ items: [proposal, applied], openCount: 1 }),
+      )) as never);
+    const conflict = { data: undefined, error: { status: 409, title: "Conflict", detail: "the target changed since this was applied" }, response: new Response(null, { status: 409 }) };
+    const post = vi.spyOn(api, "POST").mockImplementation(((path: string, init: { body?: { confirm?: boolean } }) =>
+      Promise.resolve(path.endsWith("/rollback") && !init.body?.confirm ? conflict : ok({}))) as never);
+    render(<QueryClientProvider client={new QueryClient()}><MemoryRouter><ImprovementsPage /></MemoryRouter></QueryClientProvider>);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Apply" }));
+    await waitFor(() => expect(post).toHaveBeenCalledWith("/improvements/proposals/{proposalId}/apply", expect.anything()));
+
+    fireEvent.click(screen.getByRole("button", { name: "All" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Applied one" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Roll back" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Roll back anyway" }));
+    await waitFor(() => {
+      const calls = post.mock.calls.filter((c) => String(c[0]).endsWith("/rollback"));
+      expect(calls.at(-1)?.[1]).toMatchObject({ body: { confirm: true } });
+    });
+  });
+});

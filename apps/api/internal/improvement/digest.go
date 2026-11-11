@@ -23,6 +23,7 @@ type Digest struct {
 	Providers      []map[string]any `json:"providers"`
 	Templates      []map[string]any `json:"templates"`
 	PastProposals  []map[string]any `json:"past_proposals"`
+	Outcomes       []map[string]any `json:"applied_outcomes"`
 	Rules          map[string]any   `json:"rules"`
 }
 
@@ -153,6 +154,10 @@ func (s *Service) Digest(ctx context.Context, st Settings) (Digest, bool, error)
 			e["your_note"] = clip(*p.DecisionNote, 300)
 		}
 		d.PastProposals = append(d.PastProposals, e)
+	}
+	d.Outcomes = s.outcomes(ctx)
+	if d.Outcomes == nil {
+		d.Outcomes = []map[string]any{}
 	}
 	d.Rules = map[string]any{
 		"max_proposals": st.MaxProposals,

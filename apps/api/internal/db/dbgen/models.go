@@ -983,6 +983,16 @@ type WorkflowTemplate struct {
 	UpdatedAt   time.Time
 }
 
+type WorkflowTemplateVersion struct {
+	TemplateID  uuid.UUID
+	Version     int32
+	Name        string
+	Description string
+	Definition  json.RawMessage
+	ChangedBy   *uuid.UUID
+	CreatedAt   time.Time
+}
+
 type Workspace struct {
 	ID              uuid.UUID
 	TaskID          uuid.UUID

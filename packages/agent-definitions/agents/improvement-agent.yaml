@@ -31,6 +31,7 @@ input_schema:
     providers: { type: array, items: { type: object, additionalProperties: true } }
     templates: { type: array, items: { type: object, additionalProperties: true } }
     past_proposals: { type: array, description: "Earlier proposals and what happened to them.", items: { type: object, additionalProperties: true } }
+    applied_outcomes: { type: array, description: "Applied prompt changes: the agent's numbers before and since.", items: { type: object, additionalProperties: true } }
     rules: { type: object, additionalProperties: true, description: "What may and may not be proposed." }
 output_schema:
   type: object

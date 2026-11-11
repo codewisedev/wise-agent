@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Sparkles } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router";
-import { api, unwrap } from "../api/client";
+import { api, ApiError, unwrap } from "../api/client";
 import type { components } from "../api/schema.gen";
 import { Badge, Empty, ErrorNote, formatDate, Panel, relativeTime } from "../components/ui";
 import { lineDiff, withContext } from "../lib/lineDiff";
@@ -114,6 +114,22 @@ function ProposalCard({ p }: { p: Proposal }) {
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["improvements"] }),
   });
   const decidable = p.status === "proposed" || p.status === "evaluated" || p.status === "stale";
+  const applicable = p.status === "proposed" || p.status === "evaluated";
+  const [needConfirm, setNeedConfirm] = useState(false);
+  const done = () => void qc.invalidateQueries({ queryKey: ["improvements"] });
+  const apply = useMutation({
+    mutationFn: () => unwrap(api.POST("/improvements/proposals/{proposalId}/apply", { params: { path: { proposalId: p.id } } })),
+    onSuccess: done,
+  });
+  const rollback = useMutation({
+    mutationFn: (confirm: boolean) =>
+      unwrap(api.POST("/improvements/proposals/{proposalId}/rollback", { params: { path: { proposalId: p.id } }, body: { confirm, note } })),
+    onSuccess: () => {
+      setNeedConfirm(false);
+      done();
+    },
+    onError: (e) => setNeedConfirm(e instanceof ApiError && e.status === 409 && e.message.includes("changed since")),
+  });
   // an evaluating proposal is decided once its evaluation ends
   return (
     <article className="proposal">
@@ -140,15 +156,55 @@ function ProposalCard({ p }: { p: Proposal }) {
           {p.decisionNote && <p className="small faint">Your note: {p.decisionNote}</p>}
           {decidable && (
             <form className="proposal-actions" onSubmit={(e) => { e.preventDefault(); reject.mutate(); }}>
+              {applicable && (
+                <button type="button" className="btn btn-primary" disabled={apply.isPending} onClick={() => apply.mutate()}>
+                  Apply
+                </button>
+              )}
               <input aria-label="Why not (optional)" placeholder="Why not? (optional, remembered by later analyses)" value={note}
                 maxLength={2000} onChange={(e) => setNote(e.target.value)} />
               <button type="submit" className="btn" disabled={reject.isPending}>Reject</button>
             </form>
           )}
-          <ErrorNote error={reject.error} />
+          {(p.status === "applied" || p.status === "rolled_back") && <Outcome p={p} />}
+          {p.status === "applied" && (
+            <form className="proposal-actions" onSubmit={(e) => { e.preventDefault(); rollback.mutate(needConfirm); }}>
+              <input aria-label="Why roll back (optional)" placeholder="Why? (optional, remembered by later analyses)" value={note}
+                maxLength={2000} onChange={(e) => setNote(e.target.value)} />
+              <button type="submit" className={`btn${needConfirm ? " btn-danger" : ""}`} disabled={rollback.isPending}>
+                {needConfirm ? "Roll back anyway" : "Roll back"}
+              </button>
+            </form>
+          )}
+          {needConfirm && <p className="small warn-text">The target was edited after this was applied: rolling back also undoes those edits.</p>}
+          <ErrorNote error={reject.error ?? apply.error ?? (needConfirm ? null : rollback.error)} />
         </div>
       )}
     </article>
+  );
+}
+
+/** Before (when applied) and since, for applied prompt changes. */
+function Outcome({ p }: { p: Proposal }) {
+  const mon = useQuery({
+    queryKey: ["improvements", "monitor", p.id],
+    queryFn: () => unwrap(api.GET("/improvements/proposals/{proposalId}/monitor", { params: { path: { proposalId: p.id } } })),
+    enabled: p.kind === "prompt",
+  });
+  if (p.kind !== "prompt") return <p className="small faint">Applied {p.appliedAt ? relativeTime(p.appliedAt) : ""}.</p>;
+  const last = <T,>(xs?: T[] | null) => (xs && xs.length ? xs[xs.length - 1] : undefined);
+  const b = last(mon.data?.before);
+  const s = mon.data?.since.reduce(
+    (t, a) => ({ runs: t.runs + a.runs, ok: t.ok + a.succeeded, reviewed: t.reviewed + a.reviewed, rejected: t.rejected + a.rejected }),
+    { runs: 0, ok: 0, reviewed: 0, rejected: 0 },
+  );
+  const pc = (n: number, d: number) => (d ? `${Math.round((n / d) * 100)}%` : "–");
+  return (
+    <div className="small outcome">
+      <ErrorNote error={mon.error} />
+      <span>When applied: {b ? `${b.runs} runs, ${pc(b.succeeded, b.runs)} ok, ${pc(b.rejected, b.reviewed)} rejected` : "no runs"}</span>
+      <span>Since: {s && s.runs ? `${s.runs} runs, ${pc(s.ok, s.runs)} ok, ${pc(s.rejected, s.reviewed)} rejected` : "no runs yet"}</span>
+    </div>
   );
 }
 

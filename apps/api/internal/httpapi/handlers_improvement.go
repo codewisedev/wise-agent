@@ -129,3 +129,39 @@ func (s *Server) RejectImprovementProposal(ctx context.Context, req apigen.Rejec
 	}
 	return apigen.RejectImprovementProposal200JSONResponse(toProposal(p)), nil
 }
+
+func (s *Server) ApplyImprovementProposal(ctx context.Context, req apigen.ApplyImprovementProposalRequestObject) (apigen.ApplyImprovementProposalResponseObject, error) {
+	uid, err := sessionUser(ctx, "applying a proposal")
+	if err != nil {
+		return nil, err
+	}
+	p, err := s.Improvement.Apply(ctx, req.ProposalId, uid)
+	if err != nil {
+		return nil, err
+	}
+	return apigen.ApplyImprovementProposal200JSONResponse(toProposal(p)), nil
+}
+
+func (s *Server) RollbackImprovementProposal(ctx context.Context, req apigen.RollbackImprovementProposalRequestObject) (apigen.RollbackImprovementProposalResponseObject, error) {
+	uid, err := sessionUser(ctx, "rolling back a proposal")
+	if err != nil {
+		return nil, err
+	}
+	confirm, note := false, ""
+	if req.Body != nil {
+		confirm, note = req.Body.Confirm != nil && *req.Body.Confirm, deref(req.Body.Note)
+	}
+	p, err := s.Improvement.Rollback(ctx, req.ProposalId, confirm, note, uid)
+	if err != nil {
+		return nil, err
+	}
+	return apigen.RollbackImprovementProposal200JSONResponse(toProposal(p)), nil
+}
+
+func (s *Server) MonitorImprovementProposal(ctx context.Context, req apigen.MonitorImprovementProposalRequestObject) (apigen.MonitorImprovementProposalResponseObject, error) {
+	m, err := s.Improvement.Monitor(ctx, req.ProposalId)
+	if err != nil {
+		return nil, err
+	}
+	return reshape[apigen.MonitorImprovementProposal200JSONResponse](m), nil
+}

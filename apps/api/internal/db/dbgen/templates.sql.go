@@ -141,6 +141,89 @@ func (q *Queries) GetWorkflowTemplateBySlug(ctx context.Context, slug *string) (
 	return i, err
 }
 
+const getWorkflowTemplateVersion = `-- name: GetWorkflowTemplateVersion :one
+SELECT template_id, version, name, description, definition, changed_by, created_at FROM workflow_template_versions WHERE template_id = $1 AND version = $2
+`
+
+type GetWorkflowTemplateVersionParams struct {
+	TemplateID uuid.UUID
+	Version    int32
+}
+
+func (q *Queries) GetWorkflowTemplateVersion(ctx context.Context, arg GetWorkflowTemplateVersionParams) (WorkflowTemplateVersion, error) {
+	row := q.db.QueryRow(ctx, getWorkflowTemplateVersion, arg.TemplateID, arg.Version)
+	var i WorkflowTemplateVersion
+	err := row.Scan(
+		&i.TemplateID,
+		&i.Version,
+		&i.Name,
+		&i.Description,
+		&i.Definition,
+		&i.ChangedBy,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const insertWorkflowTemplateVersion = `-- name: InsertWorkflowTemplateVersion :exec
+INSERT INTO workflow_template_versions (template_id, version, name, description, definition, changed_by)
+VALUES ($1, $2, $3, $4, $5, $6)
+ON CONFLICT (template_id, version) DO NOTHING
+`
+
+type InsertWorkflowTemplateVersionParams struct {
+	TemplateID  uuid.UUID
+	Version     int32
+	Name        string
+	Description string
+	Definition  json.RawMessage
+	ChangedBy   *uuid.UUID
+}
+
+func (q *Queries) InsertWorkflowTemplateVersion(ctx context.Context, arg InsertWorkflowTemplateVersionParams) error {
+	_, err := q.db.Exec(ctx, insertWorkflowTemplateVersion,
+		arg.TemplateID,
+		arg.Version,
+		arg.Name,
+		arg.Description,
+		arg.Definition,
+		arg.ChangedBy,
+	)
+	return err
+}
+
+const listWorkflowTemplateVersions = `-- name: ListWorkflowTemplateVersions :many
+SELECT template_id, version, name, description, definition, changed_by, created_at FROM workflow_template_versions WHERE template_id = $1 ORDER BY version DESC LIMIT 100
+`
+
+func (q *Queries) ListWorkflowTemplateVersions(ctx context.Context, templateID uuid.UUID) ([]WorkflowTemplateVersion, error) {
+	rows, err := q.db.Query(ctx, listWorkflowTemplateVersions, templateID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []WorkflowTemplateVersion{}
+	for rows.Next() {
+		var i WorkflowTemplateVersion
+		if err := rows.Scan(
+			&i.TemplateID,
+			&i.Version,
+			&i.Name,
+			&i.Description,
+			&i.Definition,
+			&i.ChangedBy,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listWorkflowTemplates = `-- name: ListWorkflowTemplates :many
 SELECT id, slug, name, description, definition, version, is_default, created_by, created_at, updated_at FROM workflow_templates ORDER BY is_default DESC, name
 `
@@ -174,6 +257,28 @@ func (q *Queries) ListWorkflowTemplates(ctx context.Context) ([]WorkflowTemplate
 		return nil, err
 	}
 	return items, nil
+}
+
+const lockWorkflowTemplate = `-- name: LockWorkflowTemplate :one
+SELECT id, slug, name, description, definition, version, is_default, created_by, created_at, updated_at FROM workflow_templates WHERE id = $1 FOR UPDATE
+`
+
+func (q *Queries) LockWorkflowTemplate(ctx context.Context, id uuid.UUID) (WorkflowTemplate, error) {
+	row := q.db.QueryRow(ctx, lockWorkflowTemplate, id)
+	var i WorkflowTemplate
+	err := row.Scan(
+		&i.ID,
+		&i.Slug,
+		&i.Name,
+		&i.Description,
+		&i.Definition,
+		&i.Version,
+		&i.IsDefault,
+		&i.CreatedBy,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
 }
 
 const setDefaultWorkflowTemplate = `-- name: SetDefaultWorkflowTemplate :exec

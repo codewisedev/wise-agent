@@ -143,6 +143,7 @@ func TestAnalyseNowStoresValidProposalsAndRefusesTheRest(t *testing.T) {
 	if p := e.expect(e.do("GET", "/improvements/proposals/"+promptID, nil), 200); p["status"] != "stale" {
 		t.Fatalf("not stale: %v", p["status"])
 	}
+	e.expect(e.do("POST", "/improvements/proposals/"+promptID+"/apply", nil), 409) // stale: never applied over your edit
 }
 
 func TestWeeklyAnalysisRunsOncePerPeriod(t *testing.T) {

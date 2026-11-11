@@ -3702,6 +3702,12 @@ type RejectImprovementProposalJSONBody struct {
 	Note *string `json:"note,omitempty"`
 }
 
+// RollbackImprovementProposalJSONBody defines parameters for RollbackImprovementProposal.
+type RollbackImprovementProposalJSONBody struct {
+	Confirm *bool   `json:"confirm,omitempty"`
+	Note    *string `json:"note,omitempty"`
+}
+
 // GetInsightsParams defines parameters for GetInsights.
 type GetInsightsParams struct {
 	Window *GetInsightsParamsWindow `form:"window,omitempty" json:"window,omitempty"`
@@ -3871,6 +3877,9 @@ type EvaluateProposalJSONRequestBody EvaluateProposalJSONBody
 
 // RejectImprovementProposalJSONRequestBody defines body for RejectImprovementProposal for application/json ContentType.
 type RejectImprovementProposalJSONRequestBody RejectImprovementProposalJSONBody
+
+// RollbackImprovementProposalJSONRequestBody defines body for RollbackImprovementProposal for application/json ContentType.
+type RollbackImprovementProposalJSONRequestBody RollbackImprovementProposalJSONBody
 
 // UpdateIntegrationJSONRequestBody defines body for UpdateIntegration for application/json ContentType.
 type UpdateIntegrationJSONRequestBody = IntegrationInput
@@ -4196,6 +4205,9 @@ type ServerInterface interface {
 	// (GET /improvements/proposals/{proposalId})
 	GetImprovementProposal(w http.ResponseWriter, r *http.Request, proposalId openapi_types.UUID)
 
+	// (POST /improvements/proposals/{proposalId}/apply)
+	ApplyImprovementProposal(w http.ResponseWriter, r *http.Request, proposalId openapi_types.UUID)
+
 	// (GET /improvements/proposals/{proposalId}/eval-plan)
 	GetEvalPlan(w http.ResponseWriter, r *http.Request, proposalId openapi_types.UUID, params GetEvalPlanParams)
 
@@ -4205,8 +4217,14 @@ type ServerInterface interface {
 	// (POST /improvements/proposals/{proposalId}/evaluate)
 	EvaluateProposal(w http.ResponseWriter, r *http.Request, proposalId openapi_types.UUID)
 
+	// (GET /improvements/proposals/{proposalId}/monitor)
+	MonitorImprovementProposal(w http.ResponseWriter, r *http.Request, proposalId openapi_types.UUID)
+
 	// (POST /improvements/proposals/{proposalId}/reject)
 	RejectImprovementProposal(w http.ResponseWriter, r *http.Request, proposalId openapi_types.UUID)
+
+	// (POST /improvements/proposals/{proposalId}/rollback)
+	RollbackImprovementProposal(w http.ResponseWriter, r *http.Request, proposalId openapi_types.UUID)
 
 	// (GET /insights)
 	GetInsights(w http.ResponseWriter, r *http.Request, params GetInsightsParams)
@@ -4523,6 +4541,12 @@ type ServerInterface interface {
 	// (PUT /workflow-templates/{templateId})
 	UpdateWorkflowTemplate(w http.ResponseWriter, r *http.Request, templateId TemplateId)
 
+	// (GET /workflow-templates/{templateId}/versions)
+	ListWorkflowTemplateVersions(w http.ResponseWriter, r *http.Request, templateId openapi_types.UUID)
+
+	// (POST /workflow-templates/{templateId}/versions/{version}/restore)
+	RestoreWorkflowTemplateVersion(w http.ResponseWriter, r *http.Request, templateId openapi_types.UUID, version int)
+
 	// (GET /workflows/{workflowId})
 	GetWorkflow(w http.ResponseWriter, r *http.Request, workflowId WorkflowId)
 
@@ -4780,6 +4804,11 @@ func (_ Unimplemented) GetImprovementProposal(w http.ResponseWriter, r *http.Req
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
+// (POST /improvements/proposals/{proposalId}/apply)
+func (_ Unimplemented) ApplyImprovementProposal(w http.ResponseWriter, r *http.Request, proposalId openapi_types.UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
 // (GET /improvements/proposals/{proposalId}/eval-plan)
 func (_ Unimplemented) GetEvalPlan(w http.ResponseWriter, r *http.Request, proposalId openapi_types.UUID, params GetEvalPlanParams) {
 	w.WriteHeader(http.StatusNotImplemented)
@@ -4795,8 +4824,18 @@ func (_ Unimplemented) EvaluateProposal(w http.ResponseWriter, r *http.Request, 
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
+// (GET /improvements/proposals/{proposalId}/monitor)
+func (_ Unimplemented) MonitorImprovementProposal(w http.ResponseWriter, r *http.Request, proposalId openapi_types.UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
 // (POST /improvements/proposals/{proposalId}/reject)
 func (_ Unimplemented) RejectImprovementProposal(w http.ResponseWriter, r *http.Request, proposalId openapi_types.UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (POST /improvements/proposals/{proposalId}/rollback)
+func (_ Unimplemented) RollbackImprovementProposal(w http.ResponseWriter, r *http.Request, proposalId openapi_types.UUID) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -5322,6 +5361,16 @@ func (_ Unimplemented) GetWorkflowTemplate(w http.ResponseWriter, r *http.Reques
 
 // (PUT /workflow-templates/{templateId})
 func (_ Unimplemented) UpdateWorkflowTemplate(w http.ResponseWriter, r *http.Request, templateId TemplateId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (GET /workflow-templates/{templateId}/versions)
+func (_ Unimplemented) ListWorkflowTemplateVersions(w http.ResponseWriter, r *http.Request, templateId openapi_types.UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (POST /workflow-templates/{templateId}/versions/{version}/restore)
+func (_ Unimplemented) RestoreWorkflowTemplateVersion(w http.ResponseWriter, r *http.Request, templateId openapi_types.UUID, version int) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -6614,6 +6663,32 @@ func (siw *ServerInterfaceWrapper) GetImprovementProposal(w http.ResponseWriter,
 	handler.ServeHTTP(w, r)
 }
 
+// ApplyImprovementProposal operation middleware
+func (siw *ServerInterfaceWrapper) ApplyImprovementProposal(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "proposalId" -------------
+	var proposalId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "proposalId", chi.URLParam(r, "proposalId"), &proposalId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "proposalId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ApplyImprovementProposal(w, r, proposalId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetEvalPlan operation middleware
 func (siw *ServerInterfaceWrapper) GetEvalPlan(w http.ResponseWriter, r *http.Request) {
 
@@ -6708,6 +6783,32 @@ func (siw *ServerInterfaceWrapper) EvaluateProposal(w http.ResponseWriter, r *ht
 	handler.ServeHTTP(w, r)
 }
 
+// MonitorImprovementProposal operation middleware
+func (siw *ServerInterfaceWrapper) MonitorImprovementProposal(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "proposalId" -------------
+	var proposalId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "proposalId", chi.URLParam(r, "proposalId"), &proposalId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "proposalId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.MonitorImprovementProposal(w, r, proposalId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // RejectImprovementProposal operation middleware
 func (siw *ServerInterfaceWrapper) RejectImprovementProposal(w http.ResponseWriter, r *http.Request) {
 
@@ -6725,6 +6826,32 @@ func (siw *ServerInterfaceWrapper) RejectImprovementProposal(w http.ResponseWrit
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.RejectImprovementProposal(w, r, proposalId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RollbackImprovementProposal operation middleware
+func (siw *ServerInterfaceWrapper) RollbackImprovementProposal(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "proposalId" -------------
+	var proposalId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "proposalId", chi.URLParam(r, "proposalId"), &proposalId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "proposalId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RollbackImprovementProposal(w, r, proposalId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -9786,6 +9913,67 @@ func (siw *ServerInterfaceWrapper) UpdateWorkflowTemplate(w http.ResponseWriter,
 	handler.ServeHTTP(w, r)
 }
 
+// ListWorkflowTemplateVersions operation middleware
+func (siw *ServerInterfaceWrapper) ListWorkflowTemplateVersions(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "templateId" -------------
+	var templateId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "templateId", chi.URLParam(r, "templateId"), &templateId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "templateId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListWorkflowTemplateVersions(w, r, templateId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RestoreWorkflowTemplateVersion operation middleware
+func (siw *ServerInterfaceWrapper) RestoreWorkflowTemplateVersion(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "templateId" -------------
+	var templateId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "templateId", chi.URLParam(r, "templateId"), &templateId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "templateId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "version" -------------
+	var version int
+
+	err = runtime.BindStyledParameterWithOptions("simple", "version", chi.URLParam(r, "version"), &version, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "version", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RestoreWorkflowTemplateVersion(w, r, templateId, version)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetWorkflow operation middleware
 func (siw *ServerInterfaceWrapper) GetWorkflow(w http.ResponseWriter, r *http.Request) {
 
@@ -10290,6 +10478,12 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 		r.Post(options.BaseURL+"/workflow-templates", wrapper.CreateWorkflowTemplate)
 	})
 	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/workflow-templates/{templateId}/versions", wrapper.ListWorkflowTemplateVersions)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/workflow-templates/{templateId}/versions/{version}/restore", wrapper.RestoreWorkflowTemplateVersion)
+	})
+	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/workflow-templates/preview", wrapper.PreviewWorkflowTemplate)
 	})
 	r.Group(func(r chi.Router) {
@@ -10483,6 +10677,15 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/improvements/proposals/{proposalId}", wrapper.GetImprovementProposal)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/improvements/proposals/{proposalId}/apply", wrapper.ApplyImprovementProposal)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/improvements/proposals/{proposalId}/rollback", wrapper.RollbackImprovementProposal)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/improvements/proposals/{proposalId}/monitor", wrapper.MonitorImprovementProposal)
 	})
 	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/improvements/proposals/{proposalId}/reject", wrapper.RejectImprovementProposal)
@@ -13327,6 +13530,86 @@ func (response GetImprovementProposal404ApplicationProblemPlusJSONResponse) Visi
 	return err
 }
 
+type ApplyImprovementProposalRequestObject struct {
+	ProposalId openapi_types.UUID `json:"proposalId"`
+}
+
+type ApplyImprovementProposalResponseObject interface {
+	VisitApplyImprovementProposalResponse(w http.ResponseWriter) error
+}
+
+type ApplyImprovementProposal200JSONResponse ImprovementProposal
+
+func (response ApplyImprovementProposal200JSONResponse) VisitApplyImprovementProposalResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ApplyImprovementProposal400ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response ApplyImprovementProposal400ApplicationProblemPlusJSONResponse) VisitApplyImprovementProposalResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ApplyImprovementProposal401ApplicationProblemPlusJSONResponse Problem
+
+func (response ApplyImprovementProposal401ApplicationProblemPlusJSONResponse) VisitApplyImprovementProposalResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ApplyImprovementProposal404ApplicationProblemPlusJSONResponse Problem
+
+func (response ApplyImprovementProposal404ApplicationProblemPlusJSONResponse) VisitApplyImprovementProposalResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ApplyImprovementProposal409ApplicationProblemPlusJSONResponse Problem
+
+func (response ApplyImprovementProposal409ApplicationProblemPlusJSONResponse) VisitApplyImprovementProposalResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type GetEvalPlanRequestObject struct {
 	ProposalId openapi_types.UUID `json:"proposalId"`
 	Params     GetEvalPlanParams
@@ -13515,6 +13798,63 @@ func (response EvaluateProposal409ApplicationProblemPlusJSONResponse) VisitEvalu
 	return err
 }
 
+type MonitorImprovementProposalRequestObject struct {
+	ProposalId openapi_types.UUID `json:"proposalId"`
+}
+
+type MonitorImprovementProposalResponseObject interface {
+	VisitMonitorImprovementProposalResponse(w http.ResponseWriter) error
+}
+
+type MonitorImprovementProposal200JSONResponse struct {
+	AppliedAt *time.Time              `json:"appliedAt,omitempty"`
+	Before    *[]AgentStat            `json:"before,omitempty"`
+	Since     []AgentStat             `json:"since"`
+	Template  *map[string]interface{} `json:"template,omitempty"`
+}
+
+func (response MonitorImprovementProposal200JSONResponse) VisitMonitorImprovementProposalResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type MonitorImprovementProposal401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response MonitorImprovementProposal401ApplicationProblemPlusJSONResponse) VisitMonitorImprovementProposalResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type MonitorImprovementProposal404ApplicationProblemPlusJSONResponse Problem
+
+func (response MonitorImprovementProposal404ApplicationProblemPlusJSONResponse) VisitMonitorImprovementProposalResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type RejectImprovementProposalRequestObject struct {
 	ProposalId openapi_types.UUID `json:"proposalId"`
 	Body       *RejectImprovementProposalJSONRequestBody
@@ -13571,6 +13911,73 @@ func (response RejectImprovementProposal404ApplicationProblemPlusJSONResponse) V
 type RejectImprovementProposal409ApplicationProblemPlusJSONResponse Problem
 
 func (response RejectImprovementProposal409ApplicationProblemPlusJSONResponse) VisitRejectImprovementProposalResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RollbackImprovementProposalRequestObject struct {
+	ProposalId openapi_types.UUID `json:"proposalId"`
+	Body       *RollbackImprovementProposalJSONRequestBody
+}
+
+type RollbackImprovementProposalResponseObject interface {
+	VisitRollbackImprovementProposalResponse(w http.ResponseWriter) error
+}
+
+type RollbackImprovementProposal200JSONResponse ImprovementProposal
+
+func (response RollbackImprovementProposal200JSONResponse) VisitRollbackImprovementProposalResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RollbackImprovementProposal401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response RollbackImprovementProposal401ApplicationProblemPlusJSONResponse) VisitRollbackImprovementProposalResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RollbackImprovementProposal404ApplicationProblemPlusJSONResponse Problem
+
+func (response RollbackImprovementProposal404ApplicationProblemPlusJSONResponse) VisitRollbackImprovementProposalResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RollbackImprovementProposal409ApplicationProblemPlusJSONResponse Problem
+
+func (response RollbackImprovementProposal409ApplicationProblemPlusJSONResponse) VisitRollbackImprovementProposalResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -20079,6 +20486,136 @@ func (response UpdateWorkflowTemplate404ApplicationProblemPlusJSONResponse) Visi
 	return err
 }
 
+type ListWorkflowTemplateVersionsRequestObject struct {
+	TemplateId openapi_types.UUID `json:"templateId"`
+}
+
+type ListWorkflowTemplateVersionsResponseObject interface {
+	VisitListWorkflowTemplateVersionsResponse(w http.ResponseWriter) error
+}
+
+type ListWorkflowTemplateVersions200JSONResponse struct {
+	Items []struct {
+		ChangedBy *openapi_types.UUID `json:"changedBy,omitempty"`
+
+		// CreatedAt When it was replaced.
+		CreatedAt   time.Time              `json:"createdAt"`
+		Definition  map[string]interface{} `json:"definition"`
+		Description string                 `json:"description"`
+		Name        string                 `json:"name"`
+		Version     int                    `json:"version"`
+	} `json:"items"`
+}
+
+func (response ListWorkflowTemplateVersions200JSONResponse) VisitListWorkflowTemplateVersionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListWorkflowTemplateVersions401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response ListWorkflowTemplateVersions401ApplicationProblemPlusJSONResponse) VisitListWorkflowTemplateVersionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListWorkflowTemplateVersions404ApplicationProblemPlusJSONResponse Problem
+
+func (response ListWorkflowTemplateVersions404ApplicationProblemPlusJSONResponse) VisitListWorkflowTemplateVersionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RestoreWorkflowTemplateVersionRequestObject struct {
+	TemplateId openapi_types.UUID `json:"templateId"`
+	Version    int                `json:"version"`
+}
+
+type RestoreWorkflowTemplateVersionResponseObject interface {
+	VisitRestoreWorkflowTemplateVersionResponse(w http.ResponseWriter) error
+}
+
+type RestoreWorkflowTemplateVersion200JSONResponse WorkflowTemplate
+
+func (response RestoreWorkflowTemplateVersion200JSONResponse) VisitRestoreWorkflowTemplateVersionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RestoreWorkflowTemplateVersion400ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response RestoreWorkflowTemplateVersion400ApplicationProblemPlusJSONResponse) VisitRestoreWorkflowTemplateVersionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RestoreWorkflowTemplateVersion401ApplicationProblemPlusJSONResponse Problem
+
+func (response RestoreWorkflowTemplateVersion401ApplicationProblemPlusJSONResponse) VisitRestoreWorkflowTemplateVersionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RestoreWorkflowTemplateVersion404ApplicationProblemPlusJSONResponse Problem
+
+func (response RestoreWorkflowTemplateVersion404ApplicationProblemPlusJSONResponse) VisitRestoreWorkflowTemplateVersionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type GetWorkflowRequestObject struct {
 	WorkflowId WorkflowId `json:"workflowId"`
 }
@@ -20507,6 +21044,9 @@ type StrictServerInterface interface {
 	// (GET /improvements/proposals/{proposalId})
 	GetImprovementProposal(ctx context.Context, request GetImprovementProposalRequestObject) (GetImprovementProposalResponseObject, error)
 
+	// (POST /improvements/proposals/{proposalId}/apply)
+	ApplyImprovementProposal(ctx context.Context, request ApplyImprovementProposalRequestObject) (ApplyImprovementProposalResponseObject, error)
+
 	// (GET /improvements/proposals/{proposalId}/eval-plan)
 	GetEvalPlan(ctx context.Context, request GetEvalPlanRequestObject) (GetEvalPlanResponseObject, error)
 
@@ -20516,8 +21056,14 @@ type StrictServerInterface interface {
 	// (POST /improvements/proposals/{proposalId}/evaluate)
 	EvaluateProposal(ctx context.Context, request EvaluateProposalRequestObject) (EvaluateProposalResponseObject, error)
 
+	// (GET /improvements/proposals/{proposalId}/monitor)
+	MonitorImprovementProposal(ctx context.Context, request MonitorImprovementProposalRequestObject) (MonitorImprovementProposalResponseObject, error)
+
 	// (POST /improvements/proposals/{proposalId}/reject)
 	RejectImprovementProposal(ctx context.Context, request RejectImprovementProposalRequestObject) (RejectImprovementProposalResponseObject, error)
+
+	// (POST /improvements/proposals/{proposalId}/rollback)
+	RollbackImprovementProposal(ctx context.Context, request RollbackImprovementProposalRequestObject) (RollbackImprovementProposalResponseObject, error)
 
 	// (GET /insights)
 	GetInsights(ctx context.Context, request GetInsightsRequestObject) (GetInsightsResponseObject, error)
@@ -20833,6 +21379,12 @@ type StrictServerInterface interface {
 
 	// (PUT /workflow-templates/{templateId})
 	UpdateWorkflowTemplate(ctx context.Context, request UpdateWorkflowTemplateRequestObject) (UpdateWorkflowTemplateResponseObject, error)
+
+	// (GET /workflow-templates/{templateId}/versions)
+	ListWorkflowTemplateVersions(ctx context.Context, request ListWorkflowTemplateVersionsRequestObject) (ListWorkflowTemplateVersionsResponseObject, error)
+
+	// (POST /workflow-templates/{templateId}/versions/{version}/restore)
+	RestoreWorkflowTemplateVersion(ctx context.Context, request RestoreWorkflowTemplateVersionRequestObject) (RestoreWorkflowTemplateVersionResponseObject, error)
 
 	// (GET /workflows/{workflowId})
 	GetWorkflow(ctx context.Context, request GetWorkflowRequestObject) (GetWorkflowResponseObject, error)
@@ -22207,6 +22759,32 @@ func (sh *strictHandler) GetImprovementProposal(w http.ResponseWriter, r *http.R
 	}
 }
 
+// ApplyImprovementProposal operation middleware
+func (sh *strictHandler) ApplyImprovementProposal(w http.ResponseWriter, r *http.Request, proposalId openapi_types.UUID) {
+	var request ApplyImprovementProposalRequestObject
+
+	request.ProposalId = proposalId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ApplyImprovementProposal(ctx, request.(ApplyImprovementProposalRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ApplyImprovementProposal")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ApplyImprovementProposalResponseObject); ok {
+		if err := validResponse.VisitApplyImprovementProposalResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // GetEvalPlan operation middleware
 func (sh *strictHandler) GetEvalPlan(w http.ResponseWriter, r *http.Request, proposalId openapi_types.UUID, params GetEvalPlanParams) {
 	var request GetEvalPlanRequestObject
@@ -22296,6 +22874,32 @@ func (sh *strictHandler) EvaluateProposal(w http.ResponseWriter, r *http.Request
 	}
 }
 
+// MonitorImprovementProposal operation middleware
+func (sh *strictHandler) MonitorImprovementProposal(w http.ResponseWriter, r *http.Request, proposalId openapi_types.UUID) {
+	var request MonitorImprovementProposalRequestObject
+
+	request.ProposalId = proposalId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.MonitorImprovementProposal(ctx, request.(MonitorImprovementProposalRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "MonitorImprovementProposal")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(MonitorImprovementProposalResponseObject); ok {
+		if err := validResponse.VisitMonitorImprovementProposalResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // RejectImprovementProposal operation middleware
 func (sh *strictHandler) RejectImprovementProposal(w http.ResponseWriter, r *http.Request, proposalId openapi_types.UUID) {
 	var request RejectImprovementProposalRequestObject
@@ -22325,6 +22929,42 @@ func (sh *strictHandler) RejectImprovementProposal(w http.ResponseWriter, r *htt
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(RejectImprovementProposalResponseObject); ok {
 		if err := validResponse.VisitRejectImprovementProposalResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RollbackImprovementProposal operation middleware
+func (sh *strictHandler) RollbackImprovementProposal(w http.ResponseWriter, r *http.Request, proposalId openapi_types.UUID) {
+	var request RollbackImprovementProposalRequestObject
+
+	request.ProposalId = proposalId
+
+	var body RollbackImprovementProposalJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		if !errors.Is(err, io.EOF) {
+			sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+			return
+		}
+	} else {
+		request.Body = &body
+	}
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RollbackImprovementProposal(ctx, request.(RollbackImprovementProposalRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RollbackImprovementProposal")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RollbackImprovementProposalResponseObject); ok {
+		if err := validResponse.VisitRollbackImprovementProposalResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -25303,6 +25943,59 @@ func (sh *strictHandler) UpdateWorkflowTemplate(w http.ResponseWriter, r *http.R
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(UpdateWorkflowTemplateResponseObject); ok {
 		if err := validResponse.VisitUpdateWorkflowTemplateResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListWorkflowTemplateVersions operation middleware
+func (sh *strictHandler) ListWorkflowTemplateVersions(w http.ResponseWriter, r *http.Request, templateId openapi_types.UUID) {
+	var request ListWorkflowTemplateVersionsRequestObject
+
+	request.TemplateId = templateId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListWorkflowTemplateVersions(ctx, request.(ListWorkflowTemplateVersionsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListWorkflowTemplateVersions")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListWorkflowTemplateVersionsResponseObject); ok {
+		if err := validResponse.VisitListWorkflowTemplateVersionsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RestoreWorkflowTemplateVersion operation middleware
+func (sh *strictHandler) RestoreWorkflowTemplateVersion(w http.ResponseWriter, r *http.Request, templateId openapi_types.UUID, version int) {
+	var request RestoreWorkflowTemplateVersionRequestObject
+
+	request.TemplateId = templateId
+	request.Version = version
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RestoreWorkflowTemplateVersion(ctx, request.(RestoreWorkflowTemplateVersionRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RestoreWorkflowTemplateVersion")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RestoreWorkflowTemplateVersionResponseObject); ok {
+		if err := validResponse.VisitRestoreWorkflowTemplateVersionResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

@@ -13,6 +13,52 @@ import (
 	"github.com/google/uuid"
 )
 
+const appliedImprovementProposals = `-- name: AppliedImprovementProposals :many
+SELECT id, analysis_id, kind, target, title, rationale, evidence, change, before, base, fingerprint, status, metrics_before, applied, decision_note, decided_by, decided_at, applied_at, rolled_back_at, created_at, updated_at FROM improvement_proposals WHERE status = 'applied' ORDER BY applied_at DESC LIMIT 10
+`
+
+func (q *Queries) AppliedImprovementProposals(ctx context.Context) ([]ImprovementProposal, error) {
+	rows, err := q.db.Query(ctx, appliedImprovementProposals)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ImprovementProposal{}
+	for rows.Next() {
+		var i ImprovementProposal
+		if err := rows.Scan(
+			&i.ID,
+			&i.AnalysisID,
+			&i.Kind,
+			&i.Target,
+			&i.Title,
+			&i.Rationale,
+			&i.Evidence,
+			&i.Change,
+			&i.Before,
+			&i.Base,
+			&i.Fingerprint,
+			&i.Status,
+			&i.MetricsBefore,
+			&i.Applied,
+			&i.DecisionNote,
+			&i.DecidedBy,
+			&i.DecidedAt,
+			&i.AppliedAt,
+			&i.RolledBackAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const countOpenImprovementProposals = `-- name: CountOpenImprovementProposals :one
 SELECT count(*)::bigint FROM improvement_proposals WHERE status IN ('proposed', 'evaluated')
 `
@@ -702,6 +748,96 @@ type SetImprovementAnalysisRunParams struct {
 func (q *Queries) SetImprovementAnalysisRun(ctx context.Context, arg SetImprovementAnalysisRunParams) error {
 	_, err := q.db.Exec(ctx, setImprovementAnalysisRun, arg.ID, arg.AgentRunID)
 	return err
+}
+
+const setImprovementProposalApplied = `-- name: SetImprovementProposalApplied :one
+UPDATE improvement_proposals
+SET status = 'applied', applied = $2, metrics_before = coalesce($4, metrics_before), decided_by = $3,
+    decided_at = now(), applied_at = now(), updated_at = now()
+WHERE id = $1
+RETURNING id, analysis_id, kind, target, title, rationale, evidence, change, before, base, fingerprint, status, metrics_before, applied, decision_note, decided_by, decided_at, applied_at, rolled_back_at, created_at, updated_at
+`
+
+type SetImprovementProposalAppliedParams struct {
+	ID        uuid.UUID
+	Applied   []byte
+	DecidedBy *uuid.UUID
+	Metrics   []byte
+}
+
+func (q *Queries) SetImprovementProposalApplied(ctx context.Context, arg SetImprovementProposalAppliedParams) (ImprovementProposal, error) {
+	row := q.db.QueryRow(ctx, setImprovementProposalApplied,
+		arg.ID,
+		arg.Applied,
+		arg.DecidedBy,
+		arg.Metrics,
+	)
+	var i ImprovementProposal
+	err := row.Scan(
+		&i.ID,
+		&i.AnalysisID,
+		&i.Kind,
+		&i.Target,
+		&i.Title,
+		&i.Rationale,
+		&i.Evidence,
+		&i.Change,
+		&i.Before,
+		&i.Base,
+		&i.Fingerprint,
+		&i.Status,
+		&i.MetricsBefore,
+		&i.Applied,
+		&i.DecisionNote,
+		&i.DecidedBy,
+		&i.DecidedAt,
+		&i.AppliedAt,
+		&i.RolledBackAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const setImprovementProposalRolledBack = `-- name: SetImprovementProposalRolledBack :one
+UPDATE improvement_proposals SET status = 'rolled_back', decision_note = coalesce($2, decision_note),
+    rolled_back_at = now(), updated_at = now()
+WHERE id = $1
+RETURNING id, analysis_id, kind, target, title, rationale, evidence, change, before, base, fingerprint, status, metrics_before, applied, decision_note, decided_by, decided_at, applied_at, rolled_back_at, created_at, updated_at
+`
+
+type SetImprovementProposalRolledBackParams struct {
+	ID   uuid.UUID
+	Note *string
+}
+
+func (q *Queries) SetImprovementProposalRolledBack(ctx context.Context, arg SetImprovementProposalRolledBackParams) (ImprovementProposal, error) {
+	row := q.db.QueryRow(ctx, setImprovementProposalRolledBack, arg.ID, arg.Note)
+	var i ImprovementProposal
+	err := row.Scan(
+		&i.ID,
+		&i.AnalysisID,
+		&i.Kind,
+		&i.Target,
+		&i.Title,
+		&i.Rationale,
+		&i.Evidence,
+		&i.Change,
+		&i.Before,
+		&i.Base,
+		&i.Fingerprint,
+		&i.Status,
+		&i.MetricsBefore,
+		&i.Applied,
+		&i.DecisionNote,
+		&i.DecidedBy,
+		&i.DecidedAt,
+		&i.AppliedAt,
+		&i.RolledBackAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
 }
 
 const setImprovementProposalStatus = `-- name: SetImprovementProposalStatus :one

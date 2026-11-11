@@ -1188,6 +1188,45 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/workflow-templates/{templateId}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                templateId: string;
+            };
+            cookie?: never;
+        };
+        /** @description Earlier definitions of the template (newest first). */
+        get: operations["listWorkflowTemplateVersions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/workflow-templates/{templateId}/versions/{version}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                templateId: string;
+                version: number;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Saves an earlier definition as the template's new version (the current one is kept in the history). */
+        post: operations["restoreWorkflowTemplateVersion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/workflow-templates/preview": {
         parameters: {
             query?: never;
@@ -2111,6 +2150,63 @@ export interface paths {
             cookie?: never;
         };
         get: operations["getImprovementProposal"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/improvements/proposals/{proposalId}/apply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                proposalId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Applies the proposal through the target's versioned mechanism (checked against the hard rule again). */
+        post: operations["applyImprovementProposal"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/improvements/proposals/{proposalId}/rollback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                proposalId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Restores what an applied proposal replaced. If the target changed since, confirm must be true. */
+        post: operations["rollbackImprovementProposal"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/improvements/proposals/{proposalId}/monitor": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                proposalId: string;
+            };
+            cookie?: never;
+        };
+        /** @description The target's numbers when applied and since. */
+        get: operations["monitorImprovementProposal"];
         put?: never;
         post?: never;
         delete?: never;
@@ -6399,6 +6495,72 @@ export interface operations {
             401: components["responses"]["Problem"];
         };
     };
+    listWorkflowTemplateVersions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                templateId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Versions. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: {
+                            version: number;
+                            name: string;
+                            description: string;
+                            definition: {
+                                [key: string]: unknown;
+                            };
+                            /** Format: uuid */
+                            changedBy?: string | null;
+                            /**
+                             * Format: date-time
+                             * @description When it was replaced.
+                             */
+                            createdAt: string;
+                        }[];
+                    };
+                };
+            };
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    restoreWorkflowTemplateVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                templateId: string;
+                version: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Restored. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkflowTemplate"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
     previewWorkflowTemplate: {
         parameters: {
             query?: never;
@@ -8122,6 +8284,96 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ImprovementProposal"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    applyImprovementProposal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                proposalId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Applied. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImprovementProposal"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+        };
+    };
+    rollbackImprovementProposal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                proposalId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    confirm?: boolean;
+                    note?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Rolled back. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImprovementProposal"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+        };
+    };
+    monitorImprovementProposal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                proposalId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Before and since. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: date-time */
+                        appliedAt?: string | null;
+                        before?: components["schemas"]["AgentStat"][] | null;
+                        since: components["schemas"]["AgentStat"][];
+                        template?: {
+                            [key: string]: unknown;
+                        } | null;
+                    };
                 };
             };
             401: components["responses"]["Problem"];

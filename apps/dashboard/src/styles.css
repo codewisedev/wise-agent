@@ -779,3 +779,6 @@ th.num, td.num { text-align: right; font-variant-numeric: tabular-nums; }
 .side-badges { display: inline-flex; flex-wrap: wrap; gap: 4px; margin-left: 6px; }
 td.expectation { max-width: 320px; }
 tr.muted { opacity: .55; }
+.outcome { display: flex; flex-wrap: wrap; gap: 16px; }
+.template-history { margin-top: 10px; }
+.template-history ul { list-style: none; padding: 0; display: grid; gap: 4px; }

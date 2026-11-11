@@ -101,3 +101,19 @@ ORDER BY m.created_at;
 SELECT f.id, f.agent_name, f.run_id, f.note FROM feedback f
 WHERE f.rating = 'down' AND f.note <> '' AND f.agent_name IS NOT NULL AND f.updated_at >= sqlc.arg(since)
 ORDER BY f.updated_at DESC LIMIT 40;
+
+-- name: SetImprovementProposalApplied :one
+UPDATE improvement_proposals
+SET status = 'applied', applied = $2, metrics_before = coalesce(sqlc.narg(metrics), metrics_before), decided_by = $3,
+    decided_at = now(), applied_at = now(), updated_at = now()
+WHERE id = $1
+RETURNING *;
+
+-- name: SetImprovementProposalRolledBack :one
+UPDATE improvement_proposals SET status = 'rolled_back', decision_note = coalesce(sqlc.narg(note), decision_note),
+    rolled_back_at = now(), updated_at = now()
+WHERE id = $1
+RETURNING *;
+
+-- name: AppliedImprovementProposals :many
+SELECT * FROM improvement_proposals WHERE status = 'applied' ORDER BY applied_at DESC LIMIT 10;

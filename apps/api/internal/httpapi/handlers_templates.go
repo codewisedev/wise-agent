@@ -1,8 +1,11 @@
 package httpapi
 
 import (
+	"time"
+
 	"context"
 	"encoding/json"
+	"github.com/google/uuid"
 
 	"wise/apps/api/internal/db/dbgen"
 	"wise/apps/api/internal/httpapi/apigen"
@@ -106,7 +109,7 @@ func (s *Server) GetWorkflowTemplate(ctx context.Context, req apigen.GetWorkflow
 }
 
 func (s *Server) UpdateWorkflowTemplate(ctx context.Context, req apigen.UpdateWorkflowTemplateRequestObject) (apigen.UpdateWorkflowTemplateResponseObject, error) {
-	t, err := s.Tasks.UpdateTemplate(ctx, req.TemplateId, templateInput(req.Body))
+	t, err := s.Tasks.UpdateTemplate(ctx, req.TemplateId, templateInput(req.Body), sessionUserID(ctx))
 	if err != nil {
 		return nil, err
 	}
@@ -166,4 +169,32 @@ func (s *Server) ChangeWorkflowStep(ctx context.Context, req apigen.ChangeWorkfl
 		return nil, err
 	}
 	return apigen.ChangeWorkflowStep200JSONResponse(toPlan(plan)), nil
+}
+
+func (s *Server) ListWorkflowTemplateVersions(ctx context.Context, req apigen.ListWorkflowTemplateVersionsRequestObject) (apigen.ListWorkflowTemplateVersionsResponseObject, error) {
+	rows, err := s.Tasks.TemplateVersions(ctx, req.TemplateId)
+	if err != nil {
+		return nil, err
+	}
+	type item struct {
+		Version     int32           `json:"version"`
+		Name        string          `json:"name"`
+		Description string          `json:"description"`
+		Definition  json.RawMessage `json:"definition"`
+		ChangedBy   *uuid.UUID      `json:"changedBy"`
+		CreatedAt   time.Time       `json:"createdAt"`
+	}
+	items := make([]item, len(rows))
+	for i, r := range rows {
+		items[i] = item{Version: r.Version, Name: r.Name, Description: r.Description, Definition: r.Definition, ChangedBy: r.ChangedBy, CreatedAt: r.CreatedAt}
+	}
+	return reshape[apigen.ListWorkflowTemplateVersions200JSONResponse](map[string]any{"items": items}), nil
+}
+
+func (s *Server) RestoreWorkflowTemplateVersion(ctx context.Context, req apigen.RestoreWorkflowTemplateVersionRequestObject) (apigen.RestoreWorkflowTemplateVersionResponseObject, error) {
+	t, err := s.Tasks.RestoreTemplate(ctx, req.TemplateId, int32(req.Version), sessionUserID(ctx))
+	if err != nil {
+		return nil, err
+	}
+	return apigen.RestoreWorkflowTemplateVersion200JSONResponse(toTemplate(t)), nil
 }

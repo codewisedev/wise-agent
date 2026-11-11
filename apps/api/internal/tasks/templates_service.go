@@ -118,13 +118,29 @@ func (s *Service) CreateTemplate(ctx context.Context, in TemplateInput, userID *
 	return t, err
 }
 
-func (s *Service) UpdateTemplate(ctx context.Context, id uuid.UUID, in TemplateInput) (dbgen.WorkflowTemplate, error) {
+// UpdateTemplate saves a template; the definition it replaces is kept in its history.
+func (s *Service) UpdateTemplate(ctx context.Context, id uuid.UUID, in TemplateInput, userID *uuid.UUID) (dbgen.WorkflowTemplate, error) {
+	return s.updateTemplate(ctx, id, in, userID, "workflow_template.update")
+}
+
+func (s *Service) updateTemplate(ctx context.Context, id uuid.UUID, in TemplateInput, userID *uuid.UUID, action string) (dbgen.WorkflowTemplate, error) {
 	def, err := s.validateTemplate(ctx, in)
 	if err != nil {
 		return dbgen.WorkflowTemplate{}, err
 	}
 	var t dbgen.WorkflowTemplate
 	err = s.db.InTx(ctx, func(q *dbgen.Queries) error {
+		cur, err := q.LockWorkflowTemplate(ctx, id)
+		if db.IsNotFound(err) {
+			return apperr.NotFound("workflow template not found")
+		}
+		if err != nil {
+			return err
+		}
+		if err := q.InsertWorkflowTemplateVersion(ctx, dbgen.InsertWorkflowTemplateVersionParams{TemplateID: id, Version: cur.Version,
+			Name: cur.Name, Description: cur.Description, Definition: cur.Definition, ChangedBy: userID}); err != nil {
+			return err
+		}
 		t, err = q.UpdateWorkflowTemplate(ctx, dbgen.UpdateWorkflowTemplateParams{
 			ID: id, Name: strings.TrimSpace(in.Name), Description: strings.TrimSpace(in.Description), Definition: def,
 		})
@@ -143,10 +159,38 @@ func (s *Service) UpdateTemplate(ctx context.Context, id uuid.UUID, in TemplateI
 			}
 			t.IsDefault = true
 		}
-		return audit.Record(ctx, q, audit.Entry{Action: "workflow_template.update", EntityType: "workflow_template", EntityID: audit.Ptr(id),
-			Payload: map[string]any{"name": t.Name, "version": t.Version}})
+		return audit.Record(ctx, q, audit.Entry{Action: action, EntityType: "workflow_template", EntityID: audit.Ptr(id),
+			Payload: map[string]any{"name": t.Name, "version": t.Version, "previousVersion": cur.Version}})
 	})
 	return t, err
+}
+
+// TemplateVersions lists a template's earlier definitions (newest first).
+func (s *Service) TemplateVersions(ctx context.Context, id uuid.UUID) ([]dbgen.WorkflowTemplateVersion, error) {
+	if _, err := s.GetTemplate(ctx, id); err != nil {
+		return nil, err
+	}
+	return s.db.ListWorkflowTemplateVersions(ctx, id)
+}
+
+// RestoreTemplate saves an earlier definition as the template's new version.
+func (s *Service) RestoreTemplate(ctx context.Context, id uuid.UUID, version int32, userID *uuid.UUID) (dbgen.WorkflowTemplate, error) {
+	v, err := s.db.GetWorkflowTemplateVersion(ctx, dbgen.GetWorkflowTemplateVersionParams{TemplateID: id, Version: version})
+	if db.IsNotFound(err) {
+		return dbgen.WorkflowTemplate{}, apperr.NotFound("version not found")
+	}
+	if err != nil {
+		return dbgen.WorkflowTemplate{}, err
+	}
+	cur, err := s.GetTemplate(ctx, id)
+	if err != nil {
+		return cur, err
+	}
+	var def TemplateDef
+	if err := json.Unmarshal(v.Definition, &def); err != nil {
+		return cur, err
+	}
+	return s.updateTemplate(ctx, id, TemplateInput{Name: v.Name, Description: v.Description, Definition: def, Default: cur.IsDefault}, userID, "workflow_template.restore")
 }
 
 func (s *Service) DeleteTemplate(ctx context.Context, id uuid.UUID) error {

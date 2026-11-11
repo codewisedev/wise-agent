@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"regexp"
+	"strconv"
 
 	"github.com/google/uuid"
 
@@ -205,6 +207,29 @@ func (s *Service) makeCurrent(ctx context.Context, q *dbgen.Queries, row dbgen.A
 		Payload: map[string]any{"name": row.Name, "version": row.Version}})
 }
 
+var semverRe = regexp.MustCompile(`^(\d+)\.(\d+)\.(\d+)(.*)$`)
+
+// BumpVersion returns the definition with its patch version raised (1.2.3 →
+// 1.2.4), so a changed prompt is a distinguishable version.
+func BumpVersion(raw json.RawMessage) json.RawMessage {
+	var m map[string]any
+	if json.Unmarshal(raw, &m) != nil {
+		return raw
+	}
+	v, _ := m["version"].(string)
+	if g := semverRe.FindStringSubmatch(v); g != nil {
+		n, _ := strconv.Atoi(g[3])
+		m["version"] = fmt.Sprintf("%s.%s.%d", g[1], g[2], n+1)
+	} else {
+		m["version"] = "1.0.1"
+	}
+	out, err := json.Marshal(m)
+	if err != nil {
+		return raw
+	}
+	return out
+}
+
 // Candidate stores the agent's current definition with a different prompt as
 // a non-current version to evaluate. Identical content reuses the existing row.
 func (s *Service) Candidate(ctx context.Context, name, prompt string, userID *uuid.UUID) (dbgen.AgentDefinition, error) {
@@ -215,7 +240,7 @@ func (s *Service) Candidate(ctx context.Context, name, prompt string, userID *uu
 	if err != nil {
 		return cur, err
 	}
-	l, err := s.validate(cur.Definition, prompt)
+	l, err := s.validate(BumpVersion(cur.Definition), prompt)
 	if err != nil {
 		return cur, err
 	}

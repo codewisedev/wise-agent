@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"context"
+	"github.com/google/uuid"
 	"net/http"
 	"time"
 	"wise/apps/api/internal/codeindex"
@@ -70,6 +71,15 @@ func principal(ctx context.Context) (auth.Principal, error) {
 		return auth.Principal{}, apperr.Unauthorized("authentication required")
 	}
 	return p, nil
+}
+
+// sessionUserID is the signed-in user (session or API token), if any.
+func sessionUserID(ctx context.Context) *uuid.UUID {
+	if p, ok := auth.PrincipalFrom(ctx); ok {
+		id := p.User.ID
+		return &id
+	}
+	return nil
 }
 
 // ---- system ----
