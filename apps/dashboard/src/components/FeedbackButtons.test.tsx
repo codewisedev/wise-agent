@@ -26,4 +26,17 @@ describe("FeedbackButtons", () => {
     expect(path).toBe("/feedback");
     expect(init.body).toEqual({ targetType: "run", targetId: "r1", rating: "down", note: "ignored the plan" });
   });
+
+  it("removing your thumbs-down does not open the note form", async () => {
+    vi.spyOn(auth, "useSession").mockReturnValue({ data: { user: { id: "u1" } } } as never);
+    vi.spyOn(api, "GET").mockResolvedValue(ok({ items: [{ userId: "u1", rating: "down", note: "" }] }));
+    const del = vi.spyOn(api, "DELETE").mockResolvedValue(ok({}));
+    const put = vi.spyOn(api, "PUT").mockResolvedValue(ok({}));
+    render(<QueryClientProvider client={new QueryClient()}><FeedbackButtons targetType="run" targetId="r1" /></QueryClientProvider>);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Bad result" }).getAttribute("aria-pressed")).toBe("true"));
+    fireEvent.click(screen.getByRole("button", { name: "Bad result" }));
+    await waitFor(() => expect(del).toHaveBeenCalledTimes(1));
+    expect(put).not.toHaveBeenCalled();
+    expect(screen.queryByLabelText("What was good or wrong")).toBeNull();
+  });
 });

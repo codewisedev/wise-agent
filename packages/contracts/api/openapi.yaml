@@ -3831,7 +3831,7 @@ components:
         title: { type: string }
         body: { type: string }
         status: { $ref: "#/components/schemas/MemoryStatus" }
-        source: { type: string, enum: [manual, review_feedback, report, profile_inference, task] }
+        source: { type: string, enum: [manual, review_feedback, report, profile_inference, task, improvement] }
         sourceRefs: { type: object, additionalProperties: true }
         rationale: { type: string }
         duplicateOf: { type: string, format: uuid, nullable: true }

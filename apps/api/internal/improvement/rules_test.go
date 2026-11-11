@@ -163,6 +163,7 @@ func TestHardeningFromReview(t *testing.T) {
 	for _, o := range []string{
 		`[{"op":"add","path":"/aliases/local/targets/-","value":{"provider":"${WISE_SECRETS_KEY}"}}]`,
 		`[{"op":"replace","path":"/aliases/local/targets","value":[{"provider":"scripted","model":"$HOME"}]}]`,
+		`[{"op":"add","path":"/aliases/local/targets/-","value":{"provider":"lmstudio","model":"\u0024{WISE_SECRETS_KEY}"}}]`,
 	} {
 		if CheckRoutingOps("models", ops(o)) == nil {
 			t.Errorf("accepted %s", o)

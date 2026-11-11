@@ -95,8 +95,44 @@ func (q *Queries) ClaimImprovementProposalForApply(ctx context.Context, id uuid.
 	return i, err
 }
 
+const claimImprovementProposalForRollback = `-- name: ClaimImprovementProposalForRollback :one
+UPDATE improvement_proposals SET status = 'rolled_back', rolled_back_at = now(), updated_at = now()
+WHERE id = $1 AND status = 'applied'
+RETURNING id, analysis_id, kind, target, title, rationale, evidence, change, before, base, fingerprint, status, metrics_before, applied, decision_note, decided_by, decided_at, applied_at, rolled_back_at, created_at, updated_at
+`
+
+// Only one rollback can claim an applied proposal; released to 'applied' if the restore fails.
+func (q *Queries) ClaimImprovementProposalForRollback(ctx context.Context, id uuid.UUID) (ImprovementProposal, error) {
+	row := q.db.QueryRow(ctx, claimImprovementProposalForRollback, id)
+	var i ImprovementProposal
+	err := row.Scan(
+		&i.ID,
+		&i.AnalysisID,
+		&i.Kind,
+		&i.Target,
+		&i.Title,
+		&i.Rationale,
+		&i.Evidence,
+		&i.Change,
+		&i.Before,
+		&i.Base,
+		&i.Fingerprint,
+		&i.Status,
+		&i.MetricsBefore,
+		&i.Applied,
+		&i.DecisionNote,
+		&i.DecidedBy,
+		&i.DecidedAt,
+		&i.AppliedAt,
+		&i.RolledBackAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const countOpenImprovementProposals = `-- name: CountOpenImprovementProposals :one
-SELECT count(*)::bigint FROM improvement_proposals WHERE status IN ('proposed', 'evaluated')
+SELECT count(*)::bigint FROM improvement_proposals WHERE status IN ('proposed', 'evaluating', 'evaluated')
 `
 
 func (q *Queries) CountOpenImprovementProposals(ctx context.Context) (int64, error) {
@@ -772,6 +808,36 @@ func (q *Queries) RecentNegativeFeedback(ctx context.Context, since time.Time) (
 	return items, nil
 }
 
+const recoverStaleApplying = `-- name: RecoverStaleApplying :many
+UPDATE improvement_proposals
+SET status = 'stale', updated_at = now(),
+    decision_note = 'An apply was interrupted; check the target''s history (agent versions, setting history, template history) before proposing again.'
+WHERE status = 'applying' AND updated_at < now() - interval '15 minutes'
+RETURNING id
+`
+
+// Applies interrupted (crash, deploy) more than 15 minutes ago: the target may or may not have been
+// written, so the proposal becomes stale (it can only be rejected) and says where to look.
+func (q *Queries) RecoverStaleApplying(ctx context.Context) ([]uuid.UUID, error) {
+	rows, err := q.db.Query(ctx, recoverStaleApplying)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []uuid.UUID{}
+	for rows.Next() {
+		var id uuid.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const releaseImprovementProposal = `-- name: ReleaseImprovementProposal :exec
 UPDATE improvement_proposals SET status = $2, updated_at = now() WHERE id = $1 AND status = 'applying'
 `
@@ -783,6 +849,15 @@ type ReleaseImprovementProposalParams struct {
 
 func (q *Queries) ReleaseImprovementProposal(ctx context.Context, arg ReleaseImprovementProposalParams) error {
 	_, err := q.db.Exec(ctx, releaseImprovementProposal, arg.ID, arg.Status)
+	return err
+}
+
+const releaseImprovementRollback = `-- name: ReleaseImprovementRollback :exec
+UPDATE improvement_proposals SET status = 'applied', rolled_back_at = NULL, updated_at = now() WHERE id = $1 AND status = 'rolled_back'
+`
+
+func (q *Queries) ReleaseImprovementRollback(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, releaseImprovementRollback, id)
 	return err
 }
 
@@ -850,9 +925,8 @@ func (q *Queries) SetImprovementProposalApplied(ctx context.Context, arg SetImpr
 }
 
 const setImprovementProposalRolledBack = `-- name: SetImprovementProposalRolledBack :one
-UPDATE improvement_proposals SET status = 'rolled_back', decision_note = coalesce($2, decision_note),
-    rolled_back_at = now(), updated_at = now()
-WHERE id = $1 AND status = 'applied'
+UPDATE improvement_proposals SET decision_note = coalesce($2, decision_note), updated_at = now()
+WHERE id = $1 AND status = 'rolled_back'
 RETURNING id, analysis_id, kind, target, title, rationale, evidence, change, before, base, fingerprint, status, metrics_before, applied, decision_note, decided_by, decided_at, applied_at, rolled_back_at, created_at, updated_at
 `
 

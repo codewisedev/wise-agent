@@ -561,6 +561,11 @@ func (s *Service) Sweep(ctx context.Context, now time.Time) {
 		}
 	}
 	_ = s.db.FailStaleImprovementAnalyses(ctx)
+	if ids, err := s.db.RecoverStaleApplying(ctx); err == nil {
+		for _, id := range ids {
+			_ = audit.Record(ctx, s.db.Queries, audit.Entry{Action: "improvement.apply_interrupted", EntityType: "improvement_proposal", EntityID: &id})
+		}
+	}
 	s.sweepEvals(ctx)
 	if period := s.Settings().Due(now); period != "" {
 		if _, err := s.Analyse(ctx, "scheduled", period, nil); err != nil && !errors.Is(err, ErrAnalysisRunning) {

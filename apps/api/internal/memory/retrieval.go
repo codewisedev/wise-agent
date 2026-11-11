@@ -143,12 +143,13 @@ func (s *Service) relevant(ctx context.Context, projectID *uuid.UUID, text strin
 	return out, false, nil
 }
 
+// The converters keep Source: gate agents must not get memories written by improvement proposals.
 func memoryFromVectorRow(r dbgen.RelevantMemoriesByVectorRow) dbgen.Memory {
-	return dbgen.Memory{ID: r.ID, Scope: r.Scope, ProjectID: r.ProjectID, Kind: r.Kind, Category: r.Category, Title: r.Title, Body: r.Body}
+	return dbgen.Memory{ID: r.ID, Scope: r.Scope, ProjectID: r.ProjectID, Kind: r.Kind, Category: r.Category, Title: r.Title, Body: r.Body, Source: r.Source}
 }
 
 func memoryFromTextRow(r dbgen.RelevantMemoriesByTextRow) dbgen.Memory {
-	return dbgen.Memory{ID: r.ID, Scope: r.Scope, ProjectID: r.ProjectID, Kind: r.Kind, Category: r.Category, Title: r.Title, Body: r.Body}
+	return dbgen.Memory{ID: r.ID, Scope: r.Scope, ProjectID: r.ProjectID, Kind: r.Kind, Category: r.Category, Title: r.Title, Body: r.Body, Source: r.Source}
 }
 
 func short(id uuid.UUID) string { return id.String()[:8] }

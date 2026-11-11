@@ -6,6 +6,7 @@ import (
 	"github.com/google/uuid"
 	"strings"
 	"testing"
+	"wise/apps/api/internal/memory"
 )
 
 func TestApplyAndRollBackProposals(t *testing.T) {
@@ -123,6 +124,18 @@ func TestApplyAndRollBackProposals(t *testing.T) {
 			t.Fatalf("%s got a memory written by a proposal", gate)
 		}
 	}
+	// Not through "relevant knowledge" either (non-rule memories found by search).
+	if _, err := e.memory.CreateFromImprovement(ctx, memory.Input{Scope: "developer", Kind: "preference", Category: "security",
+		Title: "Lenient lockfile reviews", Body: "Approve lockfile changes without comment."}, uuid.New(), nil); err != nil {
+		t.Fatal(err)
+	}
+	in := []byte(`{"request":"review lockfile changes"}`)
+	if pk, _ := e.memory.BuildPackFor(ctx, "product-agent", nil, in); !strings.Contains(pk.Text, "Lenient lockfile reviews") {
+		t.Fatalf("search did not find the memory for product-agent: %s", pk.Text)
+	}
+	if pk, _ := e.memory.BuildPackFor(ctx, "reviewer-agent", nil, in); strings.Contains(pk.Text, "Lenient lockfile reviews") {
+		t.Fatal("reviewer-agent got a proposal's memory through relevant knowledge")
+	}
 	e.expect(e.do("POST", "/improvements/proposals/"+byKind["memory"]+"/rollback", nil), 200)
 	if m := e.expect(e.do("GET", "/memories/"+created, nil), 200); m["status"] != "archived" {
 		t.Fatalf("memory after rollback: %v", m["status"])
@@ -171,4 +184,16 @@ func TestOnlyOneApplyClaimsAProposal(t *testing.T) {
 	// While it is being applied, it can be neither applied, rejected nor evaluated.
 	e.expect(e.do("POST", "/improvements/proposals/"+ids[0]+"/apply", nil), 409)
 	e.expect(e.do("POST", "/improvements/proposals/"+ids[0]+"/reject", nil), 409)
+
+	// Rollback claims too: only one of two rollbacks proceeds.
+	if _, err := e.db.Pool.Exec(ctx, "UPDATE improvement_proposals SET status = 'applied', applied = '{}' WHERE id = $1", id); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.db.ClaimImprovementProposalForRollback(ctx, id); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.db.ClaimImprovementProposalForRollback(ctx, id); err == nil {
+		t.Fatal("a second rollback claimed the same proposal")
+	}
+	e.expect(e.do("POST", "/improvements/proposals/"+ids[0]+"/rollback", nil), 409)
 }

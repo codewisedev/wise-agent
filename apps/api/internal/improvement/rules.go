@@ -145,7 +145,7 @@ func CheckRoutingOps(setting string, ops []PatchOp) error {
 	for i, op := range ops {
 		// Stored settings are expanded like the shipped files (${VAR}): a value
 		// from a proposal could otherwise pull a secret into a model name.
-		if strings.ContainsAny(string(op.Value), "$") || strings.ContainsAny(op.Path, "$") {
+		if strings.Contains(op.Path, "$") || containsDollar(op.Value) {
 			return refuse("operation %d: values may not contain $ (environment references)", i+1)
 		}
 		if op.Op != "add" && op.Op != "replace" && op.Op != "remove" {
@@ -193,6 +193,39 @@ func CheckRoutingOps(setting string, ops []PatchOp) error {
 		}
 	}
 	return nil
+}
+
+// containsDollar reports whether any decoded string (key or value) contains
+// '$' — checked after decoding, so "\u0024" escapes cannot hide it.
+func containsDollar(raw json.RawMessage) bool {
+	if len(raw) == 0 {
+		return false
+	}
+	var v any
+	if json.Unmarshal(raw, &v) != nil {
+		return true // fail closed
+	}
+	var walk func(any) bool
+	walk = func(x any) bool {
+		switch t := x.(type) {
+		case string:
+			return strings.Contains(t, "$")
+		case []any:
+			for _, e := range t {
+				if walk(e) {
+					return true
+				}
+			}
+		case map[string]any:
+			for k, e := range t {
+				if strings.Contains(k, "$") || walk(e) {
+					return true
+				}
+			}
+		}
+		return false
+	}
+	return walk(v)
 }
 
 func unescape(tok string) string {

@@ -662,6 +662,7 @@ func (e IntegrationKind) Valid() bool {
 
 // Defines values for MemorySource.
 const (
+	MemorySourceImprovement      MemorySource = "improvement"
 	MemorySourceManual           MemorySource = "manual"
 	MemorySourceProfileInference MemorySource = "profile_inference"
 	MemorySourceReport           MemorySource = "report"
@@ -672,6 +673,8 @@ const (
 // Valid indicates whether the value is a known member of the MemorySource enum.
 func (e MemorySource) Valid() bool {
 	switch e {
+	case MemorySourceImprovement:
+		return true
 	case MemorySourceManual:
 		return true
 	case MemorySourceProfileInference:

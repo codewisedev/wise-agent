@@ -32,8 +32,11 @@ export function FeedbackButtons({ targetType, targetId }: { targetType: Target; 
     },
   });
   const rate = (r: "up" | "down") => {
-    if (mine?.rating === r && !open) clear.mutate();
-    else set.mutate(r);
+    if (mine?.rating === r && !open) {
+      clear.mutate(); // clicking your current rating removes it
+      return;
+    }
+    set.mutate(r);
     if (r === "down" && !mine?.note) setOpen(true);
   };
   return (

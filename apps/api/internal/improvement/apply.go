@@ -359,78 +359,91 @@ func (s *Service) Rollback(ctx context.Context, id uuid.UUID, confirm bool, note
 	changed := func() error {
 		return apperr.Conflict("the target changed since this was applied; rolling back would also undo those changes. Confirm to roll back anyway").WithCause(ErrChangedSince)
 	}
-	switch p.Kind {
-	case KindPrompt:
-		cur, err := s.db.GetCurrentAgentDefinitionByName(ctx, p.Target)
-		if err != nil {
-			return p, err
-		}
-		if ap.DefinitionID != nil && cur.ID != *ap.DefinitionID && !confirm {
-			return p, changed()
-		}
-		if _, err := s.agents.Restore(ctx, p.Target, *ap.PreviousDefinitionID); err != nil {
-			return p, err
-		}
-	case KindRouting:
-		cur, err := s.db.GetSetting(ctx, ap.Setting)
-		if err != nil {
-			return p, err
-		}
-		// Only what the proposal touched goes back; later edits elsewhere (e.g. the
-		// cloud policy) are kept. If a touched entry changed since, confirm first.
-		var paths []string
-		for path, after := range ap.Touched {
-			paths = append(paths, path)
-			if !sameJSON(valueAt(cur.Value, path), after) && !confirm {
-				return p, changed()
+	// Claim the proposal first: a concurrent rollback finds it already rolled back.
+	if _, err := s.db.ClaimImprovementProposalForRollback(ctx, id); db.IsNotFound(err) {
+		return p, apperr.Conflict("the proposal is being rolled back or was rolled back meanwhile")
+	} else if err != nil {
+		return p, err
+	}
+	restore := func() error {
+		switch p.Kind {
+		case KindPrompt:
+			cur, err := s.db.GetCurrentAgentDefinitionByName(ctx, p.Target)
+			if err != nil {
+				return err
 			}
-		}
-		next := ap.PreviousValue
-		if len(paths) > 0 {
-			slices.Sort(paths)
-			if next, err = restorePaths(cur.Value, ap.PreviousValue, paths); err != nil {
-				return p, err
+			if ap.DefinitionID != nil && cur.ID != *ap.DefinitionID && !confirm {
+				return changed()
 			}
-		} else if cur.Version != ap.Version && !confirm {
-			return p, changed()
-		}
-		if _, err := s.settings.Update(ctx, ap.Setting, next, cur.Version, userID); err != nil {
-			return p, err
-		}
-	case KindTemplate:
-		t, err := s.db.GetWorkflowTemplate(ctx, *ap.TemplateID)
-		if err != nil {
-			return p, err
-		}
-		if t.Version != ap.Version && !confirm {
-			return p, changed()
-		}
-		if _, err := s.tasks.RestoreTemplate(ctx, *ap.TemplateID, ap.PreviousVersion, userID); err != nil {
-			return p, err
-		}
-	case KindMemory:
-		if !confirm {
-			for sid, v := range ap.MemoryVersions {
-				mid, _ := uuid.Parse(sid)
-				if m, err := s.db.GetMemory(ctx, mid); err == nil && m.Version != v {
-					return p, changed()
+			if _, err := s.agents.Restore(ctx, p.Target, *ap.PreviousDefinitionID); err != nil {
+				return err
+			}
+		case KindRouting:
+			cur, err := s.db.GetSetting(ctx, ap.Setting)
+			if err != nil {
+				return err
+			}
+			// Only what the proposal touched goes back; later edits elsewhere (e.g. the
+			// cloud policy) are kept. If a touched entry changed since, confirm first.
+			var paths []string
+			for path, after := range ap.Touched {
+				paths = append(paths, path)
+				if !sameJSON(valueAt(cur.Value, path), after) && !confirm {
+					return changed()
+				}
+			}
+			next := ap.PreviousValue
+			if len(paths) > 0 {
+				slices.Sort(paths)
+				if next, err = restorePaths(cur.Value, ap.PreviousValue, paths); err != nil {
+					return err
+				}
+			} else if cur.Version != ap.Version && !confirm {
+				return changed()
+			}
+			if _, err := s.settings.Update(ctx, ap.Setting, next, cur.Version, userID); err != nil {
+				return err
+			}
+		case KindTemplate:
+			t, err := s.db.GetWorkflowTemplate(ctx, *ap.TemplateID)
+			if err != nil {
+				return err
+			}
+			if t.Version != ap.Version && !confirm {
+				return changed()
+			}
+			if _, err := s.tasks.RestoreTemplate(ctx, *ap.TemplateID, ap.PreviousVersion, userID); err != nil {
+				return err
+			}
+		case KindMemory:
+			if !confirm {
+				for sid, v := range ap.MemoryVersions {
+					mid, _ := uuid.Parse(sid)
+					if m, err := s.db.GetMemory(ctx, mid); err == nil && m.Version != v {
+						return changed()
+					}
+				}
+			}
+			for _, mid := range ap.Created {
+				if m, err := s.db.GetMemory(ctx, mid); err == nil && m.Status == "active" {
+					if _, err := s.memory.Archive(ctx, mid, userID); err != nil {
+						return err
+					}
+				}
+			}
+			for _, mid := range ap.Archived {
+				if m, err := s.db.GetMemory(ctx, mid); err == nil && m.Status == "archived" {
+					if _, err := s.memory.Reactivate(ctx, mid, userID); err != nil {
+						return err
+					}
 				}
 			}
 		}
-		for _, mid := range ap.Created {
-			if m, err := s.db.GetMemory(ctx, mid); err == nil && m.Status == "active" {
-				if _, err := s.memory.Archive(ctx, mid, userID); err != nil {
-					return p, err
-				}
-			}
-		}
-		for _, mid := range ap.Archived {
-			if m, err := s.db.GetMemory(ctx, mid); err == nil && m.Status == "archived" {
-				if _, err := s.memory.Reactivate(ctx, mid, userID); err != nil {
-					return p, err
-				}
-			}
-		}
+		return nil
+	}
+	if err := restore(); err != nil {
+		_ = s.db.ReleaseImprovementRollback(context.WithoutCancel(ctx), id)
+		return p, err
 	}
 	var row dbgen.ImprovementProposal
 	err = s.db.InTx(ctx, func(q *dbgen.Queries) error {

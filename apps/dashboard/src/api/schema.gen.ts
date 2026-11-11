@@ -3259,7 +3259,7 @@ export interface components {
             body: string;
             status: components["schemas"]["MemoryStatus"];
             /** @enum {string} */
-            source: "manual" | "review_feedback" | "report" | "profile_inference" | "task";
+            source: "manual" | "review_feedback" | "report" | "profile_inference" | "task" | "improvement";
             sourceRefs: {
                 [key: string]: unknown;
             };

@@ -43,7 +43,14 @@ export function Diff({ before, after }: { before: string; after: string }) {
   );
 }
 
-const pretty = (v: unknown) => JSON.stringify(v, null, 2) ?? "";
+// Keys sorted on both sides, so the diff shows only real changes (stored JSON and
+// the proposal can order keys differently).
+const sortKeys = (v: unknown): unknown =>
+  Array.isArray(v) ? v.map(sortKeys)
+    : v && typeof v === "object"
+      ? Object.fromEntries(Object.keys(v).sort().map((k) => [k, sortKeys((v as Record<string, unknown>)[k])]))
+      : v;
+const pretty = (v: unknown) => JSON.stringify(sortKeys(v), null, 2) ?? "";
 
 type MemOp = { op: string; ids?: string[]; scope?: string; kind?: string; category?: string; title?: string; body?: string };
 type MemBefore = { id: string; title: string; body: string; kind: string; scope: string };

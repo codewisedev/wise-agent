@@ -58,7 +58,7 @@ WHERE id = $1
 RETURNING *;
 
 -- name: CountOpenImprovementProposals :one
-SELECT count(*)::bigint FROM improvement_proposals WHERE status IN ('proposed', 'evaluated');
+SELECT count(*)::bigint FROM improvement_proposals WHERE status IN ('proposed', 'evaluating', 'evaluated');
 
 -- name: ImprovementFingerprintStatus :one
 -- The latest proposal with this fingerprint (open, or decided recently).
@@ -118,10 +118,27 @@ RETURNING *;
 -- name: ReleaseImprovementProposal :exec
 UPDATE improvement_proposals SET status = $2, updated_at = now() WHERE id = $1 AND status = 'applying';
 
--- name: SetImprovementProposalRolledBack :one
-UPDATE improvement_proposals SET status = 'rolled_back', decision_note = coalesce(sqlc.narg(note), decision_note),
-    rolled_back_at = now(), updated_at = now()
+-- name: ClaimImprovementProposalForRollback :one
+-- Only one rollback can claim an applied proposal; released to 'applied' if the restore fails.
+UPDATE improvement_proposals SET status = 'rolled_back', rolled_back_at = now(), updated_at = now()
 WHERE id = $1 AND status = 'applied'
+RETURNING *;
+
+-- name: ReleaseImprovementRollback :exec
+UPDATE improvement_proposals SET status = 'applied', rolled_back_at = NULL, updated_at = now() WHERE id = $1 AND status = 'rolled_back';
+
+-- name: RecoverStaleApplying :many
+-- Applies interrupted (crash, deploy) more than 15 minutes ago: the target may or may not have been
+-- written, so the proposal becomes stale (it can only be rejected) and says where to look.
+UPDATE improvement_proposals
+SET status = 'stale', updated_at = now(),
+    decision_note = 'An apply was interrupted; check the target''s history (agent versions, setting history, template history) before proposing again.'
+WHERE status = 'applying' AND updated_at < now() - interval '15 minutes'
+RETURNING id;
+
+-- name: SetImprovementProposalRolledBack :one
+UPDATE improvement_proposals SET decision_note = coalesce(sqlc.narg(note), decision_note), updated_at = now()
+WHERE id = $1 AND status = 'rolled_back'
 RETURNING *;
 
 -- name: AppliedImprovementProposals :many
