@@ -2347,6 +2347,81 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/repositories/{repositoryId}/release": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                repositoryId: string;
+            };
+            cookie?: never;
+        };
+        /** @description Where this repository pushes (remote, git account, base branch). */
+        get: operations["getRepositoryRelease"];
+        put: operations["setRepositoryRelease"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/repositories/{repositoryId}/release/detect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                repositoryId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Proposes the remote (as https), base branch and matching git accounts from the repository's git metadata. */
+        post: operations["detectRepositoryRelease"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/repositories/{repositoryId}/release/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                repositoryId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Reads the repository with the account's token. This proves access, not push permission (the first push does). */
+        post: operations["testRepositoryRelease"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{projectId}/release-policy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: components["parameters"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        get: operations["getProjectReleasePolicy"];
+        put: operations["setProjectReleasePolicy"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -3117,7 +3192,7 @@ export interface components {
             comment?: string;
         };
         /** @enum {string} */
-        AccountKind: "claude_code" | "codex_cli" | "openai_compatible" | "anthropic" | "jira" | "clickup" | "trello";
+        AccountKind: "claude_code" | "codex_cli" | "openai_compatible" | "anthropic" | "jira" | "clickup" | "trello" | "github" | "gitlab";
         Account: {
             /** Format: uuid */
             id: string;
@@ -3952,6 +4027,26 @@ export interface components {
                 /** Format: date-time */
                 at: string;
             }[];
+        };
+        RepositoryRelease: {
+            /** @description https address of the repository on GitHub or GitLab. */
+            remote?: string;
+            /**
+             * Format: uuid
+             * @description The git account that pushes (same host as the remote).
+             */
+            accountId?: string | null;
+            /** @description Pull requests target this branch; Wise never pushes to it. */
+            baseBranch?: string;
+        };
+        ReleasePolicy: {
+            /**
+             * @description After an approved push: no pull request, ask you, or open one.
+             * @enum {string}
+             */
+            pullRequests: "off" | "ask" | "auto";
+            /** @description Open pull requests as drafts. */
+            draft: boolean;
         };
         ModelChoice: {
             /** @description Empty = the agent's own routing. */
@@ -8638,6 +8733,169 @@ export interface operations {
             401: components["responses"]["Problem"];
             404: components["responses"]["Problem"];
             409: components["responses"]["Problem"];
+        };
+    };
+    getRepositoryRelease: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                repositoryId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The release target. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RepositoryRelease"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    setRepositoryRelease: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                repositoryId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RepositoryRelease"];
+            };
+        };
+        responses: {
+            /** @description Saved. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RepositoryRelease"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    detectRepositoryRelease: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                repositoryId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Suggestion. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        remote?: string;
+                        baseBranch?: string;
+                        accounts: string[];
+                        problem?: string;
+                    };
+                };
+            };
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    testRepositoryRelease: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                repositoryId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The repository is reachable. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        defaultBranch: string;
+                    };
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+        };
+    };
+    getProjectReleasePolicy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: components["parameters"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The policy. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReleasePolicy"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    setProjectReleasePolicy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: components["parameters"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReleasePolicy"];
+            };
+        };
+        responses: {
+            /** @description Saved. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReleasePolicy"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
         };
     };
 }

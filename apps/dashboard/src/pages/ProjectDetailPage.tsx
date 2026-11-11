@@ -8,6 +8,7 @@ import {
 } from "../components/ui";
 import { SourcesPanel } from "./IntegrationsPage";
 import { RepoExecutionEditor } from "../components/RepoExecution";
+import { ReleasePolicyPanel, RepoReleaseEditor } from "../components/RepoRelease";
 import { CodingRuntimesPanel } from "../components/CodingRuntimesPanel";
 import { projectsKey } from "./ProjectsPage";
 
@@ -145,6 +146,7 @@ export function ProjectDetailPage() {
       <RelationshipsPanel projectId={projectId} repos={repoList} readOnly={readOnly} />
       <ResourcesPanel projectId={projectId} readOnly={readOnly} />
       <CodingRuntimesPanel projectId={projectId} readOnly={readOnly} />
+      <ReleasePolicyPanel projectId={projectId} readOnly={readOnly} />
       {!readOnly && <SourcesPanel projectId={projectId} adding={addingSource} setAdding={setAddingSource} />}
     </>
   );
@@ -167,6 +169,7 @@ function RepositoryRow({ repo, onChange }: { repo: Repository; onChange: () => v
   const error = inspect.error ?? index.error ?? remove.error;
   const location = repo.localPath ?? repo.remoteUrl ?? "";
   const [execOpen, setExecOpen] = useState(false);
+  const [releaseOpen, setReleaseOpen] = useState(false);
   const configured = Boolean((repo.settings as { execution?: { image?: string } })?.execution?.image);
 
   return (
@@ -239,6 +242,12 @@ function RepositoryRow({ repo, onChange }: { repo: Repository; onChange: () => v
               <TerminalSquare size={13} aria-hidden /> Execution{!configured && <Badge tone="warn" dot={false}>not set</Badge>}
             </button>
           )}
+          {repo.sourceType === "local" && (
+            <button className="btn btn-sm" onClick={() => setReleaseOpen((o) => !o)} aria-expanded={releaseOpen}
+              title="Where approved pushes go (remote, git account, base branch)">
+              <GitBranch size={13} aria-hidden /> Release
+            </button>
+          )}
           <button
             className="btn btn-sm btn-danger btn-icon"
             onClick={() => confirm(`Unregister "${repo.name}"? Files on disk are not touched.`) && remove.mutate()}
@@ -254,6 +263,13 @@ function RepositoryRow({ repo, onChange }: { repo: Repository; onChange: () => v
         <tr className="detail-row">
           <td colSpan={6}>
             <RepoExecutionEditor repositoryId={repo.id} onDone={() => { setExecOpen(false); onChange(); }} />
+          </td>
+        </tr>
+      )}
+      {releaseOpen && (
+        <tr className="detail-row">
+          <td colSpan={6}>
+            <RepoReleaseEditor repositoryId={repo.id} onDone={() => setReleaseOpen(false)} />
           </td>
         </tr>
       )}

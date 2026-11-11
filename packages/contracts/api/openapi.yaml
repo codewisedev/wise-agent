@@ -36,6 +36,7 @@ tags:
   - name: memory
   - name: execution
   - name: improvement
+  - name: release
 
 paths:
   /healthz:
@@ -2823,6 +2824,112 @@ paths:
         "401": { $ref: "#/components/responses/Problem" }
         "404": { $ref: "#/components/responses/Problem" }
         "409": { $ref: "#/components/responses/Problem" }
+  /repositories/{repositoryId}/release:
+    parameters:
+      - { name: repositoryId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [release]
+      operationId: getRepositoryRelease
+      description: Where this repository pushes (remote, git account, base branch).
+      responses:
+        "200":
+          description: The release target.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RepositoryRelease" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+    put:
+      tags: [release]
+      operationId: setRepositoryRelease
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RepositoryRelease" }
+      responses:
+        "200":
+          description: Saved.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RepositoryRelease" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+  /repositories/{repositoryId}/release/detect:
+    parameters:
+      - { name: repositoryId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [release]
+      operationId: detectRepositoryRelease
+      description: Proposes the remote (as https), base branch and matching git accounts from the repository's git metadata.
+      responses:
+        "200":
+          description: Suggestion.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [accounts]
+                properties:
+                  remote: { type: string }
+                  baseBranch: { type: string }
+                  accounts: { type: array, items: { type: string, format: uuid } }
+                  problem: { type: string }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+  /repositories/{repositoryId}/release/test:
+    parameters:
+      - { name: repositoryId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [release]
+      operationId: testRepositoryRelease
+      description: Reads the repository with the account's token. This proves access, not push permission (the first push does).
+      responses:
+        "200":
+          description: The repository is reachable.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [defaultBranch]
+                properties:
+                  defaultBranch: { type: string }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+  /projects/{projectId}/release-policy:
+    parameters:
+      - $ref: "#/components/parameters/ProjectId"
+    get:
+      tags: [release]
+      operationId: getProjectReleasePolicy
+      responses:
+        "200":
+          description: The policy.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ReleasePolicy" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+    put:
+      tags: [release]
+      operationId: setProjectReleasePolicy
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ReleasePolicy" }
+      responses:
+        "200":
+          description: Saved.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ReleasePolicy" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
 components:
   securitySchemes:
     cookieAuth:
@@ -3701,7 +3808,7 @@ components:
         comment: { type: string, maxLength: 10000 }
     AccountKind:
       type: string
-      enum: [claude_code, codex_cli, openai_compatible, anthropic, jira, clickup, trello]
+      enum: [claude_code, codex_cli, openai_compatible, anthropic, jira, clickup, trello, github, gitlab]
     Account:
       type: object
       required: [id, name, kind, baseUrl, defaultModel, cloud, enabled, hasSecret, secretHint, metadata, createdAt, updatedAt]
@@ -4514,6 +4621,18 @@ components:
               runId: { type: string, format: uuid, nullable: true }
               note: { type: string }
               at: { type: string, format: date-time }
+    RepositoryRelease:
+      type: object
+      properties:
+        remote: { type: string, description: "https address of the repository on GitHub or GitLab." }
+        accountId: { type: string, format: uuid, nullable: true, description: The git account that pushes (same host as the remote). }
+        baseBranch: { type: string, description: Pull requests target this branch; Wise never pushes to it. }
+    ReleasePolicy:
+      type: object
+      required: [pullRequests, draft]
+      properties:
+        pullRequests: { type: string, enum: [off, ask, auto], description: "After an approved push: no pull request, ask you, or open one." }
+        draft: { type: boolean, description: Open pull requests as drafts. }
     ModelChoice:
       type: object
       properties:

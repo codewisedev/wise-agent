@@ -56,6 +56,16 @@ export const PRESETS: Record<string, Preset> = {
     secretLabel: "API token", secretHint: "id.atlassian.com → Security → API tokens. Read access is enough.",
     meta: [{ key: "email", label: "Atlassian email" }],
   },
+  github: {
+    label: "GitHub (push and pull requests)", kind: "github", baseUrl: "https://github.com",
+    secretLabel: "Fine-grained token",
+    secretHint: "github.com/settings/personal-access-tokens → only the repositories Wise pushes to, with Contents and Pull requests: read and write. Used only by the git worker after you approve a push.",
+  },
+  gitlab: {
+    label: "GitLab (push and merge requests)", kind: "gitlab", baseUrl: "https://gitlab.com", needsBaseUrl: true,
+    secretLabel: "Access token",
+    secretHint: "A project access token (Developer role, api + write_repository scopes). Used only by the git worker after you approve a push.",
+  },
   clickup: { label: "ClickUp", kind: "clickup", secretLabel: "Personal API token", secretHint: "ClickUp → Settings → Apps → API token." },
   trello: {
     label: "Trello", kind: "trello", secretLabel: "Token", secretHint: "Generate a read-only token for your Power-Up key.",
@@ -65,7 +75,7 @@ export const PRESETS: Record<string, Preset> = {
 
 const KIND_LABEL: Record<Kind, string> = {
   claude_code: "Claude Code", codex_cli: "Codex", openai_compatible: "OpenAI-compatible", anthropic: "Anthropic API",
-  jira: "Jira", clickup: "ClickUp", trello: "Trello",
+  jira: "Jira", clickup: "ClickUp", trello: "Trello", github: "GitHub", gitlab: "GitLab",
 };
 
 function NewAccountForm({ onDone }: { onDone: () => void }) {

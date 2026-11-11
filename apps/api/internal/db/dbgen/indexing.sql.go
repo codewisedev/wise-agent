@@ -379,7 +379,7 @@ func (q *Queries) ListIndexJobs(ctx context.Context, arg ListIndexJobsParams) ([
 }
 
 const listLocalRepositories = `-- name: ListLocalRepositories :many
-SELECT id, project_id, name, role, source_type, local_path, remote_url, default_branch, current_branch, head_sha, git_remotes, git_inspected_at, git_error, index_status, index_requested_at, settings, created_at, updated_at, indexed_sha, indexed_at, index_stats, index_error FROM repositories WHERE source_type = 'local' ORDER BY created_at
+SELECT id, project_id, name, role, source_type, local_path, remote_url, default_branch, current_branch, head_sha, git_remotes, git_inspected_at, git_error, index_status, index_requested_at, settings, created_at, updated_at, indexed_sha, indexed_at, index_stats, index_error, release FROM repositories WHERE source_type = 'local' ORDER BY created_at
 `
 
 func (q *Queries) ListLocalRepositories(ctx context.Context) ([]Repository, error) {
@@ -414,6 +414,7 @@ func (q *Queries) ListLocalRepositories(ctx context.Context) ([]Repository, erro
 			&i.IndexedAt,
 			&i.IndexStats,
 			&i.IndexError,
+			&i.Release,
 		); err != nil {
 			return nil, err
 		}

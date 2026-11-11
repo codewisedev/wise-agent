@@ -28,7 +28,7 @@ func (q *Queries) ArchiveProject(ctx context.Context, id uuid.UUID) (int64, erro
 const createProject = `-- name: CreateProject :one
 INSERT INTO projects (id, slug, name, description, metadata)
 VALUES ($1, $2, $3, $4, $5)
-RETURNING id, slug, name, description, metadata, created_at, updated_at, archived_at, current_sprint_id, coding_runtimes
+RETURNING id, slug, name, description, metadata, created_at, updated_at, archived_at, current_sprint_id, coding_runtimes, release_policy
 `
 
 type CreateProjectParams struct {
@@ -59,6 +59,7 @@ func (q *Queries) CreateProject(ctx context.Context, arg CreateProjectParams) (P
 		&i.ArchivedAt,
 		&i.CurrentSprintID,
 		&i.CodingRuntimes,
+		&i.ReleasePolicy,
 	)
 	return i, err
 }
@@ -122,7 +123,7 @@ func (q *Queries) DeleteProjectResource(ctx context.Context, id uuid.UUID) (Proj
 }
 
 const getProject = `-- name: GetProject :one
-SELECT p.id, p.slug, p.name, p.description, p.metadata, p.created_at, p.updated_at, p.archived_at, p.current_sprint_id, p.coding_runtimes,
+SELECT p.id, p.slug, p.name, p.description, p.metadata, p.created_at, p.updated_at, p.archived_at, p.current_sprint_id, p.coding_runtimes, p.release_policy,
        (SELECT count(*) FROM repositories r WHERE r.project_id = p.id) AS repository_count
 FROM projects p
 WHERE p.id = $1
@@ -147,6 +148,7 @@ func (q *Queries) GetProject(ctx context.Context, id uuid.UUID) (GetProjectRow, 
 		&i.Project.ArchivedAt,
 		&i.Project.CurrentSprintID,
 		&i.Project.CodingRuntimes,
+		&i.Project.ReleasePolicy,
 		&i.RepositoryCount,
 	)
 	return i, err
@@ -186,7 +188,7 @@ func (q *Queries) ListProjectResources(ctx context.Context, projectID uuid.UUID)
 }
 
 const listProjects = `-- name: ListProjects :many
-SELECT p.id, p.slug, p.name, p.description, p.metadata, p.created_at, p.updated_at, p.archived_at, p.current_sprint_id, p.coding_runtimes,
+SELECT p.id, p.slug, p.name, p.description, p.metadata, p.created_at, p.updated_at, p.archived_at, p.current_sprint_id, p.coding_runtimes, p.release_policy,
        (SELECT count(*) FROM repositories r WHERE r.project_id = p.id) AS repository_count
 FROM projects p
 WHERE $1::boolean OR p.archived_at IS NULL
@@ -218,6 +220,7 @@ func (q *Queries) ListProjects(ctx context.Context, includeArchived bool) ([]Lis
 			&i.Project.ArchivedAt,
 			&i.Project.CurrentSprintID,
 			&i.Project.CodingRuntimes,
+			&i.Project.ReleasePolicy,
 			&i.RepositoryCount,
 		); err != nil {
 			return nil, err
@@ -262,7 +265,7 @@ UPDATE projects SET
     metadata    = coalesce($3, metadata),
     updated_at  = now()
 WHERE id = $4
-RETURNING id, slug, name, description, metadata, created_at, updated_at, archived_at, current_sprint_id, coding_runtimes
+RETURNING id, slug, name, description, metadata, created_at, updated_at, archived_at, current_sprint_id, coding_runtimes, release_policy
 `
 
 type UpdateProjectParams struct {
@@ -291,6 +294,7 @@ func (q *Queries) UpdateProject(ctx context.Context, arg UpdateProjectParams) (P
 		&i.ArchivedAt,
 		&i.CurrentSprintID,
 		&i.CodingRuntimes,
+		&i.ReleasePolicy,
 	)
 	return i, err
 }

@@ -32,6 +32,7 @@ type Config struct {
 	ExecutionDefaults   string
 	CodingDefaults      string
 	ImprovementDefaults string
+	ReleaseDefaults     string
 	ModelProxyURL       string
 	ModelProxyToken     string
 	ExecutorURL         string
@@ -61,6 +62,7 @@ func Load() (Config, error) {
 		ExecutionDefaults:   getenv("WISE_EXECUTION_DEFAULTS", "configs/execution/defaults.yaml"),
 		CodingDefaults:      getenv("WISE_CODING_RUNTIMES_DEFAULTS", "configs/coding-runtimes/defaults.yaml"),
 		ImprovementDefaults: getenv("WISE_IMPROVEMENT_DEFAULTS", "configs/improvement/defaults.yaml"),
+		ReleaseDefaults:     getenv("WISE_RELEASE_DEFAULTS", "configs/release/defaults.yaml"),
 		ModelProxyURL:       getenv("WISE_MODEL_PROXY_URL", ""),
 		ModelProxyToken:     getenv("WISE_MODEL_PROXY_TOKEN", ""),
 		ExecutorURL:         getenv("WISE_EXECUTOR_URL", ""),

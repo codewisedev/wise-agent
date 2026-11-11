@@ -24,6 +24,8 @@ const (
 	AccountKindClaudeCode       AccountKind = "claude_code"
 	AccountKindClickup          AccountKind = "clickup"
 	AccountKindCodexCli         AccountKind = "codex_cli"
+	AccountKindGithub           AccountKind = "github"
+	AccountKindGitlab           AccountKind = "gitlab"
 	AccountKindJira             AccountKind = "jira"
 	AccountKindOpenaiCompatible AccountKind = "openai_compatible"
 	AccountKindTrello           AccountKind = "trello"
@@ -39,6 +41,10 @@ func (e AccountKind) Valid() bool {
 	case AccountKindClickup:
 		return true
 	case AccountKindCodexCli:
+		return true
+	case AccountKindGithub:
+		return true
+	case AccountKindGitlab:
 		return true
 	case AccountKindJira:
 		return true
@@ -879,6 +885,27 @@ func (e ProjectResourceKind) Valid() bool {
 	case ProjectResourceKindExternalService:
 		return true
 	case ProjectResourceKindOther:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ReleasePolicyPullRequests.
+const (
+	Ask  ReleasePolicyPullRequests = "ask"
+	Auto ReleasePolicyPullRequests = "auto"
+	Off  ReleasePolicyPullRequests = "off"
+)
+
+// Valid indicates whether the value is a known member of the ReleasePolicyPullRequests enum.
+func (e ReleasePolicyPullRequests) Valid() bool {
+	switch e {
+	case Ask:
+		return true
+	case Auto:
+		return true
+	case Off:
 		return true
 	default:
 		return false
@@ -2843,6 +2870,18 @@ type QualityCommands struct {
 	Typecheck string `json:"typecheck"`
 }
 
+// ReleasePolicy defines model for ReleasePolicy.
+type ReleasePolicy struct {
+	// Draft Open pull requests as drafts.
+	Draft bool `json:"draft"`
+
+	// PullRequests After an approved push: no pull request, ask you, or open one.
+	PullRequests ReleasePolicyPullRequests `json:"pullRequests"`
+}
+
+// ReleasePolicyPullRequests After an approved push: no pull request, ask you, or open one.
+type ReleasePolicyPullRequests string
+
 // Repository defines model for Repository.
 type Repository struct {
 	CreatedAt        time.Time          `json:"createdAt"`
@@ -2946,6 +2985,18 @@ type RepositoryRelationshipKind string
 // RepositoryRelationshipList defines model for RepositoryRelationshipList.
 type RepositoryRelationshipList struct {
 	Items []RepositoryRelationship `json:"items"`
+}
+
+// RepositoryRelease defines model for RepositoryRelease.
+type RepositoryRelease struct {
+	// AccountId The git account that pushes (same host as the remote).
+	AccountId *openapi_types.UUID `json:"accountId,omitempty"`
+
+	// BaseBranch Pull requests target this branch; Wise never pushes to it.
+	BaseBranch *string `json:"baseBranch,omitempty"`
+
+	// Remote https address of the repository on GitHub or GitLab.
+	Remote *string `json:"remote,omitempty"`
 }
 
 // RepositoryRole defines model for RepositoryRole.
@@ -3917,6 +3968,9 @@ type CreateColumnJSONRequestBody = ColumnInput
 // CreateIntegrationJSONRequestBody defines body for CreateIntegration for application/json ContentType.
 type CreateIntegrationJSONRequestBody = IntegrationInput
 
+// SetProjectReleasePolicyJSONRequestBody defines body for SetProjectReleasePolicy for application/json ContentType.
+type SetProjectReleasePolicyJSONRequestBody = ReleasePolicy
+
 // CreateRepositoryJSONRequestBody defines body for CreateRepository for application/json ContentType.
 type CreateRepositoryJSONRequestBody = CreateRepositoryRequest
 
@@ -3940,6 +3994,9 @@ type CreateExampleJSONRequestBody = ExampleInput
 
 // SetRepositoryExecutionJSONRequestBody defines body for SetRepositoryExecution for application/json ContentType.
 type SetRepositoryExecutionJSONRequestBody = RepositoryExecution
+
+// SetRepositoryReleaseJSONRequestBody defines body for SetRepositoryRelease for application/json ContentType.
+type SetRepositoryReleaseJSONRequestBody = RepositoryRelease
 
 // RuntimeClaimIndexJobJSONRequestBody defines body for RuntimeClaimIndexJob for application/json ContentType.
 type RuntimeClaimIndexJobJSONRequestBody = RuntimeClaimRequest
@@ -4337,6 +4394,12 @@ type ServerInterface interface {
 	// (POST /projects/{projectId}/integrations)
 	CreateIntegration(w http.ResponseWriter, r *http.Request, projectId ProjectId)
 
+	// (GET /projects/{projectId}/release-policy)
+	GetProjectReleasePolicy(w http.ResponseWriter, r *http.Request, projectId ProjectId)
+
+	// (PUT /projects/{projectId}/release-policy)
+	SetProjectReleasePolicy(w http.ResponseWriter, r *http.Request, projectId ProjectId)
+
 	// (GET /projects/{projectId}/repositories)
 	ListRepositories(w http.ResponseWriter, r *http.Request, projectId ProjectId)
 
@@ -4399,6 +4462,18 @@ type ServerInterface interface {
 
 	// (POST /repositories/{repositoryId}/inspect)
 	InspectRepository(w http.ResponseWriter, r *http.Request, repositoryId RepositoryId)
+
+	// (GET /repositories/{repositoryId}/release)
+	GetRepositoryRelease(w http.ResponseWriter, r *http.Request, repositoryId openapi_types.UUID)
+
+	// (PUT /repositories/{repositoryId}/release)
+	SetRepositoryRelease(w http.ResponseWriter, r *http.Request, repositoryId openapi_types.UUID)
+
+	// (POST /repositories/{repositoryId}/release/detect)
+	DetectRepositoryRelease(w http.ResponseWriter, r *http.Request, repositoryId openapi_types.UUID)
+
+	// (POST /repositories/{repositoryId}/release/test)
+	TestRepositoryRelease(w http.ResponseWriter, r *http.Request, repositoryId openapi_types.UUID)
 
 	// (GET /repositories/{repositoryId}/status)
 	GetRepositoryStatus(w http.ResponseWriter, r *http.Request, repositoryId RepositoryId)
@@ -5018,6 +5093,16 @@ func (_ Unimplemented) CreateIntegration(w http.ResponseWriter, r *http.Request,
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
+// (GET /projects/{projectId}/release-policy)
+func (_ Unimplemented) GetProjectReleasePolicy(w http.ResponseWriter, r *http.Request, projectId ProjectId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (PUT /projects/{projectId}/release-policy)
+func (_ Unimplemented) SetProjectReleasePolicy(w http.ResponseWriter, r *http.Request, projectId ProjectId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
 // (GET /projects/{projectId}/repositories)
 func (_ Unimplemented) ListRepositories(w http.ResponseWriter, r *http.Request, projectId ProjectId) {
 	w.WriteHeader(http.StatusNotImplemented)
@@ -5120,6 +5205,26 @@ func (_ Unimplemented) RequestRepositoryIndex(w http.ResponseWriter, r *http.Req
 
 // (POST /repositories/{repositoryId}/inspect)
 func (_ Unimplemented) InspectRepository(w http.ResponseWriter, r *http.Request, repositoryId RepositoryId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (GET /repositories/{repositoryId}/release)
+func (_ Unimplemented) GetRepositoryRelease(w http.ResponseWriter, r *http.Request, repositoryId openapi_types.UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (PUT /repositories/{repositoryId}/release)
+func (_ Unimplemented) SetRepositoryRelease(w http.ResponseWriter, r *http.Request, repositoryId openapi_types.UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (POST /repositories/{repositoryId}/release/detect)
+func (_ Unimplemented) DetectRepositoryRelease(w http.ResponseWriter, r *http.Request, repositoryId openapi_types.UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (POST /repositories/{repositoryId}/release/test)
+func (_ Unimplemented) TestRepositoryRelease(w http.ResponseWriter, r *http.Request, repositoryId openapi_types.UUID) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -7962,6 +8067,58 @@ func (siw *ServerInterfaceWrapper) CreateIntegration(w http.ResponseWriter, r *h
 	handler.ServeHTTP(w, r)
 }
 
+// GetProjectReleasePolicy operation middleware
+func (siw *ServerInterfaceWrapper) GetProjectReleasePolicy(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "projectId" -------------
+	var projectId ProjectId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "projectId", chi.URLParam(r, "projectId"), &projectId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "projectId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetProjectReleasePolicy(w, r, projectId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SetProjectReleasePolicy operation middleware
+func (siw *ServerInterfaceWrapper) SetProjectReleasePolicy(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "projectId" -------------
+	var projectId ProjectId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "projectId", chi.URLParam(r, "projectId"), &projectId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "projectId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetProjectReleasePolicy(w, r, projectId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListRepositories operation middleware
 func (siw *ServerInterfaceWrapper) ListRepositories(w http.ResponseWriter, r *http.Request) {
 
@@ -8503,6 +8660,110 @@ func (siw *ServerInterfaceWrapper) InspectRepository(w http.ResponseWriter, r *h
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.InspectRepository(w, r, repositoryId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetRepositoryRelease operation middleware
+func (siw *ServerInterfaceWrapper) GetRepositoryRelease(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "repositoryId" -------------
+	var repositoryId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "repositoryId", chi.URLParam(r, "repositoryId"), &repositoryId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "repositoryId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetRepositoryRelease(w, r, repositoryId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SetRepositoryRelease operation middleware
+func (siw *ServerInterfaceWrapper) SetRepositoryRelease(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "repositoryId" -------------
+	var repositoryId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "repositoryId", chi.URLParam(r, "repositoryId"), &repositoryId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "repositoryId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetRepositoryRelease(w, r, repositoryId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DetectRepositoryRelease operation middleware
+func (siw *ServerInterfaceWrapper) DetectRepositoryRelease(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "repositoryId" -------------
+	var repositoryId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "repositoryId", chi.URLParam(r, "repositoryId"), &repositoryId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "repositoryId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DetectRepositoryRelease(w, r, repositoryId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// TestRepositoryRelease operation middleware
+func (siw *ServerInterfaceWrapper) TestRepositoryRelease(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "repositoryId" -------------
+	var repositoryId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "repositoryId", chi.URLParam(r, "repositoryId"), &repositoryId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "repositoryId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.TestRepositoryRelease(w, r, repositoryId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -10722,6 +10983,24 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/evals/{evalRunId}/cancel", wrapper.CancelEval)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/repositories/{repositoryId}/release", wrapper.GetRepositoryRelease)
+	})
+	r.Group(func(r chi.Router) {
+		r.Put(options.BaseURL+"/repositories/{repositoryId}/release", wrapper.SetRepositoryRelease)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/repositories/{repositoryId}/release/detect", wrapper.DetectRepositoryRelease)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/repositories/{repositoryId}/release/test", wrapper.TestRepositoryRelease)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/projects/{projectId}/release-policy", wrapper.GetProjectReleasePolicy)
+	})
+	r.Group(func(r chi.Router) {
+		r.Put(options.BaseURL+"/projects/{projectId}/release-policy", wrapper.SetProjectReleasePolicy)
 	})
 
 	return r
@@ -16137,6 +16416,125 @@ func (response CreateIntegration404ApplicationProblemPlusJSONResponse) VisitCrea
 	return err
 }
 
+type GetProjectReleasePolicyRequestObject struct {
+	ProjectId ProjectId `json:"projectId"`
+}
+
+type GetProjectReleasePolicyResponseObject interface {
+	VisitGetProjectReleasePolicyResponse(w http.ResponseWriter) error
+}
+
+type GetProjectReleasePolicy200JSONResponse ReleasePolicy
+
+func (response GetProjectReleasePolicy200JSONResponse) VisitGetProjectReleasePolicyResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetProjectReleasePolicy401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response GetProjectReleasePolicy401ApplicationProblemPlusJSONResponse) VisitGetProjectReleasePolicyResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetProjectReleasePolicy404ApplicationProblemPlusJSONResponse Problem
+
+func (response GetProjectReleasePolicy404ApplicationProblemPlusJSONResponse) VisitGetProjectReleasePolicyResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetProjectReleasePolicyRequestObject struct {
+	ProjectId ProjectId `json:"projectId"`
+	Body      *SetProjectReleasePolicyJSONRequestBody
+}
+
+type SetProjectReleasePolicyResponseObject interface {
+	VisitSetProjectReleasePolicyResponse(w http.ResponseWriter) error
+}
+
+type SetProjectReleasePolicy200JSONResponse ReleasePolicy
+
+func (response SetProjectReleasePolicy200JSONResponse) VisitSetProjectReleasePolicyResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetProjectReleasePolicy400ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response SetProjectReleasePolicy400ApplicationProblemPlusJSONResponse) VisitSetProjectReleasePolicyResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetProjectReleasePolicy401ApplicationProblemPlusJSONResponse Problem
+
+func (response SetProjectReleasePolicy401ApplicationProblemPlusJSONResponse) VisitSetProjectReleasePolicyResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetProjectReleasePolicy404ApplicationProblemPlusJSONResponse Problem
+
+func (response SetProjectReleasePolicy404ApplicationProblemPlusJSONResponse) VisitSetProjectReleasePolicyResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type ListRepositoriesRequestObject struct {
 	ProjectId ProjectId `json:"projectId"`
 }
@@ -17437,6 +17835,264 @@ func (response InspectRepository404ApplicationProblemPlusJSONResponse) VisitInsp
 	}
 	w.Header().Set("Content-Type", "application/problem+json")
 	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetRepositoryReleaseRequestObject struct {
+	RepositoryId openapi_types.UUID `json:"repositoryId"`
+}
+
+type GetRepositoryReleaseResponseObject interface {
+	VisitGetRepositoryReleaseResponse(w http.ResponseWriter) error
+}
+
+type GetRepositoryRelease200JSONResponse RepositoryRelease
+
+func (response GetRepositoryRelease200JSONResponse) VisitGetRepositoryReleaseResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetRepositoryRelease401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response GetRepositoryRelease401ApplicationProblemPlusJSONResponse) VisitGetRepositoryReleaseResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetRepositoryRelease404ApplicationProblemPlusJSONResponse Problem
+
+func (response GetRepositoryRelease404ApplicationProblemPlusJSONResponse) VisitGetRepositoryReleaseResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetRepositoryReleaseRequestObject struct {
+	RepositoryId openapi_types.UUID `json:"repositoryId"`
+	Body         *SetRepositoryReleaseJSONRequestBody
+}
+
+type SetRepositoryReleaseResponseObject interface {
+	VisitSetRepositoryReleaseResponse(w http.ResponseWriter) error
+}
+
+type SetRepositoryRelease200JSONResponse RepositoryRelease
+
+func (response SetRepositoryRelease200JSONResponse) VisitSetRepositoryReleaseResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetRepositoryRelease400ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response SetRepositoryRelease400ApplicationProblemPlusJSONResponse) VisitSetRepositoryReleaseResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetRepositoryRelease401ApplicationProblemPlusJSONResponse Problem
+
+func (response SetRepositoryRelease401ApplicationProblemPlusJSONResponse) VisitSetRepositoryReleaseResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetRepositoryRelease404ApplicationProblemPlusJSONResponse Problem
+
+func (response SetRepositoryRelease404ApplicationProblemPlusJSONResponse) VisitSetRepositoryReleaseResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DetectRepositoryReleaseRequestObject struct {
+	RepositoryId openapi_types.UUID `json:"repositoryId"`
+}
+
+type DetectRepositoryReleaseResponseObject interface {
+	VisitDetectRepositoryReleaseResponse(w http.ResponseWriter) error
+}
+
+type DetectRepositoryRelease200JSONResponse struct {
+	Accounts   []openapi_types.UUID `json:"accounts"`
+	BaseBranch *string              `json:"baseBranch,omitempty"`
+	Problem    *string              `json:"problem,omitempty"`
+	Remote     *string              `json:"remote,omitempty"`
+}
+
+func (response DetectRepositoryRelease200JSONResponse) VisitDetectRepositoryReleaseResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DetectRepositoryRelease401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response DetectRepositoryRelease401ApplicationProblemPlusJSONResponse) VisitDetectRepositoryReleaseResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DetectRepositoryRelease404ApplicationProblemPlusJSONResponse Problem
+
+func (response DetectRepositoryRelease404ApplicationProblemPlusJSONResponse) VisitDetectRepositoryReleaseResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type TestRepositoryReleaseRequestObject struct {
+	RepositoryId openapi_types.UUID `json:"repositoryId"`
+}
+
+type TestRepositoryReleaseResponseObject interface {
+	VisitTestRepositoryReleaseResponse(w http.ResponseWriter) error
+}
+
+type TestRepositoryRelease200JSONResponse struct {
+	DefaultBranch string `json:"defaultBranch"`
+}
+
+func (response TestRepositoryRelease200JSONResponse) VisitTestRepositoryReleaseResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type TestRepositoryRelease400ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response TestRepositoryRelease400ApplicationProblemPlusJSONResponse) VisitTestRepositoryReleaseResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type TestRepositoryRelease401ApplicationProblemPlusJSONResponse Problem
+
+func (response TestRepositoryRelease401ApplicationProblemPlusJSONResponse) VisitTestRepositoryReleaseResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type TestRepositoryRelease404ApplicationProblemPlusJSONResponse Problem
+
+func (response TestRepositoryRelease404ApplicationProblemPlusJSONResponse) VisitTestRepositoryReleaseResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type TestRepositoryRelease409ApplicationProblemPlusJSONResponse Problem
+
+func (response TestRepositoryRelease409ApplicationProblemPlusJSONResponse) VisitTestRepositoryReleaseResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
 	_, err := buf.WriteTo(w)
 	return err
 }
@@ -21176,6 +21832,12 @@ type StrictServerInterface interface {
 	// (POST /projects/{projectId}/integrations)
 	CreateIntegration(ctx context.Context, request CreateIntegrationRequestObject) (CreateIntegrationResponseObject, error)
 
+	// (GET /projects/{projectId}/release-policy)
+	GetProjectReleasePolicy(ctx context.Context, request GetProjectReleasePolicyRequestObject) (GetProjectReleasePolicyResponseObject, error)
+
+	// (PUT /projects/{projectId}/release-policy)
+	SetProjectReleasePolicy(ctx context.Context, request SetProjectReleasePolicyRequestObject) (SetProjectReleasePolicyResponseObject, error)
+
 	// (GET /projects/{projectId}/repositories)
 	ListRepositories(ctx context.Context, request ListRepositoriesRequestObject) (ListRepositoriesResponseObject, error)
 
@@ -21238,6 +21900,18 @@ type StrictServerInterface interface {
 
 	// (POST /repositories/{repositoryId}/inspect)
 	InspectRepository(ctx context.Context, request InspectRepositoryRequestObject) (InspectRepositoryResponseObject, error)
+
+	// (GET /repositories/{repositoryId}/release)
+	GetRepositoryRelease(ctx context.Context, request GetRepositoryReleaseRequestObject) (GetRepositoryReleaseResponseObject, error)
+
+	// (PUT /repositories/{repositoryId}/release)
+	SetRepositoryRelease(ctx context.Context, request SetRepositoryReleaseRequestObject) (SetRepositoryReleaseResponseObject, error)
+
+	// (POST /repositories/{repositoryId}/release/detect)
+	DetectRepositoryRelease(ctx context.Context, request DetectRepositoryReleaseRequestObject) (DetectRepositoryReleaseResponseObject, error)
+
+	// (POST /repositories/{repositoryId}/release/test)
+	TestRepositoryRelease(ctx context.Context, request TestRepositoryReleaseRequestObject) (TestRepositoryReleaseResponseObject, error)
 
 	// (GET /repositories/{repositoryId}/status)
 	GetRepositoryStatus(ctx context.Context, request GetRepositoryStatusRequestObject) (GetRepositoryStatusResponseObject, error)
@@ -23930,6 +24604,65 @@ func (sh *strictHandler) CreateIntegration(w http.ResponseWriter, r *http.Reques
 	}
 }
 
+// GetProjectReleasePolicy operation middleware
+func (sh *strictHandler) GetProjectReleasePolicy(w http.ResponseWriter, r *http.Request, projectId ProjectId) {
+	var request GetProjectReleasePolicyRequestObject
+
+	request.ProjectId = projectId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetProjectReleasePolicy(ctx, request.(GetProjectReleasePolicyRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetProjectReleasePolicy")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetProjectReleasePolicyResponseObject); ok {
+		if err := validResponse.VisitGetProjectReleasePolicyResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// SetProjectReleasePolicy operation middleware
+func (sh *strictHandler) SetProjectReleasePolicy(w http.ResponseWriter, r *http.Request, projectId ProjectId) {
+	var request SetProjectReleasePolicyRequestObject
+
+	request.ProjectId = projectId
+
+	var body SetProjectReleasePolicyJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.SetProjectReleasePolicy(ctx, request.(SetProjectReleasePolicyRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SetProjectReleasePolicy")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(SetProjectReleasePolicyResponseObject); ok {
+		if err := validResponse.VisitSetProjectReleasePolicyResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // ListRepositories operation middleware
 func (sh *strictHandler) ListRepositories(w http.ResponseWriter, r *http.Request, projectId ProjectId) {
 	var request ListRepositoriesRequestObject
@@ -24524,6 +25257,117 @@ func (sh *strictHandler) InspectRepository(w http.ResponseWriter, r *http.Reques
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(InspectRepositoryResponseObject); ok {
 		if err := validResponse.VisitInspectRepositoryResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetRepositoryRelease operation middleware
+func (sh *strictHandler) GetRepositoryRelease(w http.ResponseWriter, r *http.Request, repositoryId openapi_types.UUID) {
+	var request GetRepositoryReleaseRequestObject
+
+	request.RepositoryId = repositoryId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetRepositoryRelease(ctx, request.(GetRepositoryReleaseRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetRepositoryRelease")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetRepositoryReleaseResponseObject); ok {
+		if err := validResponse.VisitGetRepositoryReleaseResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// SetRepositoryRelease operation middleware
+func (sh *strictHandler) SetRepositoryRelease(w http.ResponseWriter, r *http.Request, repositoryId openapi_types.UUID) {
+	var request SetRepositoryReleaseRequestObject
+
+	request.RepositoryId = repositoryId
+
+	var body SetRepositoryReleaseJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.SetRepositoryRelease(ctx, request.(SetRepositoryReleaseRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SetRepositoryRelease")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(SetRepositoryReleaseResponseObject); ok {
+		if err := validResponse.VisitSetRepositoryReleaseResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DetectRepositoryRelease operation middleware
+func (sh *strictHandler) DetectRepositoryRelease(w http.ResponseWriter, r *http.Request, repositoryId openapi_types.UUID) {
+	var request DetectRepositoryReleaseRequestObject
+
+	request.RepositoryId = repositoryId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DetectRepositoryRelease(ctx, request.(DetectRepositoryReleaseRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DetectRepositoryRelease")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DetectRepositoryReleaseResponseObject); ok {
+		if err := validResponse.VisitDetectRepositoryReleaseResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// TestRepositoryRelease operation middleware
+func (sh *strictHandler) TestRepositoryRelease(w http.ResponseWriter, r *http.Request, repositoryId openapi_types.UUID) {
+	var request TestRepositoryReleaseRequestObject
+
+	request.RepositoryId = repositoryId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.TestRepositoryRelease(ctx, request.(TestRepositoryReleaseRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "TestRepositoryRelease")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(TestRepositoryReleaseResponseObject); ok {
+		if err := validResponse.VisitTestRepositoryReleaseResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

@@ -26,6 +26,7 @@ import (
 	"wise/apps/api/internal/insights"
 	"wise/apps/api/internal/memory"
 	"wise/apps/api/internal/modelproxy"
+	"wise/apps/api/internal/release"
 	"wise/apps/api/internal/workspaces"
 
 	"golang.org/x/term"
@@ -244,6 +245,8 @@ func serve(ctx context.Context) error {
 	insightSvc := insights.New(d)
 	improvementSvc := improvement.New(d, agentSvc, memorySvc, settingsSvc, taskSvc, insightSvc, log.With("component", "improvement"))
 	improvement.RegisterSetting(settingsSvc, cfg.ImprovementDefaults, improvementSvc)
+	releaseSvc := release.New(d, accountSvc)
+	release.RegisterSetting(settingsSvc, cfg.ReleaseDefaults, releaseSvc)
 	runQueue.OnFinished = func(ctx context.Context, runID uuid.UUID) {
 		memorySvc.OnRunFinished(ctx, runID)
 		improvementSvc.OnRunFinished(ctx, runID)
@@ -273,6 +276,7 @@ func serve(ctx context.Context) error {
 		Feedback:         feedback.New(d),
 		Insights:         insightSvc,
 		Improvement:      improvementSvc,
+		Release:          releaseSvc,
 		Agents:           agentSvc,
 		RunQueue:         runQueue,
 		Gateway:          gateway,

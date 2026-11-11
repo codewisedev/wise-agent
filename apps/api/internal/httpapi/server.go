@@ -11,6 +11,7 @@ import (
 	"wise/apps/api/internal/improvement"
 	"wise/apps/api/internal/insights"
 	"wise/apps/api/internal/memory"
+	"wise/apps/api/internal/release"
 	"wise/apps/api/internal/workspaces"
 
 	"wise/apps/api/internal/accounts"
@@ -51,6 +52,7 @@ type Server struct {
 	Feedback     *feedback.Service
 	Insights     *insights.Service
 	Improvement  *improvement.Service
+	Release      *release.Service
 	Cookie       CookieConfig
 	// RuntimeToken authenticates agent runtimes claiming runs (empty disables the runtime API).
 	RuntimeToken string

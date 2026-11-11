@@ -23,6 +23,7 @@ import (
 	"wise/apps/api/internal/audit"
 	"wise/apps/api/internal/db"
 	"wise/apps/api/internal/db/dbgen"
+	"wise/apps/api/internal/githost"
 	"wise/apps/api/internal/modelgateway"
 	"wise/apps/api/internal/secrets"
 )
@@ -38,7 +39,14 @@ const (
 	KindJira      = "jira"
 	KindClickUp   = "clickup"
 	KindTrello    = "trello"
+	// KindGitHub and KindGitLab are git hosting tokens: used only by the
+	// trusted git worker for approved pushes and pull requests.
+	KindGitHub = "github"
+	KindGitLab = "gitlab"
 )
+
+// IsGitKind reports whether accounts of this kind are git hosting tokens.
+func IsGitKind(kind string) bool { return kind == KindGitHub || kind == KindGitLab }
 
 // IsModelKind reports whether accounts of this kind serve model calls.
 func IsModelKind(kind string) bool {
@@ -201,7 +209,7 @@ func (s *Service) apply(a *dbgen.Account, in Input, create bool) error {
 		errs = append(errs, apperr.FieldError{Field: "name", Message: "is used by a built-in provider in models.yaml"})
 	}
 	switch a.Kind {
-	case KindClaudeCode, KindCodexCLI, KindOpenAI, KindAnthropic, KindJira, KindClickUp, KindTrello:
+	case KindClaudeCode, KindCodexCLI, KindOpenAI, KindAnthropic, KindJira, KindClickUp, KindTrello, KindGitHub, KindGitLab:
 	default:
 		return apperr.Validation(apperr.FieldError{Field: "kind", Message: "unknown account kind"})
 	}
@@ -227,6 +235,14 @@ func (s *Service) apply(a *dbgen.Account, in Input, create bool) error {
 			errs = append(errs, apperr.FieldError{Field: "baseUrl", Message: "must be an http(s) URL"})
 		} else if a.Kind == KindJira && u.Scheme != "https" {
 			errs = append(errs, apperr.FieldError{Field: "baseUrl", Message: "Jira must use https"})
+		}
+	}
+	if IsGitKind(a.Kind) {
+		if a.BaseUrl == "" {
+			a.BaseUrl = githost.DefaultBaseURL(a.Kind)
+		}
+		if u, err := url.Parse(a.BaseUrl); err != nil || u.Scheme != "https" || u.Host == "" || (u.Path != "" && u.Path != "/") {
+			errs = append(errs, apperr.FieldError{Field: "baseUrl", Message: "the host's https address, e.g. https://gitlab.example.org"})
 		}
 	}
 	meta := map[string]any{}
@@ -353,6 +369,13 @@ func (s *Service) Test(ctx context.Context, id uuid.UUID) error {
 	secret, err := s.Secret(a)
 	if err != nil {
 		return err
+	}
+	if IsGitKind(a.Kind) {
+		c := &githost.Client{Kind: a.Kind, BaseURL: a.BaseUrl, Token: secret, HTTP: s.http}
+		if _, err := c.User(ctx); err != nil {
+			return fmt.Errorf("%s: %w", a.Kind, err)
+		}
+		return nil
 	}
 	meta := map[string]any{}
 	_ = json.Unmarshal(a.Metadata, &meta)

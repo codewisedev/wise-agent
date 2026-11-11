@@ -23,6 +23,7 @@ import (
 	"wise/apps/api/internal/improvement"
 	"wise/apps/api/internal/insights"
 	"wise/apps/api/internal/memory"
+	"wise/apps/api/internal/release"
 	"wise/apps/api/internal/workspaces"
 
 	"wise/apps/api/internal/accounts"
@@ -132,6 +133,8 @@ func setup(t *testing.T) *env {
 	insightSvc := insights.New(d)
 	improvementSvc := improvement.New(d, agentSvc, memorySvc, settingsSvc, taskSvc, insightSvc, log)
 	improvement.RegisterSetting(settingsSvc, filepath.Join("..", "..", "..", "..", "configs", "improvement", "defaults.yaml"), improvementSvc)
+	releaseSvc := release.New(d, accountSvc)
+	release.RegisterSetting(settingsSvc, filepath.Join("..", "..", "..", "..", "configs", "release", "defaults.yaml"), releaseSvc)
 	queue.OnFinished = func(ctx context.Context, runID uuid.UUID) {
 		memorySvc.OnRunFinished(ctx, runID)
 		improvementSvc.OnRunFinished(ctx, runID)
@@ -163,6 +166,7 @@ func setup(t *testing.T) *env {
 		Feedback:     feedback.New(d),
 		Insights:     insightSvc,
 		Improvement:  improvementSvc,
+		Release:      releaseSvc,
 		Agents:       agentSvc, RunQueue: queue, Gateway: gw, Hub: hub, Tasks: taskSvc, Accounts: accountSvc, Integrations: integrationSvc, Settings: settingsSvc,
 		Cookie:       httpapi.CookieConfig{TTL: time.Hour},
 		RuntimeToken: runtimeToken,

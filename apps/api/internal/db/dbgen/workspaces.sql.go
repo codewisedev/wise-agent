@@ -301,7 +301,7 @@ func (q *Queries) LiveWorkspaceForTask(ctx context.Context, taskID uuid.UUID) (W
 }
 
 const setRepositorySettings = `-- name: SetRepositorySettings :one
-UPDATE repositories SET settings = $2, updated_at = now() WHERE id = $1 RETURNING id, project_id, name, role, source_type, local_path, remote_url, default_branch, current_branch, head_sha, git_remotes, git_inspected_at, git_error, index_status, index_requested_at, settings, created_at, updated_at, indexed_sha, indexed_at, index_stats, index_error
+UPDATE repositories SET settings = $2, updated_at = now() WHERE id = $1 RETURNING id, project_id, name, role, source_type, local_path, remote_url, default_branch, current_branch, head_sha, git_remotes, git_inspected_at, git_error, index_status, index_requested_at, settings, created_at, updated_at, indexed_sha, indexed_at, index_stats, index_error, release
 `
 
 type SetRepositorySettingsParams struct {
@@ -335,6 +335,7 @@ func (q *Queries) SetRepositorySettings(ctx context.Context, arg SetRepositorySe
 		&i.IndexedAt,
 		&i.IndexStats,
 		&i.IndexError,
+		&i.Release,
 	)
 	return i, err
 }

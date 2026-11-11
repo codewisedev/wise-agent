@@ -780,6 +780,7 @@ type Project struct {
 	ArchivedAt      *time.Time
 	CurrentSprintID *uuid.UUID
 	CodingRuntimes  json.RawMessage
+	ReleasePolicy   json.RawMessage
 }
 
 type ProjectResource struct {
@@ -836,6 +837,7 @@ type Repository struct {
 	IndexedAt        *time.Time
 	IndexStats       json.RawMessage
 	IndexError       *string
+	Release          json.RawMessage
 }
 
 type RepositoryRelationship struct {
