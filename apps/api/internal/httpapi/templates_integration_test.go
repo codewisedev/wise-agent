@@ -20,9 +20,14 @@ func TestTemplatesAndTaskWorkflow(t *testing.T) {
 	}
 
 	// Invalid definitions are rejected with per-step messages; preview reports the same issues.
+	// (A switched-off agent is not executable: switch the documentation agent off.)
+	docs := e.expect(e.do("GET", "/agents/documentation-agent", nil), 200)
+	docsDef := docs["definition"].(map[string]any)
+	docsDef["enabled"] = false
+	e.expect(e.do("PUT", "/agents/documentation-agent", map[string]any{"definition": docsDef, "prompt": docs["prompt"]}), 200)
 	bad := map[string]any{"steps": []any{
 		map[string]any{"id": "plan", "agent": "planner-agent"},
-		map[string]any{"id": "docs", "agent": "release-agent"},
+		map[string]any{"id": "docs", "agent": "documentation-agent"},
 	}}
 	res := e.expect(e.do("POST", "/workflow-templates", map[string]any{"name": "Bad", "definition": bad}), 400)
 	if !strings.Contains(stringify(res), "steps.plan") || !strings.Contains(stringify(res), "not executable") {

@@ -89,3 +89,6 @@ commit:
   a wrong token or the orchestrator's token is refused.
 - Subscription coding runs are marked from now on; earlier ones are classified by provider.
 - Improvements applied are not shown in the project activity (they are not project-scoped).
+- The release agent of the original agent list is not shipped (removed 2026-11-11; migration 00031 archives the copy
+  existing installs registered, unless it was edited in the panel or a template uses it). Commit messages come from
+  the implementing agent and pull request descriptions from the final report.

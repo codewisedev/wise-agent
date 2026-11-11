@@ -53,6 +53,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
+      - name: ripgrep (search_code uses it, as in the runtime image)
+        run: sudo apt-get update -q && sudo apt-get install -y -q ripgrep
       - run: uv sync --frozen
       - run: uv run ruff check . && uv run ruff format --check .
       - run: uv run pytest -q

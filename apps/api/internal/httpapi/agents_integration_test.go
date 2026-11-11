@@ -99,14 +99,19 @@ func TestAgentRunLifecycle(t *testing.T) {
 	e.login()
 
 	list := e.expect(e.do("GET", "/agents", nil), 200)["items"].([]any)
-	if len(list) != 15 {
-		t.Fatalf("want 15 agents, got %d", len(list))
+	if len(list) != 14 {
+		t.Fatalf("want 14 agents, got %d", len(list))
 	}
 	detail := e.expect(e.do("GET", "/agents/product-agent", nil), 200)
 	if detail["prompt"] == "" || detail["enabled"] != true || len(detail["tools"].([]any)) != 8 {
 		t.Fatalf("detail: %v", detail)
 	}
-	e.expect(e.do("POST", "/agents/release-agent/runs", map[string]any{"input": map[string]any{}}), 409)
+	// A switched-off agent cannot run.
+	docs := e.expect(e.do("GET", "/agents/documentation-agent", nil), 200)
+	docsDef := docs["definition"].(map[string]any)
+	docsDef["enabled"] = false
+	e.expect(e.do("PUT", "/agents/documentation-agent", map[string]any{"definition": docsDef, "prompt": docs["prompt"]}), 200)
+	e.expect(e.do("POST", "/agents/documentation-agent/runs", map[string]any{"input": map[string]any{}}), 409)
 	e.expect(e.do("POST", "/agents/nope-agent/runs", map[string]any{"input": map[string]any{}}), 404)
 	e.expect(e.do("POST", "/agents/product-agent/runs", map[string]any{"input": map[string]any{"request": "x", "bogus": 1}}), 400)
 	runID := e.createRun("product-agent", map[string]any{"request": "Build a salon booking app"})

@@ -303,7 +303,7 @@ Wise will use specialized agents instead of one general-purpose agent handling e
 | Security Agent      | Identify security vulnerabilities    |
 | QA Agent            | Validate functionality and tests     |
 | Documentation Agent | Update technical documentation       |
-| Release Agent       | Prepare commits and pull requests    |
+| Release Agent       | Prepare commits and pull requests (removed: see the Phase 2 status) |
 
 ### Agent Contract
 
@@ -1520,8 +1520,8 @@ Build:
 **Goal:** Wise can execute specialized AI agents.
 
 **Status:** done — see `docs/decisions/0002-agent-infrastructure.md`. The documentation agent (limited to documentation
-files by `write_paths`) was added after Phase 7; the release agent stays unused (its work is done by the implementing
-agent, the final report and the git worker).
+files by `write_paths`) was added after Phase 7; the release agent was removed (its work is done by the implementing
+agent, the final report and the git worker; agents never hold git credentials).
 
 ## Phase 3 — Workflow Engine
 
