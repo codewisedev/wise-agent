@@ -2989,6 +2989,21 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/MonitorSnapshot" }
         "401": { $ref: "#/components/responses/Problem" }
+  /costs:
+    get:
+      tags: [monitor]
+      operationId: getCosts
+      description: Model spend per day grouped by project, agent, model, runtime or billing; today's spend against daily budgets; top tasks. Evaluation replays are reported apart. Subscription usage is the API-equivalent cost CLI subscriptions report, not what you pay.
+      parameters:
+        - { name: window, in: query, schema: { type: string, enum: [7d, 30d, 90d] } }
+        - { name: groupBy, in: query, schema: { type: string, enum: [project, agent, model, runtime, billing] } }
+      responses:
+        "200":
+          description: The report.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CostReport" }
+        "401": { $ref: "#/components/responses/Problem" }
 components:
   securitySchemes:
     cookieAuth:
@@ -4680,6 +4695,46 @@ components:
               runId: { type: string, format: uuid, nullable: true }
               note: { type: string }
               at: { type: string, format: date-time }
+    CostReport:
+      type: object
+      required: [window, groupBy, keys, days, total, billing, evalUsd, tokens, calls, budgets, topTasks]
+      properties:
+        window: { type: string }
+        groupBy: { type: string }
+        keys: { type: array, items: { type: string }, description: "Groups by total spend (at most 8, then other)." }
+        days:
+          type: array
+          items:
+            type: object
+            required: [day, total, by]
+            properties:
+              day: { type: string }
+              total: { type: number }
+              by: { type: object, additionalProperties: { type: number } }
+        total: { type: number }
+        billing: { type: object, additionalProperties: { type: number }, description: "subscription, api, local" }
+        evalUsd: { type: number }
+        tokens: { type: integer, format: int64 }
+        calls: { type: integer, format: int64 }
+        budgets:
+          type: array
+          items:
+            type: object
+            required: [agent, spent]
+            properties:
+              agent: { type: string }
+              spent: { type: number }
+              budget: { type: number, nullable: true }
+        topTasks:
+          type: array
+          items:
+            type: object
+            required: [id, title, costUsd, runs]
+            properties:
+              id: { type: string, format: uuid }
+              title: { type: string }
+              costUsd: { type: number }
+              runs: { type: integer, format: int64 }
     MonitorRun:
       type: object
       required: [id, agent, status, purpose, runtime, attempt, maxAttempts, cancelling, createdAt, tokens, costUsd]

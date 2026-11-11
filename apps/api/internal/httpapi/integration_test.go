@@ -18,6 +18,7 @@ import (
 	"time"
 	"wise/apps/api/internal/codeindex"
 	"wise/apps/api/internal/codingruns"
+	"wise/apps/api/internal/costs"
 	"wise/apps/api/internal/db/dbgen"
 	"wise/apps/api/internal/feedback"
 	"wise/apps/api/internal/improvement"
@@ -171,6 +172,7 @@ func setup(t *testing.T) *env {
 		Improvement:    improvementSvc,
 		Release:        releaseSvc,
 		Monitor:        monitor.New(d),
+		Costs:          costs.New(d),
 		GitWorkerToken: gitWorkerToken,
 		Agents:         agentSvc, RunQueue: queue, Gateway: gw, Hub: hub, Tasks: taskSvc, Accounts: accountSvc, Integrations: integrationSvc, Settings: settingsSvc,
 		Cookie:       httpapi.CookieConfig{TTL: time.Hour},

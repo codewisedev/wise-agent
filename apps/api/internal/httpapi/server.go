@@ -7,6 +7,7 @@ import (
 	"time"
 	"wise/apps/api/internal/codeindex"
 	"wise/apps/api/internal/codingruns"
+	"wise/apps/api/internal/costs"
 	"wise/apps/api/internal/feedback"
 	"wise/apps/api/internal/improvement"
 	"wise/apps/api/internal/insights"
@@ -55,6 +56,7 @@ type Server struct {
 	Improvement  *improvement.Service
 	Release      *release.Service
 	Monitor      *monitor.Service
+	Costs        *costs.Service
 	// GitWorkerToken authenticates the trusted git worker on the internal git routes.
 	GitWorkerToken string
 	Cookie         CookieConfig

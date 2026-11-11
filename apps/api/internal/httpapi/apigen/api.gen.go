@@ -1455,6 +1455,54 @@ func (e WorkspaceStatus) Valid() bool {
 	}
 }
 
+// Defines values for GetCostsParamsWindow.
+const (
+	GetCostsParamsWindowN30d GetCostsParamsWindow = "30d"
+	GetCostsParamsWindowN7d  GetCostsParamsWindow = "7d"
+	GetCostsParamsWindowN90d GetCostsParamsWindow = "90d"
+)
+
+// Valid indicates whether the value is a known member of the GetCostsParamsWindow enum.
+func (e GetCostsParamsWindow) Valid() bool {
+	switch e {
+	case GetCostsParamsWindowN30d:
+		return true
+	case GetCostsParamsWindowN7d:
+		return true
+	case GetCostsParamsWindowN90d:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetCostsParamsGroupBy.
+const (
+	GetCostsParamsGroupByAgent   GetCostsParamsGroupBy = "agent"
+	GetCostsParamsGroupByBilling GetCostsParamsGroupBy = "billing"
+	GetCostsParamsGroupByModel   GetCostsParamsGroupBy = "model"
+	GetCostsParamsGroupByProject GetCostsParamsGroupBy = "project"
+	GetCostsParamsGroupByRuntime GetCostsParamsGroupBy = "runtime"
+)
+
+// Valid indicates whether the value is a known member of the GetCostsParamsGroupBy enum.
+func (e GetCostsParamsGroupBy) Valid() bool {
+	switch e {
+	case GetCostsParamsGroupByAgent:
+		return true
+	case GetCostsParamsGroupByBilling:
+		return true
+	case GetCostsParamsGroupByModel:
+		return true
+	case GetCostsParamsGroupByProject:
+		return true
+	case GetCostsParamsGroupByRuntime:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ClearFeedbackParamsTargetType.
 const (
 	ClearFeedbackParamsTargetTypeArtifact ClearFeedbackParamsTargetType = "artifact"
@@ -2049,6 +2097,37 @@ type ContextHits struct {
 
 // ContextKind defines model for ContextKind.
 type ContextKind string
+
+// CostReport defines model for CostReport.
+type CostReport struct {
+	// Billing subscription, api, local
+	Billing map[string]float32 `json:"billing"`
+	Budgets []struct {
+		Agent  string   `json:"agent"`
+		Budget *float32 `json:"budget,omitempty"`
+		Spent  float32  `json:"spent"`
+	} `json:"budgets"`
+	Calls int64 `json:"calls"`
+	Days  []struct {
+		By    map[string]float32 `json:"by"`
+		Day   string             `json:"day"`
+		Total float32            `json:"total"`
+	} `json:"days"`
+	EvalUsd float32 `json:"evalUsd"`
+	GroupBy string  `json:"groupBy"`
+
+	// Keys Groups by total spend (at most 8, then other).
+	Keys     []string `json:"keys"`
+	Tokens   int64    `json:"tokens"`
+	TopTasks []struct {
+		CostUsd float32            `json:"costUsd"`
+		Id      openapi_types.UUID `json:"id"`
+		Runs    int64              `json:"runs"`
+		Title   string             `json:"title"`
+	} `json:"topTasks"`
+	Total  float32 `json:"total"`
+	Window string  `json:"window"`
+}
 
 // CreateAccountRequest defines model for CreateAccountRequest.
 type CreateAccountRequest struct {
@@ -3885,6 +3964,18 @@ type DeleteColumnParams struct {
 	MoveTo *openapi_types.UUID `form:"moveTo,omitempty" json:"moveTo,omitempty"`
 }
 
+// GetCostsParams defines parameters for GetCosts.
+type GetCostsParams struct {
+	Window  *GetCostsParamsWindow  `form:"window,omitempty" json:"window,omitempty"`
+	GroupBy *GetCostsParamsGroupBy `form:"groupBy,omitempty" json:"groupBy,omitempty"`
+}
+
+// GetCostsParamsWindow defines parameters for GetCosts.
+type GetCostsParamsWindow string
+
+// GetCostsParamsGroupBy defines parameters for GetCosts.
+type GetCostsParamsGroupBy string
+
 // UpdateEvalCaseJSONBody defines parameters for UpdateEvalCase.
 type UpdateEvalCaseJSONBody struct {
 	Enabled     bool   `json:"enabled"`
@@ -4432,6 +4523,9 @@ type ServerInterface interface {
 
 	// (GET /context/embeddings)
 	GetEmbeddingStatus(w http.ResponseWriter, r *http.Request)
+
+	// (GET /costs)
+	GetCosts(w http.ResponseWriter, r *http.Request, params GetCostsParams)
 
 	// (DELETE /eval-cases/{caseId})
 	DeleteEvalCase(w http.ResponseWriter, r *http.Request, caseId openapi_types.UUID)
@@ -5034,6 +5128,11 @@ func (_ Unimplemented) UpdateColumn(w http.ResponseWriter, r *http.Request, colu
 
 // (GET /context/embeddings)
 func (_ Unimplemented) GetEmbeddingStatus(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (GET /costs)
+func (_ Unimplemented) GetCosts(w http.ResponseWriter, r *http.Request, params GetCostsParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -6624,6 +6723,52 @@ func (siw *ServerInterfaceWrapper) GetEmbeddingStatus(w http.ResponseWriter, r *
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetEmbeddingStatus(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetCosts operation middleware
+func (siw *ServerInterfaceWrapper) GetCosts(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetCostsParams
+
+	// ------------- Optional query parameter "window" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "window", r.URL.Query(), &params.Window, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "window"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "window", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "groupBy" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "groupBy", r.URL.Query(), &params.GroupBy, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "groupBy"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "groupBy", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetCosts(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -11296,6 +11441,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/monitor", wrapper.GetMonitor)
 	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/costs", wrapper.GetCosts)
+	})
 
 	return r
 }
@@ -13570,6 +13718,44 @@ type GetEmbeddingStatus401ApplicationProblemPlusJSONResponse struct {
 }
 
 func (response GetEmbeddingStatus401ApplicationProblemPlusJSONResponse) VisitGetEmbeddingStatusResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetCostsRequestObject struct {
+	Params GetCostsParams
+}
+
+type GetCostsResponseObject interface {
+	VisitGetCostsResponse(w http.ResponseWriter) error
+}
+
+type GetCosts200JSONResponse CostReport
+
+func (response GetCosts200JSONResponse) VisitGetCostsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetCosts401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response GetCosts401ApplicationProblemPlusJSONResponse) VisitGetCostsResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -22143,6 +22329,9 @@ type StrictServerInterface interface {
 	// (GET /context/embeddings)
 	GetEmbeddingStatus(ctx context.Context, request GetEmbeddingStatusRequestObject) (GetEmbeddingStatusResponseObject, error)
 
+	// (GET /costs)
+	GetCosts(ctx context.Context, request GetCostsRequestObject) (GetCostsResponseObject, error)
+
 	// (DELETE /eval-cases/{caseId})
 	DeleteEvalCase(ctx context.Context, request DeleteEvalCaseRequestObject) (DeleteEvalCaseResponseObject, error)
 
@@ -23619,6 +23808,32 @@ func (sh *strictHandler) GetEmbeddingStatus(w http.ResponseWriter, r *http.Reque
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(GetEmbeddingStatusResponseObject); ok {
 		if err := validResponse.VisitGetEmbeddingStatusResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetCosts operation middleware
+func (sh *strictHandler) GetCosts(w http.ResponseWriter, r *http.Request, params GetCostsParams) {
+	var request GetCostsRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetCosts(ctx, request.(GetCostsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetCosts")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetCostsResponseObject); ok {
+		if err := validResponse.VisitGetCostsResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

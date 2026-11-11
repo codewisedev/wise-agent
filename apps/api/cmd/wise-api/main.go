@@ -19,6 +19,7 @@ import (
 	"time"
 	"wise/apps/api/internal/codeindex"
 	"wise/apps/api/internal/codingruns"
+	"wise/apps/api/internal/costs"
 	"wise/apps/api/internal/db/dbgen"
 	"wise/apps/api/internal/executor"
 	"wise/apps/api/internal/feedback"
@@ -282,6 +283,7 @@ func serve(ctx context.Context) error {
 		Improvement:      improvementSvc,
 		Release:          releaseSvc,
 		Monitor:          monitor.New(d),
+		Costs:            costs.New(d),
 		GitWorkerToken:   os.Getenv("WISE_GIT_WORKER_TOKEN"),
 		Agents:           agentSvc,
 		RunQueue:         runQueue,

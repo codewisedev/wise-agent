@@ -85,15 +85,15 @@ export function MonitorPage() {
           <h1>Monitor</h1>
           <p className="desc">Live: agent runs (Wise's own and Claude Code / Codex runners), the queue, runs that look stuck, and workflows waiting for your approval or a retry.</p>
         </div>
-        {m && (
-          <div className="stats compact">
-            <div className="stat"><div className="value">{m.running.length}</div><div className="label">running</div></div>
-            <div className="stat"><div className="value">{m.queued.length}</div><div className="label">queued</div></div>
-            <div className="stat"><div className="value">{m.stuck}</div><div className="label">stuck</div></div>
-            <div className="stat"><div className="value">{m.waiting.length}</div><div className="label">waiting for you</div></div>
-          </div>
-        )}
       </header>
+      {m && (
+        <div className="stats">
+          <div className="stat"><div className="value">{m.running.length}</div><div className="label">running</div></div>
+          <div className="stat"><div className="value">{m.queued.length}</div><div className="label">queued</div></div>
+          <div className="stat"><div className="value">{m.stuck}</div><div className="label">look stuck</div></div>
+          <div className="stat"><div className="value">{m.waiting.length}</div><div className="label">waiting for you</div></div>
+        </div>
+      )}
       <ErrorNote error={q.error} />
       <Panel title="Running" count={m?.running.length}>
         {m && m.running.length === 0 ? <Empty>Nothing is running.</Empty> : <RunTable runs={m?.running ?? []} />}

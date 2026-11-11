@@ -1,5 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { Activity, BarChart3, Bot, Brain, Cpu, Sparkles, FolderGit2, Inbox, ListChecks, LogOut, Monitor, Moon, Settings, Sun, UserRound, Workflow } from "lucide-react";
+import { Activity, BarChart3, Bot, CircleDollarSign, Brain, Cpu, Sparkles, FolderGit2, Inbox, ListChecks, LogOut, Monitor, Moon, Settings, Sun, UserRound, Workflow } from "lucide-react";
 import { useMemo } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router";
 import { useEventSocket, type WorkflowEvent } from "../api/events";
@@ -50,6 +50,7 @@ export function Layout() {
       "g m": () => navigate("/models"),
       "g n": () => navigate("/insights"),
       "g o": () => navigate("/monitor"),
+      "g c": () => navigate("/costs"),
       "g v": () => navigate("/improvements"),
       "g s": () => navigate("/settings"),
       t: cycle,
@@ -109,6 +110,9 @@ export function Layout() {
               <span className="nav-count warn" aria-label={`${stuck} stuck`}>{stuck}</span>
             )}
             <Kbd keys={["g", "o"]} />
+          </NavLink>
+          <NavLink to="/costs">
+            <CircleDollarSign size={16} aria-hidden /> Costs <Kbd keys={["g", "c"]} />
           </NavLink>
           <NavLink to="/insights">
             <BarChart3 size={16} aria-hidden /> Insights <Kbd keys={["g", "n"]} />

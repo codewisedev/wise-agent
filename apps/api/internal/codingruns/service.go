@@ -505,7 +505,11 @@ func (s *Service) finish(ctx context.Context, run dbgen.AgentRun, sess *session,
 	}
 	for _, c := range calls {
 		c.ID, _ = uuid.NewV7()
-		c.RunID, c.AgentName, c.Alias, c.Provider = &run.ID, run.AgentName, "coding:"+sess.runtime, provider
+		alias := "coding:" + sess.runtime
+		if sess.token == "" {
+			alias += ":subscription" // reported API-equivalent cost; not what you pay
+		}
+		c.RunID, c.AgentName, c.Alias, c.Provider = &run.ID, run.AgentName, alias, provider
 		if c.Model == "" {
 			c.Model = "default"
 		}

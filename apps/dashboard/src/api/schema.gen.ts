@@ -2477,6 +2477,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/costs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Model spend per day grouped by project, agent, model, runtime or billing; today's spend against daily budgets; top tasks. Evaluation replays are reported apart. Subscription usage is the API-equivalent cost CLI subscriptions report, not what you pay. */
+        get: operations["getCosts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -4081,6 +4098,42 @@ export interface components {
                 note: string;
                 /** Format: date-time */
                 at: string;
+            }[];
+        };
+        CostReport: {
+            window: string;
+            groupBy: string;
+            /** @description Groups by total spend (at most 8, then other). */
+            keys: string[];
+            days: {
+                day: string;
+                total: number;
+                by: {
+                    [key: string]: number;
+                };
+            }[];
+            total: number;
+            /** @description subscription, api, local */
+            billing: {
+                [key: string]: number;
+            };
+            evalUsd: number;
+            /** Format: int64 */
+            tokens: number;
+            /** Format: int64 */
+            calls: number;
+            budgets: {
+                agent: string;
+                spent: number;
+                budget?: number | null;
+            }[];
+            topTasks: {
+                /** Format: uuid */
+                id: string;
+                title: string;
+                costUsd: number;
+                /** Format: int64 */
+                runs: number;
             }[];
         };
         MonitorRun: {
@@ -9134,6 +9187,30 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MonitorSnapshot"];
+                };
+            };
+            401: components["responses"]["Problem"];
+        };
+    };
+    getCosts: {
+        parameters: {
+            query?: {
+                window?: "7d" | "30d" | "90d";
+                groupBy?: "project" | "agent" | "model" | "runtime" | "billing";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The report. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CostReport"];
                 };
             };
             401: components["responses"]["Problem"];
