@@ -9,6 +9,7 @@ import {
 import { SourcesPanel } from "./IntegrationsPage";
 import { RepoExecutionEditor } from "../components/RepoExecution";
 import { ReleasePolicyPanel, RepoReleaseEditor } from "../components/RepoRelease";
+import { ProjectActivity } from "../components/ProjectActivity";
 import { CodingRuntimesPanel } from "../components/CodingRuntimesPanel";
 import { projectsKey } from "./ProjectsPage";
 
@@ -148,6 +149,7 @@ export function ProjectDetailPage() {
       <CodingRuntimesPanel projectId={projectId} readOnly={readOnly} />
       <ReleasePolicyPanel projectId={projectId} readOnly={readOnly} />
       {!readOnly && <SourcesPanel projectId={projectId} adding={addingSource} setAdding={setAddingSource} />}
+      <ProjectActivity projectId={projectId} />
     </>
   );
 }

@@ -834,3 +834,9 @@ tr.row-warn td { background: color-mix(in srgb, var(--warn) 8%, transparent); }
 .meter .fill.tone-warn { background: var(--warn); }
 .meter .fill.tone-bad { background: var(--bad); }
 @media (max-width: 640px) { .budgets li { grid-template-columns: 1fr; } }
+.timeline { list-style: none; margin: 0 0 8px; padding: 0; display: grid; gap: 6px; }
+.timeline li { display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; }
+.timeline time { min-width: 7ch; }
+.timeline .detail { flex-basis: 100%; padding-left: calc(7ch + 8px); overflow-wrap: anywhere; }
+.chip-filter { display: flex; flex-wrap: wrap; gap: 4px; }
+.chip-filter .btn.active { background: var(--surface-2); font-weight: 600; }

@@ -2494,6 +2494,25 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/projects/{projectId}/activity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: components["parameters"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        /** @description What happened in the project, newest first - tasks, approvals, workflows, failed runs, deliveries, pushes, pull requests and memories. */
+        get: operations["getProjectActivity"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -9214,6 +9233,54 @@ export interface operations {
                 };
             };
             401: components["responses"]["Problem"];
+        };
+    };
+    getProjectActivity: {
+        parameters: {
+            query?: {
+                /** @description Older than this (paging). */
+                before?: string;
+                /** @description Comma-separated: task, approval, workflow, run, branch, push, pull_request, memory. */
+                kinds?: string;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                projectId: components["parameters"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Activity. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: {
+                            /** Format: date-time */
+                            at: string;
+                            kind: string;
+                            title: string;
+                            detail: string;
+                            /** Format: uuid */
+                            taskId?: string | null;
+                            /** Format: uuid */
+                            refId: string;
+                            url: string;
+                        }[];
+                        /**
+                         * Format: date-time
+                         * @description Pass as before for the next page.
+                         */
+                        next?: string | null;
+                    };
+                };
+            };
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
         };
     };
 }

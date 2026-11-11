@@ -3004,6 +3004,42 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/CostReport" }
         "401": { $ref: "#/components/responses/Problem" }
+  /projects/{projectId}/activity:
+    parameters:
+      - $ref: "#/components/parameters/ProjectId"
+    get:
+      tags: [monitor]
+      operationId: getProjectActivity
+      description: What happened in the project, newest first - tasks, approvals, workflows, failed runs, deliveries, pushes, pull requests and memories.
+      parameters:
+        - { name: before, in: query, schema: { type: string, format: date-time }, description: Older than this (paging). }
+        - { name: kinds, in: query, schema: { type: string }, description: "Comma-separated: task, approval, workflow, run, branch, push, pull_request, memory." }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 200 } }
+      responses:
+        "200":
+          description: Activity.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      required: [at, kind, title, detail, refId, url]
+                      properties:
+                        at: { type: string, format: date-time }
+                        kind: { type: string }
+                        title: { type: string }
+                        detail: { type: string }
+                        taskId: { type: string, format: uuid, nullable: true }
+                        refId: { type: string, format: uuid }
+                        url: { type: string }
+                  next: { type: string, format: date-time, nullable: true, description: Pass as before for the next page. }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
 components:
   securitySchemes:
     cookieAuth:

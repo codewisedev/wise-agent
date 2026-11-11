@@ -4083,6 +4083,16 @@ type ListProjectsParams struct {
 	IncludeArchived *bool `form:"includeArchived,omitempty" json:"includeArchived,omitempty"`
 }
 
+// GetProjectActivityParams defines parameters for GetProjectActivity.
+type GetProjectActivityParams struct {
+	// Before Older than this (paging).
+	Before *time.Time `form:"before,omitempty" json:"before,omitempty"`
+
+	// Kinds Comma-separated: task, approval, workflow, run, branch, push, pull_request, memory.
+	Kinds *string `form:"kinds,omitempty" json:"kinds,omitempty"`
+	Limit *int    `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
 // ListContextDependenciesParams defines parameters for ListContextDependencies.
 type ListContextDependenciesParams struct {
 	RepositoryId *openapi_types.UUID `form:"repositoryId,omitempty" json:"repositoryId,omitempty"`
@@ -4652,6 +4662,9 @@ type ServerInterface interface {
 
 	// (PATCH /projects/{projectId})
 	UpdateProject(w http.ResponseWriter, r *http.Request, projectId ProjectId)
+
+	// (GET /projects/{projectId}/activity)
+	GetProjectActivity(w http.ResponseWriter, r *http.Request, projectId ProjectId, params GetProjectActivityParams)
 
 	// (GET /projects/{projectId}/board)
 	GetBoard(w http.ResponseWriter, r *http.Request, projectId ProjectId)
@@ -5343,6 +5356,11 @@ func (_ Unimplemented) GetProject(w http.ResponseWriter, r *http.Request, projec
 
 // (PATCH /projects/{projectId})
 func (_ Unimplemented) UpdateProject(w http.ResponseWriter, r *http.Request, projectId ProjectId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (GET /projects/{projectId}/activity)
+func (_ Unimplemented) GetProjectActivity(w http.ResponseWriter, r *http.Request, projectId ProjectId, params GetProjectActivityParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -8037,6 +8055,74 @@ func (siw *ServerInterfaceWrapper) UpdateProject(w http.ResponseWriter, r *http.
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.UpdateProject(w, r, projectId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetProjectActivity operation middleware
+func (siw *ServerInterfaceWrapper) GetProjectActivity(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "projectId" -------------
+	var projectId ProjectId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "projectId", chi.URLParam(r, "projectId"), &projectId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "projectId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetProjectActivityParams
+
+	// ------------- Optional query parameter "before" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "before", r.URL.Query(), &params.Before, runtime.BindQueryParameterOptions{Type: "string", Format: "date-time"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "before"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "before", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "kinds" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "kinds", r.URL.Query(), &params.Kinds, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "kinds"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "kinds", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetProjectActivity(w, r, projectId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -11443,6 +11529,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/costs", wrapper.GetCosts)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/projects/{projectId}/activity", wrapper.GetProjectActivity)
 	})
 
 	return r
@@ -16218,6 +16307,72 @@ func (response UpdateProject401ApplicationProblemPlusJSONResponse) VisitUpdatePr
 type UpdateProject404ApplicationProblemPlusJSONResponse Problem
 
 func (response UpdateProject404ApplicationProblemPlusJSONResponse) VisitUpdateProjectResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetProjectActivityRequestObject struct {
+	ProjectId ProjectId `json:"projectId"`
+	Params    GetProjectActivityParams
+}
+
+type GetProjectActivityResponseObject interface {
+	VisitGetProjectActivityResponse(w http.ResponseWriter) error
+}
+
+type GetProjectActivity200JSONResponse struct {
+	Items []struct {
+		At     time.Time           `json:"at"`
+		Detail string              `json:"detail"`
+		Kind   string              `json:"kind"`
+		RefId  openapi_types.UUID  `json:"refId"`
+		TaskId *openapi_types.UUID `json:"taskId,omitempty"`
+		Title  string              `json:"title"`
+		Url    string              `json:"url"`
+	} `json:"items"`
+
+	// Next Pass as before for the next page.
+	Next *time.Time `json:"next,omitempty"`
+}
+
+func (response GetProjectActivity200JSONResponse) VisitGetProjectActivityResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetProjectActivity401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response GetProjectActivity401ApplicationProblemPlusJSONResponse) VisitGetProjectActivityResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetProjectActivity404ApplicationProblemPlusJSONResponse Problem
+
+func (response GetProjectActivity404ApplicationProblemPlusJSONResponse) VisitGetProjectActivityResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -22458,6 +22613,9 @@ type StrictServerInterface interface {
 	// (PATCH /projects/{projectId})
 	UpdateProject(ctx context.Context, request UpdateProjectRequestObject) (UpdateProjectResponseObject, error)
 
+	// (GET /projects/{projectId}/activity)
+	GetProjectActivity(ctx context.Context, request GetProjectActivityRequestObject) (GetProjectActivityResponseObject, error)
+
 	// (GET /projects/{projectId}/board)
 	GetBoard(ctx context.Context, request GetBoardRequestObject) (GetBoardResponseObject, error)
 
@@ -25002,6 +25160,33 @@ func (sh *strictHandler) UpdateProject(w http.ResponseWriter, r *http.Request, p
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(UpdateProjectResponseObject); ok {
 		if err := validResponse.VisitUpdateProjectResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetProjectActivity operation middleware
+func (sh *strictHandler) GetProjectActivity(w http.ResponseWriter, r *http.Request, projectId ProjectId, params GetProjectActivityParams) {
+	var request GetProjectActivityRequestObject
+
+	request.ProjectId = projectId
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetProjectActivity(ctx, request.(GetProjectActivityRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetProjectActivity")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetProjectActivityResponseObject); ok {
+		if err := validResponse.VisitGetProjectActivityResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

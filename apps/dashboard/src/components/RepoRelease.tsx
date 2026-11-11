@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { api, unwrap } from "../api/client";
-import { ErrorNote, Field } from "./ui";
+import { ErrorNote, Field, Panel } from "./ui";
 
 /** Where a repository pushes: its https remote, the git account and the base branch. */
 export function RepoReleaseEditor({ repositoryId, onDone }: { repositoryId: string; onDone?: () => void }) {
@@ -89,8 +89,8 @@ export function ReleasePolicyPanel({ projectId, readOnly }: { projectId: string;
   });
   const p = q.data;
   return (
+    <Panel title="Pull requests" flush={false}>
     <div className="settings-form">
-      <h3>Pull requests</h3>
       {p && (
         <div className="form-grid">
           <Field label="After an approved push">
@@ -107,8 +107,9 @@ export function ReleasePolicyPanel({ projectId, readOnly }: { projectId: string;
           </label>
         </div>
       )}
-      <p className="small faint">Merging always stays with you.</p>
+      <p className="small faint">After an approved push of a task's branch (workflows with a release step). Merging always stays with you.</p>
       <ErrorNote error={q.error ?? save.error} />
     </div>
+    </Panel>
   );
 }
