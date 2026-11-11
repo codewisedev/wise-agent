@@ -37,6 +37,11 @@ editing code or files.** This applies to every feature, in every phase.
     home per run); vendor hosts are granted per run only; API keys stay in `wise-model-proxy` and never enter a
     sandbox; Claude Code never loads the repository's settings or hooks. Projects choose runtimes and whether
     subscription (reduced-isolation) mode is allowed, but these mechanisms are not configurable.
+  - **git release** (ADR 0010): only `wise-git-worker` pushes or opens pull requests, and only with an API grant for
+    an approved push approval (the delivered commit, a `wise/…` branch that is not the base branch, an https remote on
+    the account's host). Pushes are create-only, nothing ever merges, and tokens reach only the API and the worker (the
+    orchestrator calls the worker with ids). Users choose accounts, remotes, base branches and the pull request policy;
+    these rules are not configurable.
   - **self-improvement's hard rule** (ADR 0009, `internal/improvement/rules.go`): what a proposal may change (prompt
     text, memory, alias targets and daily budgets, templates within the approval rules) and the agents it may never
     target are fixed in code and checked at creation and again at apply. The schedule, thresholds, models and

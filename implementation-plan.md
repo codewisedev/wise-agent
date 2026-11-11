@@ -1638,6 +1638,10 @@ Build:
 
 **Goal:** Wise can complete the engineering lifecycle under human supervision.
 
+**Status:** done — see `docs/decisions/0010-release-and-dashboard.md`. GitHub and GitLab; pushes and pull requests only
+through `wise-git-worker` after your approval (create-only `wise/…` branches, never a merge); pull requests per project
+policy, drafts by default.
+
 ---
 
 # 21. MVP Acceptance Criteria

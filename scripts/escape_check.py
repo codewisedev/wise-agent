@@ -75,6 +75,9 @@ node /tmp/c.mjs not-granted example.com auth
 node /tmp/c.mjs registry registry.npmjs.org noauth
 node /tmp/c.mjs private-direct 172.17.0.1 direct 5173
 node /tmp/c.mjs public-direct 1.1.1.1 direct 443
+node /tmp/c.mjs git-worker-direct wise-git-worker direct 8096
+node /tmp/c.mjs git-worker-proxy wise-git-worker auth
+node /tmp/c.mjs api-direct wise-api direct 8080
 """
 
 EXPECT = {
@@ -91,7 +94,41 @@ EXPECT = {
     "registry": lambda v: v == "200",
     "private-direct": lambda v: v in ("ENETUNREACH", "EHOSTUNREACH", "timeout"),
     "public-direct": lambda v: v in ("ENETUNREACH", "EHOSTUNREACH", "timeout"),
+    # The git worker and the API (push grants) are never reachable from a runner.
+    "git-worker-direct": lambda v: v != "connected",
+    "git-worker-proxy": lambda v: v == "403",
+    "api-direct": lambda v: v != "connected",
 }
+
+
+def compose_exec(service: str, script: str) -> str:
+    return subprocess.run(["docker", "compose", "exec", "-T", service, "sh", "-c", script], capture_output=True, text=True, cwd=ROOT).stdout.strip()
+
+
+def git_call(path: str, token: str, body: dict | None = None, host: str = "http://wise-git-worker:8096") -> str:
+    """HTTP status of a request on the internal git network (from a throwaway curl container)."""
+    cmd = ["docker", "run", "--rm", "--network", "wise_git", "curlimages/curl:latest", "-s", "-o", "/dev/null", "-w", "%{http_code}",
+           "-X", "POST", "-H", "Authorization: Bearer " + token, "-H", "Content-Type: application/json", "--data", json.dumps(body or {})]
+    return subprocess.run(cmd + [host + path], capture_output=True, text=True).stdout.strip()
+
+
+def git_checks() -> int:
+    """ADR 0010: only the git worker pushes, only with a grant for an approved push."""
+    push_token = ENV.get("WISE_GIT_PUSH_TOKEN", "")
+    checks = {
+        # Names only: the orchestrator calls the worker with approval ids and never holds a git token or the secrets key.
+        "orchestrator-no-token": compose_exec("wise-orchestrator", "env | cut -d= -f1 | grep -cE '^(WISE_GIT_WORKER_TOKEN|WISE_SECRETS_KEY)$'") == "0",
+        "worker-workspaces-ro": compose_exec("wise-git-worker", "touch /workspaces/.x 2>/dev/null && echo yes || echo no") == "no",
+        "worker-no-docker": compose_exec("wise-git-worker", "[ -e /var/run/docker.sock ] && echo yes || echo no") == "no",
+        "push-unapproved": git_call("/v1/push", push_token, {"approvalId": str(uuid.uuid4())}) == "409",
+        "push-wrong-token": git_call("/v1/push", "x" * 40, {"approvalId": str(uuid.uuid4())}) == "401",
+        "grant-with-push-token": git_call("/api/v1/internal/git/push-grants/" + str(uuid.uuid4()), push_token, host="http://wise-api:8080") == "401",
+    }
+    failed = 0
+    for key, ok in checks.items():
+        failed += not ok
+        print(f"{'PASS' if ok else 'FAIL'}  {key:22}")
+    return failed
 
 
 def main() -> int:
@@ -123,6 +160,7 @@ def main() -> int:
         time.sleep(1)
         left = subprocess.run(["docker", "ps", "-aq", "--filter", "label=wise.role=runner"], capture_output=True, text=True).stdout.split()
         print(f"{'PASS' if not left else 'FAIL'}  {'runner removed':22} {len(left)} left")
+        failed += git_checks()
         return 1 if failed or left else 0
     finally:
         ex("DELETE", f"/v1/workspaces/{ws}")
