@@ -130,6 +130,13 @@ func TestTemplateRules(t *testing.T) {
 		},
 		"autostart":   func(d *tasks.TemplateDef) { d.Source.AutoStart = true },
 		"destination": func(d *tasks.TemplateDef) { d.Destination.Column = "review" },
+		"add release": func(d *tasks.TemplateDef) {
+			d.Steps = append(d.Steps, tasks.StepDef{ID: "release", Type: tasks.StepRelease})
+		},
+		"add deliver": func(d *tasks.TemplateDef) {
+			d.Steps = append(d.Steps, tasks.StepDef{ID: "deliver2", Type: tasks.StepDeliver})
+		},
+		"agent becomes release": func(d *tasks.TemplateDef) { d.Steps[0] = tasks.StepDef{ID: "planning", Type: tasks.StepRelease} },
 	}
 	for name, mutate := range bad {
 		d := engineering()

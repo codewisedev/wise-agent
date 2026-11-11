@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"log/slog"
 	"time"
+	"wise/apps/api/internal/gitworker"
+	"wise/apps/api/internal/release"
 	"wise/apps/api/internal/workspaces"
 
 	"go.temporal.io/api/serviceerror"
@@ -27,6 +29,8 @@ type OrchestratorConfig struct {
 	Namespace       string
 	Retention       time.Duration
 	Workspaces      *workspaces.Service // engineering steps; nil when the executor is not configured
+	Release         *release.Service    // release steps; nil when not configured
+	Git             *gitworker.Client   // the git worker (approval ids only); nil when not configured
 }
 
 // RunOrchestrator connects to Temporal (waiting for it to come up), makes sure
@@ -49,7 +53,7 @@ func RunOrchestrator(ctx context.Context, cfg OrchestratorConfig, d *db.DB, task
 
 	w := worker.New(c, TaskQueue, worker.Options{})
 	w.RegisterWorkflowWithOptions(PipelineWorkflow, workflow.RegisterOptions{Name: tasks.PipelineType})
-	w.RegisterActivity(&Activities{Tasks: taskSvc, Agents: agentSvc, Workspaces: cfg.Workspaces})
+	w.RegisterActivity(&Activities{Tasks: taskSvc, Agents: agentSvc, Workspaces: cfg.Workspaces, Release: cfg.Release, Git: cfg.Git})
 	if err := w.Start(); err != nil {
 		return fmt.Errorf("start temporal worker: %w", err)
 	}

@@ -554,6 +554,46 @@ export function ImprovementEditor({ value: raw, set }: { value: ImprovementValue
   );
 }
 
+type MonitorValue = { stuck_after_minutes: number };
+
+function MonitorEditor({ value, set }: { value: MonitorValue; set: (v: MonitorValue) => void }) {
+  return (
+    <div className="settings-form">
+      <Field label="Flag a run as looking stuck after (minutes without activity)" hint="Raise it if your models are silent for long stretches (large local models)">
+        <input type="number" min={1} max={1440} value={value.stuck_after_minutes} onChange={(e) => set({ stuck_after_minutes: Number(e.target.value) })} />
+      </Field>
+    </div>
+  );
+}
+
+type ReleaseValue = { pr_title_template: string; pr_body_includes_report: boolean; push_timeout_s: number; pr_refresh_minutes: number };
+
+function ReleaseEditor({ value, set }: { value: ReleaseValue; set: (v: ReleaseValue) => void }) {
+  return (
+    <div className="settings-form">
+      <p className="small faint">
+        Where each repository pushes is set on the repository (Release), and pull requests per project. Wise only pushes
+        approved <span className="mono">wise/…</span> branches, never force-pushes and never merges.
+      </p>
+      <div className="form-grid">
+        <Field label="Pull request title" hint="{task} is the task title" grow>
+          <input value={value.pr_title_template} maxLength={200} onChange={(e) => set({ ...value, pr_title_template: e.target.value })} />
+        </Field>
+        <Field label="Push timeout (seconds)">
+          <input type="number" min={10} max={1800} value={value.push_timeout_s} onChange={(e) => set({ ...value, push_timeout_s: Number(e.target.value) })} />
+        </Field>
+        <Field label="Refresh pull request state every (minutes)">
+          <input type="number" min={1} max={1440} value={value.pr_refresh_minutes} onChange={(e) => set({ ...value, pr_refresh_minutes: Number(e.target.value) })} />
+        </Field>
+      </div>
+      <label className="checkbox">
+        <input type="checkbox" checked={value.pr_body_includes_report} onChange={(e) => set({ ...value, pr_body_includes_report: e.target.checked })} />{" "}
+        Put the final implementation report in the description
+      </label>
+    </div>
+  );
+}
+
 type ExecutionValue = {
   limits: { cpus: number; memory_mb: number; pids: number };
   egress_allowlist: string[]; command_timeout_s: number; setup_timeout_s: number; max_output_kb: number;
@@ -704,6 +744,8 @@ const EDITORS: Record<string, (v: any, set: (v: any) => void) => ReactNode> = {
   indexing: (v, set) => <IndexingEditor value={v as IndexingValue} set={set} />,
   memory: (v, set) => <MemoryEditor value={v as MemoryValue} set={set} />,
   improvement: (v, set) => <ImprovementEditor value={v as ImprovementValue} set={set} />,
+  release: (v, set) => <ReleaseEditor value={v as ReleaseValue} set={set} />,
+  monitor: (v, set) => <MonitorEditor value={v as MonitorValue} set={set} />,
 };
 
 /** Every panel-managed setting; unknown keys fall back to the JSON editor. */

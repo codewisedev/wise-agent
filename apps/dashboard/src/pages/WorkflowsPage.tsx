@@ -194,6 +194,17 @@ function Editor({ template, agents, onSaved }: { template: Template | null; agen
           </aside>
         )}
       </div>
+      {def.steps.some((s) => s.type === "deliver") && !def.steps.some((s) => s.type === "release") && (
+        <p className="small faint">
+          This workflow delivers a local <span className="mono">wise/…</span> branch.{" "}
+          <button type="button" className="btn btn-sm" onClick={() => {
+            const id = uniqueId(def, "release");
+            update({ ...def, steps: [...def.steps, { id, name: "Push and pull request", type: "release" }] });
+            setSelected(id);
+          }}>Add release step</button>{" "}
+          to push it after your approval and open a pull request (set each repository's Release target first).
+        </p>
+      )}
       {issues.length > 0 && (
         <ul className="flow-issues small">{issues.map((i) => <li key={`${i.stepId}-${i.message}`}>{i.stepId ? <strong>{i.stepId}: </strong> : null}{i.message}</li>)}</ul>
       )}

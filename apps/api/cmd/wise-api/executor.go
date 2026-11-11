@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 	"time"
+	"wise/apps/api/internal/gitworker"
 
 	"wise/apps/api/internal/egress"
 	"wise/apps/api/internal/executor"
@@ -108,4 +109,23 @@ func egressCmd(ctx context.Context) error {
 	proxy := &egress.Proxy{Allow: allow, Log: log, Grants: egress.GrantLookup(execURL, token)}
 	return listen(ctx, &http.Server{Addr: addr, Handler: proxy,
 		ReadHeaderTimeout: 30 * time.Second, MaxHeaderBytes: 1 << 16})
+}
+
+// gitWorkerCmd runs wise-git-worker: the only component that pushes or opens
+// pull requests. It holds two tokens: one the orchestrator uses to call it
+// (with approval ids only), and one it uses to ask the API for grants.
+func gitWorkerCmd(ctx context.Context) error {
+	log := newLogger(os.Getenv("WISE_LOG_LEVEL")).With("service", "git-worker")
+	pushToken, apiToken := os.Getenv("WISE_GIT_PUSH_TOKEN"), os.Getenv("WISE_GIT_WORKER_TOKEN")
+	if len(pushToken) < 32 || len(apiToken) < 32 || pushToken == apiToken {
+		return errors.New("WISE_GIT_PUSH_TOKEN and WISE_GIT_WORKER_TOKEN must be different and at least 32 characters")
+	}
+	w := gitworker.New(gitworker.Config{
+		APIURL:        envOr("WISE_API_INTERNAL_URL", "http://wise-api:8080/api/v1"),
+		APIToken:      apiToken,
+		WorkspacesDir: envOr("WISE_WORKSPACES_DIR", "/workspaces"),
+	}, log)
+	addr := envOr("WISE_GIT_WORKER_ADDR", ":8096")
+	log.Info("git worker listening", "addr", addr)
+	return listen(ctx, &http.Server{Addr: addr, Handler: w.Handler(pushToken), ReadHeaderTimeout: 30 * time.Second, MaxHeaderBytes: 1 << 16})
 }

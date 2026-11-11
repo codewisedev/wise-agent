@@ -7,6 +7,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"time"
+	"wise/apps/api/internal/gitworker"
+	"wise/apps/api/internal/release"
 
 	"github.com/google/uuid"
 	"go.temporal.io/sdk/activity"
@@ -27,6 +29,9 @@ type Activities struct {
 	Tasks      *tasks.Service
 	Agents     *agents.Service
 	Workspaces *workspaces.Service // nil when the executor is not configured
+	// Release prepares pushes; Git calls the git worker (approval ids only). Nil when not configured.
+	Release *release.Service
+	Git     *gitworker.Client
 	// Poll is how often RunStage checks the agent run (default 2s).
 	Poll time.Duration
 }

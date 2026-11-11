@@ -55,6 +55,9 @@ type pipeline struct {
 	retryCh    workflow.ReceiveChannel
 	notes      map[string][]string // step id → notes for its review
 	runs       map[string]int32    // executions per step, numbering workflow_steps rows
+	reported   bool                // the final report was built (before a release step)
+	reportID   uuid.UUID
+	stopped    bool // the workspace's sandbox was stopped
 }
 
 // PipelineWorkflow runs a task through the steps of its workflow template:
@@ -137,27 +140,53 @@ func (w *pipeline) run(ctx workflow.Context) (Result, error) {
 		}
 	}
 
-	var reportID uuid.UUID
-	if w.in.Plan.FinalReport {
-		if err := w.setState(ctx, tasks.RunRunning, StageFinalReport, nil); err != nil {
-			return Result{}, err
-		}
-		if err := w.step(ctx, tasks.StepUpdate{Stage: StageFinalReport, Attempt: 1, Status: "running"}); err != nil {
-			return Result{}, err
-		}
-		sctx := workflow.WithActivityOptions(ctx, shortOpts)
-		if err := workflow.ExecuteActivity(sctx, a.BuildFinalReport, ReportRequest{WorkflowRunID: w.in.WorkflowRunID, TaskID: w.in.TaskID}).Get(ctx, &reportID); err != nil {
-			return Result{}, err
-		}
-		if err := w.step(ctx, tasks.StepUpdate{Stage: StageFinalReport, Attempt: 1, Status: "succeeded", ArtifactID: &reportID}); err != nil {
-			return Result{}, err
-		}
+	if err := w.finalReport(ctx); err != nil {
+		return Result{}, err
 	}
 	w.stopWorkspace(ctx)
 	if err := w.setState(ctx, tasks.RunCompleted, StageCompleted, nil); err != nil {
 		return Result{}, err
 	}
-	return Result{ReportArtifactID: reportID}, nil
+	return Result{ReportArtifactID: w.reportID}, nil
+}
+
+// onlyReleaseAfter reports whether every enabled step after id is a release
+// step (nothing later needs the sandbox) and there is at least one.
+func (w *pipeline) onlyReleaseAfter(id string) bool {
+	_, i, ok := w.in.Plan.Step(id)
+	if !ok {
+		return false
+	}
+	release := false
+	for _, s := range w.in.Plan.Steps[i+1:] {
+		if !s.Enabled {
+			continue
+		}
+		if s.Type != tasks.StepRelease {
+			return false
+		}
+		release = true
+	}
+	return release
+}
+
+// finalReport builds the final report once (before a release step, or at the end).
+func (w *pipeline) finalReport(ctx workflow.Context) error {
+	if !w.in.Plan.FinalReport || w.reported {
+		return nil
+	}
+	w.reported = true
+	if err := w.setState(ctx, tasks.RunRunning, StageFinalReport, nil); err != nil {
+		return err
+	}
+	if err := w.step(ctx, tasks.StepUpdate{Stage: StageFinalReport, Attempt: 1, Status: "running"}); err != nil {
+		return err
+	}
+	sctx := workflow.WithActivityOptions(ctx, shortOpts)
+	if err := workflow.ExecuteActivity(sctx, a.BuildFinalReport, ReportRequest{WorkflowRunID: w.in.WorkflowRunID, TaskID: w.in.TaskID}).Get(ctx, &w.reportID); err != nil {
+		return err
+	}
+	return w.step(ctx, tasks.StepUpdate{Stage: StageFinalReport, Attempt: 1, Status: "succeeded", ArtifactID: &w.reportID})
 }
 
 // runStep runs one step. A failed step parks the workflow in awaiting_retry
@@ -381,9 +410,23 @@ func (w *pipeline) runEngineering(ctx workflow.Context, st tasks.PlanStep, revis
 				break
 			}
 		}
-		return w.retrying(ctx, st, func(actx workflow.Context, req EngRequest) error {
+		if err := w.retrying(ctx, st, func(actx workflow.Context, req EngRequest) error {
 			return workflow.ExecuteActivity(actx, a.Deliver, DeliverRequest{EngRequest: req, Gate: gate}).Get(ctx, nil)
-		})
+		}); err != nil {
+			return err
+		}
+		// With a release step ahead, the sandbox is not needed while the push
+		// approval waits (its files, with the approved commit, stay).
+		if w.onlyReleaseAfter(st.ID) {
+			w.stopWorkspace(ctx)
+		}
+		return nil
+	case tasks.StepRelease:
+		// The pull request carries the final report, so it is built first.
+		if err := w.finalReport(ctx); err != nil {
+			return err
+		}
+		return w.runRelease(ctx, st)
 	}
 	return temporal.NewNonRetryableApplicationError("unknown step type "+st.Type, "InvalidStage", nil)
 }
@@ -486,9 +529,9 @@ func secretFeedback(files []string) string {
 
 // stopWorkspace stops the task sandbox when a workflow with a workspace ends.
 func (w *pipeline) stopWorkspace(ctx workflow.Context) {
-	if !w.in.Plan.HasType(tasks.StepWorkspace) {
+	if !w.in.Plan.HasType(tasks.StepWorkspace) || w.stopped {
 		return
 	}
 	sctx := workflow.WithActivityOptions(ctx, shortOpts)
-	_ = workflow.ExecuteActivity(sctx, a.StopWorkspace, w.in.TaskID).Get(ctx, nil)
+	w.stopped = workflow.ExecuteActivity(sctx, a.StopWorkspace, w.in.TaskID).Get(ctx, nil) == nil
 }

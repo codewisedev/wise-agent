@@ -28,6 +28,8 @@ const TABS = [
   { id: "execution", label: "Execution" },
   { id: "coding", label: "Coding runtimes" },
   { id: "improvement", label: "Improvement" },
+  { id: "release", label: "Release" },
+  { id: "monitor", label: "Monitor" },
 ] as const;
 
 export function SettingsPage() {
@@ -98,6 +100,8 @@ export function SettingsPage() {
       {tab === "execution" && <SettingsPanels only={["execution"]} />}
       {tab === "coding" && <SettingsPanels only={["coding_runtimes"]} />}
       {tab === "improvement" && <SettingsPanels only={["improvement"]} />}
+      {tab === "release" && <SettingsPanels only={["release"]} />}
+      {tab === "monitor" && <SettingsPanels only={["monitor"]} />}
 
       {tab === "general" && (
       <>

@@ -3,7 +3,7 @@ import {
   type Edge, type EdgeProps, type Node, type NodeProps,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { AlertTriangle, ArrowLeft, ArrowRight, Bot, Diamond, FileText, Flag, FolderGit2, GitBranch, Inbox, KeyRound, ListChecks, Plus, ShieldCheck, TerminalSquare, Trash2 } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ArrowRight, Bot, Diamond, FileText, Flag, FolderGit2, GitBranch, Inbox, KeyRound, ListChecks, Plus, ShieldCheck, TerminalSquare, Trash2, Upload } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import type { Schemas } from "../api/client";
 import { useTheme } from "../theme";
@@ -31,6 +31,7 @@ export const STEP_TYPES: Record<StepType, { label: string; hint: string; produce
   workspace: { label: "Workspace", hint: "Clones the repository into a private workspace on the task branch and starts its sandbox (needs an earlier review, e.g. the plan approval)", produces: "task workspace", icon: <FolderGit2 size={11} aria-hidden /> },
   quality: { label: "Quality checks", hint: "Runs the repository's format, lint, type and test commands in the sandbox", produces: "quality report", icon: <ListChecks size={11} aria-hidden /> },
   gate: { label: "Quality gate", hint: "Passes when checks and reviews pass; otherwise runs fix rounds. Then commits the change for your review", produces: "changeset", icon: <ShieldCheck size={11} aria-hidden /> },
+  release: { label: "Push and pull request", hint: "Asks for your push approval, then the git worker pushes the delivered wise/… branch to the repository's remote and (per the project's policy) opens a pull request. Needs a deliver step and the repository's Release settings.", produces: "push", icon: <Upload size={11} aria-hidden /> },
   deliver: { label: "Deliver branch", hint: "Writes the approved commit into your repository as the task branch (needs a reviewed gate)", produces: "branch", icon: <GitBranch size={11} aria-hidden /> },
 };
 const typeOf = (s: TemplateStep): StepType => s.type ?? "agent";
@@ -301,7 +302,7 @@ export function StepInspector({
               onChange?.(t === "agent"
                 ? { ...step, type: undefined, agent: step.agent || agents.find((a) => a.enabled)?.name, fixFrom: undefined, diagnoseWith: undefined }
                 : { ...step, type: t, agent: undefined, account: undefined, model: undefined, ...(t === "gate" ? {} : { fixFrom: undefined, diagnoseWith: undefined }),
-                  ...(t === "workspace" || t === "deliver" ? { review: false } : {}) });
+                  ...(t === "workspace" || t === "deliver" || t === "release" ? { review: false } : {}) });
             }}>
               {(Object.keys(STEP_TYPES) as StepType[]).map((t) => <option key={t} value={t}>{STEP_TYPES[t].label}</option>)}
             </select>

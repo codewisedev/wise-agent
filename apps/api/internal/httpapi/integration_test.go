@@ -18,11 +18,14 @@ import (
 	"time"
 	"wise/apps/api/internal/codeindex"
 	"wise/apps/api/internal/codingruns"
+	"wise/apps/api/internal/costs"
 	"wise/apps/api/internal/db/dbgen"
 	"wise/apps/api/internal/feedback"
 	"wise/apps/api/internal/improvement"
 	"wise/apps/api/internal/insights"
 	"wise/apps/api/internal/memory"
+	"wise/apps/api/internal/monitor"
+	"wise/apps/api/internal/release"
 	"wise/apps/api/internal/workspaces"
 
 	"wise/apps/api/internal/accounts"
@@ -44,8 +47,9 @@ import (
 )
 
 const (
-	adminUser = "admin"
-	adminPass = "a-very-long-password"
+	gitWorkerToken = "test-git-worker-token-0123456789abcdef"
+	adminUser      = "admin"
+	adminPass      = "a-very-long-password"
 )
 
 type env struct {
@@ -62,6 +66,7 @@ type env struct {
 	agents   *agents.Service
 	hub      *events.Hub
 	improve  *improvement.Service
+	release  *release.Service
 	accounts *accounts.Service
 	gw       *modelgateway.Gateway
 	sources  *integrations.Service
@@ -132,6 +137,10 @@ func setup(t *testing.T) *env {
 	insightSvc := insights.New(d)
 	improvementSvc := improvement.New(d, agentSvc, memorySvc, settingsSvc, taskSvc, insightSvc, log)
 	improvement.RegisterSetting(settingsSvc, filepath.Join("..", "..", "..", "..", "configs", "improvement", "defaults.yaml"), improvementSvc)
+	releaseSvc := release.New(d, accountSvc)
+	monitorSvc := monitor.New(d)
+	monitor.RegisterSetting(settingsSvc, filepath.Join("..", "..", "..", "..", "configs", "monitor", "defaults.yaml"), monitorSvc)
+	release.RegisterSetting(settingsSvc, filepath.Join("..", "..", "..", "..", "configs", "release", "defaults.yaml"), releaseSvc)
 	queue.OnFinished = func(ctx context.Context, runID uuid.UUID) {
 		memorySvc.OnRunFinished(ctx, runID)
 		improvementSvc.OnRunFinished(ctx, runID)
@@ -155,15 +164,19 @@ func setup(t *testing.T) *env {
 	}
 	server := &httpapi.Server{
 		DB: d, Auth: authSvc, Projects: projectSvc,
-		Repositories: repoSvc,
-		Index:        indexSvc,
-		Memory:       memorySvc,
-		Workspaces:   wsSvc,
-		CodingRuns:   codingSvc,
-		Feedback:     feedback.New(d),
-		Insights:     insightSvc,
-		Improvement:  improvementSvc,
-		Agents:       agentSvc, RunQueue: queue, Gateway: gw, Hub: hub, Tasks: taskSvc, Accounts: accountSvc, Integrations: integrationSvc, Settings: settingsSvc,
+		Repositories:   repoSvc,
+		Index:          indexSvc,
+		Memory:         memorySvc,
+		Workspaces:     wsSvc,
+		CodingRuns:     codingSvc,
+		Feedback:       feedback.New(d),
+		Insights:       insightSvc,
+		Improvement:    improvementSvc,
+		Release:        releaseSvc,
+		Monitor:        monitorSvc,
+		Costs:          costs.New(d),
+		GitWorkerToken: gitWorkerToken,
+		Agents:         agentSvc, RunQueue: queue, Gateway: gw, Hub: hub, Tasks: taskSvc, Accounts: accountSvc, Integrations: integrationSvc, Settings: settingsSvc,
 		Cookie:       httpapi.CookieConfig{TTL: time.Hour},
 		RuntimeToken: runtimeToken,
 	}
@@ -175,7 +188,7 @@ func setup(t *testing.T) *env {
 	t.Cleanup(ts.Close)
 	jar, _ := cookiejar.New(nil)
 	return &env{t: t, db: d, srv: ts, client: &http.Client{Jar: jar}, repoRoot: root, queue: queue, model: model, repoSvc: repoSvc, index: indexSvc, memory: memorySvc, exec: fx, ws: wsSvc, coding: codingSvc, proxy: fp,
-		tasks: taskSvc, agents: agentSvc, hub: hub, improve: improvementSvc, accounts: accountSvc, gw: gw, sources: integrationSvc, settings: settingsSvc}
+		tasks: taskSvc, agents: agentSvc, hub: hub, improve: improvementSvc, release: releaseSvc, accounts: accountSvc, gw: gw, sources: integrationSvc, settings: settingsSvc}
 }
 
 type resp struct {

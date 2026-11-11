@@ -2347,6 +2347,172 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/repositories/{repositoryId}/release": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                repositoryId: string;
+            };
+            cookie?: never;
+        };
+        /** @description Where this repository pushes (remote, git account, base branch). */
+        get: operations["getRepositoryRelease"];
+        put: operations["setRepositoryRelease"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/repositories/{repositoryId}/release/detect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                repositoryId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Proposes the remote (as https), base branch and matching git accounts from the repository's git metadata. */
+        post: operations["detectRepositoryRelease"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/repositories/{repositoryId}/release/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                repositoryId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Reads the repository with the account's token. This proves access, not push permission (the first push does). */
+        post: operations["testRepositoryRelease"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{projectId}/release-policy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: components["parameters"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        get: operations["getProjectReleasePolicy"];
+        put: operations["setProjectReleasePolicy"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tasks/{taskId}/commit-message": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                taskId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Changes the verified commit's message (same changes) while your final approval of the code is pending. The approval is asked again for the new commit. */
+        post: operations["rewordTaskCommit"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tasks/{taskId}/release": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                taskId: string;
+            };
+            cookie?: never;
+        };
+        /** @description The task's release - what a push covers, pushes, pull requests and pending release approvals. */
+        get: operations["getTaskRelease"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/monitor": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description What Wise is doing now - queued and running agent runs (native and coding CLIs), stuck runs, evaluation replays, and workflows waiting for you. */
+        get: operations["getMonitor"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/costs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Model spend per day grouped by project, agent, model, runtime or billing; today's spend against daily budgets; top tasks. Evaluation replays are reported apart. Subscription usage is the API-equivalent cost CLI subscriptions report, not what you pay. */
+        get: operations["getCosts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{projectId}/activity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: components["parameters"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        /** @description What happened in the project, newest first - tasks, approvals, workflows, failed runs, deliveries, pushes, pull requests and memories. */
+        get: operations["getProjectActivity"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -3117,7 +3283,7 @@ export interface components {
             comment?: string;
         };
         /** @enum {string} */
-        AccountKind: "claude_code" | "codex_cli" | "openai_compatible" | "anthropic" | "jira" | "clickup" | "trello";
+        AccountKind: "claude_code" | "codex_cli" | "openai_compatible" | "anthropic" | "jira" | "clickup" | "trello" | "github" | "gitlab";
         Account: {
             /** Format: uuid */
             id: string;
@@ -3178,10 +3344,10 @@ export interface components {
             stepByStep?: boolean;
         };
         /**
-         * @description agent runs an agent; workspace prepares the task workspace; quality runs the repository's checks; gate passes or fails on checks and reviews, runs fix rounds and produces the verified changeset; deliver writes the approved commit as the task branch.
+         * @description agent runs an agent; workspace prepares the task workspace; quality runs the repository's checks; gate passes or fails on checks and reviews, runs fix rounds and produces the verified changeset; deliver writes the approved commit as the task branch; release asks for your push approval, pushes the branch and opens a pull request per the project's policy.
          * @enum {string}
          */
-        StepType: "agent" | "workspace" | "quality" | "gate" | "deliver";
+        StepType: "agent" | "workspace" | "quality" | "gate" | "deliver" | "release";
         TemplateStep: {
             id: string;
             name?: string;
@@ -3952,6 +4118,168 @@ export interface components {
                 /** Format: date-time */
                 at: string;
             }[];
+        };
+        CostReport: {
+            window: string;
+            groupBy: string;
+            /** @description Groups by total spend (at most 8, then other). */
+            keys: string[];
+            days: {
+                day: string;
+                total: number;
+                by: {
+                    [key: string]: number;
+                };
+            }[];
+            total: number;
+            /** @description subscription, api, local */
+            billing: {
+                [key: string]: number;
+            };
+            evalUsd: number;
+            /** Format: int64 */
+            tokens: number;
+            /** Format: int64 */
+            calls: number;
+            budgets: {
+                agent: string;
+                spent: number;
+                budget?: number | null;
+            }[];
+            topTasks: {
+                /** Format: uuid */
+                id: string;
+                title: string;
+                costUsd: number;
+                /** Format: int64 */
+                runs: number;
+            }[];
+        };
+        MonitorRun: {
+            /** Format: uuid */
+            id: string;
+            agent: string;
+            status: string;
+            purpose: string;
+            /** @description native, claude-code or codex */
+            runtime: string;
+            account?: string;
+            attempt: number;
+            maxAttempts: number;
+            cancelling: boolean;
+            /** Format: uuid */
+            projectId?: string | null;
+            projectName?: string;
+            /** Format: uuid */
+            taskId?: string | null;
+            taskTitle?: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            startedAt?: string | null;
+            /** Format: date-time */
+            leaseUntil?: string | null;
+            lastEvent?: string;
+            /** Format: date-time */
+            lastEventAt?: string | null;
+            /** Format: int64 */
+            tokens: number;
+            costUsd: number;
+            /** @description Why the run looks stuck (empty when it does not). */
+            stuck?: string;
+        };
+        MonitorSnapshot: {
+            /** Format: date-time */
+            at: string;
+            queued: components["schemas"]["MonitorRun"][];
+            running: components["schemas"]["MonitorRun"][];
+            evals: components["schemas"]["MonitorRun"][];
+            stuck: number;
+            waiting: {
+                /** Format: uuid */
+                id: string;
+                /** Format: uuid */
+                taskId: string;
+                taskTitle: string;
+                projectName: string;
+                /** @enum {string} */
+                status: "awaiting_approval" | "awaiting_retry";
+                stage: string;
+                error?: string | null;
+                /** Format: date-time */
+                since: string;
+            }[];
+        };
+        TaskRelease: {
+            /** @description What the push approval covers. */
+            request?: {
+                sha?: string;
+                branch?: string;
+                remote?: string;
+                accountName?: string;
+                baseBranch?: string;
+            } | null;
+            pushes: {
+                /** Format: uuid */
+                id: string;
+                /** @enum {string} */
+                status: "granted" | "pushed" | "failed";
+                remote: string;
+                branch: string;
+                sha: string;
+                baseBranch: string;
+                attempts: number;
+                existed: boolean;
+                error?: string | null;
+                /** Format: date-time */
+                createdAt: string;
+                /** Format: date-time */
+                pushedAt?: string | null;
+            }[];
+            pullRequests: {
+                /** Format: uuid */
+                id: string;
+                /** @enum {string} */
+                status: "granted" | "opened" | "failed";
+                number?: number | null;
+                url?: string | null;
+                /** @description open, merged or closed (refreshed from the host) */
+                state?: string | null;
+                draft: boolean;
+                title: string;
+                error?: string | null;
+                /** Format: date-time */
+                createdAt: string;
+            }[];
+            /** @description Pending release approvals (push, pull request). */
+            approvals: {
+                /** Format: uuid */
+                id: string;
+                gate: string;
+                /** @enum {string} */
+                kind: "push" | "pull_request";
+                combinedHash: string;
+            }[];
+        };
+        RepositoryRelease: {
+            /** @description https address of the repository on GitHub or GitLab. */
+            remote?: string;
+            /**
+             * Format: uuid
+             * @description The git account that pushes (same host as the remote).
+             */
+            accountId?: string | null;
+            /** @description Pull requests target this branch; Wise never pushes to it. */
+            baseBranch?: string;
+        };
+        ReleasePolicy: {
+            /**
+             * @description After an approved push: no pull request, ask you, or open one.
+             * @enum {string}
+             */
+            pullRequests: "off" | "ask" | "auto";
+            /** @description Open pull requests as drafts. */
+            draft: boolean;
         };
         ModelChoice: {
             /** @description Empty = the agent's own routing. */
@@ -8638,6 +8966,328 @@ export interface operations {
             401: components["responses"]["Problem"];
             404: components["responses"]["Problem"];
             409: components["responses"]["Problem"];
+        };
+    };
+    getRepositoryRelease: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                repositoryId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The release target. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RepositoryRelease"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    setRepositoryRelease: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                repositoryId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RepositoryRelease"];
+            };
+        };
+        responses: {
+            /** @description Saved. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RepositoryRelease"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    detectRepositoryRelease: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                repositoryId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Suggestion. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        remote?: string;
+                        baseBranch?: string;
+                        accounts: string[];
+                        problem?: string;
+                    };
+                };
+            };
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    testRepositoryRelease: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                repositoryId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The repository is reachable. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        defaultBranch: string;
+                    };
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+        };
+    };
+    getProjectReleasePolicy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: components["parameters"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The policy. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReleasePolicy"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    setProjectReleasePolicy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: components["parameters"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReleasePolicy"];
+            };
+        };
+        responses: {
+            /** @description Saved. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReleasePolicy"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    rewordTaskCommit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                taskId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    message: string;
+                };
+            };
+        };
+        responses: {
+            /** @description The reworded commit. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        headSha: string;
+                        message: string;
+                    };
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+        };
+    };
+    getTaskRelease: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                taskId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Release state. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskRelease"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    getMonitor: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Snapshot. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MonitorSnapshot"];
+                };
+            };
+            401: components["responses"]["Problem"];
+        };
+    };
+    getCosts: {
+        parameters: {
+            query?: {
+                window?: "7d" | "30d" | "90d";
+                groupBy?: "project" | "agent" | "model" | "runtime" | "billing";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The report. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CostReport"];
+                };
+            };
+            401: components["responses"]["Problem"];
+        };
+    };
+    getProjectActivity: {
+        parameters: {
+            query?: {
+                /** @description Older than this (paging; with beforeId). */
+                before?: string;
+                /** @description The last item's refId (paging). */
+                beforeId?: string;
+                /** @description Comma-separated: task, approval, workflow, run, branch, push, pull_request, memory. */
+                kinds?: string;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                projectId: components["parameters"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Activity. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: {
+                            /** Format: date-time */
+                            at: string;
+                            kind: string;
+                            title: string;
+                            detail: string;
+                            /** Format: uuid */
+                            taskId?: string | null;
+                            /** Format: uuid */
+                            refId: string;
+                            url: string;
+                        }[];
+                        /**
+                         * Format: date-time
+                         * @description Pass as before for the next page.
+                         */
+                        next?: string | null;
+                        /**
+                         * Format: uuid
+                         * @description Pass as beforeId for the next page.
+                         */
+                        nextId?: string | null;
+                    };
+                };
+            };
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
         };
     };
 }

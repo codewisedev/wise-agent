@@ -1,0 +1,10 @@
+# Release (push and pull requests). Shipped defaults; edit them in Settings -> Release.
+
+# Pull request title: {task} is the task title.
+pr_title_template: "{task}"
+# Put the final implementation report in the pull request description.
+pr_body_includes_report: true
+# How long one push may take (seconds).
+push_timeout_s: 120
+# How often an open pull request's state (open, merged, closed) is refreshed (minutes).
+pr_refresh_minutes: 10

@@ -17,6 +17,8 @@ Personal, local-first AI engineering platform. See [`implementation-plan.md`](im
 | `packages/contracts/{agents,events}` | JSON Schemas for agent/tool definitions and agent events |
 | `configs/models`, `configs/policies`, `configs/board`, `configs/indexing`, `configs/memory`, `configs/improvement` | Shipped *defaults* for models, usage policy, board lists, indexing, memory and self-improvement (edited afterwards in Settings) |
 | `apps/api/internal/{feedback,insights,improvement}` | Ratings, metrics, analyses, the hard-rule checks, replay evaluation, apply and rollback |
+| `apps/api/internal/{release,githost,gitworker}` | Release targets and grants, GitHub/GitLab clients, the git worker (the only component that pushes) |
+| `apps/api/internal/{monitor,costs}` | Live monitoring and cost analytics |
 | `apps/agent-runtime/wise_runtime/indexer` | The code indexer (`wise-indexer` service): tree-sitter symbols, chunks, dependencies, secret guard |
 | `apps/api/internal/{codeindex,memory}` | Code index storage and search; memory, extraction, context injection and profile inference |
 | `apps/api/internal/{workflow,tasks}` | Temporal workflow, activities, outbox dispatcher; tasks, artifacts, approvals |
@@ -186,6 +188,24 @@ Credentials, set in Settings → Coding runtimes:
 Settings → Execution holds sandbox limits, the egress allowlist, timeouts, fix rounds, workspace retention, the
 branch name template and the commit author. The isolation model is described in
 `docs/decisions/0007-engineering-pipeline.md`.
+
+## Release: push and pull requests
+
+1. **Add a git token.** In Settings → Accounts, add a **GitHub** fine-grained token (Contents and Pull requests: read
+   and write, only the repositories Wise pushes to) or a **GitLab** project access token.
+2. **Set where each repository pushes.** On the project page, click **Release** on the repository. **Detect** reads
+   the remote (as https) and the base branch, and matches the account.
+3. **Choose the pull request policy** on the project page: off, ask after the push, or automatic; drafts by default.
+4. **Add the release step.** Workflows with a **Push and pull request** step ask for your push approval after
+   delivering the branch. Use the editor's "Add release step".
+
+The task's **Release** panel shows exactly what will be pushed (commit, `wise/…` branch, remote, account). After you
+approve, `wise-git-worker` pushes it. It never force-pushes, never touches the base branch and never merges; agents
+never see the token. Before your final approval of the code you can **edit the commit message**.
+
+The **Monitor** (`g o`) shows running, queued and stuck runs and work waiting for you. **Costs** (`g c`) shows spend per
+day by project, agent, model, runtime or billing. Each project has an **Activity** feed. See
+`docs/decisions/0010-release-and-dashboard.md`.
 
 ## Insights and self-improvement
 

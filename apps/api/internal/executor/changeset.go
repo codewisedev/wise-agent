@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -327,6 +328,7 @@ func (m *Manager) Deliver(ctx context.Context, ws string, req DeliverRequest) (D
 		cur, err := git(ctx, repo, "rev-parse", "--verify", "-q", "refs/heads/"+name)
 		if err == nil {
 			if strings.TrimSpace(cur) == req.SHA {
+				m.selfContain(ctx, tr, req.SHA)
 				return Delivery{Branch: name, SHA: req.SHA, RepoPath: repo, Existed: true}, nil
 			}
 			continue // taken by other work: never overwrite
@@ -335,9 +337,33 @@ func (m *Manager) Deliver(ctx context.Context, ws string, req DeliverRequest) (D
 		if _, err := git(ctx, repo, "update-ref", "-m", "wise: deliver task branch", "refs/heads/"+name, req.SHA, strings.Repeat("0", len(req.SHA))); err != nil {
 			continue
 		}
+		m.selfContain(ctx, tr, req.SHA)
 		return Delivery{Branch: name, SHA: req.SHA, RepoPath: repo}, nil
 	}
 	return Delivery{}, fmt.Errorf("branch %s and its numbered variants are all taken", branch)
+}
+
+// selfContain copies the objects the trusted repository borrows from the
+// user's repository (its clone is --shared) into it and drops the link, so
+// the git worker - which never mounts user repositories - can read the
+// delivered commit for an approved push. Best effort: a failure leaves the
+// link in place (the push then reports the missing objects).
+func (m *Manager) selfContain(ctx context.Context, tr, sha string) {
+	alt := filepath.Join(tr, "objects", "info", "alternates")
+	if _, err := os.Stat(alt); err != nil {
+		return
+	}
+	if _, err := git(ctx, tr, "repack", "-a", "-d", "-q"); err != nil {
+		return
+	}
+	if err := os.Rename(alt, alt+".off"); err != nil {
+		return
+	}
+	if _, err := git(ctx, tr, "rev-list", "--objects", "--missing=error", sha); err != nil {
+		_ = os.Rename(alt+".off", alt) // something is still missing: keep the link
+		return
+	}
+	_ = os.Remove(alt + ".off")
 }
 
 func short(sha string) string {
@@ -439,4 +465,75 @@ func (m *Manager) Diff(ctx context.Context, ws string, maxPatch int) (WorkingDif
 	}
 	d.Patch = secretguard.Redact(p)
 	return d, nil
+}
+
+// RewordRequest changes the verified snapshot's commit message.
+type RewordRequest struct {
+	SHA     string `json:"sha"` // the snapshot being reworded (must still be current)
+	Message string `json:"message"`
+	// RestoreTo moves the snapshot back to an earlier commit with the same tree
+	// and parent (undoing a reword whose new changeset could not be recorded).
+	RestoreTo     string `json:"restoreTo,omitempty"`
+	MaxPatchBytes int    `json:"maxPatchBytes,omitempty"`
+}
+
+// Reword replaces the snapshot commit with one that has the same tree, parent
+// and author but a new message (before your final approval). It works only in
+// the executor-private trusted repository and moves refs/wise/snapshot
+// atomically from the old commit to the new one.
+func (m *Manager) Reword(ctx context.Context, ws string, req RewordRequest) (Changeset, error) {
+	defer m.lock(ws)()
+	st, err := m.load(ws)
+	if err != nil {
+		return Changeset{}, err
+	}
+	msg := strings.TrimSpace(req.Message)
+	if req.RestoreTo == "" && (msg == "" || len(msg) > 10000 || strings.ContainsRune(msg, 0)) {
+		return Changeset{}, bad("the commit message must be 1-10000 characters")
+	}
+	if !shaRe.MatchString(req.SHA) || (req.RestoreTo != "" && !shaRe.MatchString(req.RestoreTo)) {
+		return Changeset{}, bad("sha must be a full commit id")
+	}
+	tr := m.trusted(ws)
+	cur, err := git(ctx, tr, "rev-parse", "--verify", "-q", "refs/wise/snapshot^{commit}")
+	if err != nil || strings.TrimSpace(cur) != req.SHA {
+		return Changeset{}, bad("commit %s is not the workspace's current snapshot", short(req.SHA))
+	}
+	if req.RestoreTo != "" {
+		same := func(ref string) string {
+			out, _ := git(ctx, tr, "log", "-1", "--format=%T %P", ref)
+			return strings.TrimSpace(out)
+		}
+		if a := same(req.SHA); a == "" || a != same(req.RestoreTo) {
+			return Changeset{}, bad("can only restore a commit with the same changes")
+		}
+		if _, err := git(ctx, tr, "update-ref", "-m", "wise: restore", "refs/wise/snapshot", req.RestoreTo, req.SHA); err != nil {
+			return Changeset{}, err
+		}
+		return m.describe(ctx, tr, Changeset{BaseSHA: st.BaseSHA, HeadSHA: req.RestoreTo, Branch: st.Branch, CreatedAt: time.Now().UTC()}, req.MaxPatchBytes)
+	}
+	meta, err := git(ctx, tr, "log", "-1", "--format=%T%x00%P%x00%an%x00%ae%x00%aI", req.SHA)
+	if err != nil {
+		return Changeset{}, err
+	}
+	f := strings.Split(strings.TrimSpace(meta), "\x00")
+	if len(f) != 5 || strings.Contains(f[1], " ") {
+		return Changeset{}, errors.New("unexpected snapshot commit")
+	}
+	cmd := exec.CommandContext(ctx, "git", "-c", "core.hooksPath=/dev/null", "-c", "commit.gpgsign=false", "commit-tree", f[0], "-p", f[1], "-F", "-")
+	cmd.Dir = tr
+	cmd.Env = append(os.Environ(), "GIT_CONFIG_NOSYSTEM=1", "GIT_TERMINAL_PROMPT=0",
+		"GIT_AUTHOR_NAME="+f[2], "GIT_AUTHOR_EMAIL="+f[3], "GIT_AUTHOR_DATE="+f[4],
+		"GIT_COMMITTER_NAME="+f[2], "GIT_COMMITTER_EMAIL="+f[3])
+	cmd.Stdin = strings.NewReader(msg + "\n")
+	var out, errb bytes.Buffer
+	cmd.Stdout, cmd.Stderr = &out, &errb
+	if err := cmd.Run(); err != nil {
+		return Changeset{}, fmt.Errorf("reword: %s", strings.TrimSpace(errb.String()))
+	}
+	head := strings.TrimSpace(out.String())
+	if _, err := git(ctx, tr, "update-ref", "-m", "wise: reword", "refs/wise/snapshot", head, req.SHA); err != nil {
+		return Changeset{}, err
+	}
+	return m.describe(ctx, tr, Changeset{BaseSHA: st.BaseSHA, HeadSHA: head, Branch: st.Branch, CreatedAt: time.Now().UTC()}, req.MaxPatchBytes)
 }

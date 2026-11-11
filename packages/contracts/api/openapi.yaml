@@ -36,6 +36,8 @@ tags:
   - name: memory
   - name: execution
   - name: improvement
+  - name: release
+  - name: monitor
 
 paths:
   /healthz:
@@ -2823,6 +2825,223 @@ paths:
         "401": { $ref: "#/components/responses/Problem" }
         "404": { $ref: "#/components/responses/Problem" }
         "409": { $ref: "#/components/responses/Problem" }
+  /repositories/{repositoryId}/release:
+    parameters:
+      - { name: repositoryId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [release]
+      operationId: getRepositoryRelease
+      description: Where this repository pushes (remote, git account, base branch).
+      responses:
+        "200":
+          description: The release target.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RepositoryRelease" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+    put:
+      tags: [release]
+      operationId: setRepositoryRelease
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RepositoryRelease" }
+      responses:
+        "200":
+          description: Saved.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RepositoryRelease" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+  /repositories/{repositoryId}/release/detect:
+    parameters:
+      - { name: repositoryId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [release]
+      operationId: detectRepositoryRelease
+      description: Proposes the remote (as https), base branch and matching git accounts from the repository's git metadata.
+      responses:
+        "200":
+          description: Suggestion.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [accounts]
+                properties:
+                  remote: { type: string }
+                  baseBranch: { type: string }
+                  accounts: { type: array, items: { type: string, format: uuid } }
+                  problem: { type: string }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+  /repositories/{repositoryId}/release/test:
+    parameters:
+      - { name: repositoryId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [release]
+      operationId: testRepositoryRelease
+      description: Reads the repository with the account's token. This proves access, not push permission (the first push does).
+      responses:
+        "200":
+          description: The repository is reachable.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [defaultBranch]
+                properties:
+                  defaultBranch: { type: string }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+  /projects/{projectId}/release-policy:
+    parameters:
+      - $ref: "#/components/parameters/ProjectId"
+    get:
+      tags: [release]
+      operationId: getProjectReleasePolicy
+      responses:
+        "200":
+          description: The policy.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ReleasePolicy" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+    put:
+      tags: [release]
+      operationId: setProjectReleasePolicy
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ReleasePolicy" }
+      responses:
+        "200":
+          description: Saved.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ReleasePolicy" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+  /tasks/{taskId}/commit-message:
+    parameters:
+      - { name: taskId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [release]
+      operationId: rewordTaskCommit
+      description: Changes the verified commit's message (same changes) while your final approval of the code is pending. The approval is asked again for the new commit.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [message]
+              properties:
+                message: { type: string, minLength: 1, maxLength: 10000 }
+      responses:
+        "200":
+          description: The reworded commit.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [headSha, message]
+                properties:
+                  headSha: { type: string }
+                  message: { type: string }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+  /tasks/{taskId}/release:
+    parameters:
+      - { name: taskId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [release]
+      operationId: getTaskRelease
+      description: The task's release - what a push covers, pushes, pull requests and pending release approvals.
+      responses:
+        "200":
+          description: Release state.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TaskRelease" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+  /monitor:
+    get:
+      tags: [monitor]
+      operationId: getMonitor
+      description: What Wise is doing now - queued and running agent runs (native and coding CLIs), stuck runs, evaluation replays, and workflows waiting for you.
+      responses:
+        "200":
+          description: Snapshot.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MonitorSnapshot" }
+        "401": { $ref: "#/components/responses/Problem" }
+  /costs:
+    get:
+      tags: [monitor]
+      operationId: getCosts
+      description: Model spend per day grouped by project, agent, model, runtime or billing; today's spend against daily budgets; top tasks. Evaluation replays are reported apart. Subscription usage is the API-equivalent cost CLI subscriptions report, not what you pay.
+      parameters:
+        - { name: window, in: query, schema: { type: string, enum: [7d, 30d, 90d] } }
+        - { name: groupBy, in: query, schema: { type: string, enum: [project, agent, model, runtime, billing] } }
+      responses:
+        "200":
+          description: The report.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CostReport" }
+        "401": { $ref: "#/components/responses/Problem" }
+  /projects/{projectId}/activity:
+    parameters:
+      - $ref: "#/components/parameters/ProjectId"
+    get:
+      tags: [monitor]
+      operationId: getProjectActivity
+      description: What happened in the project, newest first - tasks, approvals, workflows, failed runs, deliveries, pushes, pull requests and memories.
+      parameters:
+        - { name: before, in: query, schema: { type: string, format: date-time }, description: Older than this (paging; with beforeId). }
+        - { name: beforeId, in: query, schema: { type: string, format: uuid }, description: The last item's refId (paging). }
+        - { name: kinds, in: query, schema: { type: string }, description: "Comma-separated: task, approval, workflow, run, branch, push, pull_request, memory." }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 200 } }
+      responses:
+        "200":
+          description: Activity.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      required: [at, kind, title, detail, refId, url]
+                      properties:
+                        at: { type: string, format: date-time }
+                        kind: { type: string }
+                        title: { type: string }
+                        detail: { type: string }
+                        taskId: { type: string, format: uuid, nullable: true }
+                        refId: { type: string, format: uuid }
+                        url: { type: string }
+                  next: { type: string, format: date-time, nullable: true, description: Pass as before for the next page. }
+                  nextId: { type: string, format: uuid, nullable: true, description: Pass as beforeId for the next page. }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
 components:
   securitySchemes:
     cookieAuth:
@@ -3701,7 +3920,7 @@ components:
         comment: { type: string, maxLength: 10000 }
     AccountKind:
       type: string
-      enum: [claude_code, codex_cli, openai_compatible, anthropic, jira, clickup, trello]
+      enum: [claude_code, codex_cli, openai_compatible, anthropic, jira, clickup, trello, github, gitlab]
     Account:
       type: object
       required: [id, name, kind, baseUrl, defaultModel, cloud, enabled, hasSecret, secretHint, metadata, createdAt, updatedAt]
@@ -3762,8 +3981,8 @@ components:
         stepByStep: { type: boolean, description: Pause after every step. }
     StepType:
       type: string
-      enum: [agent, workspace, quality, gate, deliver]
-      description: "agent runs an agent; workspace prepares the task workspace; quality runs the repository's checks; gate passes or fails on checks and reviews, runs fix rounds and produces the verified changeset; deliver writes the approved commit as the task branch."
+      enum: [agent, workspace, quality, gate, deliver, release]
+      description: "agent runs an agent; workspace prepares the task workspace; quality runs the repository's checks; gate passes or fails on checks and reviews, runs fix rounds and produces the verified changeset; deliver writes the approved commit as the task branch; release asks for your push approval, pushes the branch and opens a pull request per the project's policy."
     TemplateStep:
       type: object
       required: [id]
@@ -4514,6 +4733,163 @@ components:
               runId: { type: string, format: uuid, nullable: true }
               note: { type: string }
               at: { type: string, format: date-time }
+    CostReport:
+      type: object
+      required: [window, groupBy, keys, days, total, billing, evalUsd, tokens, calls, budgets, topTasks]
+      properties:
+        window: { type: string }
+        groupBy: { type: string }
+        keys: { type: array, items: { type: string }, description: "Groups by total spend (at most 8, then other)." }
+        days:
+          type: array
+          items:
+            type: object
+            required: [day, total, by]
+            properties:
+              day: { type: string }
+              total: { type: number }
+              by: { type: object, additionalProperties: { type: number } }
+        total: { type: number }
+        billing: { type: object, additionalProperties: { type: number }, description: "subscription, api, local" }
+        evalUsd: { type: number }
+        tokens: { type: integer, format: int64 }
+        calls: { type: integer, format: int64 }
+        budgets:
+          type: array
+          items:
+            type: object
+            required: [agent, spent]
+            properties:
+              agent: { type: string }
+              spent: { type: number }
+              budget: { type: number, nullable: true }
+        topTasks:
+          type: array
+          items:
+            type: object
+            required: [id, title, costUsd, runs]
+            properties:
+              id: { type: string, format: uuid }
+              title: { type: string }
+              costUsd: { type: number }
+              runs: { type: integer, format: int64 }
+    MonitorRun:
+      type: object
+      required: [id, agent, status, purpose, runtime, attempt, maxAttempts, cancelling, createdAt, tokens, costUsd]
+      properties:
+        id: { type: string, format: uuid }
+        agent: { type: string }
+        status: { type: string }
+        purpose: { type: string }
+        runtime: { type: string, description: "native, claude-code or codex" }
+        account: { type: string }
+        attempt: { type: integer }
+        maxAttempts: { type: integer }
+        cancelling: { type: boolean }
+        projectId: { type: string, format: uuid, nullable: true }
+        projectName: { type: string }
+        taskId: { type: string, format: uuid, nullable: true }
+        taskTitle: { type: string }
+        createdAt: { type: string, format: date-time }
+        startedAt: { type: string, format: date-time, nullable: true }
+        leaseUntil: { type: string, format: date-time, nullable: true }
+        lastEvent: { type: string }
+        lastEventAt: { type: string, format: date-time, nullable: true }
+        tokens: { type: integer, format: int64 }
+        costUsd: { type: number }
+        stuck: { type: string, description: Why the run looks stuck (empty when it does not). }
+    MonitorSnapshot:
+      type: object
+      required: [at, queued, running, evals, stuck, waiting]
+      properties:
+        at: { type: string, format: date-time }
+        queued: { type: array, items: { $ref: "#/components/schemas/MonitorRun" } }
+        running: { type: array, items: { $ref: "#/components/schemas/MonitorRun" } }
+        evals: { type: array, items: { $ref: "#/components/schemas/MonitorRun" } }
+        stuck: { type: integer }
+        waiting:
+          type: array
+          items:
+            type: object
+            required: [id, taskId, taskTitle, projectName, status, stage, since]
+            properties:
+              id: { type: string, format: uuid }
+              taskId: { type: string, format: uuid }
+              taskTitle: { type: string }
+              projectName: { type: string }
+              status: { type: string, enum: [awaiting_approval, awaiting_retry] }
+              stage: { type: string }
+              error: { type: string, nullable: true }
+              since: { type: string, format: date-time }
+    TaskRelease:
+      type: object
+      required: [pushes, pullRequests, approvals]
+      properties:
+        request:
+          type: object
+          nullable: true
+          description: What the push approval covers.
+          properties:
+            sha: { type: string }
+            branch: { type: string }
+            remote: { type: string }
+            accountName: { type: string }
+            baseBranch: { type: string }
+        pushes:
+          type: array
+          items:
+            type: object
+            required: [id, status, remote, branch, sha, baseBranch, attempts, existed, createdAt]
+            properties:
+              id: { type: string, format: uuid }
+              status: { type: string, enum: [granted, pushed, failed] }
+              remote: { type: string }
+              branch: { type: string }
+              sha: { type: string }
+              baseBranch: { type: string }
+              attempts: { type: integer }
+              existed: { type: boolean }
+              error: { type: string, nullable: true }
+              createdAt: { type: string, format: date-time }
+              pushedAt: { type: string, format: date-time, nullable: true }
+        pullRequests:
+          type: array
+          items:
+            type: object
+            required: [id, status, draft, title, createdAt]
+            properties:
+              id: { type: string, format: uuid }
+              status: { type: string, enum: [granted, opened, failed] }
+              number: { type: integer, nullable: true }
+              url: { type: string, nullable: true }
+              state: { type: string, nullable: true, description: "open, merged or closed (refreshed from the host)" }
+              draft: { type: boolean }
+              title: { type: string }
+              error: { type: string, nullable: true }
+              createdAt: { type: string, format: date-time }
+        approvals:
+          type: array
+          description: Pending release approvals (push, pull request).
+          items:
+            type: object
+            required: [id, gate, kind, combinedHash]
+            properties:
+              id: { type: string, format: uuid }
+              gate: { type: string }
+              kind: { type: string, enum: [push, pull_request] }
+              combinedHash: { type: string }
+    RepositoryRelease:
+      type: object
+      properties:
+        remote: { type: string, description: "https address of the repository on GitHub or GitLab." }
+        accountId: { type: string, format: uuid, nullable: true, description: The git account that pushes (same host as the remote). }
+        baseBranch: { type: string, description: Pull requests target this branch; Wise never pushes to it. }
+    ReleasePolicy:
+      type: object
+      required: [pullRequests, draft]
+      properties:
+        pullRequests: { type: string, enum: [off, ask, auto], description: "After an approved push: no pull request, ask you, or open one." }
+        draft: { type: boolean, description: Open pull requests as drafts. }
     ModelChoice:
       type: object
       properties:

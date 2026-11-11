@@ -83,6 +83,8 @@ func NewRouter(srv *Server, opts RouterOptions) (http.Handler, error) {
 		_, _ = w.Write(apicontract.Spec)
 	})
 
+	srv.mountGitInternal(r)
+
 	validator := oapimw.OapiRequestValidatorWithOptions(spec, &oapimw.Options{
 		Prefix:               BasePath,
 		DoNotValidateServers: true,

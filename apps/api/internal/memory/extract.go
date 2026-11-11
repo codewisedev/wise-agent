@@ -91,6 +91,11 @@ func (s *Service) OnApprovalDecided(ctx context.Context, ap dbgen.Approval) {
 	}
 	_ = json.Unmarshal(ap.Artifacts, &refs)
 	for _, r := range refs {
+		if r.Kind == "release_request" || r.Kind == "push" {
+			return // a push or pull request decision is not engineering feedback
+		}
+	}
+	for _, r := range refs {
 		if a, err := s.db.GetLatestArtifact(ctx, dbgen.GetLatestArtifactParams{TaskID: ap.TaskID, Kind: r.Kind}); err == nil {
 			material.WriteString("### " + r.Kind + "\n" + artifactText(a.Content, 6000) + "\n")
 		}

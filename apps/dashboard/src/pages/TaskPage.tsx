@@ -15,6 +15,7 @@ import {
 } from "./workflowUi";
 import { TaskWorkflowPanel } from "./TaskWorkflowPanel";
 import { TaskCodePanel, hasCode } from "./TaskCodePanel";
+import { TaskReleasePanel } from "./TaskReleasePanel";
 import { AccountSelect } from "../components/AccountSelect";
 import { TaskDetailsForm } from "../components/TaskFields";
 
@@ -252,7 +253,11 @@ export function TaskPage() {
 
       {(!wf || !isActiveWorkflow(wf)) && <TaskWorkflowPanel taskId={taskId} task={task} canRun={task.status !== "cancelled"} />}
 
-      {hasCode(plan, artifacts) && <TaskCodePanel task={task} artifacts={artifacts} />}
+      {hasCode(plan, artifacts) && (
+        <TaskCodePanel task={task} artifacts={artifacts}
+          canReword={wf?.status === "awaiting_approval" && plan.steps.some((s) => s.id === wf.currentStage && s.type === "gate")} />
+      )}
+      <TaskReleasePanel taskId={task.id} />
 
       <ArtifactsPanel taskId={taskId} plan={plan} latest={artifacts} kind={kind} onKind={setKind} />
 

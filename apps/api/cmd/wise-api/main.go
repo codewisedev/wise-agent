@@ -19,13 +19,17 @@ import (
 	"time"
 	"wise/apps/api/internal/codeindex"
 	"wise/apps/api/internal/codingruns"
+	"wise/apps/api/internal/costs"
 	"wise/apps/api/internal/db/dbgen"
 	"wise/apps/api/internal/executor"
 	"wise/apps/api/internal/feedback"
+	"wise/apps/api/internal/gitworker"
 	"wise/apps/api/internal/improvement"
 	"wise/apps/api/internal/insights"
 	"wise/apps/api/internal/memory"
 	"wise/apps/api/internal/modelproxy"
+	"wise/apps/api/internal/monitor"
+	"wise/apps/api/internal/release"
 	"wise/apps/api/internal/workspaces"
 
 	"golang.org/x/term"
@@ -87,6 +91,8 @@ func main() {
 		err = egressCmd(ctx)
 	case "model-proxy":
 		err = modelProxyCmd(ctx)
+	case "git-worker":
+		err = gitWorkerCmd(ctx)
 	case "migrate":
 		err = migrate(ctx, args)
 	case "user":
@@ -244,6 +250,10 @@ func serve(ctx context.Context) error {
 	insightSvc := insights.New(d)
 	improvementSvc := improvement.New(d, agentSvc, memorySvc, settingsSvc, taskSvc, insightSvc, log.With("component", "improvement"))
 	improvement.RegisterSetting(settingsSvc, cfg.ImprovementDefaults, improvementSvc)
+	releaseSvc := release.New(d, accountSvc)
+	monitorSvc := monitor.New(d)
+	monitor.RegisterSetting(settingsSvc, cfg.MonitorDefaults, monitorSvc)
+	release.RegisterSetting(settingsSvc, cfg.ReleaseDefaults, releaseSvc)
 	runQueue.OnFinished = func(ctx context.Context, runID uuid.UUID) {
 		memorySvc.OnRunFinished(ctx, runID)
 		improvementSvc.OnRunFinished(ctx, runID)
@@ -273,6 +283,10 @@ func serve(ctx context.Context) error {
 		Feedback:         feedback.New(d),
 		Insights:         insightSvc,
 		Improvement:      improvementSvc,
+		Release:          releaseSvc,
+		Monitor:          monitorSvc,
+		Costs:            costs.New(d),
+		GitWorkerToken:   os.Getenv("WISE_GIT_WORKER_TOKEN"),
 		Agents:           agentSvc,
 		RunQueue:         runQueue,
 		Gateway:          gateway,
@@ -300,6 +314,7 @@ func serve(ctx context.Context) error {
 	indexSvc.SetEmbedder(gateway)
 	go memorySvc.RunBackground(ctx)
 	go improvementSvc.RunScheduler(ctx, 5*time.Minute)
+	go releaseSvc.RunRefresher(ctx, time.Minute)
 	go workspaceSvc.RunSweeper(ctx)
 	go indexSvc.RunEmbedder(ctx)
 
@@ -363,9 +378,15 @@ func orchestrator(ctx context.Context) error {
 	if c := executor.NewClient(cfg.ExecutorURL, cfg.ExecutorToken); c != nil {
 		execClient = c
 	}
+	var git *gitworker.Client
+	if url, tok := os.Getenv("WISE_GIT_WORKER_URL"), os.Getenv("WISE_GIT_PUSH_TOKEN"); url != "" && len(tok) >= 32 {
+		git = gitworker.NewClient(url, tok)
+	}
 	return workflow.RunOrchestrator(ctx, workflow.OrchestratorConfig{
 		TemporalAddress: cfg.TemporalAddress, Namespace: cfg.TemporalNamespace,
 		Workspaces: workspaces.New(d, execClient, log.With("component", "workspaces")),
+		// The orchestrator reads release targets from the database; it never holds a git token.
+		Release: release.New(d, nil), Git: git,
 	}, d, tasks.NewService(d, wfCfg), agents.NewService(d, events.NewHub(d)), log)
 }
 

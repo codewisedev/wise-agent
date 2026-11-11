@@ -24,6 +24,8 @@ const (
 	AccountKindClaudeCode       AccountKind = "claude_code"
 	AccountKindClickup          AccountKind = "clickup"
 	AccountKindCodexCli         AccountKind = "codex_cli"
+	AccountKindGithub           AccountKind = "github"
+	AccountKindGitlab           AccountKind = "gitlab"
 	AccountKindJira             AccountKind = "jira"
 	AccountKindOpenaiCompatible AccountKind = "openai_compatible"
 	AccountKindTrello           AccountKind = "trello"
@@ -39,6 +41,10 @@ func (e AccountKind) Valid() bool {
 	case AccountKindClickup:
 		return true
 	case AccountKindCodexCli:
+		return true
+	case AccountKindGithub:
+		return true
+	case AccountKindGitlab:
 		return true
 	case AccountKindJira:
 		return true
@@ -843,6 +849,24 @@ func (e ModelTurnAction) Valid() bool {
 	}
 }
 
+// Defines values for MonitorSnapshotWaitingStatus.
+const (
+	MonitorSnapshotWaitingStatusAwaitingApproval MonitorSnapshotWaitingStatus = "awaiting_approval"
+	MonitorSnapshotWaitingStatusAwaitingRetry    MonitorSnapshotWaitingStatus = "awaiting_retry"
+)
+
+// Valid indicates whether the value is a known member of the MonitorSnapshotWaitingStatus enum.
+func (e MonitorSnapshotWaitingStatus) Valid() bool {
+	switch e {
+	case MonitorSnapshotWaitingStatusAwaitingApproval:
+		return true
+	case MonitorSnapshotWaitingStatusAwaitingRetry:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ProjectCodingRuntimesEnabled.
 const (
 	ProjectCodingRuntimesEnabledClaudeCode ProjectCodingRuntimesEnabled = "claude-code"
@@ -879,6 +903,27 @@ func (e ProjectResourceKind) Valid() bool {
 	case ProjectResourceKindExternalService:
 		return true
 	case ProjectResourceKindOther:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ReleasePolicyPullRequests.
+const (
+	Ask  ReleasePolicyPullRequests = "ask"
+	Auto ReleasePolicyPullRequests = "auto"
+	Off  ReleasePolicyPullRequests = "off"
+)
+
+// Valid indicates whether the value is a known member of the ReleasePolicyPullRequests enum.
+func (e ReleasePolicyPullRequests) Valid() bool {
+	switch e {
+	case Ask:
+		return true
+	case Auto:
+		return true
+	case Off:
 		return true
 	default:
 		return false
@@ -1071,6 +1116,7 @@ const (
 	StepTypeDeliver   StepType = "deliver"
 	StepTypeGate      StepType = "gate"
 	StepTypeQuality   StepType = "quality"
+	StepTypeRelease   StepType = "release"
 	StepTypeWorkspace StepType = "workspace"
 )
 
@@ -1084,6 +1130,8 @@ func (e StepType) Valid() bool {
 	case StepTypeGate:
 		return true
 	case StepTypeQuality:
+		return true
+	case StepTypeRelease:
 		return true
 	case StepTypeWorkspace:
 		return true
@@ -1137,6 +1185,66 @@ func (e TaskPriority) Valid() bool {
 	case TaskPriorityNone:
 		return true
 	case TaskPriorityUrgent:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for TaskReleaseApprovalsKind.
+const (
+	PullRequest TaskReleaseApprovalsKind = "pull_request"
+	Push        TaskReleaseApprovalsKind = "push"
+)
+
+// Valid indicates whether the value is a known member of the TaskReleaseApprovalsKind enum.
+func (e TaskReleaseApprovalsKind) Valid() bool {
+	switch e {
+	case PullRequest:
+		return true
+	case Push:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for TaskReleasePullRequestsStatus.
+const (
+	TaskReleasePullRequestsStatusFailed  TaskReleasePullRequestsStatus = "failed"
+	TaskReleasePullRequestsStatusGranted TaskReleasePullRequestsStatus = "granted"
+	TaskReleasePullRequestsStatusOpened  TaskReleasePullRequestsStatus = "opened"
+)
+
+// Valid indicates whether the value is a known member of the TaskReleasePullRequestsStatus enum.
+func (e TaskReleasePullRequestsStatus) Valid() bool {
+	switch e {
+	case TaskReleasePullRequestsStatusFailed:
+		return true
+	case TaskReleasePullRequestsStatusGranted:
+		return true
+	case TaskReleasePullRequestsStatusOpened:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for TaskReleasePushesStatus.
+const (
+	TaskReleasePushesStatusFailed  TaskReleasePushesStatus = "failed"
+	TaskReleasePushesStatusGranted TaskReleasePushesStatus = "granted"
+	TaskReleasePushesStatusPushed  TaskReleasePushesStatus = "pushed"
+)
+
+// Valid indicates whether the value is a known member of the TaskReleasePushesStatus enum.
+func (e TaskReleasePushesStatus) Valid() bool {
+	switch e {
+	case TaskReleasePushesStatusFailed:
+		return true
+	case TaskReleasePushesStatusGranted:
+		return true
+	case TaskReleasePushesStatusPushed:
 		return true
 	default:
 		return false
@@ -1341,6 +1449,54 @@ func (e WorkspaceStatus) Valid() bool {
 	case WorkspaceStatusRemoved:
 		return true
 	case WorkspaceStatusStopped:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetCostsParamsWindow.
+const (
+	GetCostsParamsWindowN30d GetCostsParamsWindow = "30d"
+	GetCostsParamsWindowN7d  GetCostsParamsWindow = "7d"
+	GetCostsParamsWindowN90d GetCostsParamsWindow = "90d"
+)
+
+// Valid indicates whether the value is a known member of the GetCostsParamsWindow enum.
+func (e GetCostsParamsWindow) Valid() bool {
+	switch e {
+	case GetCostsParamsWindowN30d:
+		return true
+	case GetCostsParamsWindowN7d:
+		return true
+	case GetCostsParamsWindowN90d:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetCostsParamsGroupBy.
+const (
+	GetCostsParamsGroupByAgent   GetCostsParamsGroupBy = "agent"
+	GetCostsParamsGroupByBilling GetCostsParamsGroupBy = "billing"
+	GetCostsParamsGroupByModel   GetCostsParamsGroupBy = "model"
+	GetCostsParamsGroupByProject GetCostsParamsGroupBy = "project"
+	GetCostsParamsGroupByRuntime GetCostsParamsGroupBy = "runtime"
+)
+
+// Valid indicates whether the value is a known member of the GetCostsParamsGroupBy enum.
+func (e GetCostsParamsGroupBy) Valid() bool {
+	switch e {
+	case GetCostsParamsGroupByAgent:
+		return true
+	case GetCostsParamsGroupByBilling:
+		return true
+	case GetCostsParamsGroupByModel:
+		return true
+	case GetCostsParamsGroupByProject:
+		return true
+	case GetCostsParamsGroupByRuntime:
 		return true
 	default:
 		return false
@@ -1941,6 +2097,37 @@ type ContextHits struct {
 
 // ContextKind defines model for ContextKind.
 type ContextKind string
+
+// CostReport defines model for CostReport.
+type CostReport struct {
+	// Billing subscription, api, local
+	Billing map[string]float32 `json:"billing"`
+	Budgets []struct {
+		Agent  string   `json:"agent"`
+		Budget *float32 `json:"budget,omitempty"`
+		Spent  float32  `json:"spent"`
+	} `json:"budgets"`
+	Calls int64 `json:"calls"`
+	Days  []struct {
+		By    map[string]float32 `json:"by"`
+		Day   string             `json:"day"`
+		Total float32            `json:"total"`
+	} `json:"days"`
+	EvalUsd float32 `json:"evalUsd"`
+	GroupBy string  `json:"groupBy"`
+
+	// Keys Groups by total spend (at most 8, then other).
+	Keys     []string `json:"keys"`
+	Tokens   int64    `json:"tokens"`
+	TopTasks []struct {
+		CostUsd float32            `json:"costUsd"`
+		Id      openapi_types.UUID `json:"id"`
+		Runs    int64              `json:"runs"`
+		Title   string             `json:"title"`
+	} `json:"topTasks"`
+	Total  float32 `json:"total"`
+	Window string  `json:"window"`
+}
 
 // CreateAccountRequest defines model for CreateAccountRequest.
 type CreateAccountRequest struct {
@@ -2736,6 +2923,57 @@ type ModelsOverview struct {
 	Usage     []ModelUsage    `json:"usage"`
 }
 
+// MonitorRun defines model for MonitorRun.
+type MonitorRun struct {
+	Account     *string             `json:"account,omitempty"`
+	Agent       string              `json:"agent"`
+	Attempt     int                 `json:"attempt"`
+	Cancelling  bool                `json:"cancelling"`
+	CostUsd     float32             `json:"costUsd"`
+	CreatedAt   time.Time           `json:"createdAt"`
+	Id          openapi_types.UUID  `json:"id"`
+	LastEvent   *string             `json:"lastEvent,omitempty"`
+	LastEventAt *time.Time          `json:"lastEventAt,omitempty"`
+	LeaseUntil  *time.Time          `json:"leaseUntil,omitempty"`
+	MaxAttempts int                 `json:"maxAttempts"`
+	ProjectId   *openapi_types.UUID `json:"projectId,omitempty"`
+	ProjectName *string             `json:"projectName,omitempty"`
+	Purpose     string              `json:"purpose"`
+
+	// Runtime native, claude-code or codex
+	Runtime   string     `json:"runtime"`
+	StartedAt *time.Time `json:"startedAt,omitempty"`
+	Status    string     `json:"status"`
+
+	// Stuck Why the run looks stuck (empty when it does not).
+	Stuck     *string             `json:"stuck,omitempty"`
+	TaskId    *openapi_types.UUID `json:"taskId,omitempty"`
+	TaskTitle *string             `json:"taskTitle,omitempty"`
+	Tokens    int64               `json:"tokens"`
+}
+
+// MonitorSnapshot defines model for MonitorSnapshot.
+type MonitorSnapshot struct {
+	At      time.Time    `json:"at"`
+	Evals   []MonitorRun `json:"evals"`
+	Queued  []MonitorRun `json:"queued"`
+	Running []MonitorRun `json:"running"`
+	Stuck   int          `json:"stuck"`
+	Waiting []struct {
+		Error       *string                      `json:"error,omitempty"`
+		Id          openapi_types.UUID           `json:"id"`
+		ProjectName string                       `json:"projectName"`
+		Since       time.Time                    `json:"since"`
+		Stage       string                       `json:"stage"`
+		Status      MonitorSnapshotWaitingStatus `json:"status"`
+		TaskId      openapi_types.UUID           `json:"taskId"`
+		TaskTitle   string                       `json:"taskTitle"`
+	} `json:"waiting"`
+}
+
+// MonitorSnapshotWaitingStatus defines model for MonitorSnapshot.Waiting.Status.
+type MonitorSnapshotWaitingStatus string
+
 // PlanIssue defines model for PlanIssue.
 type PlanIssue struct {
 	Message string  `json:"message"`
@@ -2843,6 +3081,18 @@ type QualityCommands struct {
 	Typecheck string `json:"typecheck"`
 }
 
+// ReleasePolicy defines model for ReleasePolicy.
+type ReleasePolicy struct {
+	// Draft Open pull requests as drafts.
+	Draft bool `json:"draft"`
+
+	// PullRequests After an approved push: no pull request, ask you, or open one.
+	PullRequests ReleasePolicyPullRequests `json:"pullRequests"`
+}
+
+// ReleasePolicyPullRequests After an approved push: no pull request, ask you, or open one.
+type ReleasePolicyPullRequests string
+
 // Repository defines model for Repository.
 type Repository struct {
 	CreatedAt        time.Time          `json:"createdAt"`
@@ -2946,6 +3196,18 @@ type RepositoryRelationshipKind string
 // RepositoryRelationshipList defines model for RepositoryRelationshipList.
 type RepositoryRelationshipList struct {
 	Items []RepositoryRelationship `json:"items"`
+}
+
+// RepositoryRelease defines model for RepositoryRelease.
+type RepositoryRelease struct {
+	// AccountId The git account that pushes (same host as the remote).
+	AccountId *openapi_types.UUID `json:"accountId,omitempty"`
+
+	// BaseBranch Pull requests target this branch; Wise never pushes to it.
+	BaseBranch *string `json:"baseBranch,omitempty"`
+
+	// Remote https address of the repository on GitHub or GitLab.
+	Remote *string `json:"remote,omitempty"`
 }
 
 // RepositoryRole defines model for RepositoryRole.
@@ -3161,7 +3423,7 @@ type StepOverride struct {
 // StepOverrideRuntime Run this implementing step on a runtime the project enabled.
 type StepOverrideRuntime string
 
-// StepType agent runs an agent; workspace prepares the task workspace; quality runs the repository's checks; gate passes or fails on checks and reviews, runs fix rounds and produces the verified changeset; deliver writes the approved commit as the task branch.
+// StepType agent runs an agent; workspace prepares the task workspace; quality runs the repository's checks; gate passes or fails on checks and reviews, runs fix rounds and produces the verified changeset; deliver writes the approved commit as the task branch; release asks for your push approval, pushes the branch and opens a pull request per the project's policy.
 type StepType string
 
 // SyncResult defines model for SyncResult.
@@ -3235,6 +3497,61 @@ type TaskList struct {
 // TaskPriority defines model for TaskPriority.
 type TaskPriority string
 
+// TaskRelease defines model for TaskRelease.
+type TaskRelease struct {
+	// Approvals Pending release approvals (push, pull request).
+	Approvals []struct {
+		CombinedHash string                   `json:"combinedHash"`
+		Gate         string                   `json:"gate"`
+		Id           openapi_types.UUID       `json:"id"`
+		Kind         TaskReleaseApprovalsKind `json:"kind"`
+	} `json:"approvals"`
+	PullRequests []struct {
+		CreatedAt time.Time          `json:"createdAt"`
+		Draft     bool               `json:"draft"`
+		Error     *string            `json:"error,omitempty"`
+		Id        openapi_types.UUID `json:"id"`
+		Number    *int               `json:"number,omitempty"`
+
+		// State open, merged or closed (refreshed from the host)
+		State  *string                       `json:"state,omitempty"`
+		Status TaskReleasePullRequestsStatus `json:"status"`
+		Title  string                        `json:"title"`
+		Url    *string                       `json:"url,omitempty"`
+	} `json:"pullRequests"`
+	Pushes []struct {
+		Attempts   int                     `json:"attempts"`
+		BaseBranch string                  `json:"baseBranch"`
+		Branch     string                  `json:"branch"`
+		CreatedAt  time.Time               `json:"createdAt"`
+		Error      *string                 `json:"error,omitempty"`
+		Existed    bool                    `json:"existed"`
+		Id         openapi_types.UUID      `json:"id"`
+		PushedAt   *time.Time              `json:"pushedAt,omitempty"`
+		Remote     string                  `json:"remote"`
+		Sha        string                  `json:"sha"`
+		Status     TaskReleasePushesStatus `json:"status"`
+	} `json:"pushes"`
+
+	// Request What the push approval covers.
+	Request *struct {
+		AccountName *string `json:"accountName,omitempty"`
+		BaseBranch  *string `json:"baseBranch,omitempty"`
+		Branch      *string `json:"branch,omitempty"`
+		Remote      *string `json:"remote,omitempty"`
+		Sha         *string `json:"sha,omitempty"`
+	} `json:"request,omitempty"`
+}
+
+// TaskReleaseApprovalsKind defines model for TaskRelease.Approvals.Kind.
+type TaskReleaseApprovalsKind string
+
+// TaskReleasePullRequestsStatus defines model for TaskRelease.PullRequests.Status.
+type TaskReleasePullRequestsStatus string
+
+// TaskReleasePushesStatus defines model for TaskRelease.Pushes.Status.
+type TaskReleasePushesStatus string
+
 // TaskStatus defines model for TaskStatus.
 type TaskStatus string
 
@@ -3303,7 +3620,7 @@ type TemplateStep struct {
 	// Runtime Implementing agent steps: run on an external coding CLI instead of Wise's own loop.
 	Runtime *TemplateStepRuntime `json:"runtime,omitempty"`
 
-	// Type agent runs an agent; workspace prepares the task workspace; quality runs the repository's checks; gate passes or fails on checks and reviews, runs fix rounds and produces the verified changeset; deliver writes the approved commit as the task branch.
+	// Type agent runs an agent; workspace prepares the task workspace; quality runs the repository's checks; gate passes or fails on checks and reviews, runs fix rounds and produces the verified changeset; deliver writes the approved commit as the task branch; release asks for your push approval, pushes the branch and opens a pull request per the project's policy.
 	Type *StepType `json:"type,omitempty"`
 }
 
@@ -3647,6 +3964,18 @@ type DeleteColumnParams struct {
 	MoveTo *openapi_types.UUID `form:"moveTo,omitempty" json:"moveTo,omitempty"`
 }
 
+// GetCostsParams defines parameters for GetCosts.
+type GetCostsParams struct {
+	Window  *GetCostsParamsWindow  `form:"window,omitempty" json:"window,omitempty"`
+	GroupBy *GetCostsParamsGroupBy `form:"groupBy,omitempty" json:"groupBy,omitempty"`
+}
+
+// GetCostsParamsWindow defines parameters for GetCosts.
+type GetCostsParamsWindow string
+
+// GetCostsParamsGroupBy defines parameters for GetCosts.
+type GetCostsParamsGroupBy string
+
 // UpdateEvalCaseJSONBody defines parameters for UpdateEvalCase.
 type UpdateEvalCaseJSONBody struct {
 	Enabled     bool   `json:"enabled"`
@@ -3754,6 +4083,19 @@ type ListProjectsParams struct {
 	IncludeArchived *bool `form:"includeArchived,omitempty" json:"includeArchived,omitempty"`
 }
 
+// GetProjectActivityParams defines parameters for GetProjectActivity.
+type GetProjectActivityParams struct {
+	// Before Older than this (paging; with beforeId).
+	Before *time.Time `form:"before,omitempty" json:"before,omitempty"`
+
+	// BeforeId The last item's refId (paging).
+	BeforeId *openapi_types.UUID `form:"beforeId,omitempty" json:"beforeId,omitempty"`
+
+	// Kinds Comma-separated: task, approval, workflow, run, branch, push, pull_request, memory.
+	Kinds *string `form:"kinds,omitempty" json:"kinds,omitempty"`
+	Limit *int    `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
 // ListContextDependenciesParams defines parameters for ListContextDependencies.
 type ListContextDependenciesParams struct {
 	RepositoryId *openapi_types.UUID `form:"repositoryId,omitempty" json:"repositoryId,omitempty"`
@@ -3832,6 +4174,11 @@ type ListTasksParams struct {
 // ListTaskArtifactsParams defines parameters for ListTaskArtifacts.
 type ListTaskArtifactsParams struct {
 	Kind *ArtifactKind `form:"kind,omitempty" json:"kind,omitempty"`
+}
+
+// RewordTaskCommitJSONBody defines parameters for RewordTaskCommit.
+type RewordTaskCommitJSONBody struct {
+	Message string `json:"message"`
 }
 
 // ListWorkflowEventsParams defines parameters for ListWorkflowEvents.
@@ -3917,6 +4264,9 @@ type CreateColumnJSONRequestBody = ColumnInput
 // CreateIntegrationJSONRequestBody defines body for CreateIntegration for application/json ContentType.
 type CreateIntegrationJSONRequestBody = IntegrationInput
 
+// SetProjectReleasePolicyJSONRequestBody defines body for SetProjectReleasePolicy for application/json ContentType.
+type SetProjectReleasePolicyJSONRequestBody = ReleasePolicy
+
 // CreateRepositoryJSONRequestBody defines body for CreateRepository for application/json ContentType.
 type CreateRepositoryJSONRequestBody = CreateRepositoryRequest
 
@@ -3940,6 +4290,9 @@ type CreateExampleJSONRequestBody = ExampleInput
 
 // SetRepositoryExecutionJSONRequestBody defines body for SetRepositoryExecution for application/json ContentType.
 type SetRepositoryExecutionJSONRequestBody = RepositoryExecution
+
+// SetRepositoryReleaseJSONRequestBody defines body for SetRepositoryRelease for application/json ContentType.
+type SetRepositoryReleaseJSONRequestBody = RepositoryRelease
 
 // RuntimeClaimIndexJobJSONRequestBody defines body for RuntimeClaimIndexJob for application/json ContentType.
 type RuntimeClaimIndexJobJSONRequestBody = RuntimeClaimRequest
@@ -3982,6 +4335,9 @@ type UpdateSprintJSONRequestBody = SprintInput
 
 // UpdateTaskJSONRequestBody defines body for UpdateTask for application/json ContentType.
 type UpdateTaskJSONRequestBody = UpdateTaskRequest
+
+// RewordTaskCommitJSONRequestBody defines body for RewordTaskCommit for application/json ContentType.
+type RewordTaskCommitJSONRequestBody RewordTaskCommitJSONBody
 
 // RunTaskJSONRequestBody defines body for RunTask for application/json ContentType.
 type RunTaskJSONRequestBody = RunTaskRequest
@@ -4181,6 +4537,9 @@ type ServerInterface interface {
 	// (GET /context/embeddings)
 	GetEmbeddingStatus(w http.ResponseWriter, r *http.Request)
 
+	// (GET /costs)
+	GetCosts(w http.ResponseWriter, r *http.Request, params GetCostsParams)
+
 	// (DELETE /eval-cases/{caseId})
 	DeleteEvalCase(w http.ResponseWriter, r *http.Request, caseId openapi_types.UUID)
 
@@ -4286,6 +4645,9 @@ type ServerInterface interface {
 	// (GET /models)
 	GetModelsOverview(w http.ResponseWriter, r *http.Request, params GetModelsOverviewParams)
 
+	// (GET /monitor)
+	GetMonitor(w http.ResponseWriter, r *http.Request)
+
 	// (DELETE /project-resources/{resourceId})
 	DeleteProjectResource(w http.ResponseWriter, r *http.Request, resourceId ResourceId)
 
@@ -4303,6 +4665,9 @@ type ServerInterface interface {
 
 	// (PATCH /projects/{projectId})
 	UpdateProject(w http.ResponseWriter, r *http.Request, projectId ProjectId)
+
+	// (GET /projects/{projectId}/activity)
+	GetProjectActivity(w http.ResponseWriter, r *http.Request, projectId ProjectId, params GetProjectActivityParams)
 
 	// (GET /projects/{projectId}/board)
 	GetBoard(w http.ResponseWriter, r *http.Request, projectId ProjectId)
@@ -4336,6 +4701,12 @@ type ServerInterface interface {
 
 	// (POST /projects/{projectId}/integrations)
 	CreateIntegration(w http.ResponseWriter, r *http.Request, projectId ProjectId)
+
+	// (GET /projects/{projectId}/release-policy)
+	GetProjectReleasePolicy(w http.ResponseWriter, r *http.Request, projectId ProjectId)
+
+	// (PUT /projects/{projectId}/release-policy)
+	SetProjectReleasePolicy(w http.ResponseWriter, r *http.Request, projectId ProjectId)
 
 	// (GET /projects/{projectId}/repositories)
 	ListRepositories(w http.ResponseWriter, r *http.Request, projectId ProjectId)
@@ -4399,6 +4770,18 @@ type ServerInterface interface {
 
 	// (POST /repositories/{repositoryId}/inspect)
 	InspectRepository(w http.ResponseWriter, r *http.Request, repositoryId RepositoryId)
+
+	// (GET /repositories/{repositoryId}/release)
+	GetRepositoryRelease(w http.ResponseWriter, r *http.Request, repositoryId openapi_types.UUID)
+
+	// (PUT /repositories/{repositoryId}/release)
+	SetRepositoryRelease(w http.ResponseWriter, r *http.Request, repositoryId openapi_types.UUID)
+
+	// (POST /repositories/{repositoryId}/release/detect)
+	DetectRepositoryRelease(w http.ResponseWriter, r *http.Request, repositoryId openapi_types.UUID)
+
+	// (POST /repositories/{repositoryId}/release/test)
+	TestRepositoryRelease(w http.ResponseWriter, r *http.Request, repositoryId openapi_types.UUID)
 
 	// (GET /repositories/{repositoryId}/status)
 	GetRepositoryStatus(w http.ResponseWriter, r *http.Request, repositoryId RepositoryId)
@@ -4508,8 +4891,14 @@ type ServerInterface interface {
 	// (POST /tasks/{taskId}/cancel)
 	CancelTask(w http.ResponseWriter, r *http.Request, taskId TaskId)
 
+	// (POST /tasks/{taskId}/commit-message)
+	RewordTaskCommit(w http.ResponseWriter, r *http.Request, taskId openapi_types.UUID)
+
 	// (POST /tasks/{taskId}/extract-memories)
 	ExtractTaskMemories(w http.ResponseWriter, r *http.Request, taskId TaskId)
+
+	// (GET /tasks/{taskId}/release)
+	GetTaskRelease(w http.ResponseWriter, r *http.Request, taskId openapi_types.UUID)
 
 	// (POST /tasks/{taskId}/run)
 	RunTask(w http.ResponseWriter, r *http.Request, taskId TaskId)
@@ -4758,6 +5147,11 @@ func (_ Unimplemented) GetEmbeddingStatus(w http.ResponseWriter, r *http.Request
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
+// (GET /costs)
+func (_ Unimplemented) GetCosts(w http.ResponseWriter, r *http.Request, params GetCostsParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
 // (DELETE /eval-cases/{caseId})
 func (_ Unimplemented) DeleteEvalCase(w http.ResponseWriter, r *http.Request, caseId openapi_types.UUID) {
 	w.WriteHeader(http.StatusNotImplemented)
@@ -4933,6 +5327,11 @@ func (_ Unimplemented) GetModelsOverview(w http.ResponseWriter, r *http.Request,
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
+// (GET /monitor)
+func (_ Unimplemented) GetMonitor(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
 // (DELETE /project-resources/{resourceId})
 func (_ Unimplemented) DeleteProjectResource(w http.ResponseWriter, r *http.Request, resourceId ResourceId) {
 	w.WriteHeader(http.StatusNotImplemented)
@@ -4960,6 +5359,11 @@ func (_ Unimplemented) GetProject(w http.ResponseWriter, r *http.Request, projec
 
 // (PATCH /projects/{projectId})
 func (_ Unimplemented) UpdateProject(w http.ResponseWriter, r *http.Request, projectId ProjectId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (GET /projects/{projectId}/activity)
+func (_ Unimplemented) GetProjectActivity(w http.ResponseWriter, r *http.Request, projectId ProjectId, params GetProjectActivityParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -5015,6 +5419,16 @@ func (_ Unimplemented) ListIntegrations(w http.ResponseWriter, r *http.Request, 
 
 // (POST /projects/{projectId}/integrations)
 func (_ Unimplemented) CreateIntegration(w http.ResponseWriter, r *http.Request, projectId ProjectId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (GET /projects/{projectId}/release-policy)
+func (_ Unimplemented) GetProjectReleasePolicy(w http.ResponseWriter, r *http.Request, projectId ProjectId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (PUT /projects/{projectId}/release-policy)
+func (_ Unimplemented) SetProjectReleasePolicy(w http.ResponseWriter, r *http.Request, projectId ProjectId) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -5120,6 +5534,26 @@ func (_ Unimplemented) RequestRepositoryIndex(w http.ResponseWriter, r *http.Req
 
 // (POST /repositories/{repositoryId}/inspect)
 func (_ Unimplemented) InspectRepository(w http.ResponseWriter, r *http.Request, repositoryId RepositoryId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (GET /repositories/{repositoryId}/release)
+func (_ Unimplemented) GetRepositoryRelease(w http.ResponseWriter, r *http.Request, repositoryId openapi_types.UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (PUT /repositories/{repositoryId}/release)
+func (_ Unimplemented) SetRepositoryRelease(w http.ResponseWriter, r *http.Request, repositoryId openapi_types.UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (POST /repositories/{repositoryId}/release/detect)
+func (_ Unimplemented) DetectRepositoryRelease(w http.ResponseWriter, r *http.Request, repositoryId openapi_types.UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (POST /repositories/{repositoryId}/release/test)
+func (_ Unimplemented) TestRepositoryRelease(w http.ResponseWriter, r *http.Request, repositoryId openapi_types.UUID) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -5303,8 +5737,18 @@ func (_ Unimplemented) CancelTask(w http.ResponseWriter, r *http.Request, taskId
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
+// (POST /tasks/{taskId}/commit-message)
+func (_ Unimplemented) RewordTaskCommit(w http.ResponseWriter, r *http.Request, taskId openapi_types.UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
 // (POST /tasks/{taskId}/extract-memories)
 func (_ Unimplemented) ExtractTaskMemories(w http.ResponseWriter, r *http.Request, taskId TaskId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (GET /tasks/{taskId}/release)
+func (_ Unimplemented) GetTaskRelease(w http.ResponseWriter, r *http.Request, taskId openapi_types.UUID) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -6300,6 +6744,52 @@ func (siw *ServerInterfaceWrapper) GetEmbeddingStatus(w http.ResponseWriter, r *
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetEmbeddingStatus(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetCosts operation middleware
+func (siw *ServerInterfaceWrapper) GetCosts(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetCostsParams
+
+	// ------------- Optional query parameter "window" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "window", r.URL.Query(), &params.Window, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "window"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "window", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "groupBy" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "groupBy", r.URL.Query(), &params.GroupBy, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "groupBy"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "groupBy", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetCosts(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -7412,6 +7902,20 @@ func (siw *ServerInterfaceWrapper) GetModelsOverview(w http.ResponseWriter, r *h
 	handler.ServeHTTP(w, r)
 }
 
+// GetMonitor operation middleware
+func (siw *ServerInterfaceWrapper) GetMonitor(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetMonitor(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // DeleteProjectResource operation middleware
 func (siw *ServerInterfaceWrapper) DeleteProjectResource(w http.ResponseWriter, r *http.Request) {
 
@@ -7554,6 +8058,87 @@ func (siw *ServerInterfaceWrapper) UpdateProject(w http.ResponseWriter, r *http.
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.UpdateProject(w, r, projectId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetProjectActivity operation middleware
+func (siw *ServerInterfaceWrapper) GetProjectActivity(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "projectId" -------------
+	var projectId ProjectId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "projectId", chi.URLParam(r, "projectId"), &projectId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "projectId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetProjectActivityParams
+
+	// ------------- Optional query parameter "before" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "before", r.URL.Query(), &params.Before, runtime.BindQueryParameterOptions{Type: "string", Format: "date-time"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "before"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "before", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "beforeId" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "beforeId", r.URL.Query(), &params.BeforeId, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "beforeId"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "beforeId", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "kinds" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "kinds", r.URL.Query(), &params.Kinds, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "kinds"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "kinds", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetProjectActivity(w, r, projectId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -7953,6 +8538,58 @@ func (siw *ServerInterfaceWrapper) CreateIntegration(w http.ResponseWriter, r *h
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.CreateIntegration(w, r, projectId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetProjectReleasePolicy operation middleware
+func (siw *ServerInterfaceWrapper) GetProjectReleasePolicy(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "projectId" -------------
+	var projectId ProjectId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "projectId", chi.URLParam(r, "projectId"), &projectId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "projectId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetProjectReleasePolicy(w, r, projectId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SetProjectReleasePolicy operation middleware
+func (siw *ServerInterfaceWrapper) SetProjectReleasePolicy(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "projectId" -------------
+	var projectId ProjectId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "projectId", chi.URLParam(r, "projectId"), &projectId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "projectId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetProjectReleasePolicy(w, r, projectId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -8503,6 +9140,110 @@ func (siw *ServerInterfaceWrapper) InspectRepository(w http.ResponseWriter, r *h
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.InspectRepository(w, r, repositoryId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetRepositoryRelease operation middleware
+func (siw *ServerInterfaceWrapper) GetRepositoryRelease(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "repositoryId" -------------
+	var repositoryId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "repositoryId", chi.URLParam(r, "repositoryId"), &repositoryId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "repositoryId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetRepositoryRelease(w, r, repositoryId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SetRepositoryRelease operation middleware
+func (siw *ServerInterfaceWrapper) SetRepositoryRelease(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "repositoryId" -------------
+	var repositoryId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "repositoryId", chi.URLParam(r, "repositoryId"), &repositoryId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "repositoryId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetRepositoryRelease(w, r, repositoryId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DetectRepositoryRelease operation middleware
+func (siw *ServerInterfaceWrapper) DetectRepositoryRelease(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "repositoryId" -------------
+	var repositoryId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "repositoryId", chi.URLParam(r, "repositoryId"), &repositoryId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "repositoryId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DetectRepositoryRelease(w, r, repositoryId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// TestRepositoryRelease operation middleware
+func (siw *ServerInterfaceWrapper) TestRepositoryRelease(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "repositoryId" -------------
+	var repositoryId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "repositoryId", chi.URLParam(r, "repositoryId"), &repositoryId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "repositoryId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.TestRepositoryRelease(w, r, repositoryId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -9606,6 +10347,32 @@ func (siw *ServerInterfaceWrapper) CancelTask(w http.ResponseWriter, r *http.Req
 	handler.ServeHTTP(w, r)
 }
 
+// RewordTaskCommit operation middleware
+func (siw *ServerInterfaceWrapper) RewordTaskCommit(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "taskId" -------------
+	var taskId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "taskId", chi.URLParam(r, "taskId"), &taskId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "taskId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RewordTaskCommit(w, r, taskId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ExtractTaskMemories operation middleware
 func (siw *ServerInterfaceWrapper) ExtractTaskMemories(w http.ResponseWriter, r *http.Request) {
 
@@ -9623,6 +10390,32 @@ func (siw *ServerInterfaceWrapper) ExtractTaskMemories(w http.ResponseWriter, r 
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ExtractTaskMemories(w, r, taskId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetTaskRelease operation middleware
+func (siw *ServerInterfaceWrapper) GetTaskRelease(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "taskId" -------------
+	var taskId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "taskId", chi.URLParam(r, "taskId"), &taskId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "taskId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetTaskRelease(w, r, taskId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -10722,6 +11515,39 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/evals/{evalRunId}/cancel", wrapper.CancelEval)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/repositories/{repositoryId}/release", wrapper.GetRepositoryRelease)
+	})
+	r.Group(func(r chi.Router) {
+		r.Put(options.BaseURL+"/repositories/{repositoryId}/release", wrapper.SetRepositoryRelease)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/repositories/{repositoryId}/release/detect", wrapper.DetectRepositoryRelease)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/repositories/{repositoryId}/release/test", wrapper.TestRepositoryRelease)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/projects/{projectId}/release-policy", wrapper.GetProjectReleasePolicy)
+	})
+	r.Group(func(r chi.Router) {
+		r.Put(options.BaseURL+"/projects/{projectId}/release-policy", wrapper.SetProjectReleasePolicy)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/tasks/{taskId}/commit-message", wrapper.RewordTaskCommit)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/tasks/{taskId}/release", wrapper.GetTaskRelease)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/monitor", wrapper.GetMonitor)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/costs", wrapper.GetCosts)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/projects/{projectId}/activity", wrapper.GetProjectActivity)
 	})
 
 	return r
@@ -13008,6 +13834,44 @@ func (response GetEmbeddingStatus401ApplicationProblemPlusJSONResponse) VisitGet
 	return err
 }
 
+type GetCostsRequestObject struct {
+	Params GetCostsParams
+}
+
+type GetCostsResponseObject interface {
+	VisitGetCostsResponse(w http.ResponseWriter) error
+}
+
+type GetCosts200JSONResponse CostReport
+
+func (response GetCosts200JSONResponse) VisitGetCostsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetCosts401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response GetCosts401ApplicationProblemPlusJSONResponse) VisitGetCostsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type DeleteEvalCaseRequestObject struct {
 	CaseId openapi_types.UUID `json:"caseId"`
 }
@@ -15118,6 +15982,43 @@ func (response GetModelsOverview401ApplicationProblemPlusJSONResponse) VisitGetM
 	return err
 }
 
+type GetMonitorRequestObject struct {
+}
+
+type GetMonitorResponseObject interface {
+	VisitGetMonitorResponse(w http.ResponseWriter) error
+}
+
+type GetMonitor200JSONResponse MonitorSnapshot
+
+func (response GetMonitor200JSONResponse) VisitGetMonitorResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetMonitor401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response GetMonitor401ApplicationProblemPlusJSONResponse) VisitGetMonitorResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type DeleteProjectResourceRequestObject struct {
 	ResourceId ResourceId `json:"resourceId"`
 }
@@ -15422,6 +16323,75 @@ func (response UpdateProject401ApplicationProblemPlusJSONResponse) VisitUpdatePr
 type UpdateProject404ApplicationProblemPlusJSONResponse Problem
 
 func (response UpdateProject404ApplicationProblemPlusJSONResponse) VisitUpdateProjectResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetProjectActivityRequestObject struct {
+	ProjectId ProjectId `json:"projectId"`
+	Params    GetProjectActivityParams
+}
+
+type GetProjectActivityResponseObject interface {
+	VisitGetProjectActivityResponse(w http.ResponseWriter) error
+}
+
+type GetProjectActivity200JSONResponse struct {
+	Items []struct {
+		At     time.Time           `json:"at"`
+		Detail string              `json:"detail"`
+		Kind   string              `json:"kind"`
+		RefId  openapi_types.UUID  `json:"refId"`
+		TaskId *openapi_types.UUID `json:"taskId,omitempty"`
+		Title  string              `json:"title"`
+		Url    string              `json:"url"`
+	} `json:"items"`
+
+	// Next Pass as before for the next page.
+	Next *time.Time `json:"next,omitempty"`
+
+	// NextId Pass as beforeId for the next page.
+	NextId *openapi_types.UUID `json:"nextId,omitempty"`
+}
+
+func (response GetProjectActivity200JSONResponse) VisitGetProjectActivityResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetProjectActivity401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response GetProjectActivity401ApplicationProblemPlusJSONResponse) VisitGetProjectActivityResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetProjectActivity404ApplicationProblemPlusJSONResponse Problem
+
+func (response GetProjectActivity404ApplicationProblemPlusJSONResponse) VisitGetProjectActivityResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -16126,6 +17096,125 @@ func (response CreateIntegration403ApplicationProblemPlusJSONResponse) VisitCrea
 type CreateIntegration404ApplicationProblemPlusJSONResponse Problem
 
 func (response CreateIntegration404ApplicationProblemPlusJSONResponse) VisitCreateIntegrationResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetProjectReleasePolicyRequestObject struct {
+	ProjectId ProjectId `json:"projectId"`
+}
+
+type GetProjectReleasePolicyResponseObject interface {
+	VisitGetProjectReleasePolicyResponse(w http.ResponseWriter) error
+}
+
+type GetProjectReleasePolicy200JSONResponse ReleasePolicy
+
+func (response GetProjectReleasePolicy200JSONResponse) VisitGetProjectReleasePolicyResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetProjectReleasePolicy401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response GetProjectReleasePolicy401ApplicationProblemPlusJSONResponse) VisitGetProjectReleasePolicyResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetProjectReleasePolicy404ApplicationProblemPlusJSONResponse Problem
+
+func (response GetProjectReleasePolicy404ApplicationProblemPlusJSONResponse) VisitGetProjectReleasePolicyResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetProjectReleasePolicyRequestObject struct {
+	ProjectId ProjectId `json:"projectId"`
+	Body      *SetProjectReleasePolicyJSONRequestBody
+}
+
+type SetProjectReleasePolicyResponseObject interface {
+	VisitSetProjectReleasePolicyResponse(w http.ResponseWriter) error
+}
+
+type SetProjectReleasePolicy200JSONResponse ReleasePolicy
+
+func (response SetProjectReleasePolicy200JSONResponse) VisitSetProjectReleasePolicyResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetProjectReleasePolicy400ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response SetProjectReleasePolicy400ApplicationProblemPlusJSONResponse) VisitSetProjectReleasePolicyResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetProjectReleasePolicy401ApplicationProblemPlusJSONResponse Problem
+
+func (response SetProjectReleasePolicy401ApplicationProblemPlusJSONResponse) VisitSetProjectReleasePolicyResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetProjectReleasePolicy404ApplicationProblemPlusJSONResponse Problem
+
+func (response SetProjectReleasePolicy404ApplicationProblemPlusJSONResponse) VisitSetProjectReleasePolicyResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -17437,6 +18526,264 @@ func (response InspectRepository404ApplicationProblemPlusJSONResponse) VisitInsp
 	}
 	w.Header().Set("Content-Type", "application/problem+json")
 	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetRepositoryReleaseRequestObject struct {
+	RepositoryId openapi_types.UUID `json:"repositoryId"`
+}
+
+type GetRepositoryReleaseResponseObject interface {
+	VisitGetRepositoryReleaseResponse(w http.ResponseWriter) error
+}
+
+type GetRepositoryRelease200JSONResponse RepositoryRelease
+
+func (response GetRepositoryRelease200JSONResponse) VisitGetRepositoryReleaseResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetRepositoryRelease401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response GetRepositoryRelease401ApplicationProblemPlusJSONResponse) VisitGetRepositoryReleaseResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetRepositoryRelease404ApplicationProblemPlusJSONResponse Problem
+
+func (response GetRepositoryRelease404ApplicationProblemPlusJSONResponse) VisitGetRepositoryReleaseResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetRepositoryReleaseRequestObject struct {
+	RepositoryId openapi_types.UUID `json:"repositoryId"`
+	Body         *SetRepositoryReleaseJSONRequestBody
+}
+
+type SetRepositoryReleaseResponseObject interface {
+	VisitSetRepositoryReleaseResponse(w http.ResponseWriter) error
+}
+
+type SetRepositoryRelease200JSONResponse RepositoryRelease
+
+func (response SetRepositoryRelease200JSONResponse) VisitSetRepositoryReleaseResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetRepositoryRelease400ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response SetRepositoryRelease400ApplicationProblemPlusJSONResponse) VisitSetRepositoryReleaseResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetRepositoryRelease401ApplicationProblemPlusJSONResponse Problem
+
+func (response SetRepositoryRelease401ApplicationProblemPlusJSONResponse) VisitSetRepositoryReleaseResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetRepositoryRelease404ApplicationProblemPlusJSONResponse Problem
+
+func (response SetRepositoryRelease404ApplicationProblemPlusJSONResponse) VisitSetRepositoryReleaseResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DetectRepositoryReleaseRequestObject struct {
+	RepositoryId openapi_types.UUID `json:"repositoryId"`
+}
+
+type DetectRepositoryReleaseResponseObject interface {
+	VisitDetectRepositoryReleaseResponse(w http.ResponseWriter) error
+}
+
+type DetectRepositoryRelease200JSONResponse struct {
+	Accounts   []openapi_types.UUID `json:"accounts"`
+	BaseBranch *string              `json:"baseBranch,omitempty"`
+	Problem    *string              `json:"problem,omitempty"`
+	Remote     *string              `json:"remote,omitempty"`
+}
+
+func (response DetectRepositoryRelease200JSONResponse) VisitDetectRepositoryReleaseResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DetectRepositoryRelease401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response DetectRepositoryRelease401ApplicationProblemPlusJSONResponse) VisitDetectRepositoryReleaseResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DetectRepositoryRelease404ApplicationProblemPlusJSONResponse Problem
+
+func (response DetectRepositoryRelease404ApplicationProblemPlusJSONResponse) VisitDetectRepositoryReleaseResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type TestRepositoryReleaseRequestObject struct {
+	RepositoryId openapi_types.UUID `json:"repositoryId"`
+}
+
+type TestRepositoryReleaseResponseObject interface {
+	VisitTestRepositoryReleaseResponse(w http.ResponseWriter) error
+}
+
+type TestRepositoryRelease200JSONResponse struct {
+	DefaultBranch string `json:"defaultBranch"`
+}
+
+func (response TestRepositoryRelease200JSONResponse) VisitTestRepositoryReleaseResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type TestRepositoryRelease400ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response TestRepositoryRelease400ApplicationProblemPlusJSONResponse) VisitTestRepositoryReleaseResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type TestRepositoryRelease401ApplicationProblemPlusJSONResponse Problem
+
+func (response TestRepositoryRelease401ApplicationProblemPlusJSONResponse) VisitTestRepositoryReleaseResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type TestRepositoryRelease404ApplicationProblemPlusJSONResponse Problem
+
+func (response TestRepositoryRelease404ApplicationProblemPlusJSONResponse) VisitTestRepositoryReleaseResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type TestRepositoryRelease409ApplicationProblemPlusJSONResponse Problem
+
+func (response TestRepositoryRelease409ApplicationProblemPlusJSONResponse) VisitTestRepositoryReleaseResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
 	_, err := buf.WriteTo(w)
 	return err
 }
@@ -19666,6 +21013,90 @@ func (response CancelTask409ApplicationProblemPlusJSONResponse) VisitCancelTaskR
 	return err
 }
 
+type RewordTaskCommitRequestObject struct {
+	TaskId openapi_types.UUID `json:"taskId"`
+	Body   *RewordTaskCommitJSONRequestBody
+}
+
+type RewordTaskCommitResponseObject interface {
+	VisitRewordTaskCommitResponse(w http.ResponseWriter) error
+}
+
+type RewordTaskCommit200JSONResponse struct {
+	HeadSha string `json:"headSha"`
+	Message string `json:"message"`
+}
+
+func (response RewordTaskCommit200JSONResponse) VisitRewordTaskCommitResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RewordTaskCommit400ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response RewordTaskCommit400ApplicationProblemPlusJSONResponse) VisitRewordTaskCommitResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RewordTaskCommit401ApplicationProblemPlusJSONResponse Problem
+
+func (response RewordTaskCommit401ApplicationProblemPlusJSONResponse) VisitRewordTaskCommitResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RewordTaskCommit404ApplicationProblemPlusJSONResponse Problem
+
+func (response RewordTaskCommit404ApplicationProblemPlusJSONResponse) VisitRewordTaskCommitResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RewordTaskCommit409ApplicationProblemPlusJSONResponse Problem
+
+func (response RewordTaskCommit409ApplicationProblemPlusJSONResponse) VisitRewordTaskCommitResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type ExtractTaskMemoriesRequestObject struct {
 	TaskId TaskId `json:"taskId"`
 }
@@ -19728,6 +21159,58 @@ func (response ExtractTaskMemories409ApplicationProblemPlusJSONResponse) VisitEx
 	}
 	w.Header().Set("Content-Type", "application/problem+json")
 	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetTaskReleaseRequestObject struct {
+	TaskId openapi_types.UUID `json:"taskId"`
+}
+
+type GetTaskReleaseResponseObject interface {
+	VisitGetTaskReleaseResponse(w http.ResponseWriter) error
+}
+
+type GetTaskRelease200JSONResponse TaskRelease
+
+func (response GetTaskRelease200JSONResponse) VisitGetTaskReleaseResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetTaskRelease401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response GetTaskRelease401ApplicationProblemPlusJSONResponse) VisitGetTaskReleaseResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetTaskRelease404ApplicationProblemPlusJSONResponse Problem
+
+func (response GetTaskRelease404ApplicationProblemPlusJSONResponse) VisitGetTaskReleaseResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
 	_, err := buf.WriteTo(w)
 	return err
 }
@@ -21020,6 +22503,9 @@ type StrictServerInterface interface {
 	// (GET /context/embeddings)
 	GetEmbeddingStatus(ctx context.Context, request GetEmbeddingStatusRequestObject) (GetEmbeddingStatusResponseObject, error)
 
+	// (GET /costs)
+	GetCosts(ctx context.Context, request GetCostsRequestObject) (GetCostsResponseObject, error)
+
 	// (DELETE /eval-cases/{caseId})
 	DeleteEvalCase(ctx context.Context, request DeleteEvalCaseRequestObject) (DeleteEvalCaseResponseObject, error)
 
@@ -21125,6 +22611,9 @@ type StrictServerInterface interface {
 	// (GET /models)
 	GetModelsOverview(ctx context.Context, request GetModelsOverviewRequestObject) (GetModelsOverviewResponseObject, error)
 
+	// (GET /monitor)
+	GetMonitor(ctx context.Context, request GetMonitorRequestObject) (GetMonitorResponseObject, error)
+
 	// (DELETE /project-resources/{resourceId})
 	DeleteProjectResource(ctx context.Context, request DeleteProjectResourceRequestObject) (DeleteProjectResourceResponseObject, error)
 
@@ -21142,6 +22631,9 @@ type StrictServerInterface interface {
 
 	// (PATCH /projects/{projectId})
 	UpdateProject(ctx context.Context, request UpdateProjectRequestObject) (UpdateProjectResponseObject, error)
+
+	// (GET /projects/{projectId}/activity)
+	GetProjectActivity(ctx context.Context, request GetProjectActivityRequestObject) (GetProjectActivityResponseObject, error)
 
 	// (GET /projects/{projectId}/board)
 	GetBoard(ctx context.Context, request GetBoardRequestObject) (GetBoardResponseObject, error)
@@ -21175,6 +22667,12 @@ type StrictServerInterface interface {
 
 	// (POST /projects/{projectId}/integrations)
 	CreateIntegration(ctx context.Context, request CreateIntegrationRequestObject) (CreateIntegrationResponseObject, error)
+
+	// (GET /projects/{projectId}/release-policy)
+	GetProjectReleasePolicy(ctx context.Context, request GetProjectReleasePolicyRequestObject) (GetProjectReleasePolicyResponseObject, error)
+
+	// (PUT /projects/{projectId}/release-policy)
+	SetProjectReleasePolicy(ctx context.Context, request SetProjectReleasePolicyRequestObject) (SetProjectReleasePolicyResponseObject, error)
 
 	// (GET /projects/{projectId}/repositories)
 	ListRepositories(ctx context.Context, request ListRepositoriesRequestObject) (ListRepositoriesResponseObject, error)
@@ -21238,6 +22736,18 @@ type StrictServerInterface interface {
 
 	// (POST /repositories/{repositoryId}/inspect)
 	InspectRepository(ctx context.Context, request InspectRepositoryRequestObject) (InspectRepositoryResponseObject, error)
+
+	// (GET /repositories/{repositoryId}/release)
+	GetRepositoryRelease(ctx context.Context, request GetRepositoryReleaseRequestObject) (GetRepositoryReleaseResponseObject, error)
+
+	// (PUT /repositories/{repositoryId}/release)
+	SetRepositoryRelease(ctx context.Context, request SetRepositoryReleaseRequestObject) (SetRepositoryReleaseResponseObject, error)
+
+	// (POST /repositories/{repositoryId}/release/detect)
+	DetectRepositoryRelease(ctx context.Context, request DetectRepositoryReleaseRequestObject) (DetectRepositoryReleaseResponseObject, error)
+
+	// (POST /repositories/{repositoryId}/release/test)
+	TestRepositoryRelease(ctx context.Context, request TestRepositoryReleaseRequestObject) (TestRepositoryReleaseResponseObject, error)
 
 	// (GET /repositories/{repositoryId}/status)
 	GetRepositoryStatus(ctx context.Context, request GetRepositoryStatusRequestObject) (GetRepositoryStatusResponseObject, error)
@@ -21347,8 +22857,14 @@ type StrictServerInterface interface {
 	// (POST /tasks/{taskId}/cancel)
 	CancelTask(ctx context.Context, request CancelTaskRequestObject) (CancelTaskResponseObject, error)
 
+	// (POST /tasks/{taskId}/commit-message)
+	RewordTaskCommit(ctx context.Context, request RewordTaskCommitRequestObject) (RewordTaskCommitResponseObject, error)
+
 	// (POST /tasks/{taskId}/extract-memories)
 	ExtractTaskMemories(ctx context.Context, request ExtractTaskMemoriesRequestObject) (ExtractTaskMemoriesResponseObject, error)
+
+	// (GET /tasks/{taskId}/release)
+	GetTaskRelease(ctx context.Context, request GetTaskReleaseRequestObject) (GetTaskReleaseResponseObject, error)
 
 	// (POST /tasks/{taskId}/run)
 	RunTask(ctx context.Context, request RunTaskRequestObject) (RunTaskResponseObject, error)
@@ -22476,6 +23992,32 @@ func (sh *strictHandler) GetEmbeddingStatus(w http.ResponseWriter, r *http.Reque
 	}
 }
 
+// GetCosts operation middleware
+func (sh *strictHandler) GetCosts(w http.ResponseWriter, r *http.Request, params GetCostsParams) {
+	var request GetCostsRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetCosts(ctx, request.(GetCostsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetCosts")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetCostsResponseObject); ok {
+		if err := validResponse.VisitGetCostsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // DeleteEvalCase operation middleware
 func (sh *strictHandler) DeleteEvalCase(w http.ResponseWriter, r *http.Request, caseId openapi_types.UUID) {
 	var request DeleteEvalCaseRequestObject
@@ -23452,6 +24994,30 @@ func (sh *strictHandler) GetModelsOverview(w http.ResponseWriter, r *http.Reques
 	}
 }
 
+// GetMonitor operation middleware
+func (sh *strictHandler) GetMonitor(w http.ResponseWriter, r *http.Request) {
+	var request GetMonitorRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetMonitor(ctx, request.(GetMonitorRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetMonitor")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetMonitorResponseObject); ok {
+		if err := validResponse.VisitGetMonitorResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // DeleteProjectResource operation middleware
 func (sh *strictHandler) DeleteProjectResource(w http.ResponseWriter, r *http.Request, resourceId ResourceId) {
 	var request DeleteProjectResourceRequestObject
@@ -23613,6 +25179,33 @@ func (sh *strictHandler) UpdateProject(w http.ResponseWriter, r *http.Request, p
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(UpdateProjectResponseObject); ok {
 		if err := validResponse.VisitUpdateProjectResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetProjectActivity operation middleware
+func (sh *strictHandler) GetProjectActivity(w http.ResponseWriter, r *http.Request, projectId ProjectId, params GetProjectActivityParams) {
+	var request GetProjectActivityRequestObject
+
+	request.ProjectId = projectId
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetProjectActivity(ctx, request.(GetProjectActivityRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetProjectActivity")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetProjectActivityResponseObject); ok {
+		if err := validResponse.VisitGetProjectActivityResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -23923,6 +25516,65 @@ func (sh *strictHandler) CreateIntegration(w http.ResponseWriter, r *http.Reques
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(CreateIntegrationResponseObject); ok {
 		if err := validResponse.VisitCreateIntegrationResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetProjectReleasePolicy operation middleware
+func (sh *strictHandler) GetProjectReleasePolicy(w http.ResponseWriter, r *http.Request, projectId ProjectId) {
+	var request GetProjectReleasePolicyRequestObject
+
+	request.ProjectId = projectId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetProjectReleasePolicy(ctx, request.(GetProjectReleasePolicyRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetProjectReleasePolicy")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetProjectReleasePolicyResponseObject); ok {
+		if err := validResponse.VisitGetProjectReleasePolicyResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// SetProjectReleasePolicy operation middleware
+func (sh *strictHandler) SetProjectReleasePolicy(w http.ResponseWriter, r *http.Request, projectId ProjectId) {
+	var request SetProjectReleasePolicyRequestObject
+
+	request.ProjectId = projectId
+
+	var body SetProjectReleasePolicyJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.SetProjectReleasePolicy(ctx, request.(SetProjectReleasePolicyRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SetProjectReleasePolicy")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(SetProjectReleasePolicyResponseObject); ok {
+		if err := validResponse.VisitSetProjectReleasePolicyResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -24524,6 +26176,117 @@ func (sh *strictHandler) InspectRepository(w http.ResponseWriter, r *http.Reques
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(InspectRepositoryResponseObject); ok {
 		if err := validResponse.VisitInspectRepositoryResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetRepositoryRelease operation middleware
+func (sh *strictHandler) GetRepositoryRelease(w http.ResponseWriter, r *http.Request, repositoryId openapi_types.UUID) {
+	var request GetRepositoryReleaseRequestObject
+
+	request.RepositoryId = repositoryId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetRepositoryRelease(ctx, request.(GetRepositoryReleaseRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetRepositoryRelease")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetRepositoryReleaseResponseObject); ok {
+		if err := validResponse.VisitGetRepositoryReleaseResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// SetRepositoryRelease operation middleware
+func (sh *strictHandler) SetRepositoryRelease(w http.ResponseWriter, r *http.Request, repositoryId openapi_types.UUID) {
+	var request SetRepositoryReleaseRequestObject
+
+	request.RepositoryId = repositoryId
+
+	var body SetRepositoryReleaseJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.SetRepositoryRelease(ctx, request.(SetRepositoryReleaseRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SetRepositoryRelease")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(SetRepositoryReleaseResponseObject); ok {
+		if err := validResponse.VisitSetRepositoryReleaseResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DetectRepositoryRelease operation middleware
+func (sh *strictHandler) DetectRepositoryRelease(w http.ResponseWriter, r *http.Request, repositoryId openapi_types.UUID) {
+	var request DetectRepositoryReleaseRequestObject
+
+	request.RepositoryId = repositoryId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DetectRepositoryRelease(ctx, request.(DetectRepositoryReleaseRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DetectRepositoryRelease")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DetectRepositoryReleaseResponseObject); ok {
+		if err := validResponse.VisitDetectRepositoryReleaseResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// TestRepositoryRelease operation middleware
+func (sh *strictHandler) TestRepositoryRelease(w http.ResponseWriter, r *http.Request, repositoryId openapi_types.UUID) {
+	var request TestRepositoryReleaseRequestObject
+
+	request.RepositoryId = repositoryId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.TestRepositoryRelease(ctx, request.(TestRepositoryReleaseRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "TestRepositoryRelease")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(TestRepositoryReleaseResponseObject); ok {
+		if err := validResponse.VisitTestRepositoryReleaseResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -25565,6 +27328,39 @@ func (sh *strictHandler) CancelTask(w http.ResponseWriter, r *http.Request, task
 	}
 }
 
+// RewordTaskCommit operation middleware
+func (sh *strictHandler) RewordTaskCommit(w http.ResponseWriter, r *http.Request, taskId openapi_types.UUID) {
+	var request RewordTaskCommitRequestObject
+
+	request.TaskId = taskId
+
+	var body RewordTaskCommitJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RewordTaskCommit(ctx, request.(RewordTaskCommitRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RewordTaskCommit")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RewordTaskCommitResponseObject); ok {
+		if err := validResponse.VisitRewordTaskCommitResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // ExtractTaskMemories operation middleware
 func (sh *strictHandler) ExtractTaskMemories(w http.ResponseWriter, r *http.Request, taskId TaskId) {
 	var request ExtractTaskMemoriesRequestObject
@@ -25584,6 +27380,32 @@ func (sh *strictHandler) ExtractTaskMemories(w http.ResponseWriter, r *http.Requ
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(ExtractTaskMemoriesResponseObject); ok {
 		if err := validResponse.VisitExtractTaskMemoriesResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetTaskRelease operation middleware
+func (sh *strictHandler) GetTaskRelease(w http.ResponseWriter, r *http.Request, taskId openapi_types.UUID) {
+	var request GetTaskReleaseRequestObject
+
+	request.TaskId = taskId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetTaskRelease(ctx, request.(GetTaskReleaseRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetTaskRelease")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetTaskReleaseResponseObject); ok {
+		if err := validResponse.VisitGetTaskReleaseResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

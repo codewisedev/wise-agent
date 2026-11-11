@@ -7,10 +7,13 @@ import (
 	"time"
 	"wise/apps/api/internal/codeindex"
 	"wise/apps/api/internal/codingruns"
+	"wise/apps/api/internal/costs"
 	"wise/apps/api/internal/feedback"
 	"wise/apps/api/internal/improvement"
 	"wise/apps/api/internal/insights"
 	"wise/apps/api/internal/memory"
+	"wise/apps/api/internal/monitor"
+	"wise/apps/api/internal/release"
 	"wise/apps/api/internal/workspaces"
 
 	"wise/apps/api/internal/accounts"
@@ -51,7 +54,12 @@ type Server struct {
 	Feedback     *feedback.Service
 	Insights     *insights.Service
 	Improvement  *improvement.Service
-	Cookie       CookieConfig
+	Release      *release.Service
+	Monitor      *monitor.Service
+	Costs        *costs.Service
+	// GitWorkerToken authenticates the trusted git worker on the internal git routes.
+	GitWorkerToken string
+	Cookie         CookieConfig
 	// RuntimeToken authenticates agent runtimes claiming runs (empty disables the runtime API).
 	RuntimeToken string
 	// WSOriginPatterns are extra Origin host patterns accepted for WebSockets.
